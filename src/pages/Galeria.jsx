@@ -1,0 +1,1 @@
+export default function Galeria() { return <div>Galeria Page</div>; }

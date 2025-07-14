@@ -1,0 +1,1 @@
+export default function SerraNegra() { return <div>SerraNegra Page</div>; }
