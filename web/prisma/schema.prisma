@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RoomType {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  capacity    Int
+  totalUnits  Int      @default(1)
+  basePrice   Decimal
+  amenities   String   // JSON string or comma separated
+  photos      Photo[]
+  bookings    Booking[]
+  rates       Rate[]
+  inventory   InventoryAdjustment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Photo {
+  id          String   @id @default(uuid())
+  url         String
+  roomTypeId  String
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+}
+
+model Rate {
+  id          String   @id @default(uuid())
+  roomTypeId  String
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  price       Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InventoryAdjustment {
+  id          String   @id @default(uuid())
+  roomTypeId  String
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  date        DateTime
+  totalUnits  Int      // Total available units for this specific date
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([roomTypeId, date])
+}
+
+model Guest {
+  id          String    @id @default(uuid())
+  name        String
+  email       String
+  phone       String
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  guestId     String
+  guest       Guest    @relation(fields: [guestId], references: [id])
+  roomTypeId  String
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
+  checkIn     DateTime
+  checkOut    DateTime
+  totalPrice  Decimal
+  status      String   // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  payment     Payment?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  bookingId     String   @unique
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  amount        Decimal
+  provider      String   // MERCADOPAGO
+  providerId    String?  // Mercado Pago Payment ID
+  status        String   // PENDING, APPROVED, REJECTED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AdminUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
