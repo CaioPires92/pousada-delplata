@@ -51,7 +51,19 @@ export async function POST(request: Request) {
         const checkInDate = new Date(booking.checkIn).toLocaleDateString('pt-BR');
         const checkOutDate = new Date(booking.checkOut).toLocaleDateString('pt-BR');
 
-        const preferenceData = {
+        // Get base URL from environment or use localhost
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+        // Validate phone number
+        const phoneNumber = booking.guest.phone.replace(/\D/g, ''); // Remove non-digits
+        if (phoneNumber.length < 10) {
+            return NextResponse.json(
+                { error: 'Invalid phone number format' },
+                { status: 400 }
+            );
+        }
+
+        const preferenceData: any = {
             items: [
                 {
                     id: booking.roomType.id,
@@ -66,21 +78,23 @@ export async function POST(request: Request) {
                 name: booking.guest.name,
                 email: booking.guest.email,
                 phone: {
-                    area_code: booking.guest.phone.substring(0, 2),
-                    number: booking.guest.phone.substring(2),
+                    area_code: phoneNumber.substring(0, 2),
+                    number: phoneNumber.substring(2),
                 },
             },
             back_urls: {
-                success: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/reservar/confirmacao/${booking.id}?status=approved`,
-                failure: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/reservar/confirmacao/${booking.id}?status=rejected`,
-                pending: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/reservar/confirmacao/${booking.id}?status=pending`,
+                success: `${baseUrl}/reservar/confirmacao/${booking.id}?status=approved`,
+                failure: `${baseUrl}/reservar/confirmacao/${booking.id}?status=rejected`,
+                pending: `${baseUrl}/reservar/confirmacao/${booking.id}?status=pending`,
             },
-            auto_return: 'approved' as const,
+            // auto_return: 'approved', // Temporarily disabled to test
             external_reference: booking.id,
-            notification_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/webhooks/mercadopago`,
+            notification_url: `${baseUrl}/api/webhooks/mercadopago`,
             statement_descriptor: 'POUSADA DELPLATA',
         };
 
+        console.log('Base URL:', baseUrl);
+        console.log('Creating preference with data:', JSON.stringify(preferenceData, null, 2));
         const result = await preference.create({ body: preferenceData });
 
         // Salvar ID da preferência no Payment
@@ -89,8 +103,8 @@ export async function POST(request: Request) {
                 bookingId: booking.id,
                 amount: booking.totalPrice,
                 status: 'PENDING',
-                paymentMethod: 'MERCADO_PAGO',
-                transactionId: result.id || '',
+                provider: 'MERCADOPAGO',
+                providerId: result.id || '',
             },
         });
 
