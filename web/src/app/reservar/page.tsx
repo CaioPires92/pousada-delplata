@@ -33,6 +33,7 @@ export default function ReservarPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [processing, setProcessing] = useState(false);
 
     useEffect(() => {
         if (checkIn && checkOut) {
@@ -79,7 +80,10 @@ export default function ReservarPage() {
         }
 
         try {
-            const response = await fetch('/api/bookings', {
+            setProcessing(true);
+
+            // 1. Criar a reserva
+            const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -91,15 +95,34 @@ export default function ReservarPage() {
                 }),
             });
 
-            if (!response.ok) throw new Error('Erro ao criar reserva');
+            if (!bookingResponse.ok) throw new Error('Erro ao criar reserva');
 
-            const booking = await response.json();
+            const booking = await bookingResponse.json();
 
-            // Redirecionar para página de pagamento (Mercado Pago será integrado depois)
-            alert(`Reserva criada com sucesso! ID: ${booking.id}\n\nAguarde integração com Mercado Pago...`);
+            // 2. Criar preferência de pagamento no Mercado Pago
+            const mpResponse = await fetch('/api/mercadopago/create-preference', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookingId: booking.id }),
+            });
 
-        } catch (err) {
-            alert('Erro ao criar reserva. Tente novamente.');
+            if (!mpResponse.ok) throw new Error('Erro ao gerar link de pagamento');
+
+            const { sandboxInitPoint, initPoint } = await mpResponse.json();
+
+            // 3. Redirecionar para o Mercado Pago
+            const paymentUrl = sandboxInitPoint || initPoint;
+
+            if (paymentUrl) {
+                window.location.href = paymentUrl;
+            } else {
+                throw new Error('URL de pagamento não gerada');
+            }
+
+        } catch (err: any) {
+            console.error(err);
+            alert(`Erro: ${err.message || 'Erro ao processar reserva. Tente novamente.'}`);
+            setProcessing(false);
         }
     };
 
@@ -194,6 +217,7 @@ export default function ReservarPage() {
                                 required
                                 value={guest.name}
                                 onChange={(e) => setGuest({ ...guest, name: e.target.value })}
+                                disabled={processing}
                             />
                         </div>
 
@@ -205,6 +229,7 @@ export default function ReservarPage() {
                                 required
                                 value={guest.email}
                                 onChange={(e) => setGuest({ ...guest, email: e.target.value })}
+                                disabled={processing}
                             />
                         </div>
 
@@ -216,6 +241,7 @@ export default function ReservarPage() {
                                 required
                                 value={guest.phone}
                                 onChange={(e) => setGuest({ ...guest, phone: e.target.value })}
+                                disabled={processing}
                             />
                         </div>
 
@@ -225,13 +251,19 @@ export default function ReservarPage() {
                                     type="checkbox"
                                     checked={termsAccepted}
                                     onChange={(e) => setTermsAccepted(e.target.checked)}
+                                    disabled={processing}
                                 />
                                 <span>Aceito os termos e condições e políticas de privacidade</span>
                             </label>
                         </div>
 
-                        <button type="submit" className="btn-primary" style={{ width: '100%', padding: '1rem' }}>
-                            Finalizar Reserva
+                        <button
+                            type="submit"
+                            className="btn-primary"
+                            style={{ width: '100%', padding: '1rem' }}
+                            disabled={processing}
+                        >
+                            {processing ? 'Processando...' : 'Ir para Pagamento'}
                         </button>
                     </form>
                 </>
