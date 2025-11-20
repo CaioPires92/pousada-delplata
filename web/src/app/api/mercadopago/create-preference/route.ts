@@ -87,7 +87,7 @@ export async function POST(request: Request) {
                 failure: `${baseUrl}/reservar/confirmacao/${booking.id}?status=rejected`,
                 pending: `${baseUrl}/reservar/confirmacao/${booking.id}?status=pending`,
             },
-            // auto_return: 'approved', // Temporarily disabled to test
+            auto_return: 'approved',
             external_reference: booking.id,
             notification_url: `${baseUrl}/api/webhooks/mercadopago`,
             statement_descriptor: 'POUSADA DELPLATA',

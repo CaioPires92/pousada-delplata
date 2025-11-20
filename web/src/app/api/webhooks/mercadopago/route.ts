@@ -93,8 +93,7 @@ export async function POST(request: Request) {
                 where: { id: booking.payment.id },
                 data: {
                     status: paymentStatus,
-                    transactionId: paymentId.toString(),
-                    paidAt: paymentInfo.status === 'approved' ? new Date() : null,
+                    providerId: paymentId.toString(),
                 },
             });
         }
