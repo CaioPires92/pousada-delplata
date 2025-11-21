@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { MercadoPagoConfig, Preference } from 'mercadopago';
 import prisma from '@/lib/prisma';
 
 export async function POST(request: Request) {
@@ -40,13 +39,6 @@ export async function POST(request: Request) {
             );
         }
 
-        const client = new MercadoPagoConfig({
-            accessToken,
-            options: { timeout: 5000 }
-        });
-
-        const preference = new Preference(client);
-
         // Criar preferência de pagamento
         const checkInDate = new Date(booking.checkIn).toLocaleDateString('pt-BR');
         const checkOutDate = new Date(booking.checkOut).toLocaleDateString('pt-BR');
@@ -62,6 +54,10 @@ export async function POST(request: Request) {
                 { status: 400 }
             );
         }
+
+        // auto_return only works with public URLs (not localhost)
+        // Enable it in production by checking if base URL is https
+        const isProduction = baseUrl.startsWith('https://');
 
         const preferenceData: any = {
             items: [
@@ -87,7 +83,7 @@ export async function POST(request: Request) {
                 failure: `${baseUrl}/reservar/confirmacao/${booking.id}?status=rejected`,
                 pending: `${baseUrl}/reservar/confirmacao/${booking.id}?status=pending`,
             },
-            auto_return: 'approved',
+            ...(isProduction && { auto_return: 'approved' }), // Only in production
             external_reference: booking.id,
             notification_url: `${baseUrl}/api/webhooks/mercadopago`,
             statement_descriptor: 'POUSADA DELPLATA',
@@ -95,7 +91,24 @@ export async function POST(request: Request) {
 
         console.log('Base URL:', baseUrl);
         console.log('Creating preference with data:', JSON.stringify(preferenceData, null, 2));
-        const result = await preference.create({ body: preferenceData });
+
+        // Use direct API call instead of SDK - SDK has a bug with auto_return
+        const apiResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify(preferenceData),
+        });
+
+        if (!apiResponse.ok) {
+            const errorData = await apiResponse.json();
+            console.error('Mercado Pago API error:', errorData);
+            throw new Error(errorData.message || 'Failed to create preference');
+        }
+
+        const result = await apiResponse.json();
 
         // Salvar ID da preferência no Payment
         await prisma.payment.create({
