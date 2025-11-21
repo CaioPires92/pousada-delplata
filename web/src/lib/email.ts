@@ -1,9 +1,14 @@
 import nodemailer from 'nodemailer';
 
+// Validar configuração SMTP
+if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('⚠️ SMTP não configurado. Configure SMTP_USER e SMTP_PASS no .env para enviar emails.');
+}
+
 // Configurar transporter
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
+    port: Number(process.env.SMTP_PORT) || 587,
     secure: false, // true para 465, false para outras portas
     auth: {
         user: process.env.SMTP_USER,
@@ -22,6 +27,15 @@ interface BookingEmailData {
 }
 
 export async function sendBookingConfirmationEmail(data: BookingEmailData) {
+    // Verificar se SMTP está configurado
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.error('❌ SMTP não configurado. Configure SMTP_USER e SMTP_PASS no .env');
+        return {
+            success: false,
+            error: 'SMTP not configured. Please set SMTP_USER and SMTP_PASS in .env file'
+        };
+    }
+
     const { guestName, guestEmail, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
 
     const checkInFormatted = new Date(checkIn).toLocaleDateString('pt-BR', {
