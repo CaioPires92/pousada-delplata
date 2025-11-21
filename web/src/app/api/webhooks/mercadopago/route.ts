@@ -51,7 +51,11 @@ export async function POST(request: Request) {
         // Buscar a reserva
         const booking = await prisma.booking.findUnique({
             where: { id: bookingId },
-            include: { payment: true },
+            include: {
+                payment: true,
+                guest: true,
+                roomType: true,
+            },
         });
 
         if (!booking) {
@@ -99,6 +103,31 @@ export async function POST(request: Request) {
         }
 
         console.log(`Booking ${bookingId} updated to ${bookingStatus}`);
+
+        // Enviar email de confirmação se pagamento aprovado
+        if (paymentInfo.status === 'approved') {
+            try {
+                const { sendBookingConfirmationEmail } = await import('@/lib/email');
+
+                // Enviar email de forma assíncrona (não bloquear resposta do webhook)
+                sendBookingConfirmationEmail({
+                    guestName: booking.guest.name,
+                    guestEmail: booking.guest.email,
+                    bookingId: booking.id,
+                    roomName: booking.roomType.name,
+                    checkIn: booking.checkIn,
+                    checkOut: booking.checkOut,
+                    totalPrice: Number(booking.totalPrice),
+                }).catch(error => {
+                    console.error('Erro ao enviar email de confirmação:', error);
+                });
+
+                console.log(`Email de confirmação será enviado para ${booking.guest.email}`);
+            } catch (emailError) {
+                console.error('Erro ao carregar módulo de email:', emailError);
+                // Não falhar o webhook se email falhar
+            }
+        }
 
         return NextResponse.json({
             message: 'Webhook processed successfully',
