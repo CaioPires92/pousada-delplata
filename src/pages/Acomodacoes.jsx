@@ -1,1 +1,0 @@
-export default function Acomodacoes() { return <div>Acomodacoes Page</div>; }

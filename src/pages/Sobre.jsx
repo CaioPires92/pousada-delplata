@@ -1,1 +1,0 @@
-export default function Sobre() { return <div>Sobre Page</div>; }
