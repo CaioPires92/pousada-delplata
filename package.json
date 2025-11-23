@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@libsql/client": "^0.15.15",
+    "@prisma/adapter-libsql": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "prisma": "^7.0.0"
+  }
+}

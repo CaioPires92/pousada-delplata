@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   // Turbopack configuration for Next.js 16+
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
+    rules: {
+      // Ignore LICENSE and other text files
+      '*.{md,txt,LICENSE}': {
+        loaders: ['raw-loader'],
+      },
+    },
   },
   // Keep webpack config for backward compatibility
   webpack: (config, { isServer }) => {
