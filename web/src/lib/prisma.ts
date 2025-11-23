@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaLibSQL } from '@prisma/adapter-libsql';
-import { createClient } from '@libsql/client';
+import { PrismaLibSql } from '@prisma/adapter-libsql';
 
 declare global {
   var prisma: PrismaClient | undefined;
@@ -11,12 +10,11 @@ let prisma: PrismaClient;
 // Check if we're using Turso (DATABASE_AUTH_TOKEN is only needed for Turso)
 if (process.env.DATABASE_AUTH_TOKEN) {
   // Production: Use Turso with LibSQL
-  const libsql = createClient({
+  const adapter = new PrismaLibSql({
     url: process.env.DATABASE_URL!,
     authToken: process.env.DATABASE_AUTH_TOKEN,
   });
 
-  const adapter = new PrismaLibSQL(libsql);
   prisma = new PrismaClient({ adapter });
 } else {
   // Development: Use local SQLite
