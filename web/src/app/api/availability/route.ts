@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { eachDayOfInterval, format } from 'date-fns';
 
+// Force dynamic rendering - don't try to build this route at build time
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const checkIn = searchParams.get('checkIn');
