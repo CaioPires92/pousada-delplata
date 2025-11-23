@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import styles from './reservar.module.css';
 
 interface Room {
@@ -20,7 +20,7 @@ interface Guest {
     phone: string;
 }
 
-export default function ReservarPage() {
+function ReservarContent() {
     const searchParams = useSearchParams();
     const checkIn = searchParams.get('checkIn');
     const checkOut = searchParams.get('checkOut');
@@ -269,5 +269,17 @@ export default function ReservarPage() {
                 </>
             )}
         </main>
+    );
+}
+
+export default function ReservarPage() {
+    return (
+        <Suspense fallback={
+            <main className="container section">
+                <div className={styles.loading}>Carregando...</div>
+            </main>
+        }>
+            <ReservarContent />
+        </Suspense>
     );
 }
