@@ -81,8 +81,10 @@ function ReservarContent() {
 
         try {
             setProcessing(true);
+            console.log('[Payment Flow] Starting payment process...');
 
             // 1. Criar a reserva
+            console.log('[Payment Flow] Creating booking...');
             const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -95,33 +97,52 @@ function ReservarContent() {
                 }),
             });
 
-            if (!bookingResponse.ok) throw new Error('Erro ao criar reserva');
+            if (!bookingResponse.ok) {
+                const errorData = await bookingResponse.json().catch(() => ({}));
+                console.error('[Payment Flow] Booking creation failed:', errorData);
+                throw new Error(errorData.error || 'Erro ao criar reserva');
+            }
 
             const booking = await bookingResponse.json();
+            console.log('[Payment Flow] Booking created:', booking.id);
 
             // 2. Criar preferência de pagamento no Mercado Pago
+            console.log('[Payment Flow] Creating payment preference...');
             const mpResponse = await fetch('/api/mercadopago/create-preference', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ bookingId: booking.id }),
             });
 
-            if (!mpResponse.ok) throw new Error('Erro ao gerar link de pagamento');
+            if (!mpResponse.ok) {
+                const errorData = await mpResponse.json().catch(() => ({}));
+                console.error('[Payment Flow] Payment preference creation failed:', errorData);
+                throw new Error(errorData.details || 'Erro ao gerar link de pagamento');
+            }
 
             const { sandboxInitPoint, initPoint } = await mpResponse.json();
+            console.log('[Payment Flow] Payment preference created successfully');
 
             // 3. Redirecionar para o Mercado Pago
             const paymentUrl = sandboxInitPoint || initPoint;
 
             if (paymentUrl) {
+                console.log('[Payment Flow] Redirecting to Mercado Pago...');
                 window.location.href = paymentUrl;
             } else {
                 throw new Error('URL de pagamento não gerada');
             }
 
         } catch (err: any) {
-            console.error(err);
-            alert(`Erro: ${err.message || 'Erro ao processar reserva. Tente novamente.'}`);
+            console.error('[Payment Flow] Error occurred:', err);
+
+            let errorMessage = 'Erro ao processar reserva. Tente novamente.';
+
+            if (err.message) {
+                errorMessage = err.message;
+            }
+
+            alert(errorMessage);
             setProcessing(false);
         }
     };

@@ -31,12 +31,24 @@ export async function POST(request: Request) {
 
         // Configurar Mercado Pago
         const accessToken = process.env.MP_ACCESS_TOKEN;
+        const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
+
+        console.log('[MP] Environment check:', {
+            hasAccessToken: !!accessToken,
+            hasPublicKey: !!publicKey,
+            accessTokenLength: accessToken?.length || 0,
+        });
 
         if (!accessToken) {
+            console.error('[MP] MP_ACCESS_TOKEN not configured');
             return NextResponse.json(
-                { error: 'Mercado Pago not configured' },
+                { error: 'Mercado Pago not configured - missing access token' },
                 { status: 500 }
             );
+        }
+
+        if (!publicKey) {
+            console.warn('[MP] NEXT_PUBLIC_MP_PUBLIC_KEY not configured (optional for Checkout Pro)');
         }
 
         // Criar preferência de pagamento
@@ -103,12 +115,30 @@ export async function POST(request: Request) {
         });
 
         if (!apiResponse.ok) {
-            const errorData = await apiResponse.json();
-            console.error('Mercado Pago API error:', errorData);
-            throw new Error(errorData.message || 'Failed to create preference');
+            const errorData = await apiResponse.json().catch(() => ({ message: 'Unknown error' }));
+            console.error('[MP] API error response:', {
+                status: apiResponse.status,
+                statusText: apiResponse.statusText,
+                error: errorData,
+            });
+
+            return NextResponse.json(
+                {
+                    error: 'Failed to create payment preference',
+                    details: errorData.message || `HTTP ${apiResponse.status}`,
+                    mpError: errorData
+                },
+                { status: apiResponse.status }
+            );
         }
 
         const result = await apiResponse.json();
+
+        console.log('[MP] Preference created successfully:', {
+            preferenceId: result.id,
+            hasInitPoint: !!result.init_point,
+            hasSandboxInitPoint: !!result.sandbox_init_point,
+        });
 
         // Salvar ID da preferência no Payment
         await prisma.payment.create({
