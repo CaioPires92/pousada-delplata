@@ -1,7 +1,21 @@
 const { PrismaClient } = require('@prisma/client');
+const { PrismaLibSQL } = require('@prisma/adapter-libsql');
+const { createClient } = require('@libsql/client');
 const bcrypt = require('bcryptjs');
 
-const prisma = new PrismaClient();
+let prisma;
+
+if (process.env.DATABASE_AUTH_TOKEN) {
+    const libsql = createClient({
+        url: process.env.DATABASE_URL,
+        authToken: process.env.DATABASE_AUTH_TOKEN,
+    });
+
+    const adapter = new PrismaLibSQL(libsql);
+    prisma = new PrismaClient({ adapter });
+} else {
+    prisma = new PrismaClient();
+}
 
 async function seed() {
     console.log('🌱 Seeding database with sample data...');
