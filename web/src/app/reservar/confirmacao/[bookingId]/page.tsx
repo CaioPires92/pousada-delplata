@@ -1,127 +1,132 @@
-import { notFound } from 'next/navigation';
-import prisma from '@/lib/prisma';
-import styles from './confirmacao.module.css';
+'use client';
 
-export const dynamic = 'force-dynamic';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 
-async function getBooking(id: string) {
-    const booking = await prisma.booking.findUnique({
-        where: { id },
-        include: {
-            roomType: true,
-            guest: true,
-            payment: true,
-        },
-    });
-    return booking;
-}
+export default function ConfirmacaoPage() {
+    const params = useParams();
+    const searchParams = useSearchParams();
+    const bookingId = params.bookingId as string;
+    const status = searchParams.get('status');
 
-export default async function ConfirmacaoPage({
-    params,
-    searchParams,
-}: {
-    params: Promise<{ bookingId: string }>;
-    searchParams: Promise<{ status?: string }>;
-}) {
-    const { bookingId } = await params;
-    const { status } = await searchParams;
+    const [booking, setBooking] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    const booking = await getBooking(bookingId);
+    useEffect(() => {
+        if (bookingId) {
+            fetchBooking();
+        }
+    }, [bookingId]);
 
-    if (!booking) {
-        notFound();
-    }
-
-    const statusMessages = {
-        approved: {
-            title: '✅ Pagamento Aprovado!',
-            message: 'Sua reserva foi confirmada com sucesso.',
-            color: '#4caf50',
-        },
-        pending: {
-            title: '⏳ Pagamento Pendente',
-            message: 'Aguardando confirmação do pagamento.',
-            color: '#ff9800',
-        },
-        rejected: {
-            title: '❌ Pagamento Recusado',
-            message: 'Não foi possível processar o pagamento. Tente novamente.',
-            color: '#f44336',
-        },
-        default: {
-            title: '📋 Detalhes da Reserva',
-            message: 'Reserva criada. Aguardando pagamento.',
-            color: '#2196f3',
-        },
+    const fetchBooking = async () => {
+        try {
+            const response = await fetch(`/api/bookings/${bookingId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setBooking(data);
+            }
+        } catch (error) {
+            console.error('Error fetching booking:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const currentStatus = statusMessages[status as keyof typeof statusMessages] || statusMessages.default;
+    const getStatusInfo = () => {
+        switch (status) {
+            case 'approved':
+                return {
+                    title: '✅ Pagamento Aprovado!',
+                    message: 'Sua reserva foi confirmada com sucesso.',
+                    color: '#4CAF50',
+                };
+            case 'pending':
+                return {
+                    title: '⏳ Pagamento Pendente',
+                    message: 'Seu pagamento está sendo processado. Você receberá um email quando for confirmado.',
+                    color: '#FF9800',
+                };
+            case 'rejected':
+                return {
+                    title: '❌ Pagamento Recusado',
+                    message: 'Não foi possível processar seu pagamento. Tente novamente.',
+                    color: '#F44336',
+                };
+            default:
+                return {
+                    title: '📋 Reserva Criada',
+                    message: 'Sua reserva foi registrada.',
+                    color: '#2196F3',
+                };
+        }
+    };
+
+    const statusInfo = getStatusInfo();
+
+    if (loading) {
+        return (
+            <main className="container section">
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                    <p>Carregando informações da reserva...</p>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="container section">
-            <div className={styles.confirmation} style={{ borderColor: currentStatus.color }}>
-                <h1 style={{ color: currentStatus.color }}>{currentStatus.title}</h1>
-                <p className={styles.message}>{currentStatus.message}</p>
+            <div style={{
+                maxWidth: '600px',
+                margin: '0 auto',
+                textAlign: 'center',
+                padding: '2rem',
+                border: `3px solid ${statusInfo.color}`,
+                borderRadius: '8px',
+                backgroundColor: '#f9f9f9',
+            }}>
+                <h1 style={{ color: statusInfo.color, marginBottom: '1rem' }}>
+                    {statusInfo.title}
+                </h1>
+                <p style={{ fontSize: '1.1rem', marginBottom: '2rem' }}>
+                    {statusInfo.message}
+                </p>
 
-                <div className={styles.bookingDetails}>
-                    <h2>Detalhes da Reserva</h2>
-
-                    <div className={styles.detail}>
-                        <strong>Número da Reserva:</strong>
-                        <span>{booking.id.slice(0, 8).toUpperCase()}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Quarto:</strong>
-                        <span>{booking.roomType.name}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Hóspede:</strong>
-                        <span>{booking.guest.name}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Email:</strong>
-                        <span>{booking.guest.email}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Check-in:</strong>
-                        <span>{new Date(booking.checkIn).toLocaleDateString('pt-BR')}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Check-out:</strong>
-                        <span>{new Date(booking.checkOut).toLocaleDateString('pt-BR')}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Total:</strong>
-                        <span className={styles.total}>R$ {Number(booking.totalPrice).toFixed(2)}</span>
-                    </div>
-
-                    <div className={styles.detail}>
-                        <strong>Status:</strong>
-                        <span className={styles.status} style={{ color: currentStatus.color }}>
-                            {booking.status === 'CONFIRMED' ? 'Confirmada' :
-                                booking.status === 'CANCELLED' ? 'Cancelada' : 'Pendente'}
-                        </span>
-                    </div>
-                </div>
-
-                {booking.status === 'CONFIRMED' && (
-                    <div className={styles.instructions}>
-                        <h3>Instruções de Check-in</h3>
-                        <p>• Check-in: A partir das 14h</p>
-                        <p>• Check-out: Até às 12h</p>
-                        <p>• Apresente este número de reserva na recepção: <strong>{booking.id.slice(0, 8).toUpperCase()}</strong></p>
-                        <p>• Em caso de dúvidas, entre em contato: (XX) XXXX-XXXX</p>
+                {booking && (
+                    <div style={{
+                        backgroundColor: 'white',
+                        padding: '1.5rem',
+                        borderRadius: '8px',
+                        marginBottom: '2rem',
+                        textAlign: 'left',
+                    }}>
+                        <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>Detalhes da Reserva</h2>
+                        <p><strong>Código:</strong> {booking.id.slice(0, 8).toUpperCase()}</p>
+                        <p><strong>Quarto:</strong> {booking.roomType?.name}</p>
+                        <p><strong>Hóspede:</strong> {booking.guest?.name}</p>
+                        <p><strong>Email:</strong> {booking.guest?.email}</p>
+                        <p><strong>Check-in:</strong> {new Date(booking.checkIn).toLocaleDateString('pt-BR')}</p>
+                        <p><strong>Check-out:</strong> {new Date(booking.checkOut).toLocaleDateString('pt-BR')}</p>
+                        <p><strong>Valor Total:</strong> R$ {Number(booking.totalPrice).toFixed(2)}</p>
+                        <p><strong>Status:</strong> {booking.status}</p>
                     </div>
                 )}
 
-                <div className={styles.actions}>
-                    <a href="/" className="btn-primary">Voltar para Home</a>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <Link href="/" className="btn-primary">
+                        Voltar ao Início
+                    </Link>
+                    {status === 'rejected' && (
+                        <Link href={`/reservar?checkIn=${booking?.checkIn}&checkOut=${booking?.checkOut}`} className="btn-secondary">
+                            Tentar Novamente
+                        </Link>
+                    )}
+                </div>
+
+                <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#666' }}>
+                    <p>Você receberá um email de confirmação em breve.</p>
+                    <p>Em caso de dúvidas, entre em contato conosco.</p>
                 </div>
             </div>
         </main>
