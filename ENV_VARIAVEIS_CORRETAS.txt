@@ -1,0 +1,33 @@
+# Database (Turso)
+DATABASE_URL=libsql://pousada-delplata-caiopires92.aws-us-west-2.turso.io
+DATABASE_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NjM5OTE1NjMsImlkIjoiZjY2ZmE3MDgtNTAyMS00NzAxLTg0M2UtMjk5YWRiOTQyYTZlIiwicmlkIjoiNTdhNmIyZDUtMDk5Yy00ZmJlLTg5NDItNGNhOTMzNzdiN2ZkIn0.959jJMdn6I6mNnFQHLzVz-Co5TqrXcUjudV-xI28iMCFA7IBtYoudtc-6zCcG8MjjZu-FBkbs5NGLp_b3_5QAA
+
+# Mercado Pago - CREDENCIAIS DE TESTE
+MP_ACCESS_TOKEN=TEST-1242598103832964-110108-885c9ac376c2197ba5cf7fa183b32a9b-39563078
+NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-f1fb1b94-ce74-4737-ac28-2fc49c5004e7
+MP_WEBHOOK_SECRET=459abb33f94cbfbb8aef051668b55e3464a6705ec1c1b75d96dbeefd0e6ebdbe
+
+# App URL (Vercel)
+NEXT_PUBLIC_APP_URL=https://pousada-delplata.vercel.app
+
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=caiocgp92@gmail.com
+SMTP_PASS=ypyoaenwewhsysbs
+
+# ============================================
+# INSTRUÇÕES PARA VERCEL:
+# ============================================
+# Adicione estas 10 variáveis no Vercel (Production, Preview, Development):
+#
+# 1. DATABASE_URL
+# 2. DATABASE_AUTH_TOKEN
+# 3. MP_ACCESS_TOKEN
+# 4. NEXT_PUBLIC_MP_PUBLIC_KEY
+# 5. MP_WEBHOOK_SECRET (NOVA - assinatura do webhook)
+# 6. NEXT_PUBLIC_APP_URL
+# 7. SMTP_HOST
+# 8. SMTP_PORT
+# 9. SMTP_USER
+# 10. SMTP_PASS

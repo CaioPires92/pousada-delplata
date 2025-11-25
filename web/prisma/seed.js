@@ -20,7 +20,11 @@ if (process.env.DATABASE_AUTH_TOKEN) {
 async function seed() {
     console.log('🌱 Seeding database with sample data...');
 
-    // Create Room Types
+    // Delete existing data
+    await prisma.photo.deleteMany();
+    await prisma.roomType.deleteMany();
+
+    // Create Room Types with R$ 0.10 for testing
     console.log('Creating room types...');
 
     const apartamentoSuperior = await prisma.roomType.create({
@@ -29,7 +33,7 @@ async function seed() {
             description: 'Conforto e vista privilegiada. Com ar-condicionado e ventilador de teto, próximo ao café da manhã.',
             capacity: 4,
             totalUnits: 3,
-            basePrice: 250.00,
+            basePrice: 0.10,
             amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
             photos: {
                 create: [
@@ -46,7 +50,7 @@ async function seed() {
             description: 'Acessibilidade e facilidade de acesso. Perfeito para famílias.',
             capacity: 3,
             totalUnits: 4,
-            basePrice: 200.00,
+            basePrice: 0.10,
             amenities: 'Ventilador de teto, TV, WiFi, Acessível',
             photos: {
                 create: [
@@ -62,7 +66,7 @@ async function seed() {
             description: 'Privacidade e contato com a natureza. Com varanda. Café da manhã a 70 metros.',
             capacity: 2,
             totalUnits: 2,
-            basePrice: 180.00,
+            basePrice: 0.10,
             amenities: 'Varanda, WiFi, Contato com natureza, Churrasqueira',
             photos: {
                 create: [
@@ -73,9 +77,9 @@ async function seed() {
         },
     });
 
-    console.log('✅ Room types created');
+    console.log('✅ Room types created with R$ 0.10 for testing');
 
-    // Create Rates for upcoming dates
+    // Create admin user
     const hashedPassword = await bcrypt.hash('admin123', 10);
     await prisma.adminUser.upsert({
         where: { email: 'admin@delplata.com.br' },
@@ -93,8 +97,8 @@ async function seed() {
     console.log('\n📝 Summary:');
     console.log(`- ${await prisma.roomType.count()} room types`);
     console.log(`- ${await prisma.photo.count()} photos`);
-    console.log(`- ${await prisma.rate.count()} rates`);
     console.log(`- ${await prisma.adminUser.count()} admin users`);
+    console.log('\n💰 All rooms set to R$ 0.10 for testing');
 }
 
 seed()
