@@ -11,7 +11,13 @@ export async function POST(request: NextRequest) {
     try {
         console.log('[Webhook] Received notification from Mercado Pago');
 
-        // 1. Validar assinatura do webhook (segurança)
+        // 1. Obter dados do webhook primeiro
+        const rawBody = await request.text();
+        const body = JSON.parse(rawBody);
+
+        console.log('[Webhook] Notification data:', JSON.stringify(body, null, 2));
+
+        // 2. Validar assinatura do webhook (segurança)
         const signature = request.headers.get('x-signature');
         const requestId = request.headers.get('x-request-id');
 
@@ -20,9 +26,43 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
-        // 2. Obter dados do webhook
-        const body = await request.json();
-        console.log('[Webhook] Notification data:', JSON.stringify(body, null, 2));
+        // Validar assinatura usando o secret do Mercado Pago
+        const webhookSecret = process.env.MP_WEBHOOK_SECRET;
+        if (webhookSecret) {
+            try {
+                // Extrair ts e v1 da assinatura
+                const parts = signature.split(',');
+                let ts = '';
+                let hash = '';
+
+                parts.forEach(part => {
+                    const [key, value] = part.trim().split('=');
+                    if (key === 'ts') ts = value;
+                    if (key === 'v1') hash = value;
+                });
+
+                // Criar string para validação
+                const dataId = body.data?.id || '';
+                const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+
+                // Calcular HMAC
+                const hmac = crypto
+                    .createHmac('sha256', webhookSecret)
+                    .update(manifest)
+                    .digest('hex');
+
+                if (hmac !== hash) {
+                    console.error('[Webhook] Invalid signature - possible fraud attempt');
+                    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+                }
+
+                console.log('[Webhook] Signature validated successfully');
+            } catch (signatureError) {
+                console.error('[Webhook] Error validating signature:', signatureError);
+            }
+        } else {
+            console.warn('[Webhook] MP_WEBHOOK_SECRET not configured - skipping signature validation');
+        }
 
         // 3. Verificar tipo de notificação
         if (body.type !== 'payment') {
@@ -69,9 +109,8 @@ export async function POST(request: NextRequest) {
         });
 
         // 6. Extrair informações importantes
-        const status = paymentData.status; // approved, pending, rejected, etc.
-        const externalReference = paymentData.external_reference; // bookingId
-        const transactionAmount = paymentData.transaction_amount;
+        const status = paymentData.status;
+        const externalReference = paymentData.external_reference;
         const paymentMethodId = paymentData.payment_method_id;
 
         if (!externalReference) {
@@ -147,7 +186,6 @@ export async function POST(request: NextRequest) {
                 console.log('[Webhook] Confirmation email sent successfully');
             } catch (emailError) {
                 console.error('[Webhook] Failed to send confirmation email:', emailError);
-                // Não falhar o webhook se o email falhar
             }
         }
 
