@@ -124,7 +124,7 @@ function ReservarContent() {
             console.log('[Payment Flow] Payment preference created successfully');
 
             // 3. Redirecionar para o Mercado Pago
-            const paymentUrl = sandboxInitPoint || initPoint;
+            const paymentUrl = initPoint || sandboxInitPoint;
 
             if (paymentUrl) {
                 console.log('[Payment Flow] Redirecting to Mercado Pago...');
