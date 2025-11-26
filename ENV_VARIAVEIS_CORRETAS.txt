@@ -1,31 +1,74 @@
-# Database (Turso)
+# ============================================
+# VARIÁVEIS DE AMBIENTE - POUSADA DELPLATA
+# ============================================
+
+# Database (Turso) - MESMA para teste e produção
 DATABASE_URL=libsql://pousada-delplata-caiopires92.aws-us-west-2.turso.io
 DATABASE_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NjM5OTE1NjMsImlkIjoiZjY2ZmE3MDgtNTAyMS00NzAxLTg0M2UtMjk5YWRiOTQyYTZlIiwicmlkIjoiNTdhNmIyZDUtMDk5Yy00ZmJlLTg5NDItNGNhOTMzNzdiN2ZkIn0.959jJMdn6I6mNnFQHLzVz-Co5TqrXcUjudV-xI28iMCFA7IBtYoudtc-6zCcG8MjjZu-FBkbs5NGLp_b3_5QAA
 
-# Mercado Pago - CREDENCIAIS DE TESTE
-MP_ACCESS_TOKEN=TEST-1242598103832964-110108-885c9ac376c2197ba5cf7fa183b32a9b-39563078
-NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-f1fb1b94-ce74-4737-ac28-2fc49c5004e7
-MP_WEBHOOK_SECRET=459abb33f94cbfbb8aef051668b55e3464a6705ec1c1b75d96dbeefd0e6ebdbe
-
-# App URL (Vercel)
+# App URL - MESMA para teste e produção
 NEXT_PUBLIC_APP_URL=https://pousada-delplata.vercel.app
 
-# Email (SMTP)
+# Email (SMTP) - MESMA para teste e produção
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=caiocgp92@gmail.com
 SMTP_PASS=ypyoaenwewhsysbs
 
+# Webhook Secret - MESMA para teste e produção
+MP_WEBHOOK_SECRET=459abb33f94cbfbb8aef051668b55e3464a6705ec1c1b75d96dbeefd0e6ebdbe
+
 # ============================================
-# INSTRUÇÕES PARA VERCEL:
+# OPÇÃO 1: AMBIENTE DE TESTE
 # ============================================
-# Adicione estas 10 variáveis no Vercel (Production, Preview, Development):
+# Use estas credenciais para TESTAR com cartões de teste
+# Pagamentos NÃO são reais, não cobra dinheiro de verdade
+
+MP_ACCESS_TOKEN=TEST-1242598103832964-110108-885c9ac376c2197ba5cf7fa183b32a9b-39563078
+NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-f1fb1b94-ce74-4737-ac28-2fc49c5004e7
+
+# Cartões de teste que funcionam:
+# APROVADO: 5031 4332 1540 6351 | Nome: APRO | CVV: 123 | Data: 11/25
+# PENDENTE: 4509 9535 6623 3704 | Nome: CONT | CVV: 123 | Data: 11/25
+# REJEITADO: 5031 7557 3453 0604 | Nome: OTHE | CVV: 123 | Data: 11/25
+
+# ============================================
+# OPÇÃO 2: AMBIENTE DE PRODUÇÃO
+# ============================================
+# Use estas credenciais para ACEITAR PAGAMENTOS REAIS
+# Pagamentos são REAIS e cobram dinheiro de verdade!
+# IMPORTANTE: Sua conta do Mercado Pago precisa estar ATIVADA
+
+# MP_ACCESS_TOKEN=APP_USR-1242598103832964-110108-a09bd166496af5294ae2e9255ca1f01c-39563078
+# NEXT_PUBLIC_MP_PUBLIC_KEY=APP_USR-63ebe4a3-4158-449b-ac57-ce0e26f1018d
+
+# ============================================
+# INSTRUÇÕES DE USO:
+# ============================================
+#
+# PARA TESTAR (agora):
+# 1. Use as credenciais da OPÇÃO 1 (TEST-)
+# 2. Configure no Vercel
+# 3. Faça redeploy
+# 4. Teste com cartões de teste
+#
+# PARA PRODUÇÃO (quando a conta estiver ativada):
+# 1. Descomente as linhas da OPÇÃO 2 (remova o #)
+# 2. Comente as linhas da OPÇÃO 1 (adicione # na frente)
+# 3. Configure no Vercel
+# 4. Faça redeploy
+# 5. Agora aceita pagamentos reais!
+#
+# ============================================
+# VARIÁVEIS PARA ADICIONAR NO VERCEL:
+# ============================================
+# Adicione estas 10 variáveis (Production, Preview, Development):
 #
 # 1. DATABASE_URL
 # 2. DATABASE_AUTH_TOKEN
-# 3. MP_ACCESS_TOKEN
-# 4. NEXT_PUBLIC_MP_PUBLIC_KEY
-# 5. MP_WEBHOOK_SECRET (NOVA - assinatura do webhook)
+# 3. MP_ACCESS_TOKEN (escolha TESTE ou PRODUÇÃO)
+# 4. NEXT_PUBLIC_MP_PUBLIC_KEY (escolha TESTE ou PRODUÇÃO)
+# 5. MP_WEBHOOK_SECRET
 # 6. NEXT_PUBLIC_APP_URL
 # 7. SMTP_HOST
 # 8. SMTP_PORT
