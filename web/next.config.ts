@@ -6,6 +6,17 @@ const nextConfig: NextConfig = {
   // Set explicit workspace root to silence warnings
   outputFileTracingRoot: path.join(__dirname, '..'),
 
+  // Image optimization
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
+
+
   // Server-side packages that should not be bundled
   serverExternalPackages: [
     '@libsql/client',

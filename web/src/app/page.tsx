@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import SearchWidget from "@/components/SearchWidget";
@@ -68,8 +69,20 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center bg-gradient-to-br from-primary via-primary/95 to-primary/80 text-white overflow-hidden">
+      {/* Hero Section with Background Image */}
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop"
+            alt="Hotel Pousada Delplata"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/80 to-primary/70" />
+        </div>
+
         {/* Animated background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -88,7 +101,7 @@ export default function HomePage() {
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-secondary" />
           </motion.div>
 
-          <h1 className="text-5xl md:text-7xl font-bold font-heading leading-tight">
+          <h1 className="text-5xl md:text-7xl font-bold font-heading leading-tight text-white">
             Uma das melhores opções em <br />
             <span className="text-secondary">Serra Negra</span>
           </h1>
@@ -101,7 +114,7 @@ export default function HomePage() {
             Conheça nossa região, encante-se!
           </p>
 
-          <div className="max-w-4xl mx-auto mt-12 bg-white/10 backdrop-blur-md rounded-2xl p-6 shadow-2xl border border-white/20">
+          <div className="max-w-5xl mx-auto mt-12">
             <SearchWidget />
           </div>
 
@@ -141,9 +154,15 @@ export default function HomePage() {
           <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Apartamento Térreo */}
             <Card className="accommodation-card group hover:scale-105 transition-transform duration-300 cursor-pointer border-2 hover:border-primary overflow-hidden">
-              <div className="h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center relative overflow-hidden">
-                <Home className="w-20 h-20 text-primary group-hover:scale-110 transition-transform duration-300" />
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors duration-300" />
+              <div className="h-48 relative overflow-hidden">
+                <Image
+                  src="https://images.unsplash.com/photo-1611892440504-42a792e24d32?q=80&w=2070&auto=format&fit=crop"
+                  alt="Apartamento Térreo"
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
+                <Home className="absolute bottom-4 right-4 w-12 h-12 text-white" />
               </div>
               <CardHeader>
                 <CardTitle className="group-hover:text-primary transition-colors">Apartamento Térreo</CardTitle>
@@ -160,9 +179,15 @@ export default function HomePage() {
 
             {/* Apartamento Superior */}
             <Card className="accommodation-card group hover:scale-105 transition-transform duration-300 cursor-pointer border-2 hover:border-primary overflow-hidden">
-              <div className="h-48 bg-gradient-to-br from-secondary/20 to-primary/20 flex items-center justify-center relative overflow-hidden">
-                <Building2 className="w-20 h-20 text-primary group-hover:scale-110 transition-transform duration-300" />
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors duration-300" />
+              <div className="h-48 relative overflow-hidden">
+                <Image
+                  src="https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=2074&auto=format&fit=crop"
+                  alt="Apartamento Superior"
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
+                <Building2 className="absolute bottom-4 right-4 w-12 h-12 text-white" />
               </div>
               <CardHeader>
                 <CardTitle className="group-hover:text-primary transition-colors">Apartamento Superior</CardTitle>
@@ -179,9 +204,15 @@ export default function HomePage() {
 
             {/* Chalés */}
             <Card className="accommodation-card group hover:scale-105 transition-transform duration-300 cursor-pointer border-2 hover:border-primary overflow-hidden">
-              <div className="h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center relative overflow-hidden">
-                <TreePine className="w-20 h-20 text-primary group-hover:scale-110 transition-transform duration-300" />
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors duration-300" />
+              <div className="h-48 relative overflow-hidden">
+                <Image
+                  src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?q=80&w=2070&auto=format&fit=crop"
+                  alt="Chalés"
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
+                <TreePine className="absolute bottom-4 right-4 w-12 h-12 text-white" />
               </div>
               <CardHeader>
                 <CardTitle className="group-hover:text-primary transition-colors">Chalés</CardTitle>
@@ -210,6 +241,15 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="space-y-6"
             >
+              <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
+                <Image
+                  src="https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?q=80&w=2070&auto=format&fit=crop"
+                  alt="Área de Lazer"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
+              </div>
               <div className="inline-block p-4 bg-primary/10 rounded-2xl">
                 <Waves className="w-12 h-12 text-primary" />
               </div>
@@ -229,6 +269,15 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
               className="space-y-6"
             >
+              <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
+                <Image
+                  src="https://images.unsplash.com/photo-1533777324565-a040eb52facd?q=80&w=2069&auto=format&fit=crop"
+                  alt="Café da Manhã"
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
+              </div>
               <div className="inline-block p-4 bg-secondary/10 rounded-2xl">
                 <UtensilsCrossed className="w-12 h-12 text-primary" />
               </div>
@@ -245,8 +294,17 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-primary text-white">
-        <div className="container text-center">
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop"
+            alt="Reserve Agora"
+            fill
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-primary/90" />
+        </div>
+        <div className="container relative z-10 text-center text-white">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
