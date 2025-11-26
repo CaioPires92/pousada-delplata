@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Responsividade - Pousada Delplata</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .device-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .device-card h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .device-card iframe {
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .device-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .test-button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .test-button:hover {
+            background: #5568d3;
+        }
+
+        .status {
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .instructions {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .instructions ul {
+            margin-left: 1.5rem;
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Teste de Responsividade - Pousada Delplata</h1>
+
+        <div class="instructions">
+            <h3>📋 Instruções:</h3>
+            <ul>
+                <li>Cada card abaixo mostra o site em uma resolução diferente</li>
+                <li>Verifique se todos os elementos estão visíveis e funcionais</li>
+                <li>Clique em "Testar Interação" para verificar se os botões funcionam</li>
+                <li>Procure por: scroll horizontal, elementos quebrados, textos ilegíveis</li>
+                <li>Marque como ✅ PASSOU ou ❌ FALHOU</li>
+            </ul>
+        </div>
+
+        <div class="device-grid">
+            <!-- Mobile 375px -->
+            <div class="device-card">
+                <h2>📱 Mobile (375px)</h2>
+                <div class="device-info">
+                    <span>Largura: 375px</span>
+                    <span>Altura: 667px</span>
+                </div>
+                <iframe src="http://localhost:3001" width="375" height="667"></iframe>
+                <button class="test-button" onclick="testDevice(this, 'mobile-375')">
+                    Testar Interação
+                </button>
+                <div class="status pending" id="status-mobile-375">⏳ Pendente</div>
+            </div>
+
+            <!-- Tablet 768px -->
+            <div class="device-card">
+                <h2>📱 Tablet (768px)</h2>
+                <div class="device-info">
+                    <span>Largura: 768px</span>
+                    <span>Altura: 1024px</span>
+                </div>
+                <iframe src="http://localhost:3001" width="768" height="600"></iframe>
+                <button class="test-button" onclick="testDevice(this, 'tablet-768')">
+                    Testar Interação
+                </button>
+                <div class="status pending" id="status-tablet-768">⏳ Pendente</div>
+            </div>
+
+            <!-- Desktop 1440px -->
+            <div class="device-card">
+                <h2>💻 Desktop (1440px)</h2>
+                <div class="device-info">
+                    <span>Largura: 1440px</span>
+                    <span>Altura: 900px</span>
+                </div>
+                <iframe src="http://localhost:3001" width="100%" height="600"></iframe>
+                <button class="test-button" onclick="testDevice(this, 'desktop-1440')">
+                    Testar Interação
+                </button>
+                <div class="status pending" id="status-desktop-1440">⏳ Pendente</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>✅ Checklist de Validação:</h3>
+            <ul>
+                <li>☐ Sem scroll horizontal</li>
+                <li>☐ Todos os textos legíveis</li>
+                <li>☐ Botões clicáveis e com tamanho adequado</li>
+                <li>☐ Imagens não distorcidas</li>
+                <li>☐ Menu de navegação funcional</li>
+                <li>☐ Formulários utilizáveis</li>
+                <li>☐ Espaçamentos adequados</li>
+                <li>☐ Nenhum elemento sobreposto</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function testDevice(button, deviceId) {
+            const statusEl = document.getElementById('status-' + deviceId);
+            
+            // Simular teste
+            button.textContent = 'Testando...';
+            button.disabled = true;
+
+            setTimeout(() => {
+                // Aqui você pode adicionar lógica real de teste
+                const passed = confirm('O layout está correto nesta resolução?');
+                
+                if (passed) {
+                    statusEl.className = 'status pass';
+                    statusEl.textContent = '✅ PASSOU';
+                } else {
+                    statusEl.className = 'status fail';
+                    statusEl.textContent = '❌ FALHOU';
+                }
+
+                button.textContent = 'Testar Novamente';
+                button.disabled = false;
+            }, 500);
+        }
+
+        // Log de informações
+        console.log('📱 Teste de Responsividade Carregado');
+        console.log('Dispositivos:', ['Mobile 375px', 'Tablet 768px', 'Desktop 1440px']);
+    </script>
+</body>
+</html>
