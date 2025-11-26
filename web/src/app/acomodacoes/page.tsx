@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Wifi, Tv, Wind } from "lucide-react";
 
-// Force dynamic rendering to fetch fresh data
-export const dynamic = 'force-dynamic';
+// Revalidate data every 60 seconds (ISR)
+export const revalidate = 60;
 
 async function getRooms() {
     const rooms = await prisma.roomType.findMany({
