@@ -6,7 +6,7 @@ export default function Footer() {
             <div className={`container ${styles.container}`}>
                 <div className={styles.column}>
                     <h3>Hotel Pousada Delplata</h3>
-                    <p>Conforto e tranquilidade em meio à natureza.</p>
+                    <p>O Hotel Pousada Delplata é um local tranquilo e rodeado de muita natureza, ambiente ideal para descansar, sair da rotina e renovar as energias.</p>
                 </div>
                 <div className={styles.column}>
                     <h4>Links Rápidos</h4>
@@ -19,8 +19,11 @@ export default function Footer() {
                 </div>
                 <div className={styles.column}>
                     <h4>Contato</h4>
-                    <p>reservas@delplata.com.br</p>
-                    <p>(XX) XXXX-XXXX</p>
+                    <p>R. Vicente Frederico Leporas, 151</p>
+                    <p>Bairro das Posses, Serra Negra - SP, 13930-000</p>
+                    <p>Telefone: (19) 3842-2559</p>
+                    <p>WhatsApp: (19) 99965-4866</p>
+                    <p>E-mail: contato@pousadadelplata.com.br</p>
                 </div>
             </div>
             <div className={styles.copyright}>
