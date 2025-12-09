@@ -1,10 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function PUT(request: Request) {
+type RouteContext = {
+    params: {
+        id: string;
+    };
+};
+
+export async function PUT(request: NextRequest, { params }: RouteContext) {
     try {
-        const url = new URL(request.url);
-        const id = url.pathname.split('/').filter(Boolean).pop() as string;
+        const { id } = params; // vem do [id] na rota
         const data = await request.json();
 
         const updatedRoom = await prisma.roomType.update({
@@ -12,15 +17,14 @@ export async function PUT(request: Request) {
             data: {
                 name: data.name,
                 description: data.description,
-                capacity: parseInt(data.capacity),
-                totalUnits: parseInt(data.totalUnits),
+                capacity: parseInt(data.capacity, 10),
+                totalUnits: parseInt(data.totalUnits, 10),
                 basePrice: parseFloat(data.basePrice),
-                amenities: data.amenities
-            }
+                amenities: data.amenities,
+            },
         });
 
-        return NextResponse.json(updatedRoom);
-
+        return NextResponse.json(updatedRoom, { status: 200 });
     } catch (error) {
         console.error('[Admin Room Update] Error:', error);
         return NextResponse.json(
