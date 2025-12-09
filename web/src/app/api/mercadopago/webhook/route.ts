@@ -137,12 +137,13 @@ export async function POST(request: NextRequest) {
             data: {
                 status: status.toUpperCase(),
                 providerId: paymentId.toString(),
-                metadata: {
+                // metadata field does not exist in Prisma schema
+                /* metadata: {
                     ...((payment.metadata as object) || {}),
                     payment_method_id: paymentMethodId,
                     status_detail: paymentData.status_detail,
                     updated_at: new Date().toISOString(),
-                },
+                }, */
             },
         });
 
