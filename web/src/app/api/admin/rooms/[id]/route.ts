@@ -1,12 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function PUT(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: Request) {
     try {
-        const { id } = await params;
+        const url = new URL(request.url);
+        const id = url.pathname.split('/').filter(Boolean).pop() as string;
         const data = await request.json();
 
         const updatedRoom = await prisma.roomType.update({
@@ -14,9 +12,9 @@ export async function PUT(
             data: {
                 name: data.name,
                 description: data.description,
-                capacity: data.capacity,
-                totalUnits: data.totalUnits,
-                basePrice: data.basePrice,
+                capacity: parseInt(data.capacity),
+                totalUnits: parseInt(data.totalUnits),
+                basePrice: parseFloat(data.basePrice),
                 amenities: data.amenities
             }
         });
