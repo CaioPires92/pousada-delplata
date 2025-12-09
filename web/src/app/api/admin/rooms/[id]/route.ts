@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-type RouteContext = {
-    params: {
-        id: string;
-    };
-};
-
-export async function PUT(request: NextRequest, { params }: RouteContext) {
+export async function PUT(
+    request: NextRequest,
+    {
+        params,
+    }: {
+        params: { [key: string]: string | string[] };
+    }
+) {
     try {
-        const { id } = params; // vem do [id] na rota
+        const id = params.id as string; // rota [id]
+
         const data = await request.json();
 
         const updatedRoom = await prisma.roomType.update({
