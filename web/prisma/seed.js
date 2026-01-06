@@ -44,6 +44,17 @@ async function seed() {
                 create: [
                     { url: '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp' },
                     { url: '/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0072-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0077-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0082-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0039-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0041-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0043-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0045-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0046-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0047-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0050-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0051-1200.webp' },
                 ]
             }
         },
@@ -60,6 +71,22 @@ async function seed() {
             photos: {
                 create: [
                     { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0006-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0009-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0010-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0001-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0003-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0015-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0017-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0018-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0022-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0024-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0027-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0124-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0127-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0128-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0130-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0131-1200.webp' },
                 ]
             }
         },
@@ -77,6 +104,15 @@ async function seed() {
                 create: [
                     { url: '/fotos/ala-chales/chales/IMG_0125-1200.webp' },
                     { url: '/fotos/ala-chales/chales/IMG_0122-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0120-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0118-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0117-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0109-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0110-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0111-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0112-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0114-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0115-1200.webp' },
                 ]
             }
         },
@@ -94,6 +130,27 @@ async function seed() {
                 create: [
                     { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0029-1200.webp' },
                     { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0030-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0031-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0033-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0034-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0037-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0038-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0040-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0042-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0044-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0046-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0048-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0050-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0051-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0054-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0055-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0056-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0058-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0059-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0069-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0070-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0072-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0073-1200.webp' },
                 ]
             }
         },
