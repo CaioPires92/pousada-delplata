@@ -7,6 +7,7 @@ import { Users, Wifi, Tv, Wind } from "lucide-react";
 
 // Revalidate data every 60 seconds (ISR)
 export const revalidate = 60;
+export const dynamic = 'force-dynamic';
 
 async function getRooms() {
     const rooms = await prisma.roomType.findMany({
@@ -19,6 +20,15 @@ async function getRooms() {
 
 export default async function RoomsPage() {
     const rooms = await getRooms();
+
+    function localCoverFor(name: string) {
+        const n = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        if (n.includes('chale')) return '/fotos/ala-chales/chales/IMG_0125-1200.webp'
+        if (n.includes('anexo')) return '/fotos/ala-chales/apartamentos-anexo/IMG_0029-1200.webp'
+        if (n.includes('superior')) return '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp'
+        if (n.includes('terreo')) return '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp'
+        return '/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp'
+    }
 
     return (
         <main className="min-h-screen bg-background">
@@ -52,18 +62,12 @@ export default async function RoomsPage() {
                     {rooms.map((room) => (
                         <Card key={room.id} className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50">
                             <div className="relative h-64 overflow-hidden">
-                                {room.photos.length > 0 ? (
-                                    <Image
-                                        src={room.photos[0].url}
-                                        alt={room.name}
-                                        fill
-                                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                                        <span className="text-muted-foreground">Sem Foto</span>
-                                    </div>
-                                )}
+                                <Image
+                                    src={(room.photos[0]?.url?.startsWith('/fotos') && room.photos[0].url) || localCoverFor(room.name)}
+                                    alt={room.name}
+                                    fill
+                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             </div>
 

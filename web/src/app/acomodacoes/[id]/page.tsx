@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import styles from "./room-details.module.css";
@@ -41,14 +42,30 @@ export default async function RoomDetailsPage({
                 <div className={styles.gallery}>
                     {room.photos.length > 0 ? (
                         <div className={styles.mainImageContainer}>
-                            <img src={room.photos[0].url} alt={room.name} className={styles.mainImage} />
+                            <Image
+                                src={room.photos[0].url}
+                                alt={room.name}
+                                className={styles.mainImage}
+                                width={1200}
+                                height={800}
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
+                                priority
+                            />
                         </div>
                     ) : (
                         <div className={styles.placeholderImage}>Sem Foto</div>
                     )}
                     <div className={styles.thumbnails}>
                         {room.photos.slice(1).map((photo) => (
-                            <img key={photo.id} src={photo.url} alt="" className={styles.thumbnail} />
+                            <Image
+                                key={photo.id}
+                                src={photo.url}
+                                alt=""
+                                className={styles.thumbnail}
+                                width={240}
+                                height={160}
+                                sizes="(max-width: 768px) 33vw, 240px"
+                            />
                         ))}
                     </div>
                 </div>

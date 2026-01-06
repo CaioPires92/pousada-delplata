@@ -21,8 +21,13 @@ async function seed() {
     console.log('🌱 Seeding database with sample data...');
 
     // Delete existing data
+    await prisma.payment.deleteMany();
+    await prisma.booking.deleteMany();
+    await prisma.rate.deleteMany();
+    await prisma.inventoryAdjustment.deleteMany();
     await prisma.photo.deleteMany();
     await prisma.roomType.deleteMany();
+    await prisma.guest.deleteMany();
 
     // Create Room Types with R$ 0.10 for testing
     console.log('Creating room types...');
@@ -37,8 +42,8 @@ async function seed() {
             amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
             photos: {
                 create: [
-                    { url: 'https://picsum.photos/seed/superior1/800/600' },
-                    { url: 'https://picsum.photos/seed/superior2/800/600' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp' },
+                    { url: '/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp' },
                 ]
             }
         },
@@ -54,7 +59,7 @@ async function seed() {
             amenities: 'Ventilador de teto, TV, WiFi, Acessível',
             photos: {
                 create: [
-                    { url: 'https://picsum.photos/seed/terreo1/800/600' },
+                    { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp' },
                 ]
             }
         },
@@ -70,8 +75,25 @@ async function seed() {
             amenities: 'Varanda, WiFi, Contato com natureza, Churrasqueira',
             photos: {
                 create: [
-                    { url: 'https://picsum.photos/seed/chale1/800/600' },
-                    { url: 'https://picsum.photos/seed/chale2/800/600' },
+                    { url: '/fotos/ala-chales/chales/IMG_0125-1200.webp' },
+                    { url: '/fotos/ala-chales/chales/IMG_0122-1200.webp' },
+                ]
+            }
+        },
+    });
+
+    const anexo = await prisma.roomType.create({
+        data: {
+            name: 'Apartamento Anexo',
+            description: 'Acomodação prática e confortável. Sem varanda, com Smart TV. Ideal para quem busca praticidade. (Sem copa - microondas disponível no bar)',
+            capacity: 3,
+            totalUnits: 2,
+            basePrice: 0.10,
+            amenities: 'Smart TV, Sem varanda, Sem copa, Microondas no bar, WiFi',
+            photos: {
+                create: [
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0029-1200.webp' },
+                    { url: '/fotos/ala-chales/apartamentos-anexo/IMG_0030-1200.webp' },
                 ]
             }
         },

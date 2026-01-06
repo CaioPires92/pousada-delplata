@@ -74,8 +74,8 @@ export default function HomePage() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop"
-            alt="Hotel Pousada Delplata"
+            src="/fotos/ala-principal/apartamentos/superior/DSC_0076-1920.webp"
+            alt="Pousada Delplata - Ala Principal"
             fill
             className="object-cover"
             priority
@@ -156,7 +156,7 @@ export default function HomePage() {
             <Card className="accommodation-card group hover:scale-105 transition-transform duration-300 cursor-pointer border-2 hover:border-primary overflow-hidden">
               <div className="h-48 relative overflow-hidden">
                 <Image
-                  src="https://images.unsplash.com/photo-1611892440504-42a792e24d32?q=80&w=2070&auto=format&fit=crop"
+                  src="/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp"
                   alt="Apartamento Térreo"
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-300"
@@ -181,7 +181,7 @@ export default function HomePage() {
             <Card className="accommodation-card group hover:scale-105 transition-transform duration-300 cursor-pointer border-2 hover:border-primary overflow-hidden">
               <div className="h-48 relative overflow-hidden">
                 <Image
-                  src="https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=2074&auto=format&fit=crop"
+                  src="/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp"
                   alt="Apartamento Superior"
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-300"
