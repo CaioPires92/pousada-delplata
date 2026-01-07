@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera } from "lucide-react";
+import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface RoomPhoto {
@@ -80,7 +80,7 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
                             {room.name}
                         </CardTitle>
                     </div>
-                    <CardDescription className="line-clamp-2 text-base">
+                    <CardDescription className="text-base" style={{ whiteSpace: 'pre-line' }}>
                         {room.description}
                     </CardDescription>
                 </CardHeader>
@@ -95,7 +95,11 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
                     <div className="flex gap-3 text-muted-foreground">
                         <Wifi className="w-4 h-4" />
                         <Tv className="w-4 h-4" />
-                        <Wind className="w-4 h-4" />
+                        {room.name === "Chalé" || room.name === "Apartamento Anexo" ? (
+                            <Fan className="w-4 h-4" />
+                        ) : (
+                            <Wind className="w-4 h-4" />
+                        )}
                     </div>
                 </CardContent>
 

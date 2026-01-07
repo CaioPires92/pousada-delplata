@@ -19,7 +19,8 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'piscina-principal',
         title: 'Piscina Adulto e Infantil',
-        description: 'Ampla piscina para adultos e área segura para as crianças se divertirem.',
+        description: 'ideais para momentos de lazer durante a estadia.',
+
         images: [
             '/fotos/piscina-aptos/DJI_0845.jpg',
             '/fotos/piscina-aptos/DJI_0863.jpg',
@@ -51,7 +52,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'sala-jogos',
         title: 'Sala de Jogos e TV',
-        description: 'Ambiente climatizado com TV a cabo, sofás e mesas de jogos para toda a família.',
+        description: 'Espaço de convivência com TV a cabo, sofás, mesa de sinuca, pebolim e mesa de carteado.',
         images: [
             '/fotos/Sala de jogos/DSC_0228.jpg',
             '/fotos/Sala de jogos/DSC_0232.jpg',
@@ -68,7 +69,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'jardim-redes',
         title: 'Jardim com Redes',
-        description: 'Área verde tranquila com redes para leitura e descanso relaxante.',
+        description: 'Área verde tranquila com redes para leitura e descanso, além de um mini playground.',
         images: [
             '/fotos/jardim-aptos/DSC_0258.jpg',
             '/fotos/jardim-aptos/DSC_0262.jpg',
@@ -83,8 +84,8 @@ const leisureItems: LeisureItem[] = [
     },
     {
         id: 'churrasqueiras-principal',
-        title: '3 Churrasqueiras',
-        description: 'Três espaços independentes e equipados para seu churrasco em família ou grupo.',
+        title: 'Churrasqueiras',
+        description: 'Espaço com três churrasqueiras e mesas independentes para churrascos em família ou grupo.',
         images: [
             '/fotos/churrasqueira-aptos/DSC_0269.jpg',
             '/fotos/churrasqueira-aptos/DSC_0273.jpg',
@@ -96,8 +97,8 @@ const leisureItems: LeisureItem[] = [
     // Ala Anexo
     {
         id: 'piscina-anexo',
-        title: 'Piscina Adulto',
-        description: 'Piscina exclusiva para momentos de lazer na ala dos chalés e anexos.',
+        title: 'Piscina',
+        description: 'Para momentos de lazer na ala dos chalés e anexos.',
         images: [
             '/fotos/piscina-chale/DJI_0916.jpg',
             '/fotos/piscina-chale/DJI_0917.jpg',
@@ -113,7 +114,7 @@ const leisureItems: LeisureItem[] = [
     },
     {
         id: 'churrasqueira-anexo',
-        title: 'Churrasqueira Privativa',
+        title: 'Churrasqueira',
         description: 'Espaço gourmet reservado para os hóspedes da ala anexo.',
         images: [
             '/fotos/churrasqueira-chale/DJI_0920.jpg',
@@ -131,8 +132,8 @@ export default function LeisurePage() {
     const renderLeisureGrid = (items: LeisureItem[]) => (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {items.map((item) => (
-                <LeisureCard 
-                    key={item.id} 
+                <LeisureCard
+                    key={item.id}
                     title={item.title}
                     description={item.description}
                     images={item.images}
@@ -183,7 +184,7 @@ export default function LeisurePage() {
                         <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary">Ala Chalés e Anexos</h2>
                         <p className="text-lg text-muted-foreground mt-2 flex items-center gap-2">
                             <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
-                            Privacidade com piscina e churrasqueira exclusivas.
+                            Privacidade com piscina e churrasqueira.
                         </p>
                     </div>
                     {renderLeisureGrid(annexItems)}

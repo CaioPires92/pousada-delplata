@@ -93,7 +93,7 @@ export default async function RoomsPage() {
                     <div className="mb-10 border-b pb-4">
                         <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary">Ala Principal</h2>
                         <p className="text-lg text-muted-foreground mt-2">
-                            Acomodações centrais com fácil acesso a todas as dependências.
+                            Acomodações proximas a todas as dependências.
                         </p>
                     </div>
                     {renderRoomGrid(mainWingRooms)}

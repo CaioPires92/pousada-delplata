@@ -81,7 +81,7 @@ export default async function RoomDetailsPage({
 
                     <div className={styles.description}>
                         <h3>Sobre a acomodação</h3>
-                        <p>{room.description}</p>
+                        <div dangerouslySetInnerHTML={{ __html: room.description.replace(/\n/g, '<br />') }} />
                     </div>
 
                     <div className={styles.amenities}>

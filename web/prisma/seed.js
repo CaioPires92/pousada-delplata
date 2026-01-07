@@ -29,16 +29,16 @@ async function seed() {
     await prisma.roomType.deleteMany();
     await prisma.guest.deleteMany();
 
-    // Create Room Types with R$ 0.10 for testing
+    // Create Room Types
     console.log('Creating room types...');
 
     const apartamentoSuperior = await prisma.roomType.create({
         data: {
             name: 'Apartamento Superior',
-            description: 'Conforto e vista privilegiada. Com ar-condicionado e ventilador de teto, próximo ao café da manhã.',
+            description: 'Apartamentos compostos por: Televisão LCD 39, Frigobar, Guarda Roupa, Ventilador de Teto e Ar condicionado, Tomadas 220v',
             capacity: 4,
             totalUnits: 3,
-            basePrice: 0.10,
+            basePrice: 499.00,
             amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
             photos: {
                 create: [
@@ -63,10 +63,10 @@ async function seed() {
     const apartamentoTerreo = await prisma.roomType.create({
         data: {
             name: 'Apartamento Térreo',
-            description: 'Acessibilidade e facilidade de acesso. Perfeito para famílias.',
+            description: 'Apartamentos compostos por: TV Smart 32", Frigobar, Guarda-roupa, Ventilador de teto e Ar-condicionado.\n\n⚠️ IMPORTANTE: A maioria dos aptos térreos não possui janelas',
             capacity: 3,
             totalUnits: 8,
-            basePrice: 0.10,
+            basePrice: 499.00,
             amenities: 'Ventilador de teto, TV, WiFi, Acessível',
             photos: {
                 create: [
@@ -82,7 +82,6 @@ async function seed() {
                     { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0022-1200.webp' },
                     { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0024-1200.webp' },
                     { url: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0027-1200.webp' },
-                    { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0124-1200.webp' },
                     { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0127-1200.webp' },
                     { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0128-1200.webp' },
                     { url: '/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0130-1200.webp' },
@@ -98,7 +97,7 @@ async function seed() {
             description: 'Privacidade e contato com a natureza. Com varanda. Café da manhã a 70 metros.',
             capacity: 3,
             totalUnits: 6,
-            basePrice: 0.10,
+            basePrice: 499.00,
             amenities: 'Varanda, WiFi, Contato com natureza, Churrasqueira',
             photos: {
                 create: [
@@ -124,7 +123,7 @@ async function seed() {
             description: 'Acomodação prática e confortável. Sem varanda, com Smart TV. Ideal para quem busca praticidade. (Sem copa - microondas disponível no bar)',
             capacity: 3,
             totalUnits: 2,
-            basePrice: 0.10,
+            basePrice: 499.00,
             amenities: 'Smart TV, Sem varanda, Sem copa, Microondas no bar, WiFi',
             photos: {
                 create: [
@@ -177,7 +176,7 @@ async function seed() {
     console.log(`- ${await prisma.roomType.count()} room types`);
     console.log(`- ${await prisma.photo.count()} photos`);
     console.log(`- ${await prisma.adminUser.count()} admin users`);
-    console.log('\n💰 All rooms set to R$ 0.10 for testing');
+    console.log('\n💰 All rooms set to R$ 499.00');
 }
 
 seed()

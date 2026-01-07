@@ -138,7 +138,7 @@ function ReservarContent() {
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
                     <Image
-                        src="https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop"
+                        src="/fotos/piscina-aptos/DJI_0845.jpg"
                         alt="Background"
                         fill
                         className="object-cover"
@@ -248,7 +248,7 @@ function ReservarContent() {
                                                             <p className="text-2xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
                                                         </div>
                                                     </div>
-                                                    <p className="text-muted-foreground mb-4 line-clamp-2">{room.description}</p>
+                                                    <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>{room.description}</p>
 
                                                     <div className="flex flex-wrap gap-2 mb-6">
                                                         {room.amenities.split(',').map((amenity, i) => (
