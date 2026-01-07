@@ -216,7 +216,7 @@ export default function HomeContent() {
             >
               <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
                 <Image
-                  src="https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?q=80&w=2070&auto=format&fit=crop"
+                  src="/fotos/piscina-aptos/DJI_0863.jpg"
                   alt="Área de Lazer"
                   fill
                   className="object-cover"
@@ -244,7 +244,7 @@ export default function HomeContent() {
             >
               <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
                 <Image
-                  src="https://images.unsplash.com/photo-1533777324565-a040eb52facd?q=80&w=2069&auto=format&fit=crop"
+                  src="/fotos/restaurante/DSC_0056.jpg"
                   alt="Café da Manhã"
                   fill
                   className="object-cover"
@@ -270,7 +270,7 @@ export default function HomeContent() {
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=80&w=2080&auto=format&fit=crop"
+            src="/fotos/piscina-aptos/DJI_0908.jpg"
             alt="Reserve Agora"
             fill
             className="object-cover"

@@ -83,6 +83,9 @@ export default function AdminDashboard() {
                 <a href="/admin/quartos" className={styles.navItem}>
                     🏠 Quartos
                 </a>
+                <a href="/admin/mapa" className={styles.navItem}>
+                    📅 Mapa de Tarifas
+                </a>
                 <a href="/" className={styles.navItem} target="_blank">
                     🌐 Ver Site
                 </a>

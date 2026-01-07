@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Metadata } from 'next';
 import { RestaurantGallery } from '@/components/RestaurantGallery';
 
@@ -46,18 +47,42 @@ const restaurantImages = [
 
 export default function RestaurantPage() {
     return (
-        <main className="min-h-screen pt-24 pb-16 bg-white">
-            <div className="container mx-auto px-4">
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl font-bold font-heading text-primary mb-4">
-                        Restaurante
+        <main className="min-h-screen bg-white">
+            {/* Hero Section */}
+            <section className="relative h-[40vh] min-h-[300px] flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0">
+                    <Image
+                        src="/fotos/restaurante/DSC_0002.jpg"
+                        alt="Restaurante Pousada Delplata"
+                        fill
+                        className="object-cover"
+                        priority
+                    />
+                    <div className="absolute inset-0 bg-black/50" />
+                </div>
+
+                <div className="container relative z-10 text-center text-white space-y-4">
+                    <h1 className="text-4xl md:text-5xl font-bold font-heading">
+                        Restaurante e Café da Manhã
                     </h1>
-                    <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                        Desfrute do nosso delicioso café da manhã servido diariamente em um ambiente 
-                        amplo e aconchegante, preparado com carinho para começar bem o seu dia.
+                    <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light">
+                        Comece seu dia com nosso delicioso café da manhã servido em um ambiente aconchegante e acolhedor.
                     </p>
                 </div>
-                
+            </section>
+
+            <div className="container mx-auto px-4 py-16">
+                <div className="text-center mb-12 space-y-4">
+                    <p className="text-xl md:text-2xl text-gray-700 font-light italic">
+                        "Preparados tudo com muito carinho para você e sua família."
+                    </p>
+                    <div className="inline-block bg-primary/5 px-6 py-3 rounded-full">
+                        <p className="text-primary font-medium">
+                            Horário: das 8:30h às 10:30h na Ala Principal
+                        </p>
+                    </div>
+                </div>
+
                 <RestaurantGallery images={restaurantImages} />
             </div>
         </main>

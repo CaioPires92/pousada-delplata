@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { MapPin, Phone, Mail, MessageCircle } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
@@ -37,7 +38,14 @@ export default function Footer() {
                 >
                     {/* About */}
                     <motion.div variants={itemVariants} className="space-y-4">
-                        <h3 className="text-2xl font-bold font-heading">Hotel Pousada Delplata</h3>
+                        <div className="relative h-32 w-80">
+                            <Image
+                                src="/fotos/logo.png"
+                                alt="Hotel Pousada Delplata"
+                                fill
+                                className="object-contain object-left"
+                            />
+                        </div>
                         <p className="text-white/80 leading-relaxed">
                             O Hotel Pousada Delplata é um local tranquilo e rodeado de muita natureza, ambiente ideal para descansar, sair da rotina e renovar as energias.
                         </p>

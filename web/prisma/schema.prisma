@@ -41,6 +41,13 @@ model Rate {
   startDate   DateTime
   endDate     DateTime
   price       Decimal
+  
+  // New fields for Booking-style calendar rules
+  cta         Boolean  @default(false) // Closed to Arrival
+  ctd         Boolean  @default(false) // Closed to Departure
+  stopSell    Boolean  @default(false) // Closed / Blocked
+  minLos      Int      @default(1)     // Minimum Length of Stay
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

@@ -31,8 +31,25 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
-        const { roomTypeId, startDate, endDate, price } = body;
+        const text = await request.text();
+        if (!text) {
+             return NextResponse.json(
+                { error: 'Request body is empty' },
+                { status: 400 }
+            );
+        }
+        
+        const body = JSON.parse(text);
+        const { 
+            roomTypeId, 
+            startDate, 
+            endDate, 
+            price,
+            cta,
+            ctd,
+            stopSell,
+            minLos
+        } = body;
 
         const rate = await prisma.rate.create({
             data: {
@@ -40,6 +57,10 @@ export async function POST(request: Request) {
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
                 price: parseFloat(price),
+                cta: cta || false,
+                ctd: ctd || false,
+                stopSell: stopSell || false,
+                minLos: minLos ? parseInt(minLos) : 1,
             },
         });
 

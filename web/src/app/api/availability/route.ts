@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { eachDayOfInterval, format } from 'date-fns';
+import { eachDayOfInterval, format, differenceInDays } from 'date-fns';
 
 // Force dynamic rendering - don't try to build this route at build time
 export const dynamic = 'force-dynamic';
@@ -23,6 +23,12 @@ export async function GET(request: Request) {
     const startDate = new Date(checkIn);
     const endDate = new Date(checkOut);
     const totalGuests = (parseInt(adults || '0') + parseInt(children || '0')) || 1;
+    const stayLength = differenceInDays(endDate, startDate);
+
+    // Basic validation
+    if (stayLength <= 0) {
+        return NextResponse.json({ error: 'Invalid dates' }, { status: 400 });
+    }
 
     try {
         // 1. Get all room types that can accommodate the guests
@@ -63,24 +69,74 @@ export async function GET(request: Request) {
             let totalPrice = 0;
             const nights = eachDayOfInterval({ start: startDate, end: new Date(endDate.getTime() - 86400000) }); // Exclude checkout day
 
-            for (const night of nights) {
-                // Check inventory
-                // Default inventory logic: if no specific adjustment, assume default capacity (e.g. 5? or maybe we should have a default in RoomType)
-                // For now, let's assume if no inventory record, we use a default or it is available if we don't track it strictly yet.
-                // PRD says: "Fechar datas/noites específicas" -> implies we track availability.
-                // Let's assume we need to check existing bookings too.
+            // --- Validation: Check-in Rules (CTA & MinLOS) ---
+            // Find rate for check-in date
+            const checkInRate = room.rates.find((r: any) => {
+                const start = new Date(r.startDate);
+                const end = new Date(r.endDate);
+                start.setHours(0,0,0,0);
+                end.setHours(23,59,59,999);
+                // Need to match exact date for stricter rules, but rate covers range
+                return startDate >= start && startDate <= end;
+            });
 
-                // Check bookings for this room type on this date
+            if (checkInRate) {
+                if (checkInRate.cta) {
+                    isAvailable = false; // Closed to Arrival
+                }
+                if (stayLength < checkInRate.minLos) {
+                    isAvailable = false; // Minimum Length of Stay not met
+                }
+            }
+            if (!isAvailable) continue; // Skip room if check-in rules fail
+
+            // --- Validation: Check-out Rules (CTD) ---
+            // Find rate for check-out date (note: we check availability for NIGHTS, but CTD applies to the check-out day itself)
+            // Need to fetch rate covering checkOut date specifically? 
+            // The query above fetches rates overlapping [startDate, endDate], so checkOut IS included in fetched rates.
+            const checkOutRate = room.rates.find((r: any) => {
+                const start = new Date(r.startDate);
+                const end = new Date(r.endDate);
+                start.setHours(0,0,0,0);
+                end.setHours(23,59,59,999);
+                return endDate >= start && endDate <= end;
+            });
+
+            if (checkOutRate && checkOutRate.ctd) {
+                isAvailable = false; // Closed to Departure
+                continue;
+            }
+
+            // --- Validation: Daily Rules (Inventory & StopSell) ---
+            for (const night of nights) {
+                const nightDate = new Date(night);
+                nightDate.setHours(0,0,0,0);
+
+                // Find rate for this night
+                const rate = room.rates.find((r: any) => {
+                    const start = new Date(r.startDate);
+                    const end = new Date(r.endDate);
+                    start.setHours(0,0,0,0);
+                    end.setHours(23,59,59,999);
+                    return nightDate >= start && nightDate <= end;
+                });
+
+                // Check Stop Sell (Closed)
+                if (rate && rate.stopSell) {
+                    isAvailable = false;
+                    break;
+                }
+
+                // Check inventory (Bookings count)
                 const bookingsCount = await prisma.booking.count({
                     where: {
                         roomTypeId: room.id,
-                        status: { in: ['CONFIRMED', 'PAID', 'PENDING'] }, // Assuming these statuses block room
+                        status: { in: ['CONFIRMED', 'PAID', 'PENDING'] }, 
                         checkIn: { lte: night },
                         checkOut: { gt: night },
                     },
                 });
 
-                // Check if there is a specific inventory adjustment (total units available for that day)
                 const dailyInventory = room.inventory.find((i: any) => i.date.toISOString().split('T')[0] === night.toISOString().split('T')[0]);
                 const maxUnits = dailyInventory ? dailyInventory.totalUnits : room.totalUnits;
 
@@ -90,8 +146,6 @@ export async function GET(request: Request) {
                 }
 
                 // Calculate Price
-                // Find rate for this night
-                const rate = room.rates.find((r: any) => r.startDate <= night && r.endDate >= night);
                 if (rate) {
                     totalPrice += Number(rate.price);
                 } else {

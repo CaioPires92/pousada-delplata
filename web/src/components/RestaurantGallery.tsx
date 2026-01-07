@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -14,19 +14,46 @@ export function RestaurantGallery({ images }: RestaurantGalleryProps) {
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
 
     const openLightbox = (index: number) => setSelectedImageIndex(index);
-    const closeLightbox = () => setSelectedImageIndex(null);
+    const closeLightbox = useCallback(() => setSelectedImageIndex(null), []);
+
+    const handleNext = useCallback(() => {
+        setSelectedImageIndex((prev) => (prev === null ? null : (prev + 1) % images.length));
+    }, [images.length]);
+
+    const handlePrev = useCallback(() => {
+        setSelectedImageIndex((prev) => (prev === null ? null : (prev - 1 + images.length) % images.length));
+    }, [images.length]);
 
     const nextImage = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (selectedImageIndex === null) return;
-        setSelectedImageIndex((selectedImageIndex + 1) % images.length);
+        handleNext();
     };
 
     const prevImage = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (selectedImageIndex === null) return;
-        setSelectedImageIndex((selectedImageIndex - 1 + images.length) % images.length);
+        handlePrev();
     };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (selectedImageIndex === null) return;
+
+            switch (e.key) {
+                case "ArrowRight":
+                    handleNext();
+                    break;
+                case "ArrowLeft":
+                    handlePrev();
+                    break;
+                case "Escape":
+                    closeLightbox();
+                    break;
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectedImageIndex, handleNext, handlePrev, closeLightbox]);
 
     return (
         <>

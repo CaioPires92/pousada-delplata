@@ -65,7 +65,7 @@ async function seed() {
             name: 'Apartamento Térreo',
             description: 'Acessibilidade e facilidade de acesso. Perfeito para famílias.',
             capacity: 3,
-            totalUnits: 4,
+            totalUnits: 8,
             basePrice: 0.10,
             amenities: 'Ventilador de teto, TV, WiFi, Acessível',
             photos: {
@@ -96,8 +96,8 @@ async function seed() {
         data: {
             name: 'Chalé',
             description: 'Privacidade e contato com a natureza. Com varanda. Café da manhã a 70 metros.',
-            capacity: 2,
-            totalUnits: 2,
+            capacity: 3,
+            totalUnits: 6,
             basePrice: 0.10,
             amenities: 'Varanda, WiFi, Contato com natureza, Churrasqueira',
             photos: {

@@ -1,0 +1,427 @@
+.container {
+    padding: 2rem;
+    max-width: 1400px; /* Increased for better table view */
+    margin: 0 auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+/* Enhanced Controls Bar */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: center;
+    margin-bottom: 2rem;
+    background: white;
+    padding: 1.25rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    border: 1px solid #e2e8f0;
+}
+
+/* Navigation Group (Month) */
+.navGroup {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.navButton {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.navButton:hover {
+    background: #fff;
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.currentMonth {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    padding: 0 1.5rem;
+    min-width: 180px;
+    text-align: center;
+    text-transform: capitalize;
+}
+
+/* Action Buttons */
+.buttonPrimary {
+    background: #3b82f6;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.buttonPrimary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(59, 130, 246, 0.4);
+}
+
+.buttonSecondary {
+    background: white;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.buttonSecondary:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+/* View Toggle (Segmented Control) */
+.viewToggle {
+    display: flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.toggleButton {
+    padding: 0.5rem 1.25rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toggleButton.active {
+    background: white;
+    color: #3b82f6;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Select Input */
+.selectWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.input {
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: white;
+    color: #334155;
+    transition: border-color 0.2s;
+    cursor: pointer;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Calendar Grid Styles */
+.calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin-bottom: 2rem;
+}
+
+.weekDay {
+    text-align: center;
+    font-weight: 700;
+    padding: 1rem 0.5rem;
+    color: #64748b;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+.dayCell {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    min-height: 120px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.dayCell:hover {
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+}
+
+.dayCell.empty {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    cursor: default;
+}
+
+.dayCell.hasRate {
+    background: linear-gradient(to bottom right, #ffffff, #f0f9ff);
+    border-color: #bae6fd;
+}
+
+.dayCell.blocked {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    opacity: 0.8;
+}
+
+.dayCell.blocked::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(0,0,0,0.02) 10px,
+        rgba(0,0,0,0.02) 20px
+    );
+    border-radius: 12px;
+    pointer-events: none;
+}
+
+.dayNumber {
+    font-weight: 700;
+    color: #334155;
+    font-size: 1.1rem;
+}
+
+.priceTag {
+    background: #f1f5f9;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #475569;
+    text-align: center;
+    margin-top: auto;
+}
+
+.dayCell.hasRate .priceTag {
+    background: #3b82f6;
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.dayCell.blocked .priceTag {
+    background: #e2e8f0;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
+/* List View Styles */
+.listViewContainer {
+    overflow: hidden;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+}
+
+.listViewWrapper {
+    overflow-x: auto;
+    position: relative;
+    max-width: 100%;
+}
+
+.listViewTable {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+}
+
+.listViewTable th,
+.listViewTable td {
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    padding: 12px;
+    text-align: center;
+    min-width: 100px;
+}
+
+.listViewTable th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+/* Sticky First Column */
+.stickyCol {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 20;
+    border-right: 2px solid #e2e8f0;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: left !important;
+    padding-left: 1.5rem !important;
+    min-width: 180px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.02);
+}
+
+.listViewTable th.stickyCol {
+    background: #f8fafc;
+    z-index: 30;
+}
+
+/* Cell Inputs */
+.cellInput {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    color: #334155;
+}
+
+.cellInput:hover {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.cellInput:focus {
+    outline: none;
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Status Colors */
+.statusPill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.statusPill.open {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.statusPill.open:hover {
+    background: #bbf7d0;
+}
+
+.statusPill.closed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.statusPill.closed:hover {
+    background: #fecaca;
+}
+
+/* Restriction Cells (CTA/CTD) */
+.restrictionCell {
+    cursor: pointer;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.restrictionCell:hover {
+    background: #f1f5f9;
+}
+
+.restrictionActive {
+    color: #ef4444;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Modal Styles */
+.modalOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.modalTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+}

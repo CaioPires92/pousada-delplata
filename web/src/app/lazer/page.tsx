@@ -147,7 +147,7 @@ export default function LeisurePage() {
             <section className="relative h-[40vh] min-h-[300px] flex items-center justify-center overflow-hidden mb-16">
                 <div className="absolute inset-0">
                     <Image
-                        src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=2000"
+                        src="/fotos/piscina-aptos/DJI_0845.jpg"
                         alt="Lazer Pousada Delplata"
                         fill
                         className="object-cover"

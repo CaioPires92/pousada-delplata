@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -12,7 +13,10 @@ export default function Header() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
-    const isHome = pathname === "/";
+
+    // Pages that should have a transparent header initially
+    const transparentPaths = ["/", "/acomodacoes", "/lazer", "/restaurante", "/contato"];
+    const isTransparentPath = transparentPaths.includes(pathname);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -31,7 +35,7 @@ export default function Header() {
     ];
 
     // Determine header style based on page and scroll state
-    const isTransparent = isHome && !isScrolled;
+    const isTransparent = isTransparentPath && !isScrolled;
 
     return (
         <motion.header
@@ -39,19 +43,24 @@ export default function Header() {
             animate={{ y: 0 }}
             transition={{ duration: 0.5 }}
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${!isTransparent
-                    ? "bg-white/95 backdrop-blur-md shadow-lg"
-                    : "bg-transparent"
+                ? "bg-white/95 backdrop-blur-md shadow-lg"
+                : "bg-transparent"
                 }`}
         >
             <div className="container">
-                <div className="flex items-center justify-between h-20">
+                <div className="flex items-center justify-between h-24">
                     {/* Logo */}
                     <Link
                         href="/"
-                        className={`text-2xl font-bold font-heading transition-colors duration-300 ${!isTransparent ? "text-primary" : "text-white"
-                            }`}
+                        className="relative h-24 w-80 transition-opacity hover:opacity-90"
                     >
-                        Hotel Pousada Delplata
+                        <Image
+                            src="/fotos/logo.png"
+                            alt="Hotel Pousada Delplata"
+                            fill
+                            className="object-contain object-left"
+                            priority
+                        />
                     </Link>
 
                     {/* Desktop Navigation */}
