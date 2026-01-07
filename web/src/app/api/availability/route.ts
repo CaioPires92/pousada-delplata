@@ -20,8 +20,13 @@ export async function GET(request: Request) {
         );
     }
 
-    const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
+    // Parse dates as Local Midnight to prevent timezone shifts
+    const [startY, startM, startD] = checkIn.split('-').map(Number);
+    const startDate = new Date(startY, startM - 1, startD);
+
+    const [endY, endM, endD] = checkOut.split('-').map(Number);
+    const endDate = new Date(endY, endM - 1, endD);
+
     const totalGuests = (parseInt(adults || '0') + parseInt(children || '0')) || 1;
     const stayLength = differenceInDays(endDate, startDate);
 
@@ -49,6 +54,9 @@ export async function GET(request: Request) {
                             },
                         ],
                     },
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
                 },
                 inventory: {
                     where: {
@@ -71,13 +79,11 @@ export async function GET(request: Request) {
 
             // --- Validation: Check-in Rules (CTA & MinLOS) ---
             // Find rate for check-in date
+            const checkInStr = format(startDate, 'yyyy-MM-dd');
             const checkInRate = room.rates.find((r: any) => {
-                const start = new Date(r.startDate);
-                const end = new Date(r.endDate);
-                start.setHours(0,0,0,0);
-                end.setHours(23,59,59,999);
-                // Need to match exact date for stricter rules, but rate covers range
-                return startDate >= start && startDate <= end;
+                const rStart = format(new Date(r.startDate), 'yyyy-MM-dd');
+                const rEnd = format(new Date(r.endDate), 'yyyy-MM-dd');
+                return checkInStr >= rStart && checkInStr <= rEnd;
             });
 
             if (checkInRate) {
@@ -94,12 +100,11 @@ export async function GET(request: Request) {
             // Find rate for check-out date (note: we check availability for NIGHTS, but CTD applies to the check-out day itself)
             // Need to fetch rate covering checkOut date specifically? 
             // The query above fetches rates overlapping [startDate, endDate], so checkOut IS included in fetched rates.
+            const checkOutStr = format(endDate, 'yyyy-MM-dd');
             const checkOutRate = room.rates.find((r: any) => {
-                const start = new Date(r.startDate);
-                const end = new Date(r.endDate);
-                start.setHours(0,0,0,0);
-                end.setHours(23,59,59,999);
-                return endDate >= start && endDate <= end;
+                const rStart = format(new Date(r.startDate), 'yyyy-MM-dd');
+                const rEnd = format(new Date(r.endDate), 'yyyy-MM-dd');
+                return checkOutStr >= rStart && checkOutStr <= rEnd;
             });
 
             if (checkOutRate && checkOutRate.ctd) {
@@ -113,12 +118,11 @@ export async function GET(request: Request) {
                 nightDate.setHours(0,0,0,0);
 
                 // Find rate for this night
+                const nightStr = format(night, 'yyyy-MM-dd');
                 const rate = room.rates.find((r: any) => {
-                    const start = new Date(r.startDate);
-                    const end = new Date(r.endDate);
-                    start.setHours(0,0,0,0);
-                    end.setHours(23,59,59,999);
-                    return nightDate >= start && nightDate <= end;
+                    const rStart = format(new Date(r.startDate), 'yyyy-MM-dd');
+                    const rEnd = format(new Date(r.endDate), 'yyyy-MM-dd');
+                    return nightStr >= rStart && nightStr <= rEnd;
                 });
 
                 // Check Stop Sell (Closed)

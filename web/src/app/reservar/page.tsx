@@ -50,7 +50,8 @@ function ReservarContent() {
             setLoading(true);
             setError('');
             const response = await fetch(
-                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`
+                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`,
+                { cache: 'no-store' }
             );
 
             if (!response.ok) throw new Error('Erro ao buscar disponibilidade');
@@ -186,6 +187,14 @@ function ReservarContent() {
         );
     }
 
+    // Helper for displaying dates without timezone shift
+    const formatDate = (dateString: string) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        return date.toLocaleDateString('pt-BR');
+    };
+
     return (
         <main className="min-h-screen pt-28 pb-12 bg-muted/30">
             <div className="container mx-auto px-4">
@@ -198,7 +207,7 @@ function ReservarContent() {
                         <div>
                             <h1 className="text-xl font-bold font-heading text-primary">Disponibilidade</h1>
                             <p className="text-muted-foreground flex items-center gap-2 text-sm">
-                                <span>{new Date(checkIn!).toLocaleDateString('pt-BR')} - {new Date(checkOut!).toLocaleDateString('pt-BR')}</span>
+                                <span>{formatDate(checkIn!)} - {formatDate(checkOut!)}</span>
                                 <span className="w-1 h-1 bg-muted-foreground rounded-full" />
                                 <span>{adults} Adultos, {children} Crianças</span>
                             </p>

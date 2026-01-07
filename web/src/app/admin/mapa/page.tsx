@@ -26,16 +26,21 @@ interface RoomType {
     basePrice: number;
 }
 
-interface Rate {
-    id: string;
-    startDate: string; // ISO string from API
-    endDate: string;
-    price: number;
-    cta: boolean;
-    ctd: boolean;
-    stopSell: boolean;
-    minLos: number;
-}
+    interface CalendarData {
+        date: string;
+        price: number;
+        stopSell: boolean;
+        cta: boolean;
+        ctd: boolean;
+        minLos: number;
+        rateId: string | null;
+        totalInventory: number;
+        bookingsCount: number;
+        available: number;
+        isAdjusted: boolean;
+    }
+
+    // ... (keep RoomType interface)
 
 interface EditableCellProps {
     value: number | string;
@@ -82,7 +87,10 @@ export default function MapaReservas() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Toggle view
     const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
     const [selectedRoomId, setSelectedRoomId] = useState<string>('');
-    const [rates, setRates] = useState<Rate[]>([]);
+    const [calendarData, setCalendarData] = useState<CalendarData[]>([]);
+    // List View Scroll Ref
+    const listScrollRef = useRef<HTMLDivElement>(null);
+
     const [loading, setLoading] = useState(true);
     
     // Modal state (for Grid)
@@ -94,9 +102,6 @@ export default function MapaReservas() {
     const [editCta, setEditCta] = useState(false);
     const [editCtd, setEditCtd] = useState(false);
     const [existingRateId, setExistingRateId] = useState<string | null>(null);
-
-    // List View Scroll Ref
-    const listScrollRef = useRef<HTMLDivElement>(null);
 
     // Bulk Edit State
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -148,29 +153,41 @@ export default function MapaReservas() {
         const end = endOfMonth(currentDate);
         
         try {
-            const res = await fetch(`/api/rates?roomTypeId=${selectedRoomId}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`);
+            // Add timestamp to prevent caching
+            const res = await fetch(`/api/admin/calendar?roomTypeId=${selectedRoomId}&startDate=${start.toISOString()}&endDate=${end.toISOString()}&_t=${Date.now()}`, {
+                cache: 'no-store'
+            });
             const data = await res.json();
             if (Array.isArray(data)) {
-                setRates(data);
+                setCalendarData(data);
             }
         } catch (error) {
-            console.error('Error loading rates:', error);
+            console.error('Error loading calendar data:', error);
         }
     };
 
-    const getRateForDay = (day: Date) => {
-        // Find a rate that covers this day
-        return rates.find(rate => {
-            const start = new Date(rate.startDate);
-            const end = new Date(rate.endDate);
-            // Reset times for accurate comparison
-            start.setHours(0,0,0,0);
-            end.setHours(23,59,59,999);
-            const d = new Date(day);
-            d.setHours(12,0,0,0); // mid-day to be safe
-            return d >= start && d <= end;
-        });
+    const getDataForDay = (day: Date) => {
+        const dateStr = format(day, 'yyyy-MM-dd');
+        return calendarData.find(d => d.date === dateStr);
     };
+
+    const getRateForDay = (day: Date) => {
+        // Kept for compatibility but should use getDataForDay
+        const data = getDataForDay(day);
+        if (!data) return undefined;
+        return {
+            id: data.rateId || 'temp',
+            startDate: data.date,
+            endDate: data.date,
+            price: data.price,
+            cta: data.cta,
+            ctd: data.ctd,
+            stopSell: data.stopSell,
+            minLos: data.minLos
+        };
+    };
+
+    // ... (rest of component)
 
     const saveSingleDayRate = async (day: Date, updates: any) => {
         if (!selectedRoomId) return;
@@ -194,6 +211,42 @@ export default function MapaReservas() {
         } catch (error) {
             console.error('Error saving single day rate:', error);
             alert('Erro ao salvar alteração');
+        }
+    };
+
+    const [updatingInventory, setUpdatingInventory] = useState<string | null>(null);
+
+    const updateInventory = async (day: Date, newTotal: number) => {
+        if (!selectedRoomId) return;
+        const dateStr = format(day, 'yyyy-MM-dd');
+        setUpdatingInventory(dateStr);
+        
+        // Optimistic Update
+        setCalendarData(prev => prev.map(d => {
+            if (d.date === dateStr) {
+                return { ...d, totalInventory: newTotal, available: Math.max(0, newTotal - d.bookingsCount) };
+            }
+            return d;
+        }));
+
+        try {
+            await fetch('/api/admin/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomTypeId: selectedRoomId,
+                    date: dateStr,
+                    totalUnits: newTotal
+                })
+            });
+            // Background refresh to ensure consistency
+            fetchRates();
+        } catch (error) {
+            console.error('Error updating inventory:', error);
+            alert('Erro ao atualizar estoque');
+            fetchRates(); // Revert on error
+        } finally {
+            setUpdatingInventory(null);
         }
     };
 
@@ -466,14 +519,18 @@ export default function MapaReservas() {
                                             {getDate(day)}
                                         </div>
                                         {isCurrentMonth && (
-                                            <div className={styles.priceTag}>
-                                                {rate?.stopSell ? (
-                                                    <span style={{color: 'red'}}>FECHADO</span>
-                                                ) : (
-                                                    `R$ ${rate ? Number(rate.price).toFixed(2) : 
-                                                    Number(roomTypes.find(r => r.id === selectedRoomId)?.basePrice || 0).toFixed(2)}`
-                                                )}
-                                            </div>
+                                            <>
+                                                <div className={styles.priceTag}>
+                                                    {rate?.stopSell || (getDataForDay(day)?.available === 0) ? (
+                                                        <span style={{color: 'red'}}>FECHADO</span>
+                                                    ) : (
+                                                        `R$ ${Number(getDataForDay(day)?.price || 0).toFixed(2)}`
+                                                    )}
+                                                </div>
+                                                <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
+                                                    Disp: {getDataForDay(day)?.available ?? '-'}
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 );
@@ -502,17 +559,53 @@ export default function MapaReservas() {
                                         <tr>
                                             <td className={styles.stickyCol}>Status</td>
                                             {monthDays.map(day => {
-                                                const rate = getRateForDay(day);
-                                                const isClosed = rate?.stopSell;
+                                                const data = getDataForDay(day);
+                                                const isClosed = data?.stopSell;
+                                                const isZero = (data?.available ?? 1) <= 0;
                                                 return (
                                                     <td key={day.toISOString()} 
                                                         className={styles.cell}
                                                         onClick={() => updateRateField(day, 'stopSell', !isClosed)}
                                                     >
-                                                        <div className={`${styles.statusPill} ${isClosed ? styles.closed : styles.open}`}>
-                                                            {isClosed ? 'FECHADO' : 'ABERTO'}
+                                                        <div className={`${styles.statusPill} ${(isClosed || isZero) ? styles.closed : styles.open}`}>
+                                                            {isClosed ? 'FECHADO' : (isZero ? 'ESGOTADO' : 'ABERTO')}
                                                         </div>
                                                     </td>
+                                                );
+                                            })}
+                                        </tr>
+                                        {/* Inventory Row */}
+                                        <tr>
+                                            <td className={styles.stickyCol}>Estoque (Total)</td>
+                                            {monthDays.map(day => {
+                                                const data = getDataForDay(day);
+                                                const total = data?.totalInventory ?? 0;
+                                                const available = data?.available ?? 0;
+                                                return (
+                                            <td key={day.toISOString()} className={styles.cell}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: updatingInventory === format(day, 'yyyy-MM-dd') ? 0.5 : 1 }}>
+                                                        <button 
+                                                            className={styles.miniBtn}
+                                                            onClick={() => updateInventory(day, Math.max(0, total - 1))}
+                                                            disabled={updatingInventory === format(day, 'yyyy-MM-dd')}
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <span style={{ fontWeight: 600 }}>{total}</span>
+                                                        <button 
+                                                            className={styles.miniBtn}
+                                                            onClick={() => updateInventory(day, total + 1)}
+                                                            disabled={updatingInventory === format(day, 'yyyy-MM-dd')}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                    <span style={{ fontSize: '0.7rem', color: available === 0 ? 'red' : '#64748b' }}>
+                                                        Disp: {available}
+                                                    </span>
+                                                </div>
+                                            </td>
                                                 );
                                             })}
                                         </tr>
@@ -520,8 +613,8 @@ export default function MapaReservas() {
                                         <tr>
                                             <td className={styles.stickyCol}>Preço (R$)</td>
                                             {monthDays.map(day => {
-                                                const rate = getRateForDay(day);
-                                                const price = rate ? rate.price : (roomTypes.find(r => r.id === selectedRoomId)?.basePrice ?? 0);
+                                                const data = getDataForDay(day);
+                                                const price = data ? data.price : (roomTypes.find(r => r.id === selectedRoomId)?.basePrice ?? 0);
                                                 return (
                                                     <td key={day.toISOString()} className={styles.cell}>
                                                         <EditableCell 
@@ -537,8 +630,8 @@ export default function MapaReservas() {
                                         <tr>
                                             <td className={styles.stickyCol}>Min. Noites</td>
                                             {monthDays.map(day => {
-                                                const rate = getRateForDay(day);
-                                                const minLos = rate ? rate.minLos : 1;
+                                                const data = getDataForDay(day);
+                                                const minLos = data ? data.minLos : 1;
                                                 return (
                                                     <td key={day.toISOString()} className={styles.cell}>
                                                         <EditableCell 
@@ -555,8 +648,8 @@ export default function MapaReservas() {
                                         <tr>
                                             <td className={styles.stickyCol}>Entrada (CTA)</td>
                                             {monthDays.map(day => {
-                                                const rate = getRateForDay(day);
-                                                const cta = rate?.cta;
+                                                const data = getDataForDay(day);
+                                                const cta = data?.cta;
                                                 return (
                                                     <td key={day.toISOString()} 
                                                         className={styles.cell}
@@ -573,8 +666,8 @@ export default function MapaReservas() {
                                         <tr>
                                             <td className={styles.stickyCol}>Saída (CTD)</td>
                                             {monthDays.map(day => {
-                                                const rate = getRateForDay(day);
-                                                const ctd = rate?.ctd;
+                                                const data = getDataForDay(day);
+                                                const ctd = data?.ctd;
                                                 return (
                                                     <td key={day.toISOString()} 
                                                         className={styles.cell}
@@ -597,87 +690,189 @@ export default function MapaReservas() {
 
             {modalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setModalOpen(false)}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ width: '500px' }}>
-                        <h2 className={styles.modalTitle}>
-                            {existingRateId ? 'Editar Tarifa' : 'Definir Tarifa'} - {selectedDate && format(selectedDate, 'dd/MM/yyyy')}
-                        </h2>
+                    <div 
+                        className={styles.modal} 
+                        onClick={e => e.stopPropagation()} 
+                        style={{ 
+                            width: '480px', 
+                            padding: '0', 
+                            borderRadius: '16px', 
+                            overflow: 'hidden',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                        }}
+                    >
+                        {/* Header */}
+                        <div style={{ 
+                            padding: '1.5rem', 
+                            borderBottom: '1px solid #e2e8f0',
+                            background: '#f8fafc'
+                        }}>
+                            <h2 style={{ 
+                                fontSize: '1.25rem', 
+                                fontWeight: 600, 
+                                color: '#1e293b',
+                                margin: 0 
+                            }}>
+                                Editar Tarifa
+                            </h2>
+                            <p style={{ margin: '0.25rem 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>
+                                {selectedDate && format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            </p>
+                        </div>
                         
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div className={styles.formGroup}>
-                                <label>Valor da Diária (R$)</label>
-                                <input 
-                                    type="number" 
-                                    step="0.01" 
-                                    value={editPrice}
-                                    onChange={e => setEditPrice(e.target.value)}
-                                    className={styles.input}
-                                    autoFocus
-                                />
+                        <div style={{ padding: '1.5rem' }}>
+                            {/* Price & MinLos Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                <div className={styles.formGroup}>
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem', display: 'block' }}>
+                                        Valor da Diária (R$)
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>R$</span>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            value={editPrice}
+                                            onChange={e => setEditPrice(e.target.value)}
+                                            className={styles.input}
+                                            style={{ paddingLeft: '2.5rem', width: '100%' }}
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={styles.formGroup}>
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem', display: 'block' }}>
+                                        Min. Noites
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        value={editMinLos}
+                                        onChange={e => setEditMinLos(e.target.value)}
+                                        className={styles.input}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
                             </div>
 
-                            <div className={styles.formGroup}>
-                                <label>Min. Noites</label>
-                                <input 
-                                    type="number" 
-                                    min="1"
-                                    value={editMinLos}
-                                    onChange={e => setEditMinLos(e.target.value)}
-                                    className={styles.input}
-                                />
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px', flex: 1, justifyContent: 'center', background: editStopSell ? '#fee2e2' : 'white' }}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={editStopSell} 
-                                    onChange={e => setEditStopSell(e.target.checked)} 
-                                />
-                                <span style={{ fontWeight: 500 }}>Fechar Venda</span>
+                            {/* Restrictions Cards */}
+                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.75rem', display: 'block' }}>
+                                Restrições
                             </label>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px', flex: 1, justifyContent: 'center', background: editCta ? '#fee2e2' : 'white' }}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={editCta} 
-                                    onChange={e => setEditCta(e.target.checked)} 
-                                />
-                                <span style={{ fontWeight: 500 }}>CTA (Entrada)</span>
-                            </label>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '6px', flex: 1, justifyContent: 'center', background: editCtd ? '#fee2e2' : 'white' }}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={editCtd} 
-                                    onChange={e => setEditCtd(e.target.checked)} 
-                                />
-                                <span style={{ fontWeight: 500 }}>CTD (Saída)</span>
-                            </label>
-                        </div>
-
-                        <div className={styles.modalActions}>
-                            {existingRateId && (
-                                <button 
-                                    onClick={handleDelete}
-                                    className={styles.button}
-                                    style={{ background: '#ef4444', color: 'white', marginRight: 'auto' }}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <label 
+                                    style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        padding: '1rem', 
+                                        border: editStopSell ? '1px solid #fecaca' : '1px solid #e2e8f0', 
+                                        borderRadius: '8px', 
+                                        cursor: 'pointer',
+                                        background: editStopSell ? '#fef2f2' : 'white',
+                                        transition: 'all 0.2s'
+                                    }}
                                 >
-                                    Excluir Personalização
+                                    <input 
+                                        type="checkbox" 
+                                        checked={editStopSell} 
+                                        onChange={e => setEditStopSell(e.target.checked)} 
+                                        style={{ width: '1.1rem', height: '1.1rem', marginRight: '1rem', accentColor: '#ef4444' }}
+                                    />
+                                    <div>
+                                        <div style={{ fontWeight: 600, color: editStopSell ? '#b91c1c' : '#1e293b' }}>Fechar Venda (Stop Sell)</div>
+                                        <div style={{ fontSize: '0.8rem', color: editStopSell ? '#b91c1c' : '#64748b' }}>Impede novas reservas para este dia</div>
+                                    </div>
+                                </label>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    <label 
+                                        style={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            padding: '0.75rem', 
+                                            border: editCta ? '1px solid #fed7aa' : '1px solid #e2e8f0', 
+                                            borderRadius: '8px', 
+                                            cursor: 'pointer',
+                                            background: editCta ? '#fff7ed' : 'white'
+                                        }}
+                                    >
+                                        <input 
+                                            type="checkbox" 
+                                            checked={editCta} 
+                                            onChange={e => setEditCta(e.target.checked)} 
+                                            style={{ marginRight: '0.75rem', accentColor: '#f97316' }}
+                                        />
+                                        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#334155' }}>Bloquear Entrada</span>
+                                    </label>
+
+                                    <label 
+                                        style={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            padding: '0.75rem', 
+                                            border: editCtd ? '1px solid #fed7aa' : '1px solid #e2e8f0', 
+                                            borderRadius: '8px', 
+                                            cursor: 'pointer',
+                                            background: editCtd ? '#fff7ed' : 'white'
+                                        }}
+                                    >
+                                        <input 
+                                            type="checkbox" 
+                                            checked={editCtd} 
+                                            onChange={e => setEditCtd(e.target.checked)} 
+                                            style={{ marginRight: '0.75rem', accentColor: '#f97316' }}
+                                        />
+                                        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#334155' }}>Bloquear Saída</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div style={{ 
+                            padding: '1.5rem', 
+                            background: '#f8fafc', 
+                            borderTop: '1px solid #e2e8f0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div>
+                                {existingRateId && (
+                                    <button 
+                                        onClick={handleDelete}
+                                        className={styles.button}
+                                        style={{ 
+                                            background: 'transparent', 
+                                            color: '#ef4444', 
+                                            border: '1px solid #fee2e2',
+                                            padding: '0.5rem 1rem',
+                                            fontSize: '0.875rem'
+                                        }}
+                                        title="Remover personalização e voltar ao padrão"
+                                    >
+                                        🗑️ Restaurar Padrão
+                                    </button>
+                                )}
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button 
+                                    onClick={() => setModalOpen(false)}
+                                    className={styles.buttonSecondary}
+                                    style={{ background: 'white', border: '1px solid #e2e8f0' }}
+                                >
+                                    Cancelar
                                 </button>
-                            )}
-                            <button 
-                                onClick={() => setModalOpen(false)}
-                                className={styles.buttonSecondary}
-                            >
-                                Cancelar
-                            </button>
-                            <button 
-                                onClick={handleSave}
-                                className={styles.buttonPrimary}
-                            >
-                                Salvar
-                            </button>
+                                <button 
+                                    onClick={handleSave}
+                                    className={styles.buttonPrimary}
+                                    style={{ padding: '0.6rem 1.5rem' }}
+                                >
+                                    Salvar Alterações
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
