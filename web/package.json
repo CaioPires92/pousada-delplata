@@ -7,6 +7,8 @@
         "build": "prisma generate && next build --webpack",
         "start": "next start --webpack",
         "lint": "eslint",
+        "test": "vitest",
+        "test:coverage": "vitest run --coverage",
         "postinstall": "prisma generate"
     },
     "dependencies": {
@@ -32,22 +34,31 @@
     },
     "devDependencies": {
         "@prisma/client": "^5.22.0",
+        "@testing-library/dom": "^10.4.1",
+        "@testing-library/jest-dom": "^6.9.1",
+        "@testing-library/react": "^16.3.1",
+        "@testing-library/user-event": "^14.6.1",
         "@types/bcryptjs": "^2.4.6",
         "@types/jsonwebtoken": "^9.0.10",
         "@types/node": "^20",
         "@types/nodemailer": "^7.0.4",
         "@types/react": "^19",
         "@types/react-dom": "^19",
+        "@vitejs/plugin-react": "^5.1.2",
+        "@vitest/coverage-v8": "^4.0.16",
         "autoprefixer": "^10.4.22",
         "eslint": "^9",
         "eslint-config-next": "16.0.7",
+        "jsdom": "^27.4.0",
         "postcss": "^8.5.6",
         "prisma": "^5.22.0",
         "puppeteer": "^24.31.0",
         "sharp": "^0.34.5",
         "tailwindcss": "^3.4.17",
         "tailwindcss-animate": "^1.0.7",
-        "typescript": "^5"
+        "typescript": "^5",
+        "vitest": "^4.0.16",
+        "vitest-mock-extended": "^3.1.0"
     },
     "prisma": {
         "seed": "node prisma/seed.js"

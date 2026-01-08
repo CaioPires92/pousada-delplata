@@ -19,13 +19,36 @@ if (process.env.DATABASE_AUTH_TOKEN) {
 
 async function safeSeed() {
     console.log('🌱 Safe Seeding (Production Mode)...');
+    console.log('⚠️  Checking for Admin User...');
+
+    // Create Admin User if not exists
+    const adminEmail = 'admin@delplata.com.br';
+    const adminExists = await prisma.adminUser.findUnique({
+        where: { email: adminEmail }
+    });
+
+    if (!adminExists) {
+        console.log('Creating Admin User...');
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await prisma.adminUser.create({
+            data: {
+                name: 'Administrador',
+                email: adminEmail,
+                password: hashedPassword,
+            }
+        });
+        console.log('✅ Admin User created.');
+    } else {
+        console.log('ℹ️ Admin User already exists.');
+    }
+
     console.log('⚠️  This script creates/updates rooms but preserves Bookings and Guests.');
 
     // Define the rooms we want
     const roomsData = [
         {
             name: 'Apartamento Superior',
-            description: 'Apartamentos compostos por: Televisão LCD 39, Frigobar, Guarda Roupa, Ventilador de Teto e Ar condicionado, Tomadas 220v',
+            description: 'Apartamentos compostos por: Televisão LCD 39, Frigobar, Guarda-roupa, Ventilador de teto e Ar-condicionado, Tomadas 220v',
             capacity: 4,
             totalUnits: 3,
             basePrice: 499.00,

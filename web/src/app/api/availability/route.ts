@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { eachDayOfInterval, format, differenceInDays } from 'date-fns';
+import { eachDayOfInterval, differenceInDays } from 'date-fns';
+import { parseLocalDate, toISODateString } from '@/lib/date-utils';
 
 // Force dynamic rendering - don't try to build this route at build time
 export const dynamic = 'force-dynamic';
@@ -20,12 +21,9 @@ export async function GET(request: Request) {
         );
     }
 
-    // Parse dates as Local Midnight to prevent timezone shifts
-    const [startY, startM, startD] = checkIn.split('-').map(Number);
-    const startDate = new Date(startY, startM - 1, startD);
-
-    const [endY, endM, endD] = checkOut.split('-').map(Number);
-    const endDate = new Date(endY, endM - 1, endD);
+    // Parse dates as Local Midnight using utility
+    const startDate = parseLocalDate(checkIn);
+    const endDate = parseLocalDate(checkOut);
 
     const totalGuests = (parseInt(adults || '0') + parseInt(children || '0')) || 1;
     const stayLength = differenceInDays(endDate, startDate);
@@ -79,10 +77,10 @@ export async function GET(request: Request) {
 
             // --- Validation: Check-in Rules (CTA & MinLOS) ---
             // Find rate for check-in date
-            const checkInStr = format(startDate, 'yyyy-MM-dd');
+            const checkInStr = toISODateString(startDate);
             const checkInRate = room.rates.find((r: any) => {
-                const rStart = format(new Date(r.startDate), 'yyyy-MM-dd');
-                const rEnd = format(new Date(r.endDate), 'yyyy-MM-dd');
+                const rStart = toISODateString(r.startDate);
+                const rEnd = toISODateString(r.endDate);
                 return checkInStr >= rStart && checkInStr <= rEnd;
             });
 
@@ -100,10 +98,10 @@ export async function GET(request: Request) {
             // Find rate for check-out date (note: we check availability for NIGHTS, but CTD applies to the check-out day itself)
             // Need to fetch rate covering checkOut date specifically? 
             // The query above fetches rates overlapping [startDate, endDate], so checkOut IS included in fetched rates.
-            const checkOutStr = format(endDate, 'yyyy-MM-dd');
+            const checkOutStr = toISODateString(endDate);
             const checkOutRate = room.rates.find((r: any) => {
-                const rStart = format(new Date(r.startDate), 'yyyy-MM-dd');
-                const rEnd = format(new Date(r.endDate), 'yyyy-MM-dd');
+                const rStart = toISODateString(r.startDate);
+                const rEnd = toISODateString(r.endDate);
                 return checkOutStr >= rStart && checkOutStr <= rEnd;
             });
 
@@ -118,10 +116,10 @@ export async function GET(request: Request) {
                 nightDate.setHours(0,0,0,0);
 
                 // Find rate for this night
-                const nightStr = format(night, 'yyyy-MM-dd');
+                const nightStr = toISODateString(night);
                 const rate = room.rates.find((r: any) => {
-                    const rStart = format(new Date(r.startDate), 'yyyy-MM-dd');
-                    const rEnd = format(new Date(r.endDate), 'yyyy-MM-dd');
+                    const rStart = toISODateString(r.startDate);
+                    const rEnd = toISODateString(r.endDate);
                     return nightStr >= rStart && nightStr <= rEnd;
                 });
 
@@ -141,7 +139,7 @@ export async function GET(request: Request) {
                     },
                 });
 
-                const dailyInventory = room.inventory.find((i: any) => i.date.toISOString().split('T')[0] === night.toISOString().split('T')[0]);
+                const dailyInventory = room.inventory.find((i: any) => toISODateString(i.date) === toISODateString(night));
                 const maxUnits = dailyInventory ? dailyInventory.totalUnits : room.totalUnits;
 
                 if (bookingsCount >= maxUnits) {

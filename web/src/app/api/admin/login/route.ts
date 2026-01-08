@@ -48,11 +48,25 @@ export async function POST(request: NextRequest) {
 
         console.log('[Admin Login] Success for:', email);
 
-        return NextResponse.json({
+        // Create response
+        const response = NextResponse.json({
             token,
             name: admin.name,
             email: admin.email,
         });
+
+        // Set secure cookie
+        response.cookies.set({
+            name: 'admin_token',
+            value: token,
+            httpOnly: true, // Not accessible via JS
+            secure: process.env.NODE_ENV === 'production', // Only HTTPS in production
+            sameSite: 'strict',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+        });
+
+        return response;
 
     } catch (error) {
         console.error('[Admin Login] Error:', error);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { parseLocalDate } from '@/lib/date-utils';
 
 export async function POST(request: Request) {
     try {
@@ -10,9 +11,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
 
-        const targetDate = new Date(date);
-        // Normalize to UTC noon to avoid timezone shifts
-        targetDate.setUTCHours(12, 0, 0, 0);
+        const targetDate = parseLocalDate(date);
         
         // Upsert Inventory Adjustment
         const adjustment = await prisma.inventoryAdjustment.upsert({

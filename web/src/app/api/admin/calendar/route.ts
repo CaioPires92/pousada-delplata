@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { eachDayOfInterval, format, startOfDay, endOfDay } from 'date-fns';
+import { eachDayOfInterval } from 'date-fns';
+import { toISODateString } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,21 +70,21 @@ export async function GET(request: Request) {
         
         const calendarData = days.map(day => {
             // Fix: Use UTC Date String to avoid timezone shift
-            const dateStr = day.toISOString().split('T')[0];
+            const dateStr = toISODateString(day);
             const dayTime = day.getTime();
 
             // --- Rate ---
             // Find specific rate for this day
             const rate = rates.find(r => {
-                const rStart = new Date(r.startDate).toISOString().split('T')[0];
-                const rEnd = new Date(r.endDate).toISOString().split('T')[0];
+                const rStart = toISODateString(r.startDate);
+                const rEnd = toISODateString(r.endDate);
                 return dateStr >= rStart && dateStr <= rEnd;
             });
 
             // --- Inventory ---
             // Fix: Compare dates using yyyy-MM-dd string to ignore time/timezone differences
             const adjustment = inventoryAdjustments.find(i => {
-                const adjDate = i.date.toISOString().split('T')[0];
+                const adjDate = toISODateString(i.date);
                 return adjDate === dateStr;
             });
             const totalInventory = adjustment ? adjustment.totalUnits : roomType.totalUnits;
