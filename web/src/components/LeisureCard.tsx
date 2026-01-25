@@ -17,8 +17,10 @@ interface LeisureCardProps {
 export function LeisureCard({ title, description, images }: LeisureCardProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-    const [mounted, setMounted] = useState(false);
 
+
+    // Use useEffect to handle mounting state for Portal
+    const [mounted, setMounted] = useState(false);
     useEffect(() => {
         setMounted(true);
     }, []);

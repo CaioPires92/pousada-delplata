@@ -87,7 +87,7 @@ export default function HomeContent() {
   return (
     <main className="min-h-screen">
       {/* Hero Section with Background Image */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
@@ -131,7 +131,7 @@ export default function HomeContent() {
             Conheça nossa região, encante-se!
           </p>
 
-          <div className="max-w-5xl mx-auto mt-12">
+          <div className="max-w-5xl mx-auto mt-12 mb-8 md:mb-0">
             <SearchWidget />
           </div>
 
@@ -139,7 +139,7 @@ export default function HomeContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 1 }}
-            className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
+            className="absolute bottom-10 left-1/2 transform -translate-x-1/2 hidden md:block"
           >
             <div className="animate-bounce">
               <svg className="w-6 h-6 text-white/60" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
