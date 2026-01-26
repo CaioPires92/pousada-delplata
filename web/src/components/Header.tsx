@@ -58,6 +58,7 @@ export default function Header() {
                             src="/fotos/logo.png"
                             alt="Hotel Pousada Delplata"
                             fill
+                            sizes="(max-width: 768px) 100vw, 320px"
                             className="object-contain object-left"
                             priority
                         />

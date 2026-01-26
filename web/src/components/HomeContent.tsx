@@ -94,6 +94,7 @@ export default function HomeContent() {
             src="/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp"
             alt="Pousada Delplata - Ala Principal"
             fill
+            sizes="100vw"
             className="object-cover"
             priority
           />
@@ -178,6 +179,7 @@ export default function HomeContent() {
                             src={wing.image}
                             alt={wing.title}
                             fill
+                            sizes="(max-width: 768px) 100vw, 50vw"
                             className="object-cover group-hover:scale-110 transition-transform duration-700"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-90 group-hover:opacity-80 transition-opacity" />
@@ -219,6 +221,7 @@ export default function HomeContent() {
                   src="/fotos/piscina-aptos/DJI_0863.jpg"
                   alt="Área de Lazer"
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
@@ -247,6 +250,7 @@ export default function HomeContent() {
                   src="/fotos/restaurante/DSC_0056.jpg"
                   alt="Café da Manhã"
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
@@ -273,6 +277,7 @@ export default function HomeContent() {
             src="/fotos/piscina-aptos/DJI_0908.jpg"
             alt="Reserve Agora"
             fill
+            sizes="100vw"
             className="object-cover"
           />
           <div className="absolute inset-0 bg-primary/90" />
