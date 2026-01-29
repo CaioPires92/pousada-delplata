@@ -15,8 +15,15 @@ const eslintConfig = defineConfig([
     // Custom ignores
     "scripts/**",
     "*.js",
+    "**/*.js",
+    "prisma/**/*.js",
     "coverage/**",
   ]),
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

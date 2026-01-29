@@ -36,10 +36,10 @@ export default function AdminLoginPage() {
 
             // Redirecionar para dashboard
             router.push('/admin/dashboard');
-        } catch (err: any) {
-            setError(err.message);
-            setLoading(false);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Erro ao fazer login');
         }
+        setLoading(false);
     };
 
     return (

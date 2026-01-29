@@ -61,7 +61,7 @@ https://vercel.com/seu-usuario/delplata-motor/settings
 ```bash
 # Secret 1
 Name: VERCEL_TOKEN
-Value: LB2UJCaoNNcEWGMI7DiRFENU
+Value: <SEU_VERCEL_TOKEN>
 
 # Secret 2  
 Name: ORG_ID

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 export async function GET(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -36,12 +37,15 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth) return auth;
+
         const { id } = await params;
         const body = await request.json();
         const { name, description, capacity, basePrice, amenities, photos } = body;
 
         // First update the room details
-        const room = await prisma.roomType.update({
+        await prisma.roomType.update({
             where: { id },
             data: {
                 name,
@@ -83,10 +87,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth) return auth;
+
         const { id } = await params;
         await prisma.roomType.delete({
             where: { id },

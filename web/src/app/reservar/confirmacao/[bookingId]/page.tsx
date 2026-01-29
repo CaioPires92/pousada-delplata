@@ -1,9 +1,18 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+
+interface Booking {
+    id: string;
+    roomType?: { name?: string };
+    guest?: { name?: string; email?: string };
+    checkIn: string;
+    checkOut: string;
+    totalPrice: number | string;
+    status: string;
+}
 
 export default function ConfirmacaoPage() {
     const params = useParams();
@@ -11,16 +20,11 @@ export default function ConfirmacaoPage() {
     const bookingId = params.bookingId as string;
     const status = searchParams.get('status');
 
-    const [booking, setBooking] = useState<any>(null);
+    const [booking, setBooking] = useState<Booking | null>(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (bookingId) {
-            fetchBooking();
-        }
-    }, [bookingId]);
-
-    const fetchBooking = async () => {
+    const fetchBooking = useCallback(async () => {
+        if (!bookingId) return;
         try {
             const response = await fetch(`/api/bookings/${bookingId}`);
             if (response.ok) {
@@ -32,7 +36,11 @@ export default function ConfirmacaoPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [bookingId]);
+
+    useEffect(() => {
+        fetchBooking();
+    }, [fetchBooking]);
 
     // Show alert when page loads with payment status
     useEffect(() => {

@@ -2,21 +2,26 @@
 # VARIÁVEIS DE AMBIENTE - POUSADA DELPLATA
 # ============================================
 
+# ATENÇÃO: NÃO COMMITAR SEGREDOS
+# Este arquivo é um TEMPLATE. Preencha os valores no seu .env local e nas Env Vars da Vercel/GitHub.
+#
+# Se você já comitou segredos em algum momento, ROTACIONE/REVOGUE os tokens/credenciais imediatamente.
+#
 # Database (Turso) - MESMA para teste e produção
-DATABASE_URL=libsql://pousada-delplata-caiopires92.aws-us-west-2.turso.io
-DATABASE_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NjM5OTE1NjMsImlkIjoiZjY2ZmE3MDgtNTAyMS00NzAxLTg0M2UtMjk5YWRiOTQyYTZlIiwicmlkIjoiNTdhNmIyZDUtMDk5Yy00ZmJlLTg5NDItNGNhOTMzNzdiN2ZkIn0.959jJMdn6I6mNnFQHLzVz-Co5TqrXcUjudV-xI28iMCFA7IBtYoudtc-6zCcG8MjjZu-FBkbs5NGLp_b3_5QAA
+DATABASE_URL=libsql://<SUA-DB>.turso.io
+DATABASE_AUTH_TOKEN=<SEU_DATABASE_AUTH_TOKEN>
 
 # App URL - MESMA para teste e produção
-NEXT_PUBLIC_APP_URL=https://pousada-delplata.vercel.app
+NEXT_PUBLIC_APP_URL=https://<SEU-DOMINIO>.vercel.app
 
 # Email (SMTP) - MESMA para teste e produção
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=caiocgp92@gmail.com
-SMTP_PASS=ypyoaenwewhsysbs
+SMTP_USER=<SEU_EMAIL_SMTP>
+SMTP_PASS=<SUA_APP_PASSWORD_SMTP>
 
 # Webhook Secret - MESMA para teste e produção
-MP_WEBHOOK_SECRET=459abb33f94cbfbb8aef051668b55e3464a6705ec1c1b75d96dbeefd0e6ebdbe
+MP_WEBHOOK_SECRET=<SEU_MP_WEBHOOK_SECRET>
 
 # ============================================
 # OPÇÃO 1: AMBIENTE DE TESTE
@@ -24,8 +29,8 @@ MP_WEBHOOK_SECRET=459abb33f94cbfbb8aef051668b55e3464a6705ec1c1b75d96dbeefd0e6ebd
 # Use estas credenciais para TESTAR com cartões de teste
 # Pagamentos NÃO são reais, não cobra dinheiro de verdade
 
-MP_ACCESS_TOKEN=TEST-1242598103832964-110108-885c9ac376c2197ba5cf7fa183b32a9b-39563078
-NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-f1fb1b94-ce74-4737-ac28-2fc49c5004e7
+MP_ACCESS_TOKEN=TEST-<SEU_ACCESS_TOKEN>
+NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-<SUA_PUBLIC_KEY>
 
 # Cartões de teste que funcionam:
 # APROVADO: 5031 4332 1540 6351 | Nome: APRO | CVV: 123 | Data: 11/25
@@ -39,8 +44,8 @@ NEXT_PUBLIC_MP_PUBLIC_KEY=TEST-f1fb1b94-ce74-4737-ac28-2fc49c5004e7
 # Pagamentos são REAIS e cobram dinheiro de verdade!
 # IMPORTANTE: Sua conta do Mercado Pago precisa estar ATIVADA
 
-# MP_ACCESS_TOKEN=APP_USR-1242598103832964-110108-a09bd166496af5294ae2e9255ca1f01c-39563078
-# NEXT_PUBLIC_MP_PUBLIC_KEY=APP_USR-63ebe4a3-4158-449b-ac57-ce0e26f1018d
+# MP_ACCESS_TOKEN=APP_USR-<SEU_ACCESS_TOKEN_PROD>
+# NEXT_PUBLIC_MP_PUBLIC_KEY=APP_USR-<SUA_PUBLIC_KEY_PROD>
 
 # ============================================
 # INSTRUÇÕES DE USO:

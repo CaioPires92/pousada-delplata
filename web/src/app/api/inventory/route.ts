@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
+import { assertDayKey } from '@/lib/day-key';
 
 export async function GET(request: Request) {
+    const auth = await requireAdminAuth();
+    if (auth) return auth;
+
     const { searchParams } = new URL(request.url);
     const roomTypeId = searchParams.get('roomTypeId');
     const startDate = searchParams.get('startDate');
@@ -11,9 +16,18 @@ export async function GET(request: Request) {
         const where: any = {};
         if (roomTypeId) where.roomTypeId = roomTypeId;
         if (startDate && endDate) {
+            try {
+                assertDayKey(startDate, 'startDate');
+                assertDayKey(endDate, 'endDate');
+            } catch (e) {
+                return NextResponse.json(
+                    { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                    { status: 400 }
+                );
+            }
             where.date = {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
+                gte: startDate,
+                lte: endDate,
             };
         }
 
@@ -33,15 +47,26 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth) return auth;
+
         const body = await request.json();
         const { roomTypeId, date, totalUnits } = body;
+        try {
+            assertDayKey(date, 'date');
+        } catch (e) {
+            return NextResponse.json(
+                { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                { status: 400 }
+            );
+        }
 
         // Upsert to handle both creation and update of inventory for a specific date
         const inventory = await prisma.inventoryAdjustment.upsert({
             where: {
                 roomTypeId_date: {
                     roomTypeId,
-                    date: new Date(date),
+                    date,
                 },
             },
             update: {
@@ -49,7 +74,7 @@ export async function POST(request: Request) {
             },
             create: {
                 roomTypeId,
-                date: new Date(date),
+                date,
                 totalUnits: parseInt(totalUnits),
             },
         });

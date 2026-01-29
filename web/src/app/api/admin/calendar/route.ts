@@ -1,23 +1,30 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { eachDayOfInterval } from 'date-fns';
-import { toISODateString } from '@/lib/date-utils';
+import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const roomTypeId = searchParams.get('roomTypeId');
-    const startDateStr = searchParams.get('startDate');
-    const endDateStr = searchParams.get('endDate');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    if (!roomTypeId || !startDateStr || !endDateStr) {
+    if (!roomTypeId || !startDate || !endDate) {
         return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
     try {
-        const start = new Date(startDateStr);
-        const end = new Date(endDateStr);
+        try {
+            assertDayKey(startDate, 'startDate');
+            assertDayKey(endDate, 'endDate');
+        } catch (e) {
+            return NextResponse.json(
+                { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                { status: 400 }
+            );
+        }
 
         // 1. Fetch Room Details (Default Capacity)
         const roomType = await prisma.roomType.findUnique({
@@ -32,8 +39,8 @@ export async function GET(request: Request) {
         const rates = await prisma.rate.findMany({
             where: {
                 roomTypeId,
-                startDate: { lte: end },
-                endDate: { gte: start }
+                startDate: { lte: endDate },
+                endDate: { gte: startDate }
             },
             orderBy: {
                 createdAt: 'desc'
@@ -44,57 +51,53 @@ export async function GET(request: Request) {
         const inventoryAdjustments = await prisma.inventoryAdjustment.findMany({
             where: {
                 roomTypeId,
-                date: {
-                    gte: start,
-                    lte: end
-                }
+                date: { gte: startDate, lte: endDate }
             }
         });
+        const inventoryByDay = new Map(inventoryAdjustments.map((row) => [row.date, row]));
 
         // 4. Fetch Bookings (Active only)
-        const bookings = await prisma.booking.findMany({
-            where: {
-                roomTypeId,
-                status: { in: ['CONFIRMED', 'PAID', 'PENDING'] },
-                checkIn: { lte: end },
-                checkOut: { gt: start }
-            },
-            select: {
-                checkIn: true,
-                checkOut: true
+        const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+        const pendingModifier = `-${ttlMinutes} minutes`;
+        const bookingRows = await prisma.$queryRaw<{ checkInDay: string; checkOutDay: string }[]>`
+            SELECT substr(checkIn, 1, 10) as checkInDay, substr(checkOut, 1, 10) as checkOutDay
+            FROM Booking
+            WHERE roomTypeId = ${roomTypeId}
+              AND (
+                status IN ('CONFIRMED', 'PAID')
+                OR (status = 'PENDING' AND createdAt >= datetime('now', ${pendingModifier}))
+              )
+              AND substr(checkIn, 1, 10) <= ${endDate}
+              AND substr(checkOut, 1, 10) > ${startDate}
+        `;
+        const bookingsCountByDay = new Map<string, number>();
+        for (const b of bookingRows) {
+            const checkInDay = b.checkInDay;
+            const checkOutDay = b.checkOutDay;
+            if (!checkInDay || !checkOutDay) continue;
+
+            const rangeStart = compareDayKey(checkInDay, startDate) < 0 ? startDate : checkInDay;
+            const endInclusive = prevDayKey(checkOutDay);
+            const rangeEnd = compareDayKey(endInclusive, endDate) > 0 ? endDate : endInclusive;
+            if (compareDayKey(rangeStart, rangeEnd) > 0) continue;
+
+            for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
+                bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
             }
-        });
+        }
 
         // 5. Merge Data per Day
-        const days = eachDayOfInterval({ start, end });
-        
-        const calendarData = days.map(day => {
-            // Fix: Use UTC Date String to avoid timezone shift
-            const dateStr = toISODateString(day);
-            const dayTime = day.getTime();
+        const dayKeys = eachDayKeyInclusive(startDate, endDate);
 
-            // --- Rate ---
-            // Find specific rate for this day
-            const rate = rates.find(r => {
-                const rStart = toISODateString(r.startDate);
-                const rEnd = toISODateString(r.endDate);
-                return dateStr >= rStart && dateStr <= rEnd;
-            });
+        const calendarData = dayKeys.map((dateStr) => {
+            const rate = rates.find((r) => dateStr >= r.startDate && dateStr <= r.endDate);
 
             // --- Inventory ---
-            // Fix: Compare dates using yyyy-MM-dd string to ignore time/timezone differences
-            const adjustment = inventoryAdjustments.find(i => {
-                const adjDate = toISODateString(i.date);
-                return adjDate === dateStr;
-            });
+            const adjustment = inventoryByDay.get(dateStr);
             const totalInventory = adjustment ? adjustment.totalUnits : roomType.totalUnits;
 
             // --- Bookings Count ---
-            const bookingsCount = bookings.filter(b => {
-                const bCheckIn = new Date(b.checkIn).setHours(0,0,0,0);
-                const bCheckOut = new Date(b.checkOut).setHours(0,0,0,0);
-                return dayTime >= bCheckIn && dayTime < bCheckOut;
-            }).length;
+            const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
 
             const available = Math.max(0, totalInventory - bookingsCount);
 
@@ -116,7 +119,36 @@ export async function GET(request: Request) {
         return NextResponse.json(calendarData);
 
     } catch (error) {
-        console.error('Error fetching calendar data:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        const isDev = process.env.NODE_ENV !== 'production';
+        const err = error as any;
+        const name = typeof err?.name === 'string' ? err.name : 'UnknownError';
+        const message = error instanceof Error ? error.message : 'Internal Server Error';
+
+        console.error('[Admin Calendar] ERROR:', { name, message });
+        if (isDev) {
+            console.error('[Admin Calendar] RAW ERROR:', error);
+            if (error instanceof Error && error.stack) {
+                console.error('[Admin Calendar] STACK:\n' + error.stack);
+            }
+        }
+
+        return NextResponse.json(
+            {
+                error: 'Internal Server Error',
+                message,
+                ...(isDev
+                    ? {
+                          details: {
+                              name,
+                              code: typeof err?.code === 'string' ? err.code : undefined,
+                              meta: err?.meta,
+                              clientVersion: err?.clientVersion,
+                          },
+                          stack: error instanceof Error ? error.stack : undefined,
+                      }
+                    : {}),
+            },
+            { status: 500 }
+        );
     }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     format, 
@@ -13,8 +13,7 @@ import {
     isSameDay, 
     addMonths, 
     subMonths,
-    getDate,
-    parseISO
+    getDate
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import styles from './mapa.module.css';
@@ -48,6 +47,16 @@ interface EditableCellProps {
     type?: 'number' | 'text';
     min?: string;
 }
+
+type RateUpdatePayload = Record<string, string | number | boolean>;
+type BulkUpdates = {
+    price?: number;
+    minLos?: number;
+    stopSell?: boolean;
+    cta?: boolean;
+    ctd?: boolean;
+    inventory?: number;
+};
 
 const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) => {
     const [currentValue, setCurrentValue] = useState(value);
@@ -88,6 +97,8 @@ export default function MapaReservas() {
     const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
     const [selectedRoomId, setSelectedRoomId] = useState<string>('');
     const [calendarData, setCalendarData] = useState<CalendarData[]>([]);
+    const [calendarLoading, setCalendarLoading] = useState(false);
+    const [calendarError, setCalendarError] = useState<string | null>(null);
     // List View Scroll Ref
     const listScrollRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +116,7 @@ export default function MapaReservas() {
 
     // Bulk Edit State
     const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [bulkRoomTypeId, setBulkRoomTypeId] = useState('all');
     const [bulkStart, setBulkStart] = useState('');
     const [bulkEnd, setBulkEnd] = useState('');
     const [bulkPrice, setBulkPrice] = useState('');
@@ -112,6 +124,7 @@ export default function MapaReservas() {
     const [bulkStopSell, setBulkStopSell] = useState<'true'|'false'|''>('');
     const [bulkCta, setBulkCta] = useState<'true'|'false'|''>('');
     const [bulkCtd, setBulkCtd] = useState<'true'|'false'|''>('');
+    const [bulkInventory, setBulkInventory] = useState('');
 
     useEffect(() => {
         const token = localStorage.getItem('admin_token');
@@ -122,12 +135,6 @@ export default function MapaReservas() {
 
         fetchRoomTypes();
     }, [router]);
-
-    useEffect(() => {
-        if (selectedRoomId) {
-            fetchRates();
-        }
-    }, [currentDate, selectedRoomId]);
 
     const fetchRoomTypes = async () => {
         try {
@@ -146,25 +153,55 @@ export default function MapaReservas() {
         }
     };
 
-    const fetchRates = async () => {
+    const fetchRates = useCallback(async () => {
         if (!selectedRoomId) return;
         
         const start = startOfMonth(currentDate);
         const end = endOfMonth(currentDate);
         
+        setCalendarLoading(true);
+        setCalendarError(null);
         try {
-            // Add timestamp to prevent caching
-            const res = await fetch(`/api/admin/calendar?roomTypeId=${selectedRoomId}&startDate=${start.toISOString()}&endDate=${end.toISOString()}&_t=${Date.now()}`, {
+            const startKey = format(start, 'yyyy-MM-dd');
+            const endKey = format(end, 'yyyy-MM-dd');
+            const res = await fetch(`/api/admin/calendar?roomTypeId=${selectedRoomId}&startDate=${startKey}&endDate=${endKey}&_t=${Date.now()}`, {
                 cache: 'no-store'
             });
-            const data = await res.json();
-            if (Array.isArray(data)) {
-                setCalendarData(data);
+            if (!res.ok) {
+                const contentType = res.headers.get('content-type') || '';
+                let message = `Erro ao carregar calendário (HTTP ${res.status})`;
+                if (contentType.includes('application/json')) {
+                    const data = await res.json().catch(() => null);
+                    if (data && typeof data === 'object') {
+                        if (typeof (data as any).message === 'string') message = (data as any).message;
+                        else if (typeof (data as any).error === 'string') message = (data as any).error;
+                    }
+                } else {
+                    const text = await res.text().catch(() => '');
+                    if (text) message = text;
+                }
+                throw new Error(message);
             }
+
+            const data = await res.json();
+            if (!Array.isArray(data)) {
+                throw new Error('Resposta inválida da API do calendário');
+            }
+            setCalendarData(data);
         } catch (error) {
             console.error('Error loading calendar data:', error);
+            setCalendarData([]);
+            setCalendarError(error instanceof Error ? error.message : 'Erro ao carregar calendário');
+        } finally {
+            setCalendarLoading(false);
         }
-    };
+    }, [currentDate, selectedRoomId]);
+
+    useEffect(() => {
+        if (selectedRoomId) {
+            void fetchRates();
+        }
+    }, [selectedRoomId, fetchRates]);
 
     const getDataForDay = (day: Date) => {
         const dateStr = format(day, 'yyyy-MM-dd');
@@ -189,28 +226,48 @@ export default function MapaReservas() {
 
     // ... (rest of component)
 
-    const saveSingleDayRate = async (day: Date, updates: any) => {
+    const [savingRate, setSavingRate] = useState<string | null>(null);
+
+    const saveSingleDayRate = async (day: Date, updates: RateUpdatePayload) => {
         if (!selectedRoomId) return;
 
         // Use bulk endpoint for single day update to ensure correct splitting
+        const dateStr = format(day, 'yyyy-MM-dd');
+        setSavingRate(dateStr);
         try {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            
-            await fetch('/api/rates/bulk', {
+            const res = await fetch('/api/rates/bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     roomTypeId: selectedRoomId,
-                    startDate: dateStr,
-                    endDate: dateStr,
+                    date: dateStr,
                     updates
                 })
             });
-            
-            fetchRates();
+
+            if (!res.ok) {
+                const contentType = res.headers.get('content-type') || '';
+                let message = 'Erro ao salvar alteração';
+                if (contentType.includes('application/json')) {
+                    const data = await res.json().catch(() => null);
+                    if (data && typeof data === 'object') {
+                        if (typeof (data as any).message === 'string') message = (data as any).message;
+                        else if (typeof (data as any).error === 'string') message = (data as any).error;
+                    }
+                } else {
+                    const text = await res.text().catch(() => '');
+                    if (text) message = text;
+                }
+                throw new Error(message);
+            }
+
+            await fetchRates();
         } catch (error) {
             console.error('Error saving single day rate:', error);
-            alert('Erro ao salvar alteração');
+            alert(error instanceof Error ? error.message : 'Erro ao salvar alteração');
+            throw error;
+        } finally {
+            setSavingRate(null);
         }
     };
 
@@ -285,14 +342,18 @@ export default function MapaReservas() {
             return;
         }
 
-        await saveSingleDayRate(selectedDate, { 
-            price,
-            minLos: parseInt(editMinLos) || 1,
-            stopSell: editStopSell,
-            cta: editCta,
-            ctd: editCtd
-        });
-        setModalOpen(false);
+        try {
+            await saveSingleDayRate(selectedDate, { 
+                price,
+                minLos: parseInt(editMinLos) || 1,
+                stopSell: editStopSell,
+                cta: editCta,
+                ctd: editCtd
+            });
+            setModalOpen(false);
+        } catch {
+            return;
+        }
     };
 
     const handleDelete = async () => {
@@ -354,41 +415,67 @@ export default function MapaReservas() {
 
     // --- List View Logic ---
 
-    const updateRateField = async (day: Date, field: string, value: any) => {
+    const updateRateField = async (day: Date, field: string, value: string | number | boolean) => {
+        if (savingRate) return;
         await saveSingleDayRate(day, { [field]: value });
     };
 
     const handleBulkSave = async () => {
-        if (!selectedRoomId || !bulkStart || !bulkEnd) {
-            alert('Preencha as datas e a acomodação.');
+        if (!bulkStart || !bulkEnd) {
+            alert('Preencha as datas.');
             return;
         }
 
-        const updates: any = {};
+        const updates: BulkUpdates = {};
         if (bulkPrice) updates.price = parseFloat(bulkPrice);
         if (bulkMinLos) updates.minLos = parseInt(bulkMinLos);
         if (bulkStopSell) updates.stopSell = bulkStopSell === 'true';
         if (bulkCta) updates.cta = bulkCta === 'true';
         if (bulkCtd) updates.ctd = bulkCtd === 'true';
+        if (bulkInventory) {
+            const inv = parseInt(bulkInventory);
+            if (isNaN(inv) || inv < 0) {
+                alert('Quantidade de quartos inválida.');
+                return;
+            }
+            updates.inventory = inv;
+        }
 
         if (Object.keys(updates).length === 0) {
             alert('Preencha pelo menos um campo para atualizar.');
             return;
         }
 
+        const payload = {
+            roomTypeId: bulkRoomTypeId,
+            startDate: bulkStart,
+            endDate: bulkEnd,
+            updates
+        };
+        console.log('[Frontend] Bulk Payload:', JSON.stringify(payload, null, 2));
+
         try {
             const res = await fetch('/api/rates/bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    roomTypeId: selectedRoomId,
-                    startDate: bulkStart,
-                    endDate: bulkEnd,
-                    updates
-                })
+                body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error('Failed to update');
+            if (!res.ok) {
+                const contentType = res.headers.get('content-type') || '';
+                let message = 'Erro ao atualizar em lote.';
+                if (contentType.includes('application/json')) {
+                    const data = await res.json().catch(() => null);
+                    if (data && typeof data === 'object') {
+                        if (typeof (data as any).message === 'string') message = (data as any).message;
+                        else if (typeof (data as any).error === 'string') message = (data as any).error;
+                    }
+                } else {
+                    const text = await res.text().catch(() => '');
+                    if (text) message = text;
+                }
+                throw new Error(message);
+            }
 
             setBulkModalOpen(false);
             fetchRates();
@@ -402,9 +489,11 @@ export default function MapaReservas() {
             setBulkStopSell('');
             setBulkCta('');
             setBulkCtd('');
+            setBulkInventory('');
+            setBulkRoomTypeId('all');
         } catch (error) {
             console.error('Error bulk updating:', error);
-            alert('Erro ao atualizar em lote.');
+            alert(error instanceof Error ? error.message : 'Erro ao atualizar em lote.');
         }
     };
 
@@ -493,6 +582,17 @@ export default function MapaReservas() {
                 </div>
             </div>
 
+            {calendarError && (
+                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', borderRadius: '12px' }}>
+                    {calendarError}
+                </div>
+            )}
+            {calendarLoading && (
+                <div style={{ marginTop: calendarError ? '0.5rem' : '0.75rem', padding: '0.5rem 1rem', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', borderRadius: '12px' }}>
+                    Carregando calendário...
+                </div>
+            )}
+
             {loading ? (
                 <div className={styles.loading}>Carregando...</div>
             ) : (
@@ -546,7 +646,7 @@ export default function MapaReservas() {
                                             {monthDays.map(day => {
                                                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                                                  return (
-                                                    <th key={day.toISOString()} style={{ background: isWeekend ? '#f1f5f9' : 'white' }}>
+                                                    <th key={format(day, 'yyyy-MM-dd')} style={{ background: isWeekend ? '#f1f5f9' : 'white' }}>
                                                         <div style={{fontSize: '0.8rem', color: '#64748b'}}>{format(day, 'EEE', { locale: ptBR })}</div>
                                                         <div style={{fontSize: '1.1rem'}}>{format(day, 'dd')}</div>
                                                     </th>
@@ -563,7 +663,7 @@ export default function MapaReservas() {
                                                 const isClosed = data?.stopSell;
                                                 const isZero = (data?.available ?? 1) <= 0;
                                                 return (
-                                                    <td key={day.toISOString()} 
+                                                    <td key={format(day, 'yyyy-MM-dd')} 
                                                         className={styles.cell}
                                                         onClick={() => updateRateField(day, 'stopSell', !isClosed)}
                                                     >
@@ -582,7 +682,7 @@ export default function MapaReservas() {
                                                 const total = data?.totalInventory ?? 0;
                                                 const available = data?.available ?? 0;
                                                 return (
-                                            <td key={day.toISOString()} className={styles.cell}>
+                                            <td key={format(day, 'yyyy-MM-dd')} className={styles.cell}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: updatingInventory === format(day, 'yyyy-MM-dd') ? 0.5 : 1 }}>
                                                         <button 
@@ -616,7 +716,7 @@ export default function MapaReservas() {
                                                 const data = getDataForDay(day);
                                                 const price = data ? data.price : (roomTypes.find(r => r.id === selectedRoomId)?.basePrice ?? 0);
                                                 return (
-                                                    <td key={day.toISOString()} className={styles.cell}>
+                                                    <td key={format(day, 'yyyy-MM-dd')} className={styles.cell}>
                                                         <EditableCell 
                                                             type="number" 
                                                             value={price}
@@ -633,7 +733,7 @@ export default function MapaReservas() {
                                                 const data = getDataForDay(day);
                                                 const minLos = data ? data.minLos : 1;
                                                 return (
-                                                    <td key={day.toISOString()} className={styles.cell}>
+                                                    <td key={format(day, 'yyyy-MM-dd')} className={styles.cell}>
                                                         <EditableCell 
                                                             type="number" 
                                                             min="1"
@@ -651,7 +751,7 @@ export default function MapaReservas() {
                                                 const data = getDataForDay(day);
                                                 const cta = data?.cta;
                                                 return (
-                                                    <td key={day.toISOString()} 
+                                                    <td key={format(day, 'yyyy-MM-dd')} 
                                                         className={styles.cell}
                                                         onClick={() => updateRateField(day, 'cta', !cta)}
                                                     >
@@ -669,7 +769,7 @@ export default function MapaReservas() {
                                                 const data = getDataForDay(day);
                                                 const ctd = data?.ctd;
                                                 return (
-                                                    <td key={day.toISOString()} 
+                                                    <td key={format(day, 'yyyy-MM-dd')} 
                                                         className={styles.cell}
                                                         onClick={() => updateRateField(day, 'ctd', !ctd)}
                                                     >
@@ -869,8 +969,9 @@ export default function MapaReservas() {
                                     onClick={handleSave}
                                     className={styles.buttonPrimary}
                                     style={{ padding: '0.6rem 1.5rem' }}
+                                    disabled={savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null)}
                                 >
-                                    Salvar Alterações
+                                    {savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null) ? 'Salvando...' : 'Salvar Alterações'}
                                 </button>
                             </div>
                         </div>
@@ -892,7 +993,24 @@ export default function MapaReservas() {
                         </div>
 
                         <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', border: '1px solid #e2e8f0' }}>
-                            <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '1.5rem', fontWeight: 700 }}>1. Período</h3>
+                            <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '1.5rem', fontWeight: 700 }}>1. Configuração</h3>
+                            
+                            {/* Room Type Selection */}
+                            <div className={styles.formGroup} style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                                <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Tipo de Quarto</label>
+                                <select 
+                                    value={bulkRoomTypeId}
+                                    onChange={e => setBulkRoomTypeId(e.target.value)}
+                                    className={styles.input}
+                                    style={{ padding: '0.875rem', width: '100%' }}
+                                >
+                                    <option value="all">Todos os tipos</option>
+                                    {roomTypes.map(room => (
+                                        <option key={room.id} value={room.id}>{room.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
                                 <div className={styles.formGroup} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
                                     <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Data Inicial</label>
@@ -932,7 +1050,7 @@ export default function MapaReservas() {
                                         style={{ padding: '0.875rem', width: '100%' }}
                                     />
                                 </div>
-                                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
+                                <div className={styles.formGroup} style={{marginBottom: '1.5rem'}}>
                                     <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Mínimo de Noites</label>
                                     <input 
                                         type="number" 
@@ -940,6 +1058,18 @@ export default function MapaReservas() {
                                         placeholder="Manter atual"
                                         value={bulkMinLos}
                                         onChange={e => setBulkMinLos(e.target.value)}
+                                        className={styles.input}
+                                        style={{ padding: '0.875rem', width: '100%' }}
+                                    />
+                                </div>
+                                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
+                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Quantidade de quartos disponíveis</label>
+                                    <input 
+                                        type="number" 
+                                        min="0"
+                                        placeholder="Manter atual"
+                                        value={bulkInventory}
+                                        onChange={e => setBulkInventory(e.target.value)}
                                         className={styles.input}
                                         style={{ padding: '0.875rem', width: '100%' }}
                                     />
@@ -953,7 +1083,7 @@ export default function MapaReservas() {
                                     <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Stop Sell (Fechar Venda)</label>
                                     <select 
                                         value={bulkStopSell}
-                                        onChange={e => setBulkStopSell(e.target.value as any)}
+                                        onChange={(e) => setBulkStopSell(e.target.value as 'true' | 'false' | '')}
                                         className={styles.input}
                                         style={{ 
                                             background: bulkStopSell === 'true' ? '#fee2e2' : bulkStopSell === 'false' ? '#dcfce7' : 'white',
@@ -970,7 +1100,7 @@ export default function MapaReservas() {
                                     <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>CTA (Bloquear Entrada)</label>
                                     <select 
                                         value={bulkCta}
-                                        onChange={e => setBulkCta(e.target.value as any)}
+                                        onChange={(e) => setBulkCta(e.target.value as 'true' | 'false' | '')}
                                         className={styles.input}
                                         style={{ padding: '0.875rem', width: '100%' }}
                                     >
@@ -983,7 +1113,7 @@ export default function MapaReservas() {
                                     <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>CTD (Bloquear Saída)</label>
                                     <select 
                                         value={bulkCtd}
-                                        onChange={e => setBulkCtd(e.target.value as any)}
+                                        onChange={(e) => setBulkCtd(e.target.value as 'true' | 'false' | '')}
                                         className={styles.input}
                                         style={{ padding: '0.875rem', width: '100%' }}
                                     >

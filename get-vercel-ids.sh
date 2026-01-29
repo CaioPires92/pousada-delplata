@@ -11,10 +11,15 @@ if ! command -v vercel &> /dev/null; then
     npm install -g vercel
 fi
 
-# Fazer login com o token
-export VERCEL_TOKEN="LB2UJCaoNNcEWGMI7DiRFENU"
-echo "🔐 Fazendo login com token..."
-vercel login --token $VERCEL_TOKEN
+if [ -z "${VERCEL_TOKEN}" ]; then
+    echo "❌ VERCEL_TOKEN não encontrado no ambiente."
+    echo "Defina a variável e rode novamente:"
+    echo "  export VERCEL_TOKEN='<SEU_VERCEL_TOKEN>'"
+    exit 1
+fi
+
+echo "🔐 Fazendo login com token do ambiente..."
+vercel login --token "$VERCEL_TOKEN"
 
 echo ""
 echo "📋 ORG_ID e PROJECT_ID disponíveis:"
@@ -39,7 +44,7 @@ fi
 
 echo ""
 echo "✅ Copie esses valores para os secrets do GitHub Actions!"
-echo "   VERCEL_TOKEN: LB2UJCaoNNcEWGMI7DiRFENU"
+echo "   VERCEL_TOKEN: <SEU_VERCEL_TOKEN>"
 echo "   ORG_ID: $ORG_ID"
 echo "   PROJECT_ID: [verifique no dashboard]"
 echo ""

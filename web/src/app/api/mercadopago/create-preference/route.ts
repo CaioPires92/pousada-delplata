@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
+import { opsLog } from '@/lib/ops-log';
 
 export async function POST(request: Request) {
     try {
@@ -33,12 +35,6 @@ export async function POST(request: Request) {
         const accessToken = process.env.MP_ACCESS_TOKEN;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
 
-        console.log('[MP] Environment check:', {
-            hasAccessToken: !!accessToken,
-            hasPublicKey: !!publicKey,
-            accessTokenLength: accessToken?.length || 0,
-        });
-
         if (!accessToken) {
             console.error('[MP] MP_ACCESS_TOKEN not configured');
             return NextResponse.json(
@@ -57,6 +53,12 @@ export async function POST(request: Request) {
 
         // Get base URL from environment or use localhost
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+        if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_BASE_URL) {
+            return NextResponse.json(
+                { error: 'Server configuration error' },
+                { status: 500 }
+            );
+        }
 
         // Validate phone number
         const phoneNumber = booking.guest.phone.replace(/\D/g, ''); // Remove non-digits
@@ -70,6 +72,14 @@ export async function POST(request: Request) {
         // auto_return only works with public URLs (not localhost)
         // Enable it in production by checking if base URL is https
         const isProduction = baseUrl.startsWith('https://');
+
+        opsLog('info', 'MP_PREFERENCE_CREATE_START', {
+            bookingId: booking.id,
+            bookingIdShort: booking.id.slice(0, 8),
+            amount: Number(booking.totalPrice),
+            baseUrl: baseUrl,
+            isProduction,
+        });
 
         const preferenceData: any = {
             items: [
@@ -101,9 +111,6 @@ export async function POST(request: Request) {
             statement_descriptor: 'POUSADA DELPLATA',
         };
 
-        console.log('Base URL:', baseUrl);
-        console.log('Creating preference with data:', JSON.stringify(preferenceData, null, 2));
-
         // Use direct API call instead of SDK - SDK has a bug with auto_return
         const apiResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
             method: 'POST',
@@ -116,10 +123,10 @@ export async function POST(request: Request) {
 
         if (!apiResponse.ok) {
             const errorData = await apiResponse.json().catch(() => ({ message: 'Unknown error' }));
-            console.error('[MP] API error response:', {
+            opsLog('error', 'MP_PREFERENCE_CREATE_ERROR', {
+                bookingId: booking.id,
                 status: apiResponse.status,
                 statusText: apiResponse.statusText,
-                error: errorData,
             });
 
             return NextResponse.json(
@@ -134,7 +141,8 @@ export async function POST(request: Request) {
 
         const result = await apiResponse.json();
 
-        console.log('[MP] Preference created successfully:', {
+        opsLog('info', 'MP_PREFERENCE_CREATE_SUCCESS', {
+            bookingId: booking.id,
             preferenceId: result.id,
             hasInitPoint: !!result.init_point,
             hasSandboxInitPoint: !!result.sandbox_init_point,
@@ -158,7 +166,8 @@ export async function POST(request: Request) {
         });
 
     } catch (error: any) {
-        console.error('Error creating preference:', error);
+        Sentry.captureException(error);
+        console.error('Error creating preference');
         return NextResponse.json(
             { error: 'Error creating payment preference', details: error.message },
             { status: 500 }

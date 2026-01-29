@@ -32,11 +32,7 @@ export function toISODateString(date: Date | string): string {
         }
         return date;
     }
-    
-    // For Date objects, use ISO string to be timezone neutral (assuming the Date represents UTC midnight)
-    // or format it.
-    // Given our architecture where we store dates as UTC midnight in DB:
-    return date.toISOString().split('T')[0];
+    return format(date, 'yyyy-MM-dd');
 }
 
 /**

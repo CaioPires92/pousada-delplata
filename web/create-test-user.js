@@ -1,6 +1,17 @@
 const https = require('https');
 
-const accessToken = 'TEST-1242598103832964-110108-885c9ac376c2197ba5cf7fa183b32a9b-39563078';
+const accessToken = process.env.MP_ACCESS_TOKEN;
+const shouldPrintCredentials = process.env.PRINT_TEST_USER_CREDENTIALS === 'true';
+
+if (!accessToken) {
+    console.error('MP_ACCESS_TOKEN não configurado no .env');
+    process.exit(1);
+}
+
+if (!accessToken.startsWith('TEST-')) {
+    console.error('MP_ACCESS_TOKEN deve ser do ambiente TEST- para criar test_user');
+    process.exit(1);
+}
 
 // Criar usuário de teste COMPRADOR
 const buyerData = JSON.stringify({
@@ -35,8 +46,12 @@ const req = https.request(options, (res) => {
         console.log('NOVA CONTA DE TESTE - COMPRADOR');
         console.log('='.repeat(50));
         console.log(`Usuário: ${user.username}`);
-        console.log(`Senha: ${user.password}`);
         console.log(`Email: ${user.email}`);
+        if (shouldPrintCredentials) {
+            console.log(`Senha: ${user.password}`);
+        } else {
+            console.log('Senha: (oculta) defina PRINT_TEST_USER_CREDENTIALS=true para exibir');
+        }
         console.log('='.repeat(50));
         console.log('\n💡 Use estas credenciais para fazer login no Mercado Pago');
         console.log('💡 Ou use apenas o cartão de teste sem fazer login\n');

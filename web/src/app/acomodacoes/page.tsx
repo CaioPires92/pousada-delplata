@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { RoomCard } from "@/components/RoomCard";
@@ -22,15 +21,6 @@ async function getRooms() {
 export default async function RoomsPage() {
     const rooms = await getRooms();
 
-    function localCoverFor(name: string) {
-        const n = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-        if (n.includes('chale')) return '/fotos/ala-chales/chales/IMG_0125-1200.webp'
-        if (n.includes('anexo')) return '/fotos/ala-chales/apartamentos-anexo/IMG_0029-1200.webp'
-        if (n.includes('superior')) return '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp'
-        if (n.includes('terreo')) return '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp'
-        return '/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp'
-    }
-
     const mainWingRooms = rooms.filter(r => {
         const n = r.name.toLowerCase();
         return n.includes('superior') || n.includes('terreo') || n.includes('térreo');
@@ -44,7 +34,6 @@ export default async function RoomsPage() {
     const renderRoomGrid = (roomsList: typeof rooms) => (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {roomsList.map((room) => {
-                const coverUrl = (room.photos[0]?.url?.startsWith('/fotos') && room.photos[0].url) || localCoverFor(room.name);
                 const serializedRoom = {
                     ...room,
                     basePrice: Number(room.basePrice)
@@ -54,7 +43,6 @@ export default async function RoomsPage() {
                     <RoomCard
                         key={room.id}
                         room={serializedRoom}
-                        coverUrl={coverUrl}
                     />
                 );
             })}

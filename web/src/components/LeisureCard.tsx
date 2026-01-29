@@ -17,13 +17,7 @@ interface LeisureCardProps {
 export function LeisureCard({ title, description, images }: LeisureCardProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-
-
-    // Use useEffect to handle mounting state for Portal
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    const portalTarget = typeof document !== "undefined" ? document.body : null;
 
     const nextImage = useCallback((e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -132,7 +126,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
             </Card>
 
             {/* Full Screen Gallery Modal */}
-            {mounted && isGalleryOpen && createPortal(
+            {portalTarget && isGalleryOpen && createPortal(
                 <AnimatePresence>
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -201,7 +195,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                         </div>
                     </motion.div>
                 </AnimatePresence>,
-                document.body
+                portalTarget
             )}
         </>
     );

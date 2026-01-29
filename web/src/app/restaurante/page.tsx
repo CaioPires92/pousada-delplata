@@ -74,7 +74,7 @@ export default function RestaurantPage() {
             <div className="container mx-auto px-4 py-16">
                 <div className="text-center mb-12 space-y-4">
                     <p className="text-xl md:text-2xl text-gray-700 font-light italic">
-                        "Preparados tudo com muito carinho para você e sua família."
+                        &ldquo;Preparados tudo com muito carinho para você e sua família.&rdquo;
                     </p>
                     <div className="inline-block bg-primary/5 px-6 py-3 rounded-full">
                         <p className="text-primary font-medium">

@@ -8,9 +8,7 @@ vi.mock('@/lib/prisma', () => ({
     roomType: {
       findMany: vi.fn(),
     },
-    booking: {
-        count: vi.fn()
-    }
+    $queryRaw: vi.fn(),
   },
 }));
 
@@ -43,8 +41,8 @@ describe('Availability API - Pricing Logic', () => {
       inventory: [],
       rates: [
         {
-          startDate: new Date('2026-01-07T00:00:00Z'), // UTC Midnight
-          endDate: new Date('2026-01-07T23:59:59Z'),
+          startDate: '2026-01-07',
+          endDate: '2026-01-07',
           price: 200, // Custom Price
           stopSell: false,
           cta: false,
@@ -55,7 +53,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.booking.count as any).mockResolvedValue(0);
+    (prisma.$queryRaw as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
@@ -83,7 +81,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.booking.count as any).mockResolvedValue(0);
+    (prisma.$queryRaw as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();

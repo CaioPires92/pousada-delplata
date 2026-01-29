@@ -5,10 +5,20 @@ export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
 
     // Proteção das rotas de Admin
-    if (path.startsWith('/admin')) {
+    const isAdminPage = path.startsWith('/admin');
+    const isAdminApi = path.startsWith('/api/admin');
+
+    if (isAdminPage || isAdminApi) {
         // Permitir acesso à página de login e API de login
         if (path === '/admin/login' || path === '/api/admin/login') {
             return NextResponse.next();
+        }
+
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            const isDev = process.env.NODE_ENV !== 'production';
+            const payload = isDev ? { error: 'missing_env', missing: ['JWT_SECRET'] } : { error: 'Server configuration error' };
+            return NextResponse.json(payload, { status: 500 });
         }
 
         // Verificar cookie de autenticação

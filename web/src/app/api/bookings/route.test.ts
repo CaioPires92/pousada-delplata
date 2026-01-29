@@ -5,10 +5,19 @@ import prisma from '@/lib/prisma';
 // Mock Prisma
 vi.mock('@/lib/prisma', () => ({
   default: {
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn(),
+    roomType: {
+      findUnique: vi.fn(),
+    },
+    inventoryAdjustment: {
+      findMany: vi.fn(),
+    },
     guest: {
       create: vi.fn(),
     },
     booking: {
+      findMany: vi.fn(),
       create: vi.fn(),
     },
   },
@@ -37,6 +46,18 @@ describe('Bookings API', () => {
       status: 'PENDING',
     };
 
+    const tx = {
+      roomType: { findUnique: prisma.roomType.findUnique },
+      inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
+      booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
+      guest: { create: prisma.guest.create },
+      $queryRaw: prisma.$queryRaw,
+    };
+
+    (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
+    (prisma.roomType.findUnique as any).mockResolvedValue({ id: 'room-1', totalUnits: 1 });
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.$queryRaw as any).mockResolvedValue([]);
     (prisma.guest.create as any).mockResolvedValue(mockGuest);
     (prisma.booking.create as any).mockResolvedValue(mockBooking);
 

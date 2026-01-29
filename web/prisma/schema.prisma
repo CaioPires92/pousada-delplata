@@ -38,8 +38,8 @@ model Rate {
   id          String   @id @default(uuid())
   roomTypeId  String
   roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-  startDate   DateTime
-  endDate     DateTime
+  startDate   String
+  endDate     String
   price       Decimal
   
   // New fields for Booking-style calendar rules
@@ -56,7 +56,7 @@ model InventoryAdjustment {
   id          String   @id @default(uuid())
   roomTypeId  String
   roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-  date        DateTime
+  date        String
   totalUnits  Int      // Total available units for this specific date
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

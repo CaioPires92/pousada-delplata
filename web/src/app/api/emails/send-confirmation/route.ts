@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import nodemailer from 'nodemailer';
+import { opsLog } from '@/lib/ops-log';
 
 /**
  * API para enviar email de confirmação de reserva
@@ -8,8 +10,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { email, guestName, roomName, checkIn, checkOut, totalPrice, bookingId } = body;
-
-        console.log('[Email] Sending confirmation to:', email);
+        opsLog('info', 'EMAIL_CONFIRMATION_SEND_START', { bookingId, bookingIdShort: bookingId?.slice?.(0, 8) });
 
         // Configurar transporter do nodemailer
         const transporter = nodemailer.createTransport({
@@ -113,11 +114,12 @@ export async function POST(request: NextRequest) {
             html: htmlContent,
         });
 
-        console.log('[Email] Confirmation sent successfully to:', email);
+        opsLog('info', 'EMAIL_CONFIRMATION_SEND_SUCCESS', { bookingId, bookingIdShort: bookingId?.slice?.(0, 8) });
         return NextResponse.json({ success: true });
 
     } catch (error) {
-        console.error('[Email] Error sending confirmation:', error);
+        Sentry.captureException(error);
+        opsLog('error', 'EMAIL_CONFIRMATION_SEND_ERROR');
         return NextResponse.json(
             { error: 'Failed to send email' },
             { status: 500 }

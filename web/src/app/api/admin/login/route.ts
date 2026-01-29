@@ -1,36 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import prisma from '@/lib/prisma';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import * as Sentry from '@sentry/nextjs';
+import { opsLog } from '@/lib/ops-log';
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, password } = await request.json();
+        const jwtSecret = process.env.JWT_SECRET;
+        const adminEmail = process.env.ADMIN_EMAIL;
+        const adminPassword = process.env.ADMIN_PASSWORD;
 
-        console.log('[Admin Login] Attempt for:', email);
+        const missing = [
+            !jwtSecret ? 'JWT_SECRET' : null,
+            !adminEmail ? 'ADMIN_EMAIL' : null,
+            !adminPassword ? 'ADMIN_PASSWORD' : null,
+        ].filter(Boolean) as string[];
 
-        // Buscar admin no banco
-        const admin = await prisma.adminUser.findUnique({
-            where: { email },
-        });
-
-        if (!admin) {
-            console.log('[Admin Login] User not found');
+        if (missing.length > 0) {
+            const isDev = process.env.NODE_ENV !== 'production';
             return NextResponse.json(
-                { error: 'Email ou senha inválidos' },
-                { status: 401 }
+                isDev ? { error: 'missing_env', missing } : { error: 'Server configuration error' },
+                { status: 500 }
             );
         }
 
-        // Verificar senha
-        const isValidPassword = await bcrypt.compare(password, admin.password);
+        const { email, password } = await request.json();
 
-        if (!isValidPassword) {
-            console.log('[Admin Login] Invalid password');
+        if (email !== adminEmail || password !== adminPassword) {
+            opsLog('warn', 'ADMIN_LOGIN_INVALID', { reason: 'INVALID_PASSWORD' });
             return NextResponse.json(
-                { error: 'Email ou senha inválidos' },
+                { error: 'invalid_credentials' },
                 { status: 401 }
             );
         }
@@ -38,22 +36,21 @@ export async function POST(request: NextRequest) {
         // Gerar token JWT
         const token = jwt.sign(
             {
-                id: admin.id,
-                email: admin.email,
-                name: admin.name,
+                id: 'env-admin',
+                email: adminEmail,
+                name: 'Administrador',
             },
-            JWT_SECRET,
+            jwtSecret,
             { expiresIn: '7d' }
         );
-
-        console.log('[Admin Login] Success for:', email);
 
         // Create response
         const response = NextResponse.json({
             token,
-            name: admin.name,
-            email: admin.email,
+            name: 'Administrador',
+            email: adminEmail,
         });
+        opsLog('info', 'ADMIN_LOGIN_SUCCESS', { adminId: 'env-admin' });
 
         // Set secure cookie
         response.cookies.set({
@@ -69,7 +66,8 @@ export async function POST(request: NextRequest) {
         return response;
 
     } catch (error) {
-        console.error('[Admin Login] Error:', error);
+        Sentry.captureException(error);
+        opsLog('error', 'ADMIN_LOGIN_ERROR');
         return NextResponse.json(
             { error: 'Erro ao fazer login' },
             { status: 500 }

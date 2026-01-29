@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
+import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { getRoomDisplayDescription } from '@/lib/room-description';
 
 interface RoomPhoto {
     id: string;
@@ -24,18 +26,44 @@ interface Room {
 
 interface RoomCardProps {
     room: Room;
-    coverUrl: string;
 }
 
-export function RoomCard({ room, coverUrl }: RoomCardProps) {
+export function RoomCard({ room }: RoomCardProps) {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-    // Prepare photos array for gallery
-    // If room has photos, use them. Otherwise use coverUrl as a single photo.
-    const galleryPhotos = room.photos.length > 0 
-        ? room.photos.map(p => p.url)
-        : [coverUrl];
+    const isPlaceholderUrl = (url: string) => {
+        const normalizedUrl = url.trim().toLowerCase();
+        const placeholderDomains = [
+            'picsum.photos',
+            'unsplash.com',
+            'images.unsplash.com',
+            'source.unsplash.com',
+            'via.placeholder.com',
+            'placeholder.com',
+            'placehold.co',
+        ];
+
+        return placeholderDomains.some((domain) => normalizedUrl.includes(domain));
+    };
+
+    const backendPhotoUrls = (room.photos ?? [])
+        .map((p) => p?.url?.trim())
+        .filter((url): url is string => Boolean(url));
+
+    const backendRealPhotoUrls = backendPhotoUrls.filter((url) => !isPlaceholderUrl(url));
+    const hasBackendPhoto = backendRealPhotoUrls.length > 0;
+
+    const localPhotos = !hasBackendPhoto ? getLocalRoomPhotos(room.name) : null;
+
+    const displayPhotos = hasBackendPhoto ? backendRealPhotoUrls : (localPhotos || []);
+
+    const hasPhoto = displayPhotos.length > 0;
+    const primaryDisplayUrl = hasPhoto ? displayPhotos[0] : null;
+
+    if (!hasPhoto && typeof window !== 'undefined') {
+        console.warn(`[RoomCard] Missing photo for roomTypeId=${room.id} name="${room.name}" - No backend photos and no local mapping found`);
+    }
 
     const openGallery = () => {
         setCurrentPhotoIndex(0);
@@ -44,34 +72,42 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
 
     const nextPhoto = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setCurrentPhotoIndex((prev) => (prev + 1) % galleryPhotos.length);
+        setCurrentPhotoIndex((prev) => (prev + 1) % displayPhotos.length);
     };
 
     const prevPhoto = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setCurrentPhotoIndex((prev) => (prev - 1 + galleryPhotos.length) % galleryPhotos.length);
+        setCurrentPhotoIndex((prev) => (prev - 1 + displayPhotos.length) % displayPhotos.length);
     };
 
     return (
         <>
             <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 flex flex-col h-full">
-                <div 
+                <div
                     className="relative h-64 overflow-hidden cursor-pointer"
                     onClick={openGallery}
                 >
-                    <Image
-                        src={coverUrl}
-                        alt={room.name}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
+                    {hasPhoto ? (
+                        <Image
+                            src={primaryDisplayUrl!}
+                            alt={room.name}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <span className="text-muted-foreground">Sem foto</span>
+                        </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    
+
                     {/* Gallery Indicator */}
-                    <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2">
-                        <Camera className="w-4 h-4" />
-                        <span>Ver fotos ({galleryPhotos.length})</span>
-                    </div>
+                    {displayPhotos.length > 0 && (
+                        <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2">
+                            <Camera className="w-4 h-4" />
+                            <span>Ver fotos ({displayPhotos.length})</span>
+                        </div>
+                    )}
                 </div>
 
                 <CardHeader>
@@ -81,7 +117,7 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
                         </CardTitle>
                     </div>
                     <CardDescription className="text-base" style={{ whiteSpace: 'pre-line' }}>
-                        {room.description}
+                        {getRoomDisplayDescription(room.name, room.description)}
                     </CardDescription>
                 </CardHeader>
 
@@ -105,9 +141,8 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
 
                 <CardFooter className="flex items-center justify-between border-t pt-4 bg-muted/20 mt-auto">
                     <div>
-                        <span className="text-xs text-muted-foreground block">A partir de</span>
-                        <span className="text-xl font-bold text-primary">
-                            R$ {Number(room.basePrice).toFixed(2)}
+                        <span className="text-sm font-medium text-muted-foreground">
+                            Escolha as datas para ver o valor
                         </span>
                     </div>
                     <Button asChild>
@@ -135,17 +170,23 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
 
                         <div className="relative w-full max-w-6xl h-[80vh]" onClick={(e) => e.stopPropagation()}>
                             <div className="relative w-full h-full flex items-center justify-center">
-                                <Image
-                                    src={galleryPhotos[currentPhotoIndex]}
-                                    alt={`${room.name} photo ${currentPhotoIndex + 1}`}
-                                    fill
-                                    className="object-contain"
-                                    priority
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                                />
+                                {displayPhotos.length > 0 ? (
+                                    <Image
+                                        src={displayPhotos[currentPhotoIndex]}
+                                        alt={`${room.name} photo ${currentPhotoIndex + 1}`}
+                                        fill
+                                        className="object-contain"
+                                        priority
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <span className="text-white/70">Sem fotos cadastradas</span>
+                                    </div>
+                                )}
                             </div>
 
-                            {galleryPhotos.length > 1 && (
+                            {displayPhotos.length > 1 && (
                                 <>
                                     <button
                                         onClick={prevPhoto}
@@ -161,7 +202,7 @@ export function RoomCard({ room, coverUrl }: RoomCardProps) {
                                     </button>
 
                                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-white text-sm backdrop-blur-sm font-medium">
-                                        {currentPhotoIndex + 1} / {galleryPhotos.length}
+                                        {currentPhotoIndex + 1} / {displayPhotos.length}
                                     </div>
                                 </>
                             )}

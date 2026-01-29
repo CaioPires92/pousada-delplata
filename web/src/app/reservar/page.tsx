@@ -1,12 +1,14 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
-import { Check, AlertCircle, Calendar, Users, ArrowLeft, CreditCard, User, Mail, Phone } from 'lucide-react';
+import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone } from 'lucide-react';
+import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { getRoomDisplayDescription } from '@/lib/room-description';
 
 interface Room {
     id: string;
@@ -39,13 +41,35 @@ function ReservarContent() {
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
 
-    useEffect(() => {
-        if (checkIn && checkOut) {
-            fetchAvailability();
-        }
-    }, [checkIn, checkOut]);
+    const isPlaceholderUrl = (url: string) => {
+        const normalizedUrl = url.trim().toLowerCase();
+        const placeholderDomains = [
+            'picsum.photos',
+            'unsplash.com',
+            'images.unsplash.com',
+            'source.unsplash.com',
+            'via.placeholder.com',
+            'placeholder.com',
+            'placehold.co',
+        ];
 
-    const fetchAvailability = async () => {
+        return placeholderDomains.some((domain) => normalizedUrl.includes(domain));
+    };
+
+    const getRoomPrimaryImageSrc = (room: Room) => {
+        const backendUrls = (room.photos ?? [])
+            .map((p) => p?.url?.trim())
+            .filter((url): url is string => Boolean(url))
+            .filter((url) => !isPlaceholderUrl(url));
+
+        if (backendUrls.length > 0) return backendUrls[0];
+
+        const localPhotos = getLocalRoomPhotos(room.name);
+        return localPhotos?.[0] ?? null;
+    };
+
+    const fetchAvailability = useCallback(async () => {
+        if (!checkIn || !checkOut) return;
         try {
             setLoading(true);
             setError('');
@@ -58,12 +82,16 @@ function ReservarContent() {
 
             const data = await response.json();
             setAvailableRooms(data);
-        } catch (err) {
+        } catch {
             setError('Erro ao carregar quartos disponíveis. Tente novamente.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [adults, checkIn, checkOut, children]);
+
+    useEffect(() => {
+        fetchAvailability();
+    }, [fetchAvailability]);
 
     const handleSelectRoom = (room: Room) => {
         setSelectedRoom(room);
@@ -127,10 +155,11 @@ function ReservarContent() {
                 throw new Error('URL de pagamento não gerada');
             }
 
-        } catch (err: any) {
-            alert(err.message || 'Erro ao processar reserva. Tente novamente.');
-            setProcessing(false);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
+            alert(message);
         }
+        setProcessing(false);
     };
 
     if (!checkIn || !checkOut) {
@@ -235,9 +264,9 @@ function ReservarContent() {
                                     <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
                                         <div className="grid md:grid-cols-12 gap-0">
                                             <div className="md:col-span-4 relative h-64 md:h-auto overflow-hidden">
-                                                {room.photos.length > 0 ? (
+                                                {getRoomPrimaryImageSrc(room) ? (
                                                     <Image
-                                                        src={room.photos[0].url}
+                                                        src={getRoomPrimaryImageSrc(room)!}
                                                         alt={room.name}
                                                         fill
                                                         className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -257,7 +286,9 @@ function ReservarContent() {
                                                             <p className="text-2xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
                                                         </div>
                                                     </div>
-                                                    <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>{room.description}</p>
+                                                    <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>
+                                                        {getRoomDisplayDescription(room.name, room.description)}
+                                                    </p>
 
                                                     <div className="flex flex-wrap gap-2 mb-6">
                                                         {room.amenities.split(',').map((amenity, i) => (
@@ -398,9 +429,9 @@ function ReservarContent() {
                                     <h3 className="font-bold text-lg">Resumo da Reserva</h3>
                                 </div>
                                 <div className="aspect-video relative">
-                                    {selectedRoom.photos.length > 0 && (
+                                    {getRoomPrimaryImageSrc(selectedRoom) && (
                                         <Image
-                                            src={selectedRoom.photos[0].url}
+                                            src={getRoomPrimaryImageSrc(selectedRoom)!}
                                             alt={selectedRoom.name}
                                             fill
                                             className="object-cover"

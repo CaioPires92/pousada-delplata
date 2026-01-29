@@ -3,16 +3,34 @@ name: Deploy to Production
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    paths:
+      - 'web/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && secrets.VERCEL_TOKEN != '' }}
     
     defaults:
       run:
         working-directory: ./web
+    env:
+      DATABASE_URL: file:./prisma/dev.db
+      JWT_SECRET: ci-jwt-secret
+      ADMIN_EMAIL: admin@delplata.com.br
+      ADMIN_PASSWORD: ci-admin-password
+      NEXT_PUBLIC_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
+      MP_ACCESS_TOKEN: TEST-ci
+      NEXT_PUBLIC_MP_PUBLIC_KEY: TEST-ci
+      MP_WEBHOOK_SECRET: ci-webhook-secret
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: '587'
+      SMTP_USER: ci@example.com
+      SMTP_PASS: ci
+      PRISMA_LOG_QUERIES: '0'
     
     steps:
     - name: Checkout code
@@ -21,24 +39,27 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: ./web/package-lock.json
     
     - name: Install dependencies
       run: npm ci
-    
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Test
+      run: npm run test:coverage
+
     - name: Build application
       run: npm run build
-    
-    - name: Run tests (if available)
-      run: npm test --if-present
     
     - name: Deploy to Vercel
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.ORG_ID }}
-        vercel-project-id: ${{ secrets.PROJECT_ID }}
-        vercel-team-id: ${{ secrets.TEAM_ID }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID || secrets.ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID || secrets.PROJECT_ID }}
+        vercel-team-id: ${{ secrets.VERCEL_TEAM_ID || secrets.TEAM_ID }}
         working-directory: ./web

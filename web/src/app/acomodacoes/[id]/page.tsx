@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
+import { getRoomDisplayDescription } from "@/lib/room-description";
 import { notFound } from "next/navigation";
 import styles from "./room-details.module.css";
 
@@ -81,7 +82,11 @@ export default async function RoomDetailsPage({
 
                     <div className={styles.description}>
                         <h3>Sobre a acomodação</h3>
-                        <div dangerouslySetInnerHTML={{ __html: room.description.replace(/\n/g, '<br />') }} />
+                        <div
+                            dangerouslySetInnerHTML={{
+                                __html: getRoomDisplayDescription(room.name, room.description).replace(/\n/g, '<br />'),
+                            }}
+                        />
                     </div>
 
                     <div className={styles.amenities}>

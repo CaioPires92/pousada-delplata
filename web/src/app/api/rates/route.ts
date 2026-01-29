@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
+import { assertDayKey } from '@/lib/day-key';
 
 export async function GET(request: Request) {
+    const auth = await requireAdminAuth();
+    if (auth) return auth;
+
     const { searchParams } = new URL(request.url);
     const roomTypeId = searchParams.get('roomTypeId');
     const startDate = searchParams.get('startDate');
@@ -11,8 +16,17 @@ export async function GET(request: Request) {
         const where: any = {};
         if (roomTypeId) where.roomTypeId = roomTypeId;
         if (startDate && endDate) {
-            where.startDate = { gte: new Date(startDate) };
-            where.endDate = { lte: new Date(endDate) };
+            try {
+                assertDayKey(startDate, 'startDate');
+                assertDayKey(endDate, 'endDate');
+            } catch (e) {
+                return NextResponse.json(
+                    { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                    { status: 400 }
+                );
+            }
+            where.startDate = { lte: endDate };
+            where.endDate = { gte: startDate };
         }
 
         const rates = await prisma.rate.findMany({
@@ -31,6 +45,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth) return auth;
+
         const text = await request.text();
         if (!text) {
              return NextResponse.json(
@@ -51,11 +68,21 @@ export async function POST(request: Request) {
             minLos
         } = body;
 
+        try {
+            assertDayKey(startDate, 'startDate');
+            assertDayKey(endDate, 'endDate');
+        } catch (e) {
+            return NextResponse.json(
+                { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                { status: 400 }
+            );
+        }
+
         const rate = await prisma.rate.create({
             data: {
                 roomTypeId,
-                startDate: new Date(startDate),
-                endDate: new Date(endDate),
+                startDate,
+                endDate,
                 price: parseFloat(price),
                 cta: cta || false,
                 ctd: ctd || false,

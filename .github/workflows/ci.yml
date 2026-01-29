@@ -18,6 +18,21 @@ jobs:
     defaults:
       run:
         working-directory: ./web
+    env:
+      DATABASE_URL: file:./prisma/dev.db
+      JWT_SECRET: ci-jwt-secret
+      ADMIN_EMAIL: admin@delplata.com.br
+      ADMIN_PASSWORD: ci-admin-password
+      NEXT_PUBLIC_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
+      MP_ACCESS_TOKEN: TEST-ci
+      NEXT_PUBLIC_MP_PUBLIC_KEY: TEST-ci
+      MP_WEBHOOK_SECRET: ci-webhook-secret
+      SMTP_HOST: smtp.example.com
+      SMTP_PORT: '587'
+      SMTP_USER: ci@example.com
+      SMTP_PASS: ci
+      PRISMA_LOG_QUERIES: '0'
 
     steps:
       - name: Checkout code
@@ -33,14 +48,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
       - name: Run Linting
         run: npm run lint
 
       - name: Run Tests
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
 
       # Optional: Upload Coverage Report if we want to track it later
       # - name: Run Tests with Coverage

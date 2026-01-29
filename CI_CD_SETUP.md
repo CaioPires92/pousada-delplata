@@ -5,7 +5,7 @@
 ### 1. Configurar Secrets no GitHub
 Vá para Settings → Secrets and variables → Actions no seu repositório GitHub e adicione:
 
-- **VERCEL_TOKEN**: `LB2UJCaoNNcEWGMI7DiRFENU`
+- **VERCEL_TOKEN**: `<SEU_VERCEL_TOKEN>`
 - **ORG_ID**: (você precisa obter do seu dashboard Vercel)
 - **PROJECT_ID**: (você precisa obter do seu dashboard Vercel)
 
@@ -21,7 +21,7 @@ Vá para Settings → Secrets and variables → Actions no seu repositório GitH
 npm i -g vercel
 
 # Login com o token
-vercel login --token LB2UJCaoNNcEWGMI7DiRFENU
+vercel login --token <SEU_VERCEL_TOKEN>
 
 # Deploy manual (se necessário)
 cd web

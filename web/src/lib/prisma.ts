@@ -12,7 +12,7 @@ let prisma: PrismaClient;
  * Initialize Prisma client with Turso adapter in production
  * or local SQLite in development
  */
-if (process.env.DATABASE_AUTH_TOKEN) {
+if (process.env.NODE_ENV === 'production' && process.env.DATABASE_AUTH_TOKEN) {
   // Production: Use Turso with LibSQL
   const libsql = createClient({
     url: process.env.DATABASE_URL!,
@@ -26,12 +26,11 @@ if (process.env.DATABASE_AUTH_TOKEN) {
   });
 } else {
   // Development: Use local SQLite with singleton pattern
-  const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
-  console.log(`[Prisma] Initializing in DEVELOPMENT mode`);
-  console.log(`[Prisma] Database URL: ${dbUrl}`);
+  const envUrl = process.env.DATABASE_URL;
+  const dbUrl = typeof envUrl === 'string' && envUrl.startsWith('file:') ? envUrl : 'file:./prisma/dev.db';
 
   prisma = global.prisma || new PrismaClient({
-    log: ['query', 'error', 'warn'],
+    log: process.env.PRISMA_LOG_QUERIES === '1' ? ['query', 'error', 'warn'] : ['error', 'warn'],
     datasources: {
       db: {
         url: dbUrl,

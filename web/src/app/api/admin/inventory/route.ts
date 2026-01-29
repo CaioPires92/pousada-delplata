@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { parseLocalDate } from '@/lib/date-utils';
 
 export async function POST(request: Request) {
     try {
@@ -10,15 +9,13 @@ export async function POST(request: Request) {
         if (!roomTypeId || !date || totalUnits === undefined) {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
-
-        const targetDate = parseLocalDate(date);
         
         // Upsert Inventory Adjustment
         const adjustment = await prisma.inventoryAdjustment.upsert({
             where: {
                 roomTypeId_date: {
                     roomTypeId,
-                    date: targetDate
+                    date
                 }
             },
             update: {
@@ -26,7 +23,7 @@ export async function POST(request: Request) {
             },
             create: {
                 roomTypeId,
-                date: targetDate,
+                date,
                 totalUnits: parseInt(totalUnits)
             }
         });

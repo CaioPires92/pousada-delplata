@@ -1,4 +1,4 @@
-import { beforeAll, afterEach, vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
@@ -28,7 +28,11 @@ vi.mock('next/navigation', () => ({
 
 // Mock Image component (Next.js Image doesn't work well in jsdom)
 vi.mock('next/image', () => ({
-  default: ({ fill, ...props }: any) => React.createElement('img', { ...props, alt: props.alt || 'mock-image' }),
+  default: (props: React.ComponentProps<'img'> & { fill?: boolean }) => {
+    const { fill, ...rest } = props;
+    void fill;
+    return React.createElement('img', { ...rest, alt: rest.alt || 'mock-image' });
+  },
 }));
 
 // Mock fetch globally

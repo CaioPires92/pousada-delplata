@@ -24,12 +24,12 @@ Webhooks são notificações automáticas que o Mercado Pago envia para o seu se
 
 **Para PRODUÇÃO:**
 ```
-https://pousada-delplata.vercel.app/api/mercadopago/webhook
+https://<SEU-DOMINIO>/api/webhooks/mercadopago
 ```
 
 **Para TESTE:**
 ```
-https://pousada-delplata.vercel.app/api/mercadopago/webhook
+https://<SEU-DOMINIO>/api/webhooks/mercadopago
 ```
 (A mesma URL funciona para teste e produção)
 
@@ -70,7 +70,7 @@ Clique em "Salvar" e pronto!
 
 Acesse no navegador:
 ```
-https://pousada-delplata.vercel.app/api/mercadopago/webhook
+https://<SEU-DOMINIO>/api/webhooks/mercadopago
 ```
 
 Deve retornar:
@@ -98,12 +98,16 @@ Após um pagamento, verifique se:
 ```
 1. Cliente faz reserva → Status: PENDING
 2. Cliente paga no Mercado Pago
-3. Mercado Pago envia webhook → /api/mercadopago/webhook
+3. Mercado Pago envia webhook → /api/webhooks/mercadopago
 4. Webhook atualiza Payment → Status: APPROVED
 5. Webhook atualiza Booking → Status: CONFIRMED
 6. Webhook envia email → /api/emails/send-confirmation
 7. Cliente recebe email de confirmação ✅
 ```
+
+## Endpoint Legado
+- O endpoint `POST /api/mercadopago/webhook` existe apenas como fallback/dev.
+- Em produção, ele retorna `410` por padrão (a menos que `ALLOW_LEGACY_MP_WEBHOOK=true`).
 
 ## Possíveis Status
 
@@ -111,8 +115,7 @@ Após um pagamento, verifique se:
 - `PENDING` - Aguardando pagamento
 - `APPROVED` - Pagamento aprovado
 - `REJECTED` - Pagamento rejeitado
-- `CANCELLED` - Pagamento cancelado
-- `IN_PROCESS` - Em processamento
+*(Status do Mercado Pago como `in_process/pending/cancelled/refunded` são mapeados para os estados acima.)*
 
 ### Booking Status
 - `PENDING` - Aguardando confirmação

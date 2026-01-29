@@ -24,24 +24,43 @@ The presence of `DATABASE_AUTH_TOKEN` switches to Turso/LibSQL adapter.
 
 ## Other Required Variables
 
+### Application (URLs)
+```bash
+NEXT_PUBLIC_BASE_URL="http://localhost:3001"  # em produção: https://seu-dominio
+NEXT_PUBLIC_APP_URL="http://localhost:3001"   # usado para links e callbacks
+```
+
+### Admin Auth
+```bash
+JWT_SECRET="uma-string-longa-e-aleatoria"
+ADMIN_EMAIL="admin@delplata.com.br"
+ADMIN_PASSWORD="uma-senha-forte"
+```
+
 ### Mercado Pago
 ```bash
 NEXT_PUBLIC_MP_PUBLIC_KEY="your-mercadopago-public-key"
 MP_ACCESS_TOKEN="your-mercadopago-access-token"
+MP_WEBHOOK_SECRET="your-mercadopago-webhook-secret" # recomendado para validar assinatura
 ```
 
 ### Email (Nodemailer)
 ```bash
-EMAIL_HOST="smtp.gmail.com"
-EMAIL_PORT="587"
-EMAIL_USER="your-email@gmail.com"
-EMAIL_PASS="your-email-password"
-EMAIL_FROM="noreply@delplata.com.br"
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="your-email@gmail.com"
+SMTP_PASS="your-email-app-password"
 ```
 
-### Application
+### Observabilidade (opcional)
 ```bash
-NEXT_PUBLIC_APP_URL="http://localhost:3001"  # or your production URL
+SENTRY_DSN="https://<hash>@o0.ingest.sentry.io/<project>"
+NEXT_PUBLIC_SENTRY_DSN="https://<hash>@o0.ingest.sentry.io/<project>" # para capturar erros no browser
+```
+
+### Reserva (opcional)
+```bash
+PENDING_BOOKING_TTL_MINUTES=30  # tempo para expirar reservas pendentes que bloqueiam inventário
 ```
 
 ## Database Setup
