@@ -60,12 +60,6 @@ export default function AdminQuartosPage() {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_name');
-        router.push('/admin/login');
-    };
-
     const handleEdit = (room: RoomType) => {
         setEditingRoom(room);
     };
@@ -172,105 +166,77 @@ export default function AdminQuartosPage() {
 
     if (loading) {
         return (
-            <div className={styles.container}>
-                <div className={styles.loading}>Carregando...</div>
-            </div>
+            <div className={styles.loading}>Carregando...</div>
         );
     }
 
     return (
-        <div className={styles.container}>
-            <header className={styles.header}>
-                <div className={styles.headerContent}>
-                    <h1>🏨 Painel Administrativo</h1>
-                    <button onClick={handleLogout} className={styles.logoutButton}>
-                        Sair
+        <>
+            <div className={styles.pageHeader}>
+                <h2>Gerenciar Quartos ({rooms.length})</h2>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                        onClick={() => setCreateModalOpen(true)}
+                        className={styles.batchButton}
+                    >
+                        ➕ Adicionar Quarto
+                    </button>
+                    <button
+                        onClick={() => setBatchModalOpen(true)}
+                        className={styles.batchButton}
+                    >
+                        📦 Edição em Lote
                     </button>
                 </div>
-            </header>
+            </div>
 
-            <nav className={styles.nav}>
-                <a href="/admin/dashboard" className={styles.navItem}>
-                    📊 Dashboard
-                </a>
-                <a href="/admin/reservas" className={styles.navItem}>
-                    📋 Reservas
-                </a>
-                <a href="/admin/quartos" className={styles.navItemActive}>
-                    🏠 Quartos
-                </a>
-                <a href="/" className={styles.navItem} target="_blank">
-                    🌐 Ver Site
-                </a>
-            </nav>
-
-            <main className={styles.main}>
-                <div className={styles.pageHeader}>
-                    <h2>Gerenciar Quartos ({rooms.length})</h2>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button
-                            onClick={() => setCreateModalOpen(true)}
-                            className={styles.batchButton}
-                        >
-                            ➕ Adicionar Quarto
-                        </button>
-                        <button
-                            onClick={() => setBatchModalOpen(true)}
-                            className={styles.batchButton}
-                        >
-                            📦 Edição em Lote
-                        </button>
-                    </div>
-                </div>
-
-                <div className={styles.roomsGrid}>
-                    {rooms.map((room) => (
-                        <div key={room.id} className={styles.roomCard}>
-                            <div className={styles.roomHeader}>
-                                <h3>{room.name}</h3>
-                                <button
-                                    onClick={() => handleEdit(room)}
-                                    className={styles.editButton}
-                                >
-                                    ✏️ Editar
-                                </button>
-                            </div>
-
-                            <div className={styles.roomDetails}>
-                                <p className={styles.description}>{room.description}</p>
-
-                                <div className={styles.specs}>
-                                    <div className={styles.spec}>
-                                        <span className={styles.specLabel}>Capacidade:</span>
-                                        <span className={styles.specValue}>{room.capacity} pessoas</span>
-                                    </div>
-                                    <div className={styles.spec}>
-                                        <span className={styles.specLabel}>Unidades:</span>
-                                        <span className={styles.specValue}>{room.totalUnits}</span>
-                                    </div>
-                                    <div className={styles.spec}>
-                                        <span className={styles.specLabel}>Preço Base:</span>
-                                        <span className={styles.specValue}>
-                                            R$ {Number(room.basePrice).toFixed(2)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className={styles.amenities}>
-                                    <strong>Comodidades:</strong>
-                                    <p>{room.amenities}</p>
-                                </div>
-
-                                {room.photos.length > 0 && (
-                                    <div className={styles.photos}>
-                                        <strong>Fotos: {room.photos.length}</strong>
-                                    </div>
-                                )}
-                            </div>
+            <div className={styles.roomsGrid}>
+                {rooms.map((room) => (
+                    <div key={room.id} className={styles.roomCard}>
+                        <div className={styles.roomHeader}>
+                            <h3>{room.name}</h3>
+                            <button
+                                onClick={() => handleEdit(room)}
+                                className={styles.editButton}
+                            >
+                                ✏️ Editar
+                            </button>
                         </div>
-                    ))}
-                </div>
-            </main>
+
+                        <div className={styles.roomDetails}>
+                            <p className={styles.description}>{room.description}</p>
+
+                            <div className={styles.specs}>
+                                <div className={styles.spec}>
+                                    <span className={styles.specLabel}>Capacidade:</span>
+                                    <span className={styles.specValue}>{room.capacity} pessoas</span>
+                                </div>
+                                <div className={styles.spec}>
+                                    <span className={styles.specLabel}>Unidades:</span>
+                                    <span className={styles.specValue}>{room.totalUnits}</span>
+                                </div>
+                                <div className={styles.spec}>
+                                    <span className={styles.specLabel}>Preço Base:</span>
+                                    <span className={styles.specValue}>
+                                        R$ {Number(room.basePrice).toFixed(2)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className={styles.amenities}>
+                                <strong>Comodidades:</strong>
+                                <p>{room.amenities}</p>
+                            </div>
+
+                            {room.photos.length > 0 && (
+                                <div className={styles.photos}>
+                                    <strong>Fotos: {room.photos.length}</strong>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
 
             {editingRoom && (
                 <div className={styles.modal}>
@@ -526,6 +492,6 @@ export default function AdminQuartosPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }

@@ -6,7 +6,7 @@ describe('Admin Login API', () => {
         delete process.env.JWT_SECRET;
         delete process.env.ADMIN_EMAIL;
         delete process.env.ADMIN_PASSWORD;
-        process.env.NODE_ENV = 'test';
+        (process.env as any).NODE_ENV = 'test';
     });
 
     it('should return 500 with missing_env details when envs are missing (dev/test)', async () => {
@@ -60,4 +60,3 @@ describe('Admin Login API', () => {
         expect(res.headers.get('set-cookie')).toContain('admin_token=');
     });
 });
-

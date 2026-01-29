@@ -511,7 +511,7 @@ export default function MapaReservas() {
     const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
     return (
-        <div className={styles.container}>
+        <>
             <div className={styles.header}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Mapa de Tarifas</h1>
                 <Link href="/admin/dashboard" style={{ color: '#3b82f6', textDecoration: 'underline' }}>
@@ -1143,6 +1143,6 @@ export default function MapaReservas() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }

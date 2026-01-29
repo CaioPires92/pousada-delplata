@@ -22,7 +22,7 @@ if (process.env.NODE_ENV === 'production' && process.env.DATABASE_AUTH_TOKEN) {
   const adapter = new PrismaLibSQL(libsql);
   prisma = new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    log: ['error'],
   });
 } else {
   // Development: Use local SQLite with singleton pattern

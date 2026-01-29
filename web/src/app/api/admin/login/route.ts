@@ -23,9 +23,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const jwtSecretValue = jwtSecret!;
+        const adminEmailValue = adminEmail!;
+        const adminPasswordValue = adminPassword!;
+
         const { email, password } = await request.json();
 
-        if (email !== adminEmail || password !== adminPassword) {
+        if (email !== adminEmailValue || password !== adminPasswordValue) {
             opsLog('warn', 'ADMIN_LOGIN_INVALID', { reason: 'INVALID_PASSWORD' });
             return NextResponse.json(
                 { error: 'invalid_credentials' },
@@ -37,10 +41,10 @@ export async function POST(request: NextRequest) {
         const token = jwt.sign(
             {
                 id: 'env-admin',
-                email: adminEmail,
+                email: adminEmailValue,
                 name: 'Administrador',
             },
-            jwtSecret,
+            jwtSecretValue,
             { expiresIn: '7d' }
         );
 
@@ -48,7 +52,7 @@ export async function POST(request: NextRequest) {
         const response = NextResponse.json({
             token,
             name: 'Administrador',
-            email: adminEmail,
+            email: adminEmailValue,
         });
         opsLog('info', 'ADMIN_LOGIN_SUCCESS', { adminId: 'env-admin' });
 

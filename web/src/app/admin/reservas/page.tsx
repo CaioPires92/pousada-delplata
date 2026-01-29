@@ -55,12 +55,6 @@ export default function AdminReservasPage() {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_name');
-        router.push('/admin/login');
-    };
-
     const filteredBookings = bookings.filter(b => {
         if (filter === 'ALL') return true;
         return b.status === filter;
@@ -86,123 +80,93 @@ export default function AdminReservasPage() {
 
     if (loading) {
         return (
-            <div className={styles.container}>
-                <div className={styles.loading}>Carregando...</div>
-            </div>
+            <div className={styles.loading}>Carregando...</div>
         );
     }
 
     return (
-        <div className={styles.container}>
-            <header className={styles.header}>
-                <div className={styles.headerContent}>
-                    <h1>🏨 Painel Administrativo</h1>
-                    <button onClick={handleLogout} className={styles.logoutButton}>
-                        Sair
+        <>
+            <div className={styles.pageHeader}>
+                <h2>Todas as Reservas ({filteredBookings.length})</h2>
+
+                <div className={styles.filters}>
+                    <button
+                        className={filter === 'ALL' ? styles.filterActive : styles.filter}
+                        onClick={() => setFilter('ALL')}
+                    >
+                        Todas
+                    </button>
+                    <button
+                        className={filter === 'PENDING' ? styles.filterActive : styles.filter}
+                        onClick={() => setFilter('PENDING')}
+                    >
+                        Pendentes
+                    </button>
+                    <button
+                        className={filter === 'CONFIRMED' ? styles.filterActive : styles.filter}
+                        onClick={() => setFilter('CONFIRMED')}
+                    >
+                        Confirmadas
+                    </button>
+                    <button
+                        className={filter === 'CANCELLED' ? styles.filterActive : styles.filter}
+                        onClick={() => setFilter('CANCELLED')}
+                    >
+                        Canceladas
                     </button>
                 </div>
-            </header>
+            </div>
 
-            <nav className={styles.nav}>
-                <a href="/admin/dashboard" className={styles.navItem}>
-                    📊 Dashboard
-                </a>
-                <a href="/admin/reservas" className={styles.navItemActive}>
-                    📋 Reservas
-                </a>
-                <a href="/admin/quartos" className={styles.navItem}>
-                    🏠 Quartos
-                </a>
-                <a href="/" className={styles.navItem} target="_blank">
-                    🌐 Ver Site
-                </a>
-            </nav>
-
-            <main className={styles.main}>
-                <div className={styles.pageHeader}>
-                    <h2>Todas as Reservas ({filteredBookings.length})</h2>
-
-                    <div className={styles.filters}>
-                        <button
-                            className={filter === 'ALL' ? styles.filterActive : styles.filter}
-                            onClick={() => setFilter('ALL')}
-                        >
-                            Todas
-                        </button>
-                        <button
-                            className={filter === 'PENDING' ? styles.filterActive : styles.filter}
-                            onClick={() => setFilter('PENDING')}
-                        >
-                            Pendentes
-                        </button>
-                        <button
-                            className={filter === 'CONFIRMED' ? styles.filterActive : styles.filter}
-                            onClick={() => setFilter('CONFIRMED')}
-                        >
-                            Confirmadas
-                        </button>
-                        <button
-                            className={filter === 'CANCELLED' ? styles.filterActive : styles.filter}
-                            onClick={() => setFilter('CANCELLED')}
-                        >
-                            Canceladas
-                        </button>
-                    </div>
+            {filteredBookings.length === 0 ? (
+                <div className={styles.empty}>
+                    <p>Nenhuma reserva encontrada</p>
                 </div>
-
-                {filteredBookings.length === 0 ? (
-                    <div className={styles.empty}>
-                        <p>Nenhuma reserva encontrada</p>
-                    </div>
-                ) : (
-                    <div className={styles.table}>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Hóspede</th>
-                                    <th>Quarto</th>
-                                    <th>Check-in</th>
-                                    <th>Check-out</th>
-                                    <th>Valor</th>
-                                    <th>Status</th>
-                                    <th>Criada em</th>
+            ) : (
+                <div className={styles.table}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Hóspede</th>
+                                <th>Quarto</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Criada em</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredBookings.map((booking) => (
+                                <tr key={booking.id}>
+                                    <td>
+                                        <code>{booking.id.slice(0, 8)}</code>
+                                    </td>
+                                    <td>
+                                        <div className={styles.guestInfo}>
+                                            <strong>{booking.guest.name}</strong>
+                                            <small>{booking.guest.email}</small>
+                                            <small>{booking.guest.phone}</small>
+                                        </div>
+                                    </td>
+                                    <td>{booking.roomType.name}</td>
+                                    <td>{new Date(booking.checkIn).toLocaleDateString('pt-BR')}</td>
+                                    <td>{new Date(booking.checkOut).toLocaleDateString('pt-BR')}</td>
+                                    <td>
+                                        <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
+                                    </td>
+                                    <td>
+                                        <span className={getStatusBadge(booking.status)}>
+                                            {getStatusText(booking.status)}
+                                        </span>
+                                    </td>
+                                    <td>{new Date(booking.createdAt).toLocaleDateString('pt-BR')}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {filteredBookings.map((booking) => (
-                                    <tr key={booking.id}>
-                                        <td>
-                                            <code>{booking.id.slice(0, 8)}</code>
-                                        </td>
-                                        <td>
-                                            <div className={styles.guestInfo}>
-                                                <strong>{booking.guest.name}</strong>
-                                                <small>{booking.guest.email}</small>
-                                                <small>{booking.guest.phone}</small>
-                                            </div>
-                                        </td>
-                                        <td>{booking.roomType.name}</td>
-                                        <td>{new Date(booking.checkIn).toLocaleDateString('pt-BR')}</td>
-                                        <td>{new Date(booking.checkOut).toLocaleDateString('pt-BR')}</td>
-                                        <td>
-                                            <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
-                                        </td>
-                                        <td>
-                                            <span className={getStatusBadge(booking.status)}>
-                                                {getStatusText(booking.status)}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            {new Date(booking.createdAt).toLocaleDateString('pt-BR')}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </main>
-        </div>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </>
     );
 }
