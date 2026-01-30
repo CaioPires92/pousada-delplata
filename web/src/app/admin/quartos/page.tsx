@@ -37,18 +37,16 @@ export default function AdminQuartosPage() {
     });
 
     useEffect(() => {
-        const token = localStorage.getItem('admin_token');
-        if (!token) {
-            router.push('/admin/login');
-            return;
-        }
-
         fetchRooms();
     }, [router]);
 
     const fetchRooms = async () => {
         try {
             const response = await fetch('/api/admin/rooms');
+            if (response.status === 401) {
+                router.push('/admin/login');
+                return;
+            }
             if (!response.ok) throw new Error('Erro ao carregar quartos');
 
             const data = await response.json();

@@ -3,7 +3,7 @@ import { POST } from './route';
 import prisma from '@/lib/prisma';
 
 vi.mock('@/lib/admin-auth', () => ({
-    requireAdminAuth: vi.fn(async () => null),
+    requireAdminAuth: vi.fn(async () => ({ adminId: 'admin-1', email: 'admin@x.com', role: 'admin' })),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -58,4 +58,3 @@ describe('Rates Bulk API - day key', () => {
         ]);
     });
 });
-

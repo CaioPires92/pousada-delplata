@@ -160,7 +160,7 @@ export async function GET() {
     // In a real app, add auth check here
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const bookings = await prisma.booking.findMany({
             include: {

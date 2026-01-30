@@ -60,7 +60,6 @@ export default function Footer() {
                                 { href: "/acomodacoes", label: "Acomodações" },
                                 { href: "/lazer", label: "Lazer" },
                                 { href: "/contato", label: "Contato" },
-                                { href: "/admin/login", label: "Área Administrativa" },
                             ].map((link) => (
                                 <li key={link.href}>
                                     <Link

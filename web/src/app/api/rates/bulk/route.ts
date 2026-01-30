@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     let ctxTargetCount: number | undefined;
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const text = await request.text();
         if (!text) {

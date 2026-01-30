@@ -104,8 +104,9 @@ model Payment {
 model AdminUser {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String
+  passwordHash String
   name      String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

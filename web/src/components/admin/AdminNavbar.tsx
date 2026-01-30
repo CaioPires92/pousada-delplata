@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
 import styles from '@/app/admin/dashboard/dashboard.module.css';
 
 type NavItem = {
@@ -13,10 +12,6 @@ type NavItem = {
 export default function AdminNavbar() {
     const pathname = usePathname();
     const router = useRouter();
-    const [adminName] = useState<string>(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('admin_name') || '';
-    });
 
     if (pathname === '/admin/login') return null;
 
@@ -29,9 +24,8 @@ export default function AdminNavbar() {
 
     const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
-    const handleLogout = () => {
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_name');
+    const handleLogout = async () => {
+        await fetch('/api/admin/logout', { method: 'POST' }).catch(() => null);
         router.push('/admin/login');
     };
 
@@ -41,7 +35,7 @@ export default function AdminNavbar() {
                 <div className={styles.headerContent}>
                     <h1>🏨 Painel Administrativo</h1>
                     <div className={styles.userInfo}>
-                        <span>{adminName ? `Olá, ${adminName}!` : ''}</span>
+                        <span />
                         <button onClick={handleLogout} className={styles.logoutButton}>
                             Sair
                         </button>

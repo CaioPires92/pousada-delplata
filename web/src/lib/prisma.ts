@@ -12,10 +12,19 @@ let prisma: PrismaClient;
  * Initialize Prisma client with Turso adapter in production
  * or local SQLite in development
  */
-if (process.env.NODE_ENV === 'production' && process.env.DATABASE_AUTH_TOKEN) {
-  // Production: Use Turso with LibSQL
+const databaseUrl = process.env.DATABASE_URL;
+const shouldUseTurso =
+  typeof databaseUrl === 'string' &&
+  databaseUrl.length > 0 &&
+  !databaseUrl.startsWith('file:') &&
+  process.env.NODE_ENV !== 'test' &&
+  typeof process.env.DATABASE_AUTH_TOKEN === 'string' &&
+  process.env.DATABASE_AUTH_TOKEN.length > 0;
+
+if (shouldUseTurso) {
+  // Use Turso with LibSQL whenever auth token is provided
   const libsql = createClient({
-    url: process.env.DATABASE_URL!,
+    url: databaseUrl,
     authToken: process.env.DATABASE_AUTH_TOKEN,
   });
 
@@ -26,8 +35,7 @@ if (process.env.NODE_ENV === 'production' && process.env.DATABASE_AUTH_TOKEN) {
   });
 } else {
   // Development: Use local SQLite with singleton pattern
-  const envUrl = process.env.DATABASE_URL;
-  const dbUrl = typeof envUrl === 'string' && envUrl.startsWith('file:') ? envUrl : 'file:./prisma/dev.db';
+  const dbUrl = typeof databaseUrl === 'string' && databaseUrl.startsWith('file:') ? databaseUrl : 'file:./prisma/dev.db';
 
   prisma = global.prisma || new PrismaClient({
     log: process.env.PRISMA_LOG_QUERIES === '1' ? ['query', 'error', 'warn'] : ['error', 'warn'],

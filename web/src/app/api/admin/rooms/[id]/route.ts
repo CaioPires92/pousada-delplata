@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { requireAdminAuth } from '@/lib/admin-auth'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const auth = await requireAdminAuth()
+        if (auth instanceof Response) return auth
+
         const { id } = await params
         const data = await request.json()
 

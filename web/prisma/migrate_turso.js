@@ -22,6 +22,8 @@ async function migrate() {
         'ALTER TABLE Rate ADD COLUMN ctd BOOLEAN DEFAULT 0',
         'ALTER TABLE Rate ADD COLUMN stopSell BOOLEAN DEFAULT 0',
         'ALTER TABLE Rate ADD COLUMN minLos INTEGER DEFAULT 1',
+        'ALTER TABLE AdminUser RENAME COLUMN password TO passwordHash',
+        'ALTER TABLE AdminUser ADD COLUMN isActive BOOLEAN NOT NULL DEFAULT 1',
     ];
 
     for (const query of queries) {
@@ -29,7 +31,11 @@ async function migrate() {
             await client.execute(query);
             console.log(`Executed: ${query}`);
         } catch (e) {
-            if (e.message.includes('duplicate column name')) {
+            if (
+                e.message.includes('duplicate column name') ||
+                e.message.includes('no such column') ||
+                e.message.includes('no such table')
+            ) {
                 console.log(`Skipped (already exists): ${query}`);
             } else {
                 console.error(`Error executing ${query}:`, e);

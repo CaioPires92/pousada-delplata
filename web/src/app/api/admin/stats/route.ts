@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 export async function GET() {
     try {
+        const auth = await requireAdminAuth();
+        if (auth instanceof Response) return auth;
+
         // Buscar estatísticas
         const [
             totalBookings,

@@ -32,18 +32,16 @@ export default function AdminReservasPage() {
     const [filter, setFilter] = useState('ALL');
 
     useEffect(() => {
-        const token = localStorage.getItem('admin_token');
-        if (!token) {
-            router.push('/admin/login');
-            return;
-        }
-
         fetchBookings();
     }, [router]);
 
     const fetchBookings = async () => {
         try {
             const response = await fetch('/api/admin/bookings');
+            if (response.status === 401) {
+                router.push('/admin/login');
+                return;
+            }
             if (!response.ok) throw new Error('Erro ao carregar reservas');
 
             const data = await response.json();

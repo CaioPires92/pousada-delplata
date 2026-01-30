@@ -8,7 +8,7 @@ export async function DELETE(
 ) {
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const { id } = await params;
         await prisma.rate.delete({
@@ -30,7 +30,7 @@ export async function PUT(
 ) {
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const { id } = await params;
         const text = await request.text();

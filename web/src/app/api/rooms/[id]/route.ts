@@ -38,7 +38,7 @@ export async function PUT(
 ) {
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const { id } = await params;
         const body = await request.json();
@@ -92,7 +92,7 @@ export async function DELETE(
 ) {
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const { id } = await params;
         await prisma.roomType.delete({

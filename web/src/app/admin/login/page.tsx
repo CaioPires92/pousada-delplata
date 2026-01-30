@@ -28,12 +28,6 @@ export default function AdminLoginPage() {
                 throw new Error(data.error || 'Erro ao fazer login');
             }
 
-            const data = await response.json();
-
-            // Salvar token no localStorage
-            localStorage.setItem('admin_token', data.token);
-            localStorage.setItem('admin_name', data.name);
-
             // Redirecionar para dashboard
             router.push('/admin/dashboard');
         } catch (err) {
@@ -68,7 +62,7 @@ export default function AdminLoginPage() {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             disabled={loading}
-                            placeholder="admin@delplata.com.br"
+                        placeholder="seu@email.com"
                         />
                     </div>
 
@@ -92,14 +86,6 @@ export default function AdminLoginPage() {
                     >
                         {loading ? 'Entrando...' : 'Entrar'}
                     </button>
-
-                    <div className={styles.hint}>
-                        <small>
-                            💡 Credenciais padrão:<br />
-                            Email: admin@delplata.com.br<br />
-                            Senha: admin123
-                        </small>
-                    </div>
                 </form>
             </div>
         </div>

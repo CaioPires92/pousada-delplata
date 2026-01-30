@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
+    const auth = await requireAdminAuth();
+    if (auth instanceof Response) return auth;
+
     const { searchParams } = new URL(request.url);
     const roomTypeId = searchParams.get('roomTypeId');
     const startDate = searchParams.get('startDate');

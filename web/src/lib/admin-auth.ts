@@ -1,27 +1,25 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
+import { readAdminSessionTokenFromCookies, type AdminJwtClaims, verifyAdminJwt } from '@/lib/admin-jwt';
 
-export async function requireAdminAuth() {
-    const jwtSecret = process.env.JWT_SECRET;
+export async function requireAdminAuth(): Promise<AdminJwtClaims | NextResponse> {
+    const jwtSecret = process.env.ADMIN_JWT_SECRET;
     if (!jwtSecret) {
         const isDev = process.env.NODE_ENV !== 'production';
         return NextResponse.json(
-            isDev ? { error: 'missing_env', missing: ['JWT_SECRET'] } : { error: 'Server configuration error' },
+            isDev ? { error: 'missing_env', missing: ['ADMIN_JWT_SECRET'] } : { error: 'Server configuration error' },
             { status: 500 }
         );
     }
 
     const cookieStore = await cookies();
-    const token = cookieStore.get('admin_token')?.value;
+    const token = readAdminSessionTokenFromCookies(cookieStore, process.env.NODE_ENV);
     if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    try {
-        jwt.verify(token, jwtSecret);
-    } catch {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    return null;
+    const claims = await verifyAdminJwt(token, jwtSecret);
+    if (!claims) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    return claims;
 }

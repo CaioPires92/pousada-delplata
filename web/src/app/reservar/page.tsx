@@ -40,6 +40,12 @@ function ReservarContent() {
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const maxGuests = 3;
+    const numAdults = Number.parseInt(adults, 10) || 0;
+    const numChildren = Number.parseInt(children, 10) || 0;
+    const totalGuests = numAdults + numChildren;
+    const isOverCapacity = totalGuests > maxGuests;
+    const isInvalidAdults = numAdults < 1;
 
     const isPlaceholderUrl = (url: string) => {
         const normalizedUrl = url.trim().toLowerCase();
@@ -68,8 +74,25 @@ function ReservarContent() {
         return localPhotos?.[0] ?? null;
     };
 
+    const formatDate = (dateString: string) => {
+        if (!dateString) return '';
+        const [y, m, d] = dateString.split('-').map(Number);
+        const date = new Date(y, m - 1, d);
+        return date.toLocaleDateString('pt-BR');
+    };
+
+    const getWhatsAppUrl = () => {
+        const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
+        const checkOutStr = checkOut ? formatDate(checkOut) : 'DATA INDEFINIDA';
+        const message = `Olá! Gostaria de cotar hospedagem para *${numAdults} adultos* e *${numChildren} crianças*.\n` +
+            `Datas: ${checkInStr} a ${checkOutStr}.\n` +
+            `Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.`;
+        const whatsappPhone = '5519999654866';
+        return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+    };
+
     const fetchAvailability = useCallback(async () => {
-        if (!checkIn || !checkOut) return;
+        if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) return;
         try {
             setLoading(true);
             setError('');
@@ -87,7 +110,7 @@ function ReservarContent() {
         } finally {
             setLoading(false);
         }
-    }, [adults, checkIn, checkOut, children]);
+    }, [adults, checkIn, checkOut, children, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
         fetchAvailability();
@@ -195,6 +218,37 @@ function ReservarContent() {
         );
     }
 
+    if (isInvalidAdults) {
+        return (
+            <main className="min-h-screen pt-32 container text-center bg-muted/30">
+                <div className="bg-amber-50 text-amber-900 p-6 rounded-xl inline-flex flex-col items-center gap-4 max-w-md mx-auto border border-amber-200">
+                    <AlertCircle className="w-12 h-12" />
+                    <p className="text-lg font-medium">Selecione ao menos 1 adulto para continuar.</p>
+                    <Button onClick={() => window.location.href = '/reservar'}>Alterar Busca</Button>
+                </div>
+            </main>
+        );
+    }
+
+    if (isOverCapacity) {
+        const whatsappUrl = getWhatsAppUrl();
+        return (
+            <main className="min-h-screen pt-32 container text-center bg-muted/30">
+                <div className="bg-amber-50 text-amber-900 p-6 rounded-xl inline-flex flex-col items-center gap-4 max-w-md mx-auto border border-amber-200">
+                    <AlertCircle className="w-12 h-12" />
+                    <p className="text-lg font-medium">
+                        Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.
+                    </p>
+                    <Button asChild>
+                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                            Falar com a pousada no WhatsApp
+                        </a>
+                    </Button>
+                </div>
+            </main>
+        );
+    }
+
     if (loading) {
         return (
             <main className="min-h-screen pt-32 flex flex-col items-center justify-center bg-muted/30">
@@ -215,14 +269,6 @@ function ReservarContent() {
             </main>
         );
     }
-
-    // Helper for displaying dates without timezone shift
-    const formatDate = (dateString: string) => {
-        if (!dateString) return '';
-        const [y, m, d] = dateString.split('-').map(Number);
-        const date = new Date(y, m - 1, d);
-        return date.toLocaleDateString('pt-BR');
-    };
 
     return (
         <main className="min-h-screen pt-28 pb-12 bg-muted/30">

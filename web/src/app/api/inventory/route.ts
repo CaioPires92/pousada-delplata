@@ -5,7 +5,7 @@ import { assertDayKey } from '@/lib/day-key';
 
 export async function GET(request: Request) {
     const auth = await requireAdminAuth();
-    if (auth) return auth;
+    if (auth instanceof Response) return auth;
 
     const { searchParams } = new URL(request.url);
     const roomTypeId = searchParams.get('roomTypeId');
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const auth = await requireAdminAuth();
-        if (auth) return auth;
+        if (auth instanceof Response) return auth;
 
         const body = await request.json();
         const { roomTypeId, date, totalUnits } = body;

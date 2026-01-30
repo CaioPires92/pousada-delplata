@@ -157,19 +157,32 @@ async function seed() {
 
     console.log('✅ Room types created with R$ 0.10 for testing');
 
-    // Create admin user
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await prisma.adminUser.upsert({
-        where: { email: 'admin@delplata.com.br' },
-        update: {},
-        create: {
-            email: 'admin@delplata.com.br',
-            password: hashedPassword,
-            name: 'Administrador',
-        },
-    });
+    // ADMIN_EMAIL / ADMIN_PASSWORD são legacy e não são usados; o seed DEV usa SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD.
+    const shouldSeedAdmin =
+        process.env.NODE_ENV !== 'production' &&
+        typeof process.env.SEED_ADMIN_EMAIL === 'string' &&
+        process.env.SEED_ADMIN_EMAIL.trim().length > 0 &&
+        typeof process.env.SEED_ADMIN_PASSWORD === 'string' &&
+        process.env.SEED_ADMIN_PASSWORD.length > 0;
 
-    console.log('✅ Admin user created (email: admin@delplata.com.br, password: admin123)');
+    if (shouldSeedAdmin) {
+        const seedEmail = process.env.SEED_ADMIN_EMAIL.trim().toLowerCase();
+        const seedPasswordHash = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD, 10);
+
+        await prisma.adminUser.upsert({
+            where: { email: seedEmail },
+            update: { passwordHash: seedPasswordHash, isActive: true },
+            create: {
+                email: seedEmail,
+                passwordHash: seedPasswordHash,
+                name: 'Administrador',
+                isActive: true,
+            },
+        });
+        console.log('✅ Admin user ensured (dev/staging)');
+    } else {
+        console.log('ℹ️ Admin user seed skipped');
+    }
 
     console.log('🎉 Seeding completed!');
     console.log('\n📝 Summary:');

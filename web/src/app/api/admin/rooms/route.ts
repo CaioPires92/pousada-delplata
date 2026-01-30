@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
 export async function GET() {
     try {
+        const auth = await requireAdminAuth();
+        if (auth instanceof Response) return auth;
+
         const rooms = await prisma.roomType.findMany({
             include: {
                 photos: true
@@ -25,6 +29,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth instanceof Response) return auth;
+
         const body = await request.json();
         const {
             name,
@@ -71,6 +78,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth instanceof Response) return auth;
+
         const body = await request.json();
         const { roomTypeId, totalUnits } = body;
 
