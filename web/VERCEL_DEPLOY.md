@@ -33,7 +33,8 @@ Você precisa adicionar as variáveis de produção. Copie os valores do seu arq
 | `DATABASE_AUTH_TOKEN` | `eyJhbGciOi...` (Seu token longo do Turso) |
 | `NEXT_PUBLIC_MP_PUBLIC_KEY` | `TEST-...` (Sua chave pública do Mercado Pago) |
 | `MP_ACCESS_TOKEN` | `TEST-...` (Seu token de acesso do Mercado Pago) |
-| `JWT_SECRET` | Crie uma senha segura e aleatória |
+| `MP_WEBHOOK_SECRET` | `...` (Secret para validar Webhook - Opcional mas recomendado) |
+| `ADMIN_JWT_SECRET` | Crie uma senha MUITO segura e longa (ex: `openssl rand -hex 32`) |
 | `SMTP_HOST` | `smtp.gmail.com` |
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | Seu email do Gmail |

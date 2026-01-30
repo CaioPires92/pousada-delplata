@@ -18,9 +18,10 @@ jobs:
         working-directory: ./web
     env:
       DATABASE_URL: file:./prisma/dev.db
-      JWT_SECRET: ci-jwt-secret
-      ADMIN_EMAIL: admin@delplata.com.br
-      ADMIN_PASSWORD: ci-admin-password
+      DATABASE_AUTH_TOKEN: mock-token
+      ADMIN_JWT_SECRET: ci-jwt-secret-very-secure-and-long-123456
+      SEED_ADMIN_EMAIL: admin@delplata.com.br
+      SEED_ADMIN_PASSWORD: ci-admin-password
       NEXT_PUBLIC_BASE_URL: http://localhost:3001
       NEXT_PUBLIC_APP_URL: http://localhost:3001
       MP_ACCESS_TOKEN: TEST-ci
@@ -45,6 +46,9 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
+
+    - name: Setup Test Database
+      run: npx prisma db push
 
     - name: Lint
       run: npm run lint
