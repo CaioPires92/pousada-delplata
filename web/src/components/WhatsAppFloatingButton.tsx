@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 
-const WHATSAPP_URL =
-    'https://wa.me/5519999654866?text=Ol%C3%A1!%20Gostaria%20de%20informa%C3%A7%C3%B5es,%20por%20favor.';
+const WHATSAPP_PHONE = '5519999654866';
+const WHATSAPP_MESSAGE = 'Olá! Gostaria de informações, por favor.';
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
 export default function WhatsAppFloatingButton() {
     return (
         <div className="fixed bottom-5 right-5 z-50">
             <div className="relative group">
-                <span className="pointer-events-none absolute right-0 bottom-[72px] hidden whitespace-nowrap rounded-md bg-black/80 px-3 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block">
+                <span className="pointer-events-none absolute right-0 bottom-[74px] hidden whitespace-nowrap rounded-md bg-black/85 px-3 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block group-focus-within:block">
                     Falar no WhatsApp
+                    <span className="absolute bottom-[-6px] right-4 h-3 w-3 rotate-45 rounded-sm bg-black/85" />
                 </span>
 
                 <Link
@@ -18,8 +20,11 @@ export default function WhatsAppFloatingButton() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="Falar no WhatsApp"
-                    className="flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg outline-none ring-offset-background transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.05] motion-safe:active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] p-3 text-white shadow-lg outline-none ring-offset-background motion-safe:transition motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.06] motion-safe:hover:shadow-xl motion-safe:active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:transform-none"
                 >
+                    <span className="pointer-events-none absolute -top-2 -right-2 rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-[#128C7E] shadow">
+                        Atendimento
+                    </span>
                     <svg
                         width="28"
                         height="28"
@@ -45,4 +50,3 @@ export default function WhatsAppFloatingButton() {
         </div>
     );
 }
-
