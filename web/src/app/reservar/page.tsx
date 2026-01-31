@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState, Suspense, useRef } from 'react';
+import { useCallback, useEffect, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,18 +45,27 @@ function ReservarContent() {
     const adults = searchParams.get('adults') || '2';
     const children = searchParams.get('children') || '0';
     const childrenAgesParam = searchParams.get('childrenAges') || '';
-    const childrenAges = childrenAgesParam.trim().length > 0
-        ? childrenAgesParam.split(',').map((s) => Number.parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n))
-        : [];
+
+    // Memoize childrenAges to prevent array recreation on every render
+    const childrenAges = useMemo(() => {
+        return childrenAgesParam.trim().length > 0
+            ? childrenAgesParam.split(',').map((s) => Number.parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n))
+            : [];
+    }, [childrenAgesParam]);
+
+    // Create stable string key for childrenAges (childrenAgesParam is already stable)
+    const childrenAgesKey = childrenAgesParam.trim();
 
     const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
     const mountedRef = useRef(true);
+    const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
+    const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
@@ -109,7 +118,29 @@ function ReservarContent() {
     };
 
     const fetchAvailability = useCallback(async (signal?: AbortSignal) => {
-        if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) return;
+        if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) {
+            // Early return for invalid inputs - ensure loading is false
+            if (mountedRef.current) {
+                setLoading(false);
+                hasLoadedOnce.current = true;
+            }
+            return;
+        }
+
+        // Create stable request key for deduplication
+        const requestKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}`;
+
+        // Deduplicate: if same request already in flight or just completed, skip
+        if (requestKey === lastKeyRef.current) {
+            console.log('availability:skip-duplicate', { requestKey });
+            // Still mark as loaded even if skipping
+            if (mountedRef.current && !hasLoadedOnce.current) {
+                setLoading(false);
+                hasLoadedOnce.current = true;
+            }
+            return;
+        }
+
         try {
             console.log('availability:start', { checkIn, checkOut, adults, children, childrenAges });
             setLoading(true);
@@ -121,20 +152,43 @@ function ReservarContent() {
             );
             if (!response.ok) throw new Error('Erro ao buscar disponibilidade');
             const data = await response.json();
-            if (mountedRef.current) setAvailableRooms(data);
+
+            // PRICING DIAGNOSTICS: Log price breakdown to verify children >= 12 are counted as adults
+            // and extraAdultFee/child6To11Fee are applied (if configured in DB)
+            console.log('availability:pricing-check', {
+                rooms: data.map((room: Room) => ({
+                    name: room.name,
+                    totalPrice: room.totalPrice,
+                    breakdown: room.priceBreakdown,
+                    // If extraAdultFee/child6To11Fee are 0 in DB, totals will be same as base (expected)
+                }))
+            });
+
+            if (mountedRef.current) {
+                setAvailableRooms(data);
+                hasLoadedOnce.current = true;
+            }
+
+            // Mark this request as completed ONLY after successful fetch
+            // This prevents Strict Mode double-run from seeing it as duplicate before first completes
+            lastKeyRef.current = requestKey;
+
             console.log('availability:finish ok', { count: Array.isArray(data) ? data.length : 0 });
         } catch (err: any) {
             if (err && err.name === 'AbortError') {
                 console.log('availability:abort');
             } else {
                 console.log('availability:error', err);
-                if (mountedRef.current) setError('Erro ao carregar quartos disponíveis. Tente novamente.');
+                if (mountedRef.current) {
+                    setError('Erro ao carregar quartos disponíveis. Tente novamente.');
+                    hasLoadedOnce.current = true;
+                }
             }
         } finally {
             if (mountedRef.current) setLoading(false);
             console.log('availability:finish', { loading: false });
         }
-    }, [adults, checkIn, checkOut, children, childrenAges, isInvalidAdults, isOverCapacity]);
+    }, [adults, checkIn, checkOut, children, childrenAgesKey, childrenAges, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -286,9 +340,55 @@ function ReservarContent() {
 
     if (loading) {
         return (
-            <main className="min-h-screen pt-32 flex flex-col items-center justify-center bg-muted/30">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mb-4"></div>
-                <p className="text-muted-foreground text-lg animate-pulse">Buscando as melhores opções para você...</p>
+            <main className="min-h-screen pt-28 pb-12 bg-muted/30">
+                <div className="container mx-auto px-4 animate-pulse">
+                    {/* Header Skeleton */}
+                    <div className="bg-white rounded-xl shadow-sm border border-border/50 p-6 mb-8">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-primary/10 p-3 rounded-full w-12 h-12" />
+                            <div className="flex-1">
+                                <div className="h-6 bg-muted rounded w-40 mb-2" />
+                                <div className="h-4 bg-muted rounded w-64" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Search Progress */}
+                    <div className="text-center mb-8">
+                        <div className="inline-flex items-center gap-3 bg-white px-6 py-4 rounded-full shadow-lg border border-border/50">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                            <p className="text-muted-foreground font-medium">
+                                Buscando as melhores opções para você...
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Room Skeletons */}
+                    <div className="space-y-6">
+                        <div className="h-8 bg-muted rounded w-64 mb-4" />
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="bg-white rounded-xl shadow-sm border border-border/50 overflow-hidden">
+                                <div className="grid md:grid-cols-12">
+                                    <div className="md:col-span-4 bg-muted h-64 md:h-80" />
+                                    <div className="md:col-span-8 p-6 space-y-4">
+                                        <div className="h-8 bg-muted rounded w-48" />
+                                        <div className="h-4 bg-muted rounded w-full" />
+                                        <div className="h-4 bg-muted rounded w-5/6" />
+                                        <div className="flex gap-2 mt-4">
+                                            {[1, 2, 3, 4].map((j) => (
+                                                <div key={j} className="h-8 bg-muted rounded-full w-24" />
+                                            ))}
+                                        </div>
+                                        <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                                            <div className="h-8 bg-muted rounded w-32" />
+                                            <div className="h-10 bg-muted rounded w-48" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </main>
         );
     }
