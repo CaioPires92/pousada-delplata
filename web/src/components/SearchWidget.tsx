@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar as CalendarIcon, Users, Baby, Search, ChevronDown } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
@@ -30,6 +30,9 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     const [checkOut, setCheckOut] = useState<Date | undefined>(tomorrow);
     const [adults, setAdults] = useState('2');
     const [children, setChildren] = useState('0');
+    const [childrenAges, setChildrenAges] = useState<(number | null)[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [searchMessage, setSearchMessage] = useState('');
 
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
@@ -42,6 +45,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     // Controlar abertura dos popovers
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
     const [isCheckOutOpen, setIsCheckOutOpen] = useState(false);
+    const firstAgeRef = useRef<HTMLSelectElement | null>(null);
 
     const handleCheckInSelect = (date: Date | undefined) => {
         setCheckIn(date);
@@ -84,6 +88,11 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
         if (numChildren > nextMaxChildren) {
             setChildren(String(nextMaxChildren));
         }
+        setChildrenAges((prev) => {
+            const next = prev.slice(0, nextChildren);
+            while (next.length < nextChildren) next.push(null);
+            return next;
+        });
         if (showCapacityFallback && normalizedAdults + nextChildren <= maxGuests) {
             setShowCapacityFallback(false);
         }
@@ -94,15 +103,45 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
         const nextChildren = Number.isFinite(parsed) ? parsed : 0;
         const normalizedChildren = Math.min(Math.max(nextChildren, 0), maxChildren);
         setChildren(String(normalizedChildren));
+        setChildrenAges((prev) => {
+            const next = prev.slice(0, normalizedChildren);
+            while (next.length < normalizedChildren) next.push(null);
+            return next;
+        });
         if (showCapacityFallback && numAdults + normalizedChildren <= maxGuests) {
             setShowCapacityFallback(false);
         }
     };
 
-    const handleSearch = (e: React.FormEvent) => {
+    const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSearchMessage('');
 
-        if (isOverCapacity) {
+        if (numAdults < 1) {
+            alert('Selecione ao menos 1 adulto.');
+            return;
+        }
+
+        if (numChildren > 0) {
+            if (childrenAges.length !== numChildren || childrenAges.some((age) => age === null)) {
+                alert('Informe a idade de todas as crianças.');
+                return;
+            }
+            if (childrenAges.some((age) => typeof age !== 'number' || !Number.isFinite(age) || age < 0 || age > 17)) {
+                alert('Idade de criança inválida.');
+                return;
+            }
+        }
+
+        const normalizedChildrenAges = numChildren > 0
+            ? childrenAges.map((age) => Number.parseInt(String(age ?? ''), 10)).filter((age) => Number.isFinite(age))
+            : [];
+        const adultsFromChildren = normalizedChildrenAges.filter((age) => age >= 12).length;
+        const childrenUnder12 = normalizedChildrenAges.filter((age) => age < 12).length;
+        const effectiveAdults = numAdults + adultsFromChildren;
+        const effectiveTotalGuests = effectiveAdults + childrenUnder12;
+
+        if (effectiveTotalGuests > maxGuests) {
             setShowCapacityFallback(true);
             return;
         }
@@ -112,12 +151,13 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
             return;
         }
 
-        if (numAdults < 1) {
-            alert('Selecione ao menos 1 adulto.');
+        if (isSameDay(checkIn, checkOut) || isBefore(checkOut, checkIn)) {
+            alert('A data de check-out deve ser posterior ao check-in.');
             return;
         }
 
         setShowCapacityFallback(false);
+        setLoading(true);
 
         const params = new URLSearchParams({
             checkIn: format(checkIn, 'yyyy-MM-dd'),
@@ -125,8 +165,33 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
             adults,
             children
         });
+        if (normalizedChildrenAges.length > 0) {
+            params.set('childrenAges', normalizedChildrenAges.map((a) => String(a)).join(','));
+        }
 
-        router.push(`/reservar?${params.toString()}`);
+        try {
+            const response = await fetch(`/api/availability?${params.toString()}`, { cache: 'no-store' });
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                const errorMessage = typeof errorBody?.error === 'string'
+                    ? errorBody.error
+                    : 'Erro ao buscar disponibilidade. Tente novamente.';
+                setSearchMessage(errorMessage);
+                return;
+            }
+
+            const data = await response.json();
+            if (Array.isArray(data) && data.length === 0) {
+                setSearchMessage('Sem disponibilidade para essas datas/ocupação.');
+                return;
+            }
+
+            router.push(`/reservar?${params.toString()}`);
+        } catch {
+            setSearchMessage('Erro ao buscar disponibilidade. Tente novamente.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const labelClass = `text-sm font-medium flex items-center gap-2 mb-2 ${variant === 'light' ? 'text-primary' : 'text-white'
@@ -139,6 +204,15 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     const adultOptions = [1, 2, 3];
     const childOptions = [0, 1, 2];
     const shouldShowCapacityFallback = showCapacityFallback || isOverCapacity;
+    const agesMissing = numChildren > 0 && (childrenAges.length !== numChildren || childrenAges.some((age) => age === null));
+    const filledCount = childrenAges.filter((a) => typeof a === 'number').length;
+    const searchDisabled = shouldShowCapacityFallback || numAdults < 1 || (numChildren > 0 && agesMissing) || !checkIn || !checkOut || loading;
+
+    useEffect(() => {
+        if (numChildren > 0) firstAgeRef.current?.focus();
+    }, [numChildren]);
+
+    void agesMissing;
 
     return (
         <div className="w-full">
@@ -245,6 +319,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
                     </div>
+                    {/* Ages UI moved below the main form */}
                 </div>
 
                 {/* Botão de busca */}
@@ -253,12 +328,50 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                         type="submit"
                         size="lg"
                         className="w-full h-[56px] text-base font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 bg-primary hover:bg-primary/90 text-white"
+                        disabled={searchDisabled}
                     >
                         <Search className="w-5 h-5" />
-                        <span className="whitespace-nowrap">Buscar</span>
+                        <span className="whitespace-nowrap">{loading ? 'Buscando...' : 'Buscar'}</span>
                     </Button>
                 </div>
+                {numChildren > 0 ? (
+                    <div className="md:col-span-12">
+                        <p className="text-xs text-white/90 mb-1">
+                            Informe a idade das crianças
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                            {childrenAges.map((age, idx) => (
+                                <div key={idx} className="relative min-w-[140px] flex-1 md:flex-none md:basis-1/6">
+                                    <select
+                                        ref={idx === 0 ? firstAgeRef : undefined}
+                                        className={selectClass}
+                                        value={age ?? ""}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const nextAge = val === "" ? null : Number.parseInt(val, 10);
+                                            setChildrenAges((prev) => prev.map((v, i) => (i === idx ? nextAge : v)));
+                                        }}
+                                    >
+                                        <option value="" disabled>Idade</option>
+                                        {Array.from({ length: 18 }, (_, ageOpt) => (
+                                            <option key={ageOpt} value={ageOpt}>{ageOpt}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50 pointer-events-none" />
+                                </div>
+                            ))}
+                        </div>
+                        {agesMissing ? (
+                            <p className="mt-1 text-xs text-destructive">Informe a idade para continuar</p>
+                        ) : null}
+                    </div>
+                ) : null}
             </form>
+            {searchMessage ? (
+                <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+                    <p className="text-sm font-medium">{searchMessage}</p>
+                </div>
+            ) : null}
             {shouldShowCapacityFallback ? (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
                     <p className="text-sm font-medium">

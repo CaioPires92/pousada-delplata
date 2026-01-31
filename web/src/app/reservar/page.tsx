@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState, Suspense } from 'react';
+import { useCallback, useEffect, useState, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,18 @@ interface Room {
     capacity: number;
     amenities: string;
     totalPrice: number;
+    priceBreakdown?: {
+        nights: number;
+        baseTotal: number;
+        effectiveAdults: number;
+        childrenUnder12: number;
+        extraAdults: number;
+        children6To11: number;
+        extrasPerNight: number;
+        extraAdultTotal: number;
+        childTotal: number;
+        total: number;
+    };
     photos: { url: string }[];
 }
 
@@ -32,6 +44,10 @@ function ReservarContent() {
     const checkOut = searchParams.get('checkOut');
     const adults = searchParams.get('adults') || '2';
     const children = searchParams.get('children') || '0';
+    const childrenAgesParam = searchParams.get('childrenAges') || '';
+    const childrenAges = childrenAgesParam.trim().length > 0
+        ? childrenAgesParam.split(',').map((s) => Number.parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n))
+        : [];
 
     const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
@@ -40,6 +56,7 @@ function ReservarContent() {
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const mountedRef = useRef(true);
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
@@ -91,29 +108,44 @@ function ReservarContent() {
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
 
-    const fetchAvailability = useCallback(async () => {
+    const fetchAvailability = useCallback(async (signal?: AbortSignal) => {
         if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) return;
         try {
+            console.log('availability:start', { checkIn, checkOut, adults, children, childrenAges });
             setLoading(true);
             setError('');
+            const childrenAgesQuery = childrenAges.length > 0 ? `&childrenAges=${encodeURIComponent(childrenAges.join(','))}` : '';
             const response = await fetch(
-                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}`,
-                { cache: 'no-store' }
+                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}`,
+                { cache: 'no-store', signal }
             );
-
             if (!response.ok) throw new Error('Erro ao buscar disponibilidade');
-
             const data = await response.json();
-            setAvailableRooms(data);
-        } catch {
-            setError('Erro ao carregar quartos disponíveis. Tente novamente.');
+            if (mountedRef.current) setAvailableRooms(data);
+            console.log('availability:finish ok', { count: Array.isArray(data) ? data.length : 0 });
+        } catch (err: any) {
+            if (err && err.name === 'AbortError') {
+                console.log('availability:abort');
+            } else {
+                console.log('availability:error', err);
+                if (mountedRef.current) setError('Erro ao carregar quartos disponíveis. Tente novamente.');
+            }
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
+            console.log('availability:finish', { loading: false });
         }
-    }, [adults, checkIn, checkOut, children, isInvalidAdults, isOverCapacity]);
+    }, [adults, checkIn, checkOut, children, childrenAges, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
-        fetchAvailability();
+        const controller = new AbortController();
+        mountedRef.current = true;
+        console.log('availability:effect-run');
+        fetchAvailability(controller.signal);
+        return () => {
+            mountedRef.current = false;
+            controller.abort();
+            console.log('availability:effect-cleanup');
+        };
     }, [fetchAvailability]);
 
     const handleSelectRoom = (room: Room) => {
@@ -146,6 +178,9 @@ function ReservarContent() {
                     roomTypeId: selectedRoom.id,
                     checkIn,
                     checkOut,
+                    adults: Number.parseInt(adults, 10) || 0,
+                    children: Number.parseInt(children, 10) || 0,
+                    childrenAges,
                     totalPrice: selectedRoom.totalPrice,
                     guest,
                 }),
@@ -514,7 +549,28 @@ function ReservarContent() {
                                             <span className="text-sm text-muted-foreground">Valor Total</span>
                                             <span className="text-2xl font-bold text-primary">R$ {selectedRoom.totalPrice.toFixed(2)}</span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground text-right">Taxas e impostos inclusos</p>
+                                        {selectedRoom.priceBreakdown ? (
+                                            <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                                                <div className="flex justify-between">
+                                                    <span>Base</span>
+                                                    <span>R$ {Number(selectedRoom.priceBreakdown.baseTotal).toFixed(2)}</span>
+                                                </div>
+                                                {selectedRoom.priceBreakdown.extraAdultTotal > 0 ? (
+                                                    <div className="flex justify-between">
+                                                        <span>Adulto extra</span>
+                                                        <span>R$ {Number(selectedRoom.priceBreakdown.extraAdultTotal).toFixed(2)}</span>
+                                                    </div>
+                                                ) : null}
+                                                {selectedRoom.priceBreakdown.childTotal > 0 ? (
+                                                    <div className="flex justify-between">
+                                                        <span>Crianças 6–11</span>
+                                                        <span>R$ {Number(selectedRoom.priceBreakdown.childTotal).toFixed(2)}</span>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground text-right">Taxas e impostos inclusos</p>
+                                        )}
                                     </div>
 
                                     <Button variant="outline" className="w-full border-dashed" onClick={() => setSelectedRoom(null)}>
