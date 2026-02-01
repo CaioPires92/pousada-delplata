@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Calendar as CalendarIcon, Users, Baby, Search, ChevronDown } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +21,7 @@ interface SearchWidgetProps {
 
 export default function SearchWidget({ variant = 'default' }: SearchWidgetProps) {
     const router = useRouter();
+    const pathname = usePathname();
 
     // Definir datas padrão (hoje e amanhã)
     const today = new Date();
@@ -46,6 +47,24 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
     const [isCheckOutOpen, setIsCheckOutOpen] = useState(false);
     const firstAgeRef = useRef<HTMLSelectElement | null>(null);
+
+    // Fechar popovers ao mudar de rota (previne estado travado após Back navigation)
+    useEffect(() => {
+        setIsCheckInOpen(false);
+        setIsCheckOutOpen(false);
+    }, [pathname]);
+
+    // Anti-bfcache (restauração do browser com estado antigo)
+    useEffect(() => {
+        const handlePageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) {
+                setIsCheckInOpen(false);
+                setIsCheckOutOpen(false);
+            }
+        };
+        window.addEventListener("pageshow", handlePageShow);
+        return () => window.removeEventListener("pageshow", handlePageShow);
+    }, []);
 
     const handleCheckInSelect = (date: Date | undefined) => {
         setCheckIn(date);

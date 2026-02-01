@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import { Open_Sans, Raleway, Poppins } from "next/font/google";
 import "./globals.css";
 
+
+
+
+
+
+
 const openSans = Open_Sans({
   subsets: ["latin"],
   variable: "--font-open-sans",
@@ -31,6 +37,10 @@ import Footer from "@/components/Footer";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 
+
+
+
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -50,3 +60,7 @@ export default function RootLayout({
     </html>
   );
 }
+
+
+
+

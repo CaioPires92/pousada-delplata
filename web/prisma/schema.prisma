@@ -16,8 +16,12 @@ model RoomType {
   name        String
   description String
   capacity    Int
+  maxGuests   Int      @default(3)
+  includedAdults Int   @default(2)
   totalUnits  Int      @default(1)
   basePrice   Decimal
+  extraAdultFee Decimal @default(0)
+  child6To11Fee Decimal @default(0)
   amenities   String   // JSON string or comma separated
   photos      Photo[]
   bookings    Booking[]

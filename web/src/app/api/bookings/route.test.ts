@@ -42,7 +42,7 @@ describe('Bookings API', () => {
       guestId: 'guest-1',
       checkIn: new Date('2026-01-01'),
       checkOut: new Date('2026-01-05'),
-      totalPrice: 1000,
+      totalPrice: 400,
       status: 'PENDING',
     };
 
@@ -55,7 +55,16 @@ describe('Bookings API', () => {
     };
 
     (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
-    (prisma.roomType.findUnique as any).mockResolvedValue({ id: 'room-1', totalUnits: 1 });
+    (prisma.roomType.findUnique as any).mockResolvedValue({
+      id: 'room-1',
+      totalUnits: 1,
+      basePrice: 100,
+      maxGuests: 3,
+      includedAdults: 2,
+      extraAdultFee: 50,
+      child6To11Fee: 30,
+      rates: [],
+    });
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
     (prisma.$queryRaw as any).mockResolvedValue([]);
     (prisma.guest.create as any).mockResolvedValue(mockGuest);
@@ -65,12 +74,15 @@ describe('Bookings API', () => {
       roomTypeId: 'room-1',
       checkIn: '2026-01-01',
       checkOut: '2026-01-05',
+      adults: 2,
+      children: 0,
+      childrenAges: [],
       guest: {
         name: 'John Doe',
         email: 'john@example.com',
         phone: '123456789',
       },
-      totalPrice: 1000,
+      totalPrice: 9999,
     };
 
     const req = new Request('http://localhost/api/bookings', {

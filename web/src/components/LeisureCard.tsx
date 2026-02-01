@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, X, Maximize2 } from "lucide-react";
@@ -18,6 +19,12 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const portalTarget = typeof document !== "undefined" ? document.body : null;
+    const pathname = usePathname();
+
+    // Close gallery when navigating away
+    useEffect(() => {
+        setIsGalleryOpen(false);
+    }, [pathname]);
 
     const nextImage = useCallback((e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -48,7 +55,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
 
     return (
         <>
-            <Card 
+            <Card
                 className="group overflow-hidden border-none shadow-lg rounded-3xl h-full flex flex-col cursor-pointer transition-transform hover:-translate-y-1"
                 onClick={openGallery}
             >
@@ -72,7 +79,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                     </AnimatePresence>
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-                    
+
                     {/* Expand Icon Hint */}
                     <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                         <div className="bg-black/40 backdrop-blur-sm p-2 rounded-full text-white">
@@ -108,11 +115,10 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                             {images.map((_, idx) => (
                                 <div
                                     key={idx}
-                                    className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${
-                                        idx === currentImageIndex 
-                                            ? "w-6 bg-white" 
+                                    className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${idx === currentImageIndex
+                                            ? "w-6 bg-white"
                                             : "w-1.5 bg-white/50 backdrop-blur-sm"
-                                    }`}
+                                        }`}
                                 />
                             ))}
                         </div>
@@ -136,7 +142,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                         onClick={closeGallery}
                     >
                         {/* Close Button */}
-                        <button 
+                        <button
                             onClick={closeGallery}
                             className="absolute top-4 right-4 md:top-8 md:right-8 text-white/70 hover:text-white p-2 z-50"
                         >
@@ -144,7 +150,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                         </button>
 
                         {/* Main Image */}
-                        <div 
+                        <div
                             className="relative w-full h-full max-w-7xl max-h-[85vh] flex items-center justify-center"
                             onClick={(e) => e.stopPropagation()}
                         >

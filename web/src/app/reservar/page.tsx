@@ -56,7 +56,7 @@ function ReservarContent() {
     // Create stable string key for childrenAges (childrenAgesParam is already stable)
     const childrenAgesKey = childrenAgesParam.trim();
 
-    const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
+    const [availableRooms, setAvailableRooms] = useState<Room[] | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
@@ -117,6 +117,7 @@ function ReservarContent() {
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
 
+
     const fetchAvailability = useCallback(async (signal?: AbortSignal) => {
         if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) {
             // Early return for invalid inputs - ensure loading is false
@@ -143,8 +144,14 @@ function ReservarContent() {
 
         try {
             console.log('availability:start', { checkIn, checkOut, adults, children, childrenAges });
-            setLoading(true);
-            setError('');
+
+            // Clear previous results and start loading
+            if (mountedRef.current) {
+                setAvailableRooms(null);
+                setLoading(true);
+                setError('');
+            }
+
             const childrenAgesQuery = childrenAges.length > 0 ? `&childrenAges=${encodeURIComponent(childrenAges.join(','))}` : '';
             const response = await fetch(
                 `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}`,
@@ -432,7 +439,7 @@ function ReservarContent() {
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold font-heading text-primary pl-1">Escolha sua Acomodação</h2>
 
-                        {availableRooms.length === 0 ? (
+                        {availableRooms !== null && availableRooms.length === 0 ? (
                             <div className="text-center py-16 bg-white rounded-xl border border-dashed border-border">
                                 <p className="text-xl text-muted-foreground mb-4">Nenhum quarto disponível para as datas selecionadas.</p>
                                 <Button onClick={() => window.location.href = '/reservar'}>
@@ -441,7 +448,7 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-6">
-                                {availableRooms.map((room) => (
+                                {availableRooms?.map((room) => (
                                     <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
                                         <div className="grid md:grid-cols-12 gap-0">
                                             <div className="md:col-span-4 relative h-64 md:h-auto overflow-hidden">

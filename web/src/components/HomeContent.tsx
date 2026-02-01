@@ -44,6 +44,15 @@ export default function HomeContent() {
         ease: "power2.out",
       });
     }
+
+    // Cleanup function to prevent memory leaks
+    return () => {
+      // Kill all GSAP animations
+      gsap.killTweensOf("*");
+
+      // Kill all ScrollTrigger instances
+      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+    };
   }, []);
 
   const containerVariants = {
@@ -175,32 +184,32 @@ export default function HomeContent() {
                 <Link href={wing.link} className="block h-full group">
                   <Card className="overflow-hidden h-full border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-xl rounded-3xl">
                     <div className="relative h-96 overflow-hidden">
-                        <Image
-                            src={wing.image}
-                            alt={wing.title}
-                            fill
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                            className="object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-90 group-hover:opacity-80 transition-opacity" />
-                        <div className="absolute bottom-0 left-0 p-8 text-white w-full">
-                            <h3 className="text-3xl md:text-4xl font-bold font-heading mb-3">{wing.title}</h3>
-                            <p className="text-white/90 text-lg mb-6 line-clamp-2">{wing.description}</p>
-                            <div className="flex items-center text-secondary font-bold uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                                Ver opções <ArrowRight className="ml-2 w-5 h-5" />
-                            </div>
+                      <Image
+                        src={wing.image}
+                        alt={wing.title}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                        className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-30 group-hover:opacity-80 transition-opacity" />
+                      <div className="absolute bottom-0 left-0 p-8 text-white w-full">
+                        <h3 className="text-3xl md:text-4xl font-bold font-heading mb-3">{wing.title}</h3>
+                        <p className="text-white/90 text-lg mb-6 line-clamp-2">{wing.description}</p>
+                        <div className="flex items-center text-secondary font-bold uppercase tracking-wider group-hover:translate-x-2 transition-transform">
+                          Ver opções <ArrowRight className="ml-2 w-5 h-5" />
                         </div>
+                      </div>
                     </div>
                   </Card>
                 </Link>
               </div>
             ))}
           </div>
-          
+
           <div className="text-center mt-12">
-             <Button asChild size="lg" variant="outline" className="text-lg px-8">
-                <Link href="/acomodacoes">Ver Todas as Acomodações</Link>
-             </Button>
+            <Button asChild size="lg" variant="outline" className="text-lg px-8">
+              <Link href="/acomodacoes">Ver Todas as Acomodações</Link>
+            </Button>
           </div>
         </div>
       </section>

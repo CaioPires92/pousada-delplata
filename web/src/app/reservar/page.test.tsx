@@ -9,6 +9,8 @@ global.fetch = mockFetch;
 describe('ReservarPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock scrollIntoView to avoid errors in tests
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
   it('renders loading state initially', async () => {
@@ -30,7 +32,7 @@ describe('ReservarPage', () => {
       }
     ];
 
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
     });
@@ -66,7 +68,7 @@ describe('ReservarPage', () => {
       },
     ];
 
-    mockFetch.mockResolvedValueOnce({
+    mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
     });
@@ -94,6 +96,74 @@ describe('ReservarPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Erro ao carregar quartos/i)).toBeInTheDocument();
+    });
+  });
+
+  // NEW TESTS FROM PLAN
+
+  it('should display skeleton loading UI while fetching availability', async () => {
+    // Mock fetch to hang so we can verify loading state
+    mockFetch.mockImplementationOnce(() => new Promise(() => { }));
+
+    render(<ReservarPage />);
+
+    // Check for skeleton loading indicators
+    await waitFor(() => {
+      expect(screen.getByText(/Buscando as melhores opções para você/i)).toBeInTheDocument();
+    });
+
+    // Verify skeleton structure elements exist (using class names or data-testid would be better in production)
+    const loadingContainer = screen.getByText(/Buscando as melhores opções/i).closest('main');
+    expect(loadingContainer).toHaveClass('min-h-screen');
+  });
+
+  it('should display price breakdown with extra adult and child fees', async () => {
+    const mockRooms = [
+      {
+        id: 'room-1',
+        name: 'Test Room',
+        description: 'Nice room',
+        capacity: 4,
+        amenities: 'WiFi, TV',
+        totalPrice: 760,
+        priceBreakdown: {
+          nights: 2,
+          baseTotal: 400,
+          effectiveAdults: 3,
+          childrenUnder12: 1,
+          extraAdults: 1,
+          children6To11: 1,
+          extrasPerNight: 180,
+          extraAdultTotal: 200,
+          childTotal: 160,
+          total: 760,
+        },
+        photos: [{ url: '/test.jpg' }]
+      }
+    ];
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockRooms,
+    });
+
+    render(<ReservarPage />);
+
+    // Wait for room to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Room')).toBeInTheDocument();
+    });
+
+    // Click to select room and show breakdown
+    const selectButton = screen.getByText(/Selecionar e Continuar/i);
+    selectButton.click();
+
+    // Wait for breakdown to appear in summary
+    await waitFor(() => {
+      expect(screen.getByText(/R\$ 760\.00/)).toBeInTheDocument();
+      expect(screen.getByText(/Base/i)).toBeInTheDocument();
+      expect(screen.getByText(/Adulto extra/i)).toBeInTheDocument();
+      expect(screen.getByText(/Crianças 6–11/i)).toBeInTheDocument();
     });
   });
 });

@@ -5,6 +5,7 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
 import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { parseLocalDate } from '@/lib/date-utils';
+import { BookingPriceError, calculateBookingPrice } from '@/lib/booking-price';
 
 export async function POST(request: Request) {
     let ctxRoomTypeId: string | undefined;
@@ -12,21 +13,53 @@ export async function POST(request: Request) {
     let ctxCheckOut: string | undefined;
     try {
         const body = await request.json();
-        const { roomTypeId, checkIn, checkOut, guest, totalPrice } = body;
+        const { roomTypeId, checkIn, checkOut, guest, adults, children, childrenAges, totalPrice } = body;
         ctxRoomTypeId = roomTypeId;
         ctxCheckIn = checkIn;
         ctxCheckOut = checkOut;
 
         // 1. Validate input
-        if (!roomTypeId || !checkIn || !checkOut || !guest || !totalPrice) {
+        if (!roomTypeId || !checkIn || !checkOut || !guest) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
+        const adultsCount = Number.parseInt(String(adults ?? ''), 10);
+        const childrenCount = Number.parseInt(String(children ?? ''), 10);
+        const agesArray = Array.isArray(childrenAges) ? childrenAges : [];
+        const normalizedChildrenAges = agesArray.map((age) => Number.parseInt(String(age), 10));
+
+        if (!Number.isFinite(adultsCount) || adultsCount < 0) {
+            return NextResponse.json({ error: 'invalid_adults' }, { status: 400 });
+        }
+
+        if (!Number.isFinite(childrenCount) || childrenCount < 0) {
+            return NextResponse.json({ error: 'invalid_children' }, { status: 400 });
+        }
+
+        if (childrenCount !== normalizedChildrenAges.length) {
+            return NextResponse.json({ error: 'missing_children_ages' }, { status: 400 });
+        }
+
+        if (normalizedChildrenAges.some((age) => !Number.isFinite(age) || age < 0 || age > 17)) {
+            return NextResponse.json({ error: 'invalid_children_ages' }, { status: 400 });
+        }
+
         const booking = await prisma.$transaction(async (tx) => {
-            const roomType = await tx.roomType.findUnique({ where: { id: roomTypeId } });
+            const roomType = await tx.roomType.findUnique({
+                where: { id: roomTypeId },
+                include: {
+                    rates: {
+                        where: {
+                            startDate: { lte: checkOut },
+                            endDate: { gte: checkIn },
+                        },
+                        orderBy: { createdAt: 'desc' },
+                    },
+                },
+            });
             if (!roomType) return null;
 
             try {
@@ -42,6 +75,8 @@ export async function POST(request: Request) {
             const startDayKey = checkIn;
             const endDayExclusiveKey = checkOut;
             const lastNightKey = prevDayKey(endDayExclusiveKey);
+            const nightKeys = eachDayKeyInclusive(startDayKey, lastNightKey);
+            const nightsCount = nightKeys.length;
 
             const inventoryAdjustments = await tx.inventoryAdjustment.findMany({
                 where: {
@@ -91,6 +126,29 @@ export async function POST(request: Request) {
                 }
             }
 
+            let baseTotalForStay = 0;
+            for (const night of nightKeys) {
+                const rate = (roomType as any).rates?.find((r: any) => night >= r.startDate && night <= r.endDate);
+                baseTotalForStay += rate ? Number(rate.price) : Number((roomType as any).basePrice);
+            }
+
+            let breakdown;
+            try {
+                breakdown = calculateBookingPrice({
+                    nights: nightsCount,
+                    baseTotalForStay,
+                    adults: adultsCount,
+                    childrenAges: normalizedChildrenAges,
+                    includedAdults: (roomType as any).includedAdults,
+                    maxGuests: (roomType as any).maxGuests,
+                    extraAdultFee: Number((roomType as any).extraAdultFee ?? 0),
+                    child6To11Fee: Number((roomType as any).child6To11Fee ?? 0),
+                });
+            } catch (e) {
+                if (e instanceof BookingPriceError) throw e;
+                throw e;
+            }
+
             const guestRecord = await tx.guest.create({
                 data: {
                     name: guest.name,
@@ -105,7 +163,7 @@ export async function POST(request: Request) {
                     guestId: guestRecord.id,
                     checkIn: parseLocalDate(checkIn),
                     checkOut: parseLocalDate(checkOut),
-                    totalPrice: parseFloat(totalPrice),
+                    totalPrice: breakdown.total,
                     status: 'PENDING',
                 },
             });
@@ -123,6 +181,9 @@ export async function POST(request: Request) {
             roomTypeId: ctxRoomTypeId,
             checkIn: ctxCheckIn,
             checkOut: ctxCheckOut,
+            adults: adultsCount,
+            children: childrenCount,
+            quotedTotalPrice: typeof totalPrice === 'number' ? totalPrice : undefined,
         });
         return NextResponse.json(booking, { status: 201 });
     } catch (error) {
@@ -141,6 +202,10 @@ export async function POST(request: Request) {
                 checkOut: ctxCheckOut,
             });
             return NextResponse.json({ error: 'Datas inválidas' }, { status: 400 });
+        }
+        if (error instanceof BookingPriceError) {
+            const status = error.code === 'capacity_exceeded' ? 409 : 400;
+            return NextResponse.json({ error: error.code }, { status });
         }
         Sentry.captureException(error);
         opsLog('error', 'BOOKING_CREATE_ERROR', {

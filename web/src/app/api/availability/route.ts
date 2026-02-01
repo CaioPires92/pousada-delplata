@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
+import { BookingPriceError, calculateBookingPrice } from '@/lib/booking-price';
 
 // Force dynamic rendering - don't try to build this route at build time
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
     const checkOut = searchParams.get('checkOut');
     const adults = searchParams.get('adults');
     const children = searchParams.get('children');
+    const childrenAgesParam = searchParams.get('childrenAges');
 
     if (!checkIn || !checkOut) {
         return NextResponse.json(
@@ -20,7 +22,42 @@ export async function GET(request: Request) {
         );
     }
 
-    const totalGuests = (parseInt(adults || '0') + parseInt(children || '0')) || 1;
+    const adultsCount = Number.parseInt(adults || '0', 10) || 0;
+    const childrenCount = Number.parseInt(children || '0', 10) || 0;
+    const childrenAges =
+        typeof childrenAgesParam === 'string' && childrenAgesParam.trim().length > 0
+            ? childrenAgesParam
+                .split(',')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0)
+                .map((s) => Number.parseInt(s, 10))
+            : [];
+
+    if (childrenCount !== childrenAges.length) {
+        return NextResponse.json(
+            { error: 'missing_children_ages' },
+            { status: 400 }
+        );
+    }
+
+    if (childrenAges.some((age) => !Number.isFinite(age) || age < 0 || age > 17)) {
+        return NextResponse.json(
+            { error: 'invalid_children_ages' },
+            { status: 400 }
+        );
+    }
+
+    const adultsFromChildren = childrenAges.filter((age) => age >= 12).length;
+    const childrenUnder12 = childrenAges.filter((age) => age < 12).length;
+    const effectiveAdults = adultsCount + adultsFromChildren;
+    const effectiveGuests = effectiveAdults + childrenUnder12;
+
+    if (effectiveAdults < 1) {
+        return NextResponse.json(
+            { error: 'min_1_adult' },
+            { status: 400 }
+        );
+    }
     try {
         assertDayKey(checkIn, 'checkIn');
         assertDayKey(checkOut, 'checkOut');
@@ -48,8 +85,8 @@ export async function GET(request: Request) {
         // 1. Get all room types that can accommodate the guests
         const roomTypes = await prisma.roomType.findMany({
             where: {
-                capacity: {
-                    gte: totalGuests,
+                maxGuests: {
+                    gte: effectiveGuests,
                 },
             },
             include: {
@@ -78,7 +115,7 @@ export async function GET(request: Request) {
 
         for (const room of roomTypes) {
             let isAvailable = true;
-            let totalPrice = 0;
+            let baseTotalForStay = 0;
 
             // --- Validation: Check-in Rules (CTA & MinLOS) ---
             // Find rate for check-in date
@@ -156,16 +193,34 @@ export async function GET(request: Request) {
 
                 // Calculate Price
                 if (rate) {
-                    totalPrice += Number(rate.price);
+                    baseTotalForStay += Number(rate.price);
                 } else {
-                    totalPrice += Number(room.basePrice);
+                    baseTotalForStay += Number(room.basePrice);
                 }
             }
 
             if (isAvailable) {
+                let breakdown;
+                try {
+                    breakdown = calculateBookingPrice({
+                        nights: stayLength,
+                        baseTotalForStay,
+                        adults: adultsCount,
+                        childrenAges,
+                        includedAdults: (room as any).includedAdults,
+                        maxGuests: (room as any).maxGuests,
+                        extraAdultFee: Number((room as any).extraAdultFee ?? 0),
+                        child6To11Fee: Number((room as any).child6To11Fee ?? 0),
+                    });
+                } catch (e) {
+                    if (e instanceof BookingPriceError) continue;
+                    throw e;
+                }
+
                 availableRooms.push({
                     ...room,
-                    totalPrice,
+                    totalPrice: breakdown.total,
+                    priceBreakdown: breakdown,
                 });
             }
         }

@@ -1,6 +1,8 @@
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { RoomCard } from "@/components/RoomCard";
+import { serializePrismaArray } from "@/lib/serialize-prisma";
+
 
 // Revalidate data every 60 seconds (ISR)
 export const revalidate = 60;
@@ -15,37 +17,32 @@ async function getRooms() {
             basePrice: 'asc',
         }
     });
-    return rooms;
+
+    // Serialize all Prisma data (Decimal, Date, nested objects)
+    return serializePrismaArray(rooms);
 }
 
 export default async function RoomsPage() {
     const rooms = await getRooms();
 
-    const mainWingRooms = rooms.filter(r => {
+    const mainWingRooms = rooms.filter((r: any) => {
         const n = r.name.toLowerCase();
         return n.includes('superior') || n.includes('terreo') || n.includes('térreo');
     });
 
-    const annexWingRooms = rooms.filter(r => {
+    const annexWingRooms = rooms.filter((r: any) => {
         const n = r.name.toLowerCase();
         return n.includes('chale') || n.includes('chalé') || n.includes('anexo');
     });
 
     const renderRoomGrid = (roomsList: typeof rooms) => (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {roomsList.map((room) => {
-                const serializedRoom = {
-                    ...room,
-                    basePrice: Number(room.basePrice)
-                };
-
-                return (
-                    <RoomCard
-                        key={room.id}
-                        room={serializedRoom}
-                    />
-                );
-            })}
+            {roomsList.map((room: any) => (
+                <RoomCard
+                    key={room.id}
+                    room={room}
+                />
+            ))}
         </div>
     );
 

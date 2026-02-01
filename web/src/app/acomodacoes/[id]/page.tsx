@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { getRoomDisplayDescription } from "@/lib/room-description";
+import { serializePrismaEntity } from "@/lib/serialize-prisma";
 import { notFound } from "next/navigation";
 import styles from "./room-details.module.css";
 
@@ -15,7 +16,9 @@ async function getRoom(id: string) {
             photos: true,
         },
     });
-    return room;
+
+    // Serialize Prisma data (Decimal → number, Date → ISO string)
+    return room ? serializePrismaEntity(room) : null;
 }
 
 export default async function RoomDetailsPage({
@@ -74,7 +77,7 @@ export default async function RoomDetailsPage({
                 <div className={styles.info}>
                     <div className={styles.priceCard}>
                         <span className={styles.priceLabel}>Diárias a partir de</span>
-                        <span className={styles.price}>R$ {Number(room.basePrice).toFixed(2)}</span>
+                        <span className={styles.price}>R$ {room.basePrice.toFixed(2)}</span>
                         <Link href={`/reservar?roomTypeId=${room.id}`} className="btn-primary" style={{ display: 'block', textAlign: 'center', marginTop: '1rem' }}>
                             Reservar Agora
                         </Link>

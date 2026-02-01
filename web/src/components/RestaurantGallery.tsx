@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
@@ -12,6 +13,12 @@ interface RestaurantGalleryProps {
 
 export function RestaurantGallery({ images }: RestaurantGalleryProps) {
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+    const pathname = usePathname();
+
+    // Close lightbox when navigating away
+    useEffect(() => {
+        setSelectedImageIndex(null);
+    }, [pathname]);
 
     const openLightbox = (index: number) => setSelectedImageIndex(index);
     const closeLightbox = useCallback(() => setSelectedImageIndex(null), []);
@@ -132,7 +139,7 @@ export function RestaurantGallery({ images }: RestaurantGalleryProps) {
                         >
                             <ChevronRight className="h-8 w-8" />
                         </Button>
-                        
+
                         <div className="absolute bottom-4 left-0 right-0 text-center text-white/80 text-sm">
                             {selectedImageIndex + 1} de {images.length}
                         </div>

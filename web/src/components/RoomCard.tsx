@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,12 @@ interface RoomCardProps {
 export function RoomCard({ room }: RoomCardProps) {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+    const pathname = usePathname();
+
+    // Close gallery when navigating away
+    useEffect(() => {
+        setIsGalleryOpen(false);
+    }, [pathname]);
 
     const isPlaceholderUrl = (url: string) => {
         const normalizedUrl = url.trim().toLowerCase();
