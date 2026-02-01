@@ -231,7 +231,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
         if (numChildren > 0) firstAgeRef.current?.focus();
     }, [numChildren]);
 
-    void agesMissing;
+
 
     return (
         <div className="w-full">
