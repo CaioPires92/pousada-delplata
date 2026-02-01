@@ -2,8 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -11,51 +10,13 @@ import SearchWidget from "@/components/SearchWidget";
 import { Sparkles, Waves, UtensilsCrossed, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-gsap.registerPlugin(ScrollTrigger);
+
 
 export default function HomeContent() {
-  const heroRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
+  /* Removed GSAP refs and effects to fix re-render flash */
+  /* Using purely Framer Motion for stable SSR/Hydration */
 
-  useEffect(() => {
-    // Hero animation
-    if (heroRef.current) {
-      gsap.from(heroRef.current.children, {
-        opacity: 0,
-        y: 50,
-        duration: 1,
-        stagger: 0.2,
-        ease: "power3.out",
-      });
-    }
-
-    // Cards scroll animation
-    if (cardsRef.current) {
-      const cards = cardsRef.current.querySelectorAll(".wing-card");
-      gsap.from(cards, {
-        scrollTrigger: {
-          trigger: cardsRef.current,
-          start: "top 80%",
-        },
-        opacity: 0,
-        y: 60,
-        duration: 0.8,
-        stagger: 0.15,
-        ease: "power2.out",
-      });
-    }
-
-    // Cleanup function to prevent memory leaks
-    return () => {
-      // Kill all GSAP animations
-      gsap.killTweensOf("*");
-
-      // Kill all ScrollTrigger instances
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-    };
-  }, []);
-
-  const containerVariants = {
+  const containerVariants: any = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -65,13 +26,14 @@ export default function HomeContent() {
     },
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+  const itemVariants: any = {
+    hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
         duration: 0.5,
+        ease: "easeOut",
       },
     },
   };
@@ -118,37 +80,40 @@ export default function HomeContent() {
           }} />
         </div>
 
-        <div ref={heroRef} className="container relative z-10 text-center space-y-8 py-20">
+        <motion.div
+          className="container relative z-10 text-center space-y-8 py-20"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5, type: "spring" }}
+            variants={itemVariants}
             className="inline-block"
           >
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-secondary" />
           </motion.div>
 
-          <h1 className="text-5xl md:text-7xl font-bold font-heading leading-tight text-white">
+          <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-bold font-heading leading-tight text-white">
             Uma das melhores opções em <br />
             <span className="text-secondary">Serra Negra</span>
-          </h1>
+          </motion.h1>
 
-          <p className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
+          <motion.p variants={itemVariants} className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
             Lazer e diversão para você e sua família.
-          </p>
+          </motion.p>
 
-          <p className="text-lg md:text-xl text-white/80">
+          <motion.p variants={itemVariants} className="text-lg md:text-xl text-white/80">
             Conheça nossa região, encante-se!
-          </p>
+          </motion.p>
 
-          <div className="max-w-5xl mx-auto mt-12 mb-8 md:mb-0">
+          <motion.div variants={itemVariants} className="max-w-5xl mx-auto mt-12 mb-8 md:mb-0">
             <SearchWidget />
-          </div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 1 }}
+            transition={{ delay: 0.5, duration: 1 }}
             className="absolute bottom-10 left-1/2 transform -translate-x-1/2 hidden md:block"
           >
             <div className="animate-bounce">
@@ -157,7 +122,7 @@ export default function HomeContent() {
               </svg>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Accommodations Section */}
@@ -178,9 +143,16 @@ export default function HomeContent() {
             </motion.p>
           </motion.div>
 
-          <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {wings.map((wing) => (
-              <div key={wing.id} className="wing-card h-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {wings.map((wing, index) => (
+              <motion.div
+                key={wing.id}
+                className="wing-card h-full"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+              >
                 <Link href={wing.link} className="block h-full group">
                   <Card className="overflow-hidden h-full border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-xl rounded-3xl">
                     <div className="relative h-96 overflow-hidden">
@@ -202,7 +174,7 @@ export default function HomeContent() {
                     </div>
                   </Card>
                 </Link>
-              </div>
+              </motion.div>
             ))}
           </div>
 
