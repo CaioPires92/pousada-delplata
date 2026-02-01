@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Calendar as CalendarIcon, Users, Baby, Search, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Users, Baby, Search, ChevronDown, Loader2 } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -349,7 +349,11 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                         className="w-full h-[56px] text-base font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 bg-primary hover:bg-primary/90 text-white"
                         disabled={searchDisabled}
                     >
-                        <Search className="w-5 h-5" />
+                        {loading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <Search className="w-5 h-5" />
+                        )}
                         <span className="whitespace-nowrap">{loading ? 'Buscando...' : 'Buscar'}</span>
                     </Button>
                 </div>

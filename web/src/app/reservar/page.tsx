@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
-import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone } from 'lucide-react';
+
+import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { getRoomDisplayDescription } from '@/lib/room-description';
 
@@ -345,60 +346,40 @@ function ReservarContent() {
         );
     }
 
-    if (loading) {
-        return (
-            <main className="min-h-screen pt-28 pb-12 bg-muted/30">
-                <div className="container mx-auto px-4 animate-pulse">
-                    {/* Header Skeleton */}
-                    <div className="bg-white rounded-xl shadow-sm border border-border/50 p-6 mb-8">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-primary/10 p-3 rounded-full w-12 h-12" />
-                            <div className="flex-1">
-                                <div className="h-6 bg-muted rounded w-40 mb-2" />
-                                <div className="h-4 bg-muted rounded w-64" />
+    /* Removed if(loading) block to allow inline skeleton rendering */
+
+    /* Inline Skeleton Component */
+    const RoomListSkeleton = () => (
+        <div className="space-y-6 animate-pulse">
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm border border-border/50 overflow-hidden">
+                    <div className="grid md:grid-cols-12">
+                        <div className="md:col-span-4 bg-muted h-64 md:h-80 relative">
+                            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
+                                <Camera className="w-12 h-12" />
                             </div>
                         </div>
-                    </div>
-
-                    {/* Search Progress */}
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center gap-3 bg-white px-6 py-4 rounded-full shadow-lg border border-border/50">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-                            <p className="text-muted-foreground font-medium">
-                                Buscando as melhores opções para você...
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Room Skeletons */}
-                    <div className="space-y-6">
-                        <div className="h-8 bg-muted rounded w-64 mb-4" />
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="bg-white rounded-xl shadow-sm border border-border/50 overflow-hidden">
-                                <div className="grid md:grid-cols-12">
-                                    <div className="md:col-span-4 bg-muted h-64 md:h-80" />
-                                    <div className="md:col-span-8 p-6 space-y-4">
-                                        <div className="h-8 bg-muted rounded w-48" />
-                                        <div className="h-4 bg-muted rounded w-full" />
-                                        <div className="h-4 bg-muted rounded w-5/6" />
-                                        <div className="flex gap-2 mt-4">
-                                            {[1, 2, 3, 4].map((j) => (
-                                                <div key={j} className="h-8 bg-muted rounded-full w-24" />
-                                            ))}
-                                        </div>
-                                        <div className="flex justify-between items-center mt-6 pt-4 border-t">
-                                            <div className="h-8 bg-muted rounded w-32" />
-                                            <div className="h-10 bg-muted rounded w-48" />
-                                        </div>
-                                    </div>
-                                </div>
+                        <div className="md:col-span-8 p-6 space-y-4">
+                            <div className="h-8 bg-muted rounded w-48" />
+                            <div className="space-y-2">
+                                <div className="h-4 bg-muted rounded w-full" />
+                                <div className="h-4 bg-muted rounded w-5/6" />
                             </div>
-                        ))}
+                            <div className="flex gap-2 mt-4">
+                                {[1, 2, 3, 4].map((j) => (
+                                    <div key={j} className="h-6 bg-muted rounded-full w-20" />
+                                ))}
+                            </div>
+                            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                                <div className="h-8 bg-muted rounded w-32" />
+                                <div className="h-10 bg-muted rounded w-48" />
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </main>
-        );
-    }
+            ))}
+        </div>
+    );
 
     if (error) {
         return (
@@ -439,7 +420,9 @@ function ReservarContent() {
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold font-heading text-primary pl-1">Escolha sua Acomodação</h2>
 
-                        {availableRooms !== null && availableRooms.length === 0 ? (
+                        {loading || availableRooms === null ? (
+                            <RoomListSkeleton />
+                        ) : availableRooms.length === 0 ? (
                             <div className="text-center py-16 bg-white rounded-xl border border-dashed border-border">
                                 <p className="text-xl text-muted-foreground mb-4">Nenhum quarto disponível para as datas selecionadas.</p>
                                 <Button onClick={() => window.location.href = '/reservar'}>
@@ -448,7 +431,7 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-6">
-                                {availableRooms?.map((room) => (
+                                {availableRooms.map((room) => (
                                     <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
                                         <div className="grid md:grid-cols-12 gap-0">
                                             <div className="md:col-span-4 relative h-64 md:h-auto overflow-hidden">
