@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
@@ -12,6 +12,7 @@ export default function Header() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
 
     // Pages that should have a transparent header initially
     const transparentPaths = ["/", "/acomodacoes", "/lazer", "/restaurante", "/contato"];
@@ -36,6 +37,12 @@ export default function Header() {
     // Determine header style based on page and scroll state
     const isTransparent = isTransparentPath && !isScrolled;
 
+    const handleHomeClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        // Force full page reload to clear all client state and ensure a fresh start
+        window.location.href = "/";
+    };
+
     return (
         <motion.header
             initial={{ y: -100 }}
@@ -51,6 +58,7 @@ export default function Header() {
                     {/* Logo */}
                     <Link
                         href="/"
+                        onClick={handleHomeClick}
                         className="relative h-24 w-80 transition-opacity hover:opacity-90"
                     >
                         <Image
