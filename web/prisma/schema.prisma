@@ -34,6 +34,7 @@ model RoomType {
 model Photo {
   id          String   @id @default(uuid())
   url         String
+  position    Int      @default(0) // Adicione esta linha
   roomTypeId  String
   roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
 }

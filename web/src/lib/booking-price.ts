@@ -44,11 +44,18 @@ export function calculateBookingPrice(input: BookingPriceInput): BookingPriceBre
     const nights = Math.trunc(toFiniteNumber(input.nights) ?? 0);
     const baseTotal = toFiniteNumber(input.baseTotalForStay) ?? 0;
     const adults = Math.trunc(toFiniteNumber(input.adults) ?? 0);
+
+
     const includedAdults = Math.trunc(toFiniteNumber(input.includedAdults ?? 2) ?? 2);
     const maxGuests = Math.trunc(toFiniteNumber(input.maxGuests ?? 3) ?? 3);
     const extraAdultFee = toFiniteNumber(input.extraAdultFee) ?? 0;
     const child6To11Fee = toFiniteNumber(input.child6To11Fee) ?? 0;
     const childrenAges = Array.isArray(input.childrenAges) ? input.childrenAges : [];
+
+
+
+
+
 
     if (nights <= 0) throw new BookingPriceError('invalid_input', 'Invalid nights');
     if (!Number.isFinite(baseTotal) || baseTotal < 0) throw new BookingPriceError('invalid_input', 'Invalid base price');
@@ -74,10 +81,17 @@ export function calculateBookingPrice(input: BookingPriceInput): BookingPriceBre
     const children6To11 = childrenUnder12Ages.filter((age) => age >= 6 && age <= 11).length;
     const extraAdults = Math.max(0, effectiveAdults - includedAdults);
 
-    const extrasPerNight = extraAdults * extraAdultFee + children6To11 * child6To11Fee;
+
+    console.log(`[DEBUG] Noites: ${nights} | Adultos Reais: ${adults} | Crianças 12+: ${adultsFromChildren}`);
+    console.log(`[DEBUG] Adultos Totais: ${effectiveAdults} | Inclusos: ${includedAdults} | Extras: ${extraAdults}`);
+    console.log(`[DEBUG] Taxas -> Adulto Extra: R$ ${extraAdultFee} | Criança 6-11: R$ ${child6To11Fee}`);
+
+
+    const extrasPerNight = (extraAdults * extraAdultFee) + (children6To11 * child6To11Fee);
     const extraAdultTotal = extraAdults * extraAdultFee * nights;
     const childTotal = children6To11 * child6To11Fee * nights;
-    const total = baseTotal + extrasPerNight * nights;
+    const total = baseTotal + (extrasPerNight * nights);
+
 
     return {
         nights,

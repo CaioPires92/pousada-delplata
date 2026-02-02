@@ -38,6 +38,9 @@ async function seed() {
             description: 'TV Smart 32, Frigobar e Ar-condicionado.',
             capacity: 3,
             maxGuests: 3, // Adicionado explicitamente
+            includedAdults: 2,
+            extraAdultFee: 100,
+            child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 599.00,
             amenities: 'Ventilador, TV, WiFi',
@@ -48,6 +51,9 @@ async function seed() {
             description: 'Televisão LCD 39, Frigobar, Ar condicionado.',
             capacity: 3,
             maxGuests: 3, // Adicionado explicitamente
+            includedAdults: 2,
+            extraAdultFee: 100,
+            child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 699.00,
             amenities: 'Ar-condicionado, Smart TV, WiFi',
@@ -58,6 +64,9 @@ async function seed() {
             description: 'Privacidade e contato com a natureza.',
             capacity: 3,
             maxGuests: 3, // Adicionado explicitamente
+            includedAdults: 2,
+            extraAdultFee: 100,
+            child6To11Fee: 50,
             totalUnits: 6,
             basePrice: 499.00,
             amenities: 'Varanda, WiFi, Churrasqueira',
@@ -67,6 +76,9 @@ async function seed() {
             description: 'Privacidade e contato com a natureza.',
             capacity: 3,
             maxGuests: 3, // Adicionado explicitamente
+            includedAdults: 2,
+            extraAdultFee: 100,
+            child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 399.00,
             amenities: 'Varanda, WiFi, Churrasqueira',
