@@ -25,7 +25,18 @@ export function isDayKey(dayKey: string) {
 
 export function assertDayKey(dayKey: string, label: string) {
     if (!isDayKey(dayKey)) {
-        throw new Error(`Invalid ${label}. Expected YYYY-MM-DD`);
+        try {
+            const value = dayKey as any;
+            const type = typeof value;
+            const length = type === 'string' ? value.length : undefined;
+            const json = (() => { try { return JSON.stringify(value); } catch { return null; } })();
+            const charCodes = type === 'string' ? Array.from(String(value)).map((c: string) => c.charCodeAt(0)) : [];
+            console.error('[assertDayKey] INVALID', { label, value, type, length, json, charCodes });
+        } catch {}
+        const origin = '[THROW_ORIGIN=DAY_KEY_ASSERT v1]';
+        const stack = new Error().stack;
+        const valueStr = (() => { try { return JSON.stringify(dayKey); } catch { return String(dayKey); } })();
+        throw new Error(`${origin} Invalid ${label}. Expected YYYY-MM-DD | value=${valueStr} | stack=${stack}`);
     }
 }
 

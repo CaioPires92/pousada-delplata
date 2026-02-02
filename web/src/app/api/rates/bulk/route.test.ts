@@ -52,9 +52,46 @@ describe('Rates Bulk API - day key', () => {
         expect(args.data).toEqual([
             expect.objectContaining({
                 roomTypeId: 'room-1',
-                startDate: '2026-01-28',
-                endDate: '2026-01-28',
+                startDate: '2026-01-28T00:00:00.000Z',
+                endDate: '2026-01-28T00:00:00.000Z',
             }),
         ]);
+    });
+ 
+    it('accepts ISO datetime in "date" and normalizes to day key', async () => {
+        (prisma.roomType.findMany as any).mockResolvedValue([{ id: 'room-1', basePrice: 300 }]);
+        (prisma.rate.findMany as any).mockResolvedValue([]);
+        (prisma.$transaction as any).mockResolvedValue([]);
+ 
+        const req = new Request('http://localhost/api/rates/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                date: '2026-01-28T10:30:00.000Z',
+                updates: { price: 200 },
+            }),
+        });
+        const res = await POST(req);
+        expect(res.status).toBe(200);
+    });
+ 
+    it('accepts legacy SQL datetime strings for start/end range', async () => {
+        (prisma.roomType.findMany as any).mockResolvedValue([{ id: 'room-1', basePrice: 300 }]);
+        (prisma.rate.findMany as any).mockResolvedValue([]);
+        (prisma.$transaction as any).mockResolvedValue([]);
+ 
+        const req = new Request('http://localhost/api/rates/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                startDate: '2026-01-28 00:00:00 +00:00',
+                endDate: '2026-01-30 23:59:59 +00:00',
+                updates: { price: 250 },
+            }),
+        });
+        const res = await POST(req);
+        expect(res.status).toBe(200);
     });
 });

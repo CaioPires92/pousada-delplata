@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { assertDayKey } from '@/lib/day-key';
+import { parseISODateSafe } from '@/lib/date-utils';
 
 export async function GET(request: Request) {
     const auth = await requireAdminAuth();
@@ -9,24 +10,30 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const roomTypeId = searchParams.get('roomTypeId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     try {
         const where: any = {};
         if (roomTypeId) where.roomTypeId = roomTypeId;
-        if (startDate && endDate) {
+        if (startDateParam && endDateParam) {
             try {
-                assertDayKey(startDate, 'startDate');
-                assertDayKey(endDate, 'endDate');
+                assertDayKey(startDateParam, 'startDate');
+                assertDayKey(endDateParam, 'endDate');
             } catch (e) {
                 return NextResponse.json(
                     { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
                     { status: 400 }
                 );
             }
-            where.startDate = { lte: endDate };
-            where.endDate = { gte: startDate };
+
+            const startObj = parseISODateSafe(startDateParam);
+            const endObj = parseISODateSafe(endDateParam, true);
+
+            if (startObj && endObj) {
+                where.startDate = { lte: endObj };
+                where.endDate = { gte: startObj };
+            }
         }
 
         const rates = await prisma.rate.findMany({
@@ -50,17 +57,17 @@ export async function POST(request: Request) {
 
         const text = await request.text();
         if (!text) {
-             return NextResponse.json(
+            return NextResponse.json(
                 { error: 'Request body is empty' },
                 { status: 400 }
             );
         }
-        
+
         const body = JSON.parse(text);
-        const { 
-            roomTypeId, 
-            startDate, 
-            endDate, 
+        const {
+            roomTypeId,
+            startDate,
+            endDate,
             price,
             cta,
             ctd,
@@ -78,11 +85,18 @@ export async function POST(request: Request) {
             );
         }
 
+        const startObj = parseISODateSafe(startDate);
+        const endObj = parseISODateSafe(endDate, true);
+
+        if (!startObj || !endObj) {
+            return NextResponse.json({ error: 'Invalid dates' }, { status: 400 });
+        }
+
         const rate = await prisma.rate.create({
             data: {
                 roomTypeId,
-                startDate,
-                endDate,
+                startDate: startObj as any, // Cast to any for schema mismatch
+                endDate: endObj as any,     // Cast to any for schema mismatch
                 price: parseFloat(price),
                 cta: cta || false,
                 ctd: ctd || false,

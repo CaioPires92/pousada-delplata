@@ -10,56 +10,47 @@ export async function POST(request: Request) {
     let ctxEndDate: string | undefined;
     let ctxTargetCount: number | undefined;
     try {
+        opsLog('info', 'BULK_ROUTE_HIT_v3', { path: '/api/rates/bulk' });
         const auth = await requireAdminAuth();
         if (auth instanceof Response) return auth;
 
         const text = await request.text();
-        if (!text) {
-             return NextResponse.json(
-                { error: 'Request body is empty' },
-                { status: 400 }
-            );
-        }
-        
+        if (!text) return NextResponse.json({ error: 'Request body is empty' }, { status: 400 });
+
         const body = JSON.parse(text);
-        const { 
-            roomTypeId, 
-            roomTypes, // Support new field name for array
-            date,
-            startDate, 
-            endDate, 
-            updates 
-        } = body;
+        const { roomTypeId, roomTypes, date, startDate, endDate, updates } = body;
+
         const effectiveStartDate = (date || startDate) as string | undefined;
         const effectiveEndDate = (date || endDate) as string | undefined;
         ctxStartDate = effectiveStartDate;
         ctxEndDate = effectiveEndDate;
 
-        // Allow roomTypeId OR roomTypes
         if ((!roomTypeId && !roomTypes) || !effectiveStartDate || !effectiveEndDate || !updates) {
-            return NextResponse.json(
-                { error: 'Missing required fields' },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        try {
-            assertDayKey(effectiveStartDate, 'startDate');
-            assertDayKey(effectiveEndDate, 'endDate');
-        } catch (e) {
-            return NextResponse.json(
-                { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
-                { status: 400 }
-            );
+        // Função para garantir que temos apenas a string YYYY-MM-DD para lógica interna
+        function coerceToYmd(input: unknown, label: string): string {
+            if (typeof input !== 'string' || !input.trim()) {
+                throw new Error(`[THROW_ORIGIN=BULK_COERCE] ${label} is required and must be string`);
+            }
+            const s = input.trim().replace(/[\u200B-\u200D\uFEFF\r\n\t]/g, '');
+            const ymd = s.includes('T') || s.includes(' ') ? s.slice(0, 10) : s;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+                throw new Error(`[THROW_ORIGIN=BULK_YMD] Invalid ${label}. Expected YYYY-MM-DD.`);
+            }
+            return ymd;
         }
 
-        const startStr = effectiveStartDate as string;
-        const endStr = effectiveEndDate as string;
+        const startStr = coerceToYmd(effectiveStartDate, 'startDate');
+        const endStr = coerceToYmd(effectiveEndDate, 'endDate');
 
-        // Identify target room IDs
+        // Objetos Date para o Prisma (fixados ao meio-dia para evitar erros de Timezone)
+        const startObj = new Date(`${startStr}T12:00:00Z`);
+        const endObj = new Date(`${endStr}T12:00:00Z`);
+
+        // Identificação dos quartos alvo
         let targetRoomIds: string[] = [];
-        
-        // Handle "all" case or specific ID(s)
         const targetInput = roomTypes || roomTypeId;
 
         if (targetInput === 'all' || (Array.isArray(targetInput) && targetInput.includes('all'))) {
@@ -71,84 +62,34 @@ export async function POST(request: Request) {
             targetRoomIds = [targetInput];
         }
 
-        if (targetRoomIds.length === 0) {
-             return NextResponse.json(
-                { error: 'No valid room types selected' },
-                { status: 400 }
-            );
-        }
-        ctxTargetCount = targetRoomIds.length;
-
-        const hasPriceUpdate = updates.price !== undefined && updates.price !== null && updates.price !== '';
-        const priceValue = hasPriceUpdate ? Number(updates.price) : undefined;
-        if (hasPriceUpdate && (Number.isNaN(priceValue) || priceValue! < 0)) {
-            return NextResponse.json(
-                { error: 'Invalid price value. Must be a number >= 0.' },
-                { status: 400 }
-            );
-        }
-
-        const hasMinLosUpdate = updates.minLos !== undefined && updates.minLos !== null && updates.minLos !== '';
-        const minLosValue = hasMinLosUpdate ? Number.parseInt(updates.minLos) : undefined;
-        if (hasMinLosUpdate && (Number.isNaN(minLosValue) || minLosValue! < 1)) {
-            return NextResponse.json(
-                { error: 'Invalid minLos value. Must be an integer >= 1.' },
-                { status: 400 }
-            );
-        }
-
-        for (const key of ['stopSell', 'cta', 'ctd'] as const) {
-            if (updates[key] !== undefined && updates[key] !== null && updates[key] !== '' && typeof updates[key] !== 'boolean') {
-                return NextResponse.json(
-                    { error: `Invalid ${key} value. Must be boolean.` },
-                    { status: 400 }
-                );
-            }
-        }
-
-        const inventoryInput = updates.inventory !== undefined ? updates.inventory : updates.availableRooms;
-        const hasInventoryUpdate = inventoryInput !== undefined && inventoryInput !== null && inventoryInput !== '';
-        const inventoryValue = hasInventoryUpdate ? Number.parseInt(inventoryInput) : undefined;
-        if (hasInventoryUpdate && (Number.isNaN(inventoryValue) || inventoryValue! < 0)) {
-            return NextResponse.json(
-                { error: 'Invalid inventory value. Must be an integer >= 0.' },
-                { status: 400 }
-            );
-        }
-
         const roomTypeRows = await prisma.roomType.findMany({
             where: { id: { in: targetRoomIds } },
             select: { id: true, basePrice: true }
         });
         const basePriceByRoomId = new Map(roomTypeRows.map(r => [r.id, Number(r.basePrice) || 0]));
 
-        const ops: any[] = [];
         const dayKeysInRange = eachDayKeyInclusive(startStr, endStr);
-        const dayCount = dayKeysInRange.length;
-
-        console.log(`[Bulk Update] Building operations for ${targetRoomIds.length} rooms and ${dayCount} days`);
+        const ops: any[] = [];
 
         for (const currentRoomId of targetRoomIds) {
-            if (!basePriceByRoomId.has(currentRoomId)) {
-                return NextResponse.json(
-                    { error: `RoomType not found: ${currentRoomId}` },
-                    { status: 400 }
-                );
-            }
+            const basePrice = basePriceByRoomId.get(currentRoomId) || 0;
 
-            const basePrice = basePriceByRoomId.get(currentRoomId)!;
-
+            // Busca sobreposições usando tipos DateTime corretos
             const overlaps = await prisma.rate.findMany({
                 where: {
                     roomTypeId: currentRoomId,
-                    startDate: { lte: endStr },
-                    endDate: { gte: startStr }
+                    startDate: { lte: endObj },
+                    endDate: { gte: startObj }
                 }
             });
 
             const dayMap = new Map<string, any>();
+
+            // Mapeia dados existentes
             for (const r of overlaps) {
-                for (const dateKey of eachDayKeyInclusive(r.startDate, r.endDate)) {
+                const sDay = r.startDate.toISOString().split('T')[0];
+                const eDay = r.endDate.toISOString().split('T')[0];
+                for (const dateKey of eachDayKeyInclusive(sDay, eDay)) {
                     dayMap.set(dateKey, {
                         price: Number(r.price),
                         stopSell: r.stopSell,
@@ -159,6 +100,12 @@ export async function POST(request: Request) {
                 }
             }
 
+            // Aplica os novos updates
+            const hasPriceUpdate = updates.price !== undefined && updates.price !== '';
+            const priceValue = hasPriceUpdate ? Number(updates.price) : undefined;
+            const hasMinLosUpdate = updates.minLos !== undefined && updates.minLos !== '';
+            const minLosValue = hasMinLosUpdate ? Number.parseInt(updates.minLos) : undefined;
+
             for (const dateKey of dayKeysInRange) {
                 const existing = dayMap.get(dateKey) || {
                     price: basePrice,
@@ -168,19 +115,20 @@ export async function POST(request: Request) {
                     minLos: 1
                 };
 
-                const updated = {
+                dayMap.set(dateKey, {
                     price: hasPriceUpdate ? priceValue : existing.price,
-                    stopSell: updates.stopSell !== undefined && updates.stopSell !== '' ? updates.stopSell : existing.stopSell,
-                    cta: updates.cta !== undefined && updates.cta !== '' ? updates.cta : existing.cta,
-                    ctd: updates.ctd !== undefined && updates.ctd !== '' ? updates.ctd : existing.ctd,
+                    stopSell: (updates.stopSell !== undefined && updates.stopSell !== '') ? Boolean(updates.stopSell) : existing.stopSell,
+                    cta: (updates.cta !== undefined && updates.cta !== '') ? Boolean(updates.cta) : existing.cta,
+                    ctd: (updates.ctd !== undefined && updates.ctd !== '') ? Boolean(updates.ctd) : existing.ctd,
                     minLos: hasMinLosUpdate ? minLosValue : existing.minLos,
-                };
-                dayMap.set(dateKey, updated);
+                });
             }
 
+            // Agrupa em intervalos consecutivos para otimizar o banco
             const sortedDates = Array.from(dayMap.keys()).sort();
             const intervals: any[] = [];
             let currentInterval: any = null;
+
             for (const dateKey of sortedDates) {
                 const data = dayMap.get(dateKey);
                 if (!currentInterval) {
@@ -188,12 +136,8 @@ export async function POST(request: Request) {
                     continue;
                 }
                 const isConsecutive = isNextDay(currentInterval.end, dateKey);
-                const isSameData =
-                    data.price === currentInterval.data.price &&
-                    data.stopSell === currentInterval.data.stopSell &&
-                    data.cta === currentInterval.data.cta &&
-                    data.ctd === currentInterval.data.ctd &&
-                    data.minLos === currentInterval.data.minLos;
+                const isSameData = JSON.stringify(data) === JSON.stringify(currentInterval.data);
+
                 if (isConsecutive && isSameData) {
                     currentInterval.end = dateKey;
                 } else {
@@ -203,105 +147,47 @@ export async function POST(request: Request) {
             }
             if (currentInterval) intervals.push(currentInterval);
 
+            // Adiciona operações de deleção e criação na transação
             if (overlaps.length > 0) {
                 ops.push(prisma.rate.deleteMany({ where: { id: { in: overlaps.map(o => o.id) } } }));
             }
 
             if (intervals.length > 0) {
-                const rateRows = intervals.map(interval => {
-                    return {
-                        roomTypeId: currentRoomId,
-                        startDate: interval.start,
-                        endDate: interval.end,
-                        price: interval.data.price,
-                        stopSell: interval.data.stopSell,
-                        cta: interval.data.cta,
-                        ctd: interval.data.ctd,
-                        minLos: interval.data.minLos
-                    };
-                });
+                const rateRows = intervals.map(interval => ({
+                    roomTypeId: currentRoomId,
+                    startDate: new Date(`${interval.start}T12:00:00Z`),
+                    endDate: new Date(`${interval.end}T12:00:00Z`),
+                    price: interval.data.price,
+                    stopSell: interval.data.stopSell,
+                    cta: interval.data.cta,
+                    ctd: interval.data.ctd,
+                    minLos: interval.data.minLos
+                }));
                 ops.push(prisma.rate.createMany({ data: rateRows }));
             }
 
+            // Tratamento de Inventário (também usando Date para o campo 'date')
+            const hasInventoryUpdate = updates.inventory !== undefined || updates.availableRooms !== undefined;
             if (hasInventoryUpdate) {
-                ops.push(
-                    prisma.inventoryAdjustment.deleteMany({
-                        where: { roomTypeId: currentRoomId, date: { gte: startStr, lte: endStr } }
-                    })
-                );
-                const invRows = [];
-                for (const dateKey of dayKeysInRange) {
-                    invRows.push({ roomTypeId: currentRoomId, date: dateKey, totalUnits: inventoryValue! });
-                }
+                const inventoryValue = Number.parseInt(updates.inventory || updates.availableRooms);
+                ops.push(prisma.inventoryAdjustment.deleteMany({
+                    where: { roomTypeId: currentRoomId, date: { gte: startObj, lte: endObj } }
+                }));
+                const invRows = dayKeysInRange.map(dateKey => ({
+                    roomTypeId: currentRoomId,
+                    date: new Date(`${dateKey}T12:00:00Z`),
+                    totalUnits: inventoryValue
+                }));
                 ops.push(prisma.inventoryAdjustment.createMany({ data: invRows }));
             }
         }
 
         await prisma.$transaction(ops);
 
-        opsLog('info', 'RATES_BULK_SUCCESS', {
-            startDate: ctxStartDate,
-            endDate: ctxEndDate,
-            affectedRooms: targetRoomIds.length,
-            affectedDays: dayCount,
-        });
-        return NextResponse.json({
-            success: true,
-            affectedRooms: targetRoomIds.length,
-            affectedDays: dayCount
-        });
+        return NextResponse.json({ success: true, affectedRooms: targetRoomIds.length, affectedDays: dayKeysInRange.length });
     } catch (error) {
-        const isDev = process.env.NODE_ENV !== 'production';
-        const err = error as any;
-        const message = error instanceof Error ? error.message : 'Error processing bulk update';
-        const name = typeof err?.name === 'string' ? err.name : 'UnknownError';
-        const code = typeof err?.code === 'string' ? err.code : undefined;
-
         Sentry.captureException(error);
-        console.error('[Bulk Update] ERROR:', { name, code, message });
-        if (isDev) {
-            console.error('[Bulk Update] RAW ERROR:', error);
-            if (error instanceof Error && error.stack) {
-                console.error('[Bulk Update] STACK:\n' + error.stack);
-            }
-        }
-
-        const details =
-            err && typeof err === 'object'
-                ? {
-                      name,
-                      code,
-                      meta: err.meta,
-                      clientVersion: err.clientVersion,
-                  }
-                : { name, code };
-
-        const status =
-            code === 'P2002'
-                ? 409
-                : code === 'P2028'
-                  ? 503
-                  : message.includes('Invalid date format')
-                    ? 400
-                    : 500;
-
-        opsLog('error', 'RATES_BULK_ERROR', {
-            startDate: ctxStartDate,
-            endDate: ctxEndDate,
-            targetRooms: ctxTargetCount,
-            errorName: name,
-            errorCode: code,
-            message,
-            status,
-        });
-        return NextResponse.json(
-            {
-                error: 'BulkUpdateFailed',
-                message,
-                details,
-                ...(isDev ? { stack: error instanceof Error ? error.stack : undefined } : {}),
-            },
-            { status }
-        );
+        console.error('[Bulk Update] ERROR:', error);
+        return NextResponse.json({ error: 'BulkUpdateFailed', message: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
     }
 }
