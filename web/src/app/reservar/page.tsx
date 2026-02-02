@@ -421,7 +421,12 @@ function ReservarContent() {
                         <h2 className="text-2xl font-bold font-heading text-primary pl-1">Escolha sua Acomodação</h2>
 
                         {loading || availableRooms === null ? (
-                            <RoomListSkeleton />
+                            <div className="space-y-6">
+                                <div className="text-center">
+                                    <p className="text-muted-foreground">Buscando as melhores opções para você</p>
+                                </div>
+                                <RoomListSkeleton />
+                            </div>
                         ) : availableRooms.length === 0 ? (
                             <div className="text-center py-16 bg-white rounded-xl border border-dashed border-border">
                                 <p className="text-xl text-muted-foreground mb-4">Nenhum quarto disponível para as datas selecionadas.</p>

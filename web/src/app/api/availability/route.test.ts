@@ -8,6 +8,9 @@ vi.mock('@/lib/prisma', () => ({
     roomType: {
       findMany: vi.fn(),
     },
+    rate: {
+      findMany: vi.fn(),
+    },
     booking: {
       findMany: vi.fn(),
     },
@@ -19,6 +22,7 @@ describe('Availability API - Pricing Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (prisma.booking.findMany as any).mockResolvedValue([]);
+    (prisma.rate.findMany as any).mockResolvedValue([]);
   });
 
   it('should return 400 if dates are missing', async () => {
@@ -58,6 +62,17 @@ describe('Availability API - Pricing Logic', () => {
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
     (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.rate.findMany as any).mockResolvedValue([
+      {
+        startDate: new Date('2026-01-07T00:00:00.000Z'),
+        endDate: new Date('2026-01-07T00:00:00.000Z'),
+        price: 200,
+        stopSell: false,
+        cta: false,
+        ctd: false,
+        minLos: 1
+      }
+    ]);
 
     const res = await GET(req);
     const data = await res.json();

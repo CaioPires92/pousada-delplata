@@ -19,7 +19,11 @@ export async function GET(request: Request) {
 
         const start = new Date(`${checkIn}T00:00:00Z`);
         const end = new Date(`${checkOut}T00:00:00Z`);
-        const stayLength = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) {
+            return NextResponse.json({ error: 'invalid_date_range' }, { status: 400 });
+        }
+        const stayLength = diffDays;
 
         // 1. Buscar todos os tipos de quarto
         const roomTypes = await prisma.roomType.findMany({

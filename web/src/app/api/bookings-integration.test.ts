@@ -12,6 +12,9 @@ vi.mock('@/lib/prisma', () => ({
             findUnique: vi.fn(),
             findMany: vi.fn(),
         },
+        rate: {
+            findMany: vi.fn(),
+        },
         inventoryAdjustment: {
             findMany: vi.fn(),
         },
@@ -28,6 +31,7 @@ vi.mock('@/lib/prisma', () => ({
 describe('Booking Integration Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        (prisma.rate.findMany as any).mockResolvedValue([]);
     });
 
     it('should complete booking flow with extra adult fee', async () => {
