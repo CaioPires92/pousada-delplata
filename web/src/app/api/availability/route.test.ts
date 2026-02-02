@@ -8,6 +8,9 @@ vi.mock('@/lib/prisma', () => ({
     roomType: {
       findMany: vi.fn(),
     },
+    booking: {
+      findMany: vi.fn(),
+    },
     $queryRaw: vi.fn(),
   },
 }));
@@ -15,6 +18,7 @@ vi.mock('@/lib/prisma', () => ({
 describe('Availability API - Pricing Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (prisma.booking.findMany as any).mockResolvedValue([]);
   });
 
   it('should return 400 if dates are missing', async () => {

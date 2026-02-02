@@ -39,8 +39,19 @@ export async function GET(request: Request) {
     }
 
     const lastNight = prevDayKey(checkOut);
-    const nights = eachDayKeyInclusive(checkIn, lastNight);
-    const stayLength = nights.length;
+    let nights: string[];
+    let stayLength: number;
+    try {
+        nights = eachDayKeyInclusive(checkIn, lastNight);
+        stayLength = nights.length;
+    } catch (e: any) {
+        const msg = typeof e?.message === 'string' ? e.message : '';
+        const isRangeError = msg.includes('Invalid date range');
+        return NextResponse.json(
+            { error: isRangeError ? 'invalid_date_range' : 'invalid_dates', message: msg || undefined },
+            { status: 400 }
+        );
+    }
 
     try {
         // 1. Busca RoomTypes com as novas tipagens de DateTime
@@ -55,11 +66,7 @@ export async function GET(request: Request) {
                     },
                     orderBy: { createdAt: 'desc' }
                 },
-                inventory: {
-                    where: {
-                        date: { gte: new Date(checkIn), lte: new Date(lastNight) },
-                    },
-                },
+                inventory: true,
             },
         });
 
@@ -72,8 +79,12 @@ export async function GET(request: Request) {
 
             // --- Validação de Regras de Check-in ---
             const checkInRate = room.rates.find((r: any) => {
-                const sDate = r.startDate.toISOString().split('T')[0];
-                const eDate = r.endDate.toISOString().split('T')[0];
+                const sDate = typeof r.startDate === 'string'
+                    ? (r.startDate.includes('T') || r.startDate.includes(' ') ? r.startDate.slice(0, 10) : r.startDate.trim())
+                    : r.startDate.toISOString().split('T')[0];
+                const eDate = typeof r.endDate === 'string'
+                    ? (r.endDate.includes('T') || r.endDate.includes(' ') ? r.endDate.slice(0, 10) : r.endDate.trim())
+                    : r.endDate.toISOString().split('T')[0];
                 return checkIn >= sDate && checkIn <= eDate;
             });
 
@@ -119,8 +130,12 @@ export async function GET(request: Request) {
             // --- Validação Diária ---
             for (const night of nights) {
                 const rate = room.rates.find((r: any) => {
-                    const sDate = r.startDate.toISOString().split('T')[0];
-                    const eDate = r.endDate.toISOString().split('T')[0];
+                    const sDate = typeof r.startDate === 'string'
+                        ? (r.startDate.includes('T') || r.startDate.includes(' ') ? r.startDate.slice(0, 10) : r.startDate.trim())
+                        : r.startDate.toISOString().split('T')[0];
+                    const eDate = typeof r.endDate === 'string'
+                        ? (r.endDate.includes('T') || r.endDate.includes(' ') ? r.endDate.slice(0, 10) : r.endDate.trim())
+                        : r.endDate.toISOString().split('T')[0];
                     return night >= sDate && night <= eDate;
                 });
 
@@ -130,7 +145,12 @@ export async function GET(request: Request) {
                 }
 
                 const bookingsCount = bookingsCountByDay.get(night) || 0;
-                const dailyInv = room.inventory.find((i: any) => i.date.toISOString().split('T')[0] === night);
+                const dailyInv = room.inventory.find((i: any) => {
+                    const dk = typeof i.date === 'string'
+                        ? (i.date.includes('T') || i.date.includes(' ') ? i.date.slice(0, 10) : i.date.trim())
+                        : i.date.toISOString().split('T')[0];
+                    return dk === night;
+                });
                 const maxUnits = dailyInv ? dailyInv.totalUnits : room.totalUnits;
 
                 if (bookingsCount >= maxUnits) {
@@ -154,7 +174,11 @@ export async function GET(request: Request) {
                     });
                     availableRooms.push({ ...room, totalPrice: breakdown.total, priceBreakdown: breakdown });
                 } catch (e) {
-                    if (!(e instanceof BookingPriceError)) throw e;
+                    // Guardrail: se cálculo falhar por qualquer motivo, não quebrar toda a rota
+                    // Apenas ignorar este quarto e continuar
+                    if (!(e instanceof BookingPriceError)) {
+                        console.warn('[Availability] Price calc failed unexpectedly for room', { roomId: room.id });
+                    }
                 }
             }
         }

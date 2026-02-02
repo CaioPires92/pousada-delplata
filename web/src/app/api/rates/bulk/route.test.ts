@@ -49,13 +49,12 @@ describe('Rates Bulk API - day key', () => {
 
         expect(prisma.rate.createMany).toHaveBeenCalledTimes(1);
         const args = (prisma.rate.createMany as any).mock.calls[0][0];
-        expect(args.data).toEqual([
-            expect.objectContaining({
-                roomTypeId: 'room-1',
-                startDate: '2026-01-28T00:00:00.000Z',
-                endDate: '2026-01-28T00:00:00.000Z',
-            }),
-        ]);
+        const row = args.data[0];
+        expect(row.roomTypeId).toBe('room-1');
+        expect(row.startDate).toBeInstanceOf(Date);
+        expect(row.endDate).toBeInstanceOf(Date);
+        expect(row.startDate.toISOString()).toBe('2026-01-28T00:00:00.000Z');
+        expect(row.endDate.toISOString()).toBe('2026-01-28T00:00:00.000Z');
     });
  
     it('accepts ISO datetime in "date" and normalizes to day key', async () => {

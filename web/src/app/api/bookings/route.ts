@@ -84,8 +84,11 @@ export async function POST(request: Request) {
                     date: { gte: startDayKey, lt: endDayExclusiveKey },
                 },
             });
-            const inventoryByDay = new Map(
-                inventoryAdjustments.map((row) => [row.date, row.totalUnits])
+            const inventoryByDay = new Map<string, number>(
+                inventoryAdjustments.map((row) => {
+                    const dk = new Date(row.date).toISOString().split('T')[0];
+                    return [dk, row.totalUnits];
+                })
             );
 
             const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);

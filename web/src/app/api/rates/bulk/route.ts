@@ -46,8 +46,8 @@ export async function POST(request: Request) {
         const endStr = coerceToYmd(effectiveEndDate, 'endDate');
 
         // Objetos Date para o Prisma (fixados ao meio-dia para evitar erros de Timezone)
-        const startObj = new Date(`${startStr}T12:00:00Z`);
-        const endObj = new Date(`${endStr}T12:00:00Z`);
+        const startObj = new Date(`${startStr}T00:00:00Z`);
+        const endObj = new Date(`${endStr}T00:00:00Z`);
 
         // Identificação dos quartos alvo
         let targetRoomIds: string[] = [];
@@ -155,8 +155,8 @@ export async function POST(request: Request) {
             if (intervals.length > 0) {
                 const rateRows = intervals.map(interval => ({
                     roomTypeId: currentRoomId,
-                    startDate: new Date(`${interval.start}T12:00:00Z`),
-                    endDate: new Date(`${interval.end}T12:00:00Z`),
+                    startDate: new Date(`${interval.start}T00:00:00Z`),
+                    endDate: new Date(`${interval.end}T00:00:00Z`),
                     price: interval.data.price,
                     stopSell: interval.data.stopSell,
                     cta: interval.data.cta,
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
                 }));
                 const invRows = dayKeysInRange.map(dateKey => ({
                     roomTypeId: currentRoomId,
-                    date: new Date(`${dateKey}T12:00:00Z`),
+                    date: new Date(`${dateKey}T00:00:00Z`),
                     totalUnits: inventoryValue
                 }));
                 ops.push(prisma.inventoryAdjustment.createMany({ data: invRows }));

@@ -81,7 +81,7 @@ async function seed() {
     console.log('Generating rates for 30 days...');
     const rooms = await prisma.roomType.findMany();
     const today = new Date();
-    today.setHours(12, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
 
     for (const room of rooms) {
         for (let i = 0; i < 30; i++) {
