@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
-import { getRoomDisplayDescription } from '@/lib/room-description';
+ 
 
 interface RoomPhoto {
     id: string;
@@ -119,7 +119,7 @@ export function RoomCard({ room }: RoomCardProps) {
                         </CardTitle>
                     </div>
                     <CardDescription className="text-base" style={{ whiteSpace: 'pre-line' }}>
-                        {getRoomDisplayDescription(room.name, room.description)}
+                        {room.description}
                     </CardDescription>
                 </CardHeader>
 

@@ -9,7 +9,7 @@ import SearchWidget from '@/components/SearchWidget';
 
 import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
-import { getRoomDisplayDescription } from '@/lib/room-description';
+ 
 
 interface Room {
     id: string;
@@ -463,7 +463,7 @@ function ReservarContent() {
                                                         </div>
                                                     </div>
                                                     <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>
-                                                        {getRoomDisplayDescription(room.name, room.description)}
+                                                        {room.description}
                                                     </p>
 
                                                     <div className="flex flex-wrap gap-2 mb-6">
