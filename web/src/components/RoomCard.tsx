@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, Fragment } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -33,11 +33,6 @@ export function RoomCard({ room }: RoomCardProps) {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
     const pathname = usePathname();
-
-    // Close gallery when navigating away
-    useEffect(() => {
-        setIsGalleryOpen(false);
-    }, [pathname]);
 
     const isPlaceholderUrl = (url: string) => {
         const normalizedUrl = url.trim().toLowerCase();
@@ -88,7 +83,7 @@ export function RoomCard({ room }: RoomCardProps) {
     };
 
     return (
-        <>
+        <Fragment key={pathname}>
             <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 flex flex-col h-full">
                 <div
                     className="relative h-64 overflow-hidden cursor-pointer"
@@ -217,6 +212,6 @@ export function RoomCard({ room }: RoomCardProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </>
+        </Fragment>
     );
 }

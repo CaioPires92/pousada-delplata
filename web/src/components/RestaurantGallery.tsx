@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,11 +14,6 @@ interface RestaurantGalleryProps {
 export function RestaurantGallery({ images }: RestaurantGalleryProps) {
     const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
     const pathname = usePathname();
-
-    // Close lightbox when navigating away
-    useEffect(() => {
-        setSelectedImageIndex(null);
-    }, [pathname]);
 
     const openLightbox = (index: number) => setSelectedImageIndex(index);
     const closeLightbox = useCallback(() => setSelectedImageIndex(null), []);
@@ -63,7 +58,7 @@ export function RestaurantGallery({ images }: RestaurantGalleryProps) {
     }, [selectedImageIndex, handleNext, handlePrev, closeLightbox]);
 
     return (
-        <>
+        <Fragment key={pathname}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {images.map((src, index) => (
                     <motion.div
@@ -146,6 +141,6 @@ export function RestaurantGallery({ images }: RestaurantGalleryProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
-        </>
+        </Fragment>
     );
 }

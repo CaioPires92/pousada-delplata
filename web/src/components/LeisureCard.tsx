@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -20,11 +20,6 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const portalTarget = typeof document !== "undefined" ? document.body : null;
     const pathname = usePathname();
-
-    // Close gallery when navigating away
-    useEffect(() => {
-        setIsGalleryOpen(false);
-    }, [pathname]);
 
     const nextImage = useCallback((e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -54,7 +49,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
     }, [isGalleryOpen, nextImage, prevImage]);
 
     return (
-        <>
+        <Fragment key={pathname}>
             <Card
                 className="group overflow-hidden border-none shadow-lg rounded-3xl h-full flex flex-col cursor-pointer transition-transform hover:-translate-y-1"
                 onClick={openGallery}
@@ -203,6 +198,6 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                 </AnimatePresence>,
                 portalTarget
             )}
-        </>
+        </Fragment>
     );
 }

@@ -34,7 +34,8 @@ async function safeSeed() {
             data: {
                 name: 'Administrador',
                 email: adminEmail,
-                password: hashedPassword,
+                passwordHash: hashedPassword,
+                isActive: true,
             }
         });
         console.log('✅ Admin User created.');

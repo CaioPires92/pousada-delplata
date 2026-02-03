@@ -11,7 +11,8 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
-        "postinstall": "prisma generate"
+        "postinstall": "prisma generate",
+        "db:update": "npx tsx scripts/manage-pousada.ts"
     },
     "dependencies": {
         "@gsap/react": "^2.1.2",
@@ -66,6 +67,7 @@
         "sharp": "^0.34.5",
         "tailwindcss": "^3.4.17",
         "tailwindcss-animate": "^1.0.7",
+        "tsx": "^4.21.0",
         "typescript": "^5",
         "vitest": "^4.0.16",
         "vitest-mock-extended": "^3.1.0"

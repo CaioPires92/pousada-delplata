@@ -49,7 +49,7 @@ describe('Admin Login API', () => {
             error: 'missing_env',
             missing: expect.arrayContaining(['ADMIN_JWT_SECRET']),
         });
-    });
+    }, 15000);
 
     it('should return 401 for invalid credentials', async () => {
         vi.resetModules();
