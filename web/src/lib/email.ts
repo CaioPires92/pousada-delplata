@@ -204,3 +204,53 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         return { success: false, error };
     }
 }
+
+type ContactEmailData = {
+    name: string;
+    email: string;
+    phone: string;
+    subject: string;
+    message: string;
+};
+
+export async function sendContactEmail(data: ContactEmailData) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        return { success: false, error: 'SMTP not configured' };
+    }
+
+    const toEmail =
+        process.env.CONTACT_RECEIVER_EMAIL ||
+        process.env.SMTP_USER ||
+        'contato@pousadadelplata.com.br';
+
+    const html = `
+<html>
+<body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="margin-top:0; color:#667eea;">Nova mensagem de contato</h2>
+  <div style="background:#f9f9f9; padding:16px; border-radius:8px; margin-top:12px;">
+    <p><strong>Nome:</strong> ${data.name}</p>
+    <p><strong>E-mail:</strong> ${data.email}</p>
+    <p><strong>Telefone:</strong> ${data.phone}</p>
+    <p><strong>Assunto:</strong> ${data.subject || 'Não informado'}</p>
+    <p><strong>Mensagem:</strong></p>
+    <div style="white-space:pre-wrap; background:#fff; padding:12px; border-radius:6px; border:1px solid #eee;">
+      ${data.message}
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Site Delplata" <${process.env.SMTP_USER}>`,
+            to: toEmail,
+            replyTo: data.email,
+            subject: `Contato: ${data.subject || 'Mensagem do site'}`,
+            html,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        return { success: false, error };
+    }
+}

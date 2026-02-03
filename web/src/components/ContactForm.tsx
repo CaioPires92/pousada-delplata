@@ -18,15 +18,24 @@ export function ContactForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        setLoading(false);
-        setSuccess(true);
-        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
-        
-        setTimeout(() => setSuccess(false), 5000);
+        try {
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            setLoading(false);
+            if (res.ok) {
+                setSuccess(true);
+                setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+                setTimeout(() => setSuccess(false), 5000);
+            } else {
+                alert('Falha ao enviar. Tente novamente.');
+            }
+        } catch {
+            setLoading(false);
+            alert('Erro de rede. Tente novamente.');
+        }
     };
 
     return (

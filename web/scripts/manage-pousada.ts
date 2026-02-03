@@ -1,6 +1,5 @@
 import prisma from '../src/lib/prisma';
 
-// --- PAINEL DE CONTROLE (Edite aqui) ---
 const CONFIG = {
     superior: {
         desc: "Apartamentos compostos por: Televisão LCD 39, Frigobar, Guarda-roupa, Ventilador de teto e Ar-condicionado. Tomadas 220v.",
@@ -24,36 +23,94 @@ const CONFIG = {
     }
 };
 
+function parseArgs(argv: string[]) {
+    const out: Record<string, string | boolean> = {};
+    for (const a of argv.slice(2)) {
+        if (a.startsWith('--')) {
+            const [k, v] = a.replace(/^--/, '').split('=');
+            out[k] = v === undefined ? true : v;
+        }
+    }
+    return out;
+}
+
+async function updateDescriptions(dryRun: boolean) {
+    const targets = [
+        { contains: 'Superior', data: { description: CONFIG.superior.desc, extraAdultFee: CONFIG.superior.extraAdult, child6To11Fee: CONFIG.superior.childFee } },
+        { contains: 'Térreo', data: { description: CONFIG.terreo.desc, extraAdultFee: CONFIG.terreo.extraAdult, child6To11Fee: CONFIG.terreo.childFee } },
+        { contains: 'Anexo', data: { description: CONFIG.anexo.desc, extraAdultFee: CONFIG.anexo.extraAdult, child6To11Fee: CONFIG.anexo.childFee } },
+        { contains: 'Chalé', data: { description: CONFIG.chale.desc, extraAdultFee: CONFIG.chale.extraAdult, child6To11Fee: CONFIG.chale.childFee } },
+    ];
+    for (const t of targets) {
+        if (dryRun) {
+            const count = await prisma.roomType.count({ where: { name: { contains: t.contains } } });
+            console.log(`dry-run update-desc "${t.contains}": ${count} registros`);
+        } else {
+            const res = await prisma.roomType.updateMany({ where: { name: { contains: t.contains } }, data: t.data });
+            console.log(`update-desc "${t.contains}": ${res.count} registros`);
+        }
+    }
+}
+
+async function updatePrices(value: number, dryRun: boolean) {
+    if (dryRun) {
+        const count = await prisma.roomType.count();
+        console.log(`dry-run update-prices basePrice=${value}: ${count} registros`);
+        return;
+    }
+    const res = await prisma.roomType.updateMany({ data: { basePrice: value } });
+    console.log(`update-prices basePrice=${value}: ${res.count} registros`);
+}
+
+async function updateFees(extraAdult: number, childFee: number, dryRun: boolean) {
+    if (dryRun) {
+        const count = await prisma.roomType.count();
+        console.log(`dry-run update-fees extraAdultFee=${extraAdult} child6To11Fee=${childFee}: ${count} registros`);
+        return;
+    }
+    const res = await prisma.roomType.updateMany({ data: { extraAdultFee: extraAdult, child6To11Fee: childFee } });
+    console.log(`update-fees extraAdultFee=${extraAdult} child6To11Fee=${childFee}: ${res.count} registros`);
+}
+
 async function main() {
-    console.log('🚀 Iniciando atualização global (Turso)...');
+    const args = parseArgs(process.argv);
+    const action = String(args['action'] || '').trim();
+    const dryRun = Boolean(args['dry-run']);
+    const confirm = String(args['confirm'] || '').trim().toUpperCase() === 'YES';
+    const dbUrl = process.env.DATABASE_URL || '';
+    console.log(`db=${dbUrl ? dbUrl : 'N/A'} dry-run=${dryRun} action=${action}`);
+
+    if (!dryRun && !confirm) {
+        console.error('bloqueado: passe --confirm=YES para executar sem dry-run');
+        process.exit(2);
+    }
+
     try {
-        // Update Superior
-        await prisma.roomType.updateMany({
-            where: { name: { contains: 'Superior' } },
-            data: { description: CONFIG.superior.desc, extraAdultFee: CONFIG.superior.extraAdult, child6To11Fee: CONFIG.superior.childFee }
-        });
-
-        // Update Térreo
-        await prisma.roomType.updateMany({
-            where: { name: { contains: 'Térreo' } },
-            data: { description: CONFIG.terreo.desc, extraAdultFee: CONFIG.terreo.extraAdult, child6To11Fee: CONFIG.terreo.childFee }
-        });
-
-        // Update Anexo
-        await prisma.roomType.updateMany({
-            where: { name: { contains: 'Anexo' } },
-            data: { description: CONFIG.anexo.desc, extraAdultFee: CONFIG.anexo.extraAdult, child6To11Fee: CONFIG.anexo.childFee }
-        });
-
-        // Update Chalé
-        await prisma.roomType.updateMany({
-            where: { name: { contains: 'Chalé' } },
-            data: { description: CONFIG.chale.desc, extraAdultFee: CONFIG.chale.extraAdult, child6To11Fee: CONFIG.chale.childFee }
-        });
-
-        console.log('✅ Tudo atualizado! Descrições, taxas e voltagens estão no ar.');
+        if (action === 'update-desc') {
+            await updateDescriptions(dryRun);
+        } else if (action === 'update-prices') {
+            const price = Number(String(args['price'] || '').trim());
+            if (!Number.isFinite(price)) {
+                console.error('price inválido');
+                process.exit(3);
+            }
+            await updatePrices(price, dryRun);
+        } else if (action === 'update-fees') {
+            const extra = Number(String(args['extra'] || '').trim());
+            const child = Number(String(args['child'] || '').trim());
+            if (!Number.isFinite(extra) || !Number.isFinite(child)) {
+                console.error('parâmetros de taxa inválidos');
+                process.exit(4);
+            }
+            await updateFees(extra, child, dryRun);
+        } else {
+            console.error('ação inválida. use --action=update-desc|update-prices|update-fees');
+            process.exit(1);
+        }
+        console.log('ok');
     } catch (e) {
-        console.error('❌ Erro:', e);
+        console.error('erro', e);
+        process.exit(5);
     } finally {
         await prisma.$disconnect();
     }

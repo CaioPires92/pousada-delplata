@@ -1,49 +1,59 @@
-# Roadmap e Implementações Futuras
+# Roadmap Consolidado
 
-Este documento lista melhorias identificadas, débitos técnicos aceitáveis e funcionalidades sugeridas para evoluir o painel administrativo e a segurança do sistema pós-deploy.
+Documento único para planejamento, próximos passos e melhorias pós-deploy.
 
-## 🚨 Curto Prazo (Pós-Deploy Imediato)
+## � Próximos Passos (Implementação)
 
-Estas são ações recomendadas logo após o sistema estar estável em produção.
+- **Página de Reservas (`/reservar`)**
+  - Buscar disponibilidade via `/api/availability`
+  - Exibir preço total por quarto e checkout
+  - Formulário com nome, email, telefone e aceite de termos
+- **Integração Mercado Pago**
+  - Criar preferência de pagamento
+  - Webhook para atualizar Payment/Booking
+  - Página de confirmação `/reservar/confirmacao/[bookingId]`
+- **Email Transacional**
+  - Enviar confirmação ao hóspede e notificação ao admin
+- **Painel Administrativo**
+  - Login, Dashboard, Quartos, Tarifas, Reservas
+  - Middleware protegendo `/admin/*`
+- **iCal Export (baixa prioridade)**
+  - Gerar `.ics` com reservas confirmadas por quarto
+- **Páginas Estáticas (baixa prioridade)**
+  - Lazer, Restaurante, Contato, Políticas
+- **Melhorias**
+  - Loading/Error/Toasts, SEO, Analytics, Performance
 
-- [ ] **Rotação de Secrets:** Estabelecer um processo para rotacionar `ADMIN_JWT_SECRET` periodicamente.
-- [ ] **Monitoramento de Logs:** Verificar logs da Vercel/Sentry para garantir que tentativas de login falhas não estão gerando ruído excessivo.
-- [ ] **Backup:** Configurar backup automático do banco de dados Turso (se não houver plano de retenção ativo).
+## 🎯 Roadmap Sugerido (Semana a Semana)
+
+- Semana 1: Página `/reservar` completa + Mercado Pago (sandbox)
+- Semana 2: Emails + Admin (Login/Dashboard/Quartos)
+- Semana 3: Admin (Tarifas/Reservas) + páginas estáticas + iCal
+- Semana 4: Testes finais + Deploy + Treinamento
+
+## 🚨 Pós-Deploy (Curto Prazo)
+
+- Rotação de secrets (`ADMIN_JWT_SECRET`)
+- Monitoramento de logs (Vercel/Sentry)
+- Backup automático do banco Turso
 
 ## 🛡️ Segurança e Infraestrutura
 
-Melhorias para endurecer a segurança além do básico atual.
-
-- [ ] **Rate Limit com Redis (Upstash):**
-    - *Problema:* O rate limit atual é em memória (instável em Serverless).
-    - *Solução:* Migrar para `@upstash/ratelimit` para persistência global de tentativas de login.
-- [ ] **MFA (Autenticação de Dois Fatores):**
-    - *Motivo:* Proteger contra vazamento de senha.
-    - *Sugestão:* Implementar TOTP (Google Authenticator) ou envio de código por email.
-- [ ] **Invalidação de Sessão (Logout Real):**
-    - *Problema:* Tokens JWT são stateless; logout apenas remove cookie do navegador.
-    - *Solução:* Criar tabela `AdminSession` ou blacklist no Redis para invalidar tokens antes da expiração.
-- [ ] **Auditoria (Audit Logs):**
-    - *Funcionalidade:* Registrar quem fez o quê (ex: "Admin X alterou preço do quarto Y em [data]").
-    - *Implementação:* Tabela `AuditLog` no banco.
+- Rate limit global com Upstash Redis
+- MFA (TOTP ou código via email)
+- Invalidação de sessão (AdminSession/Redis blacklist)
+- Auditoria (AuditLog)
 
 ## 🎨 UX e Funcionalidades (Painel Admin)
 
-Melhorias na experiência do administrador.
-
-- [ ] **Recuperação de Senha:**
-    - Atualmente, reset de senha requer acesso direto ao banco. Implementar fluxo de "Esqueci minha senha" via email.
-- [ ] **Gerenciamento de Admins:**
-    - Interface para criar/remover outros administradores (atualmente só via banco/seed).
-- [ ] **Dashboard de Métricas:**
-    - Gráficos de ocupação, receita mensal e previsões.
+- Recuperação de senha via email
+- Gerenciamento de administradores
+- Dashboard de métricas (ocupação, receita, previsões)
 
 ## 🧹 Débito Técnico Aceitável
 
-Coisas que funcionam hoje mas podem ser melhoradas.
-
-- [ ] **Refatoração de Tipos:** Unificar tipos de `AdminUser` entre front e back.
-- [ ] **Testes E2E:** Adicionar testes com Playwright para fluxo completo de login e gestão de reservas.
+- Unificar tipos de Admin entre front/back
+- Testes E2E com Playwright
 
 ---
-*Gerado em: 30/01/2026*
+*Atualizado: 02/02/2026*

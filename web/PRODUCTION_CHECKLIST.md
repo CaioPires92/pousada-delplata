@@ -36,18 +36,34 @@ Para que o Mercado Pago avise o sistema sobre pagamentos aprovados.
 - [ ] Garantir que o painel do Mercado Pago aponte para o endpoint oficial (se estiver configurado manualmente).
 - [ ] Confirmar que o endpoint legado `POST /api/mercadopago/webhook` está desativado em produção (retorna 410), a menos que `ALLOW_LEGACY_MP_WEBHOOK=true`.
 
-## 🟡 Monitoramento & Segurança (Recomendado)
+## 🟡 Deploy & Ambiente
+
+### 1. Ambiente (Vercel)
+- [ ] Root Directory: selecionar pasta `web`
+- [ ] Variáveis de ambiente:
+  - `DATABASE_URL` (Turso) e `DATABASE_AUTH_TOKEN` (Turso)
+  - `NEXT_PUBLIC_MP_PUBLIC_KEY`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`
+  - `ADMIN_JWT_SECRET` (gerar com `openssl rand -hex 32`)
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
+  - `NEXT_PUBLIC_APP_URL` (após primeiro deploy: URL da Vercel)
+- [ ] Build: `prisma generate` e `next build --webpack`
+
+### 2. Webhooks (Mercado Pago)
+- [ ] Endpoint oficial: `POST /api/webhooks/mercadopago`
+- [ ] Eventos: marcar apenas Payments
+- [ ] Endpoint legado desativado em produção (retorna 410) — variável `ALLOW_LEGACY_MP_WEBHOOK` deve estar ausente
+- [ ] Teste: simular notificação e verificar atualização de Payment/Booking
 
 ### 3. Logs e Observabilidade (Sentry)
-Erros em produção (como falha no envio de email ou erro no webhook) não aparecem no navegador do usuário.
-- [ ] Criar conta no [Sentry.io](https://sentry.io).
-- [ ] Criar projeto Next.js no Sentry.
-- [ ] Adicionar `SENTRY_DSN` nas variáveis da Vercel (server/edge).
-- [ ] Adicionar `NEXT_PUBLIC_SENTRY_DSN` nas variáveis da Vercel (browser).
+- [ ] Criar projeto Next.js no Sentry
+- [ ] Adicionar `SENTRY_DSN` (server/edge) e `NEXT_PUBLIC_SENTRY_DSN` (browser)
+- [ ] Monitorar erros pós-deploy (webhooks, emails, API)
 
 ### 4. Segurança Admin
-- [ ] Garantir que `JWT_SECRET` na Vercel seja uma string longa e aleatória (use `openssl rand -hex 32` para gerar).
-- [ ] Verificar se o cookie `admin_token` está sendo setado como `Secure` (automático em produção via `process.env.NODE_ENV`).
+- [ ] `ADMIN_JWT_SECRET` forte e rotacionado periodicamente
+- [ ] Cookie `admin_token` com `Secure` em produção
+- [ ] Rate limit global (Upstash) para login e endpoints sensíveis
 
-### 5. Logs (controle)
-- [ ] Manter `PRISMA_LOG_QUERIES=0` em produção (evita logar queries).
+### 5. Controle de Logs
+- [ ] `PRISMA_LOG_QUERIES=0` em produção
+- [ ] Auditar tentativas de login e falhas de webhook

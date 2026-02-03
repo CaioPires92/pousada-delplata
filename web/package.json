@@ -12,7 +12,13 @@
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
         "postinstall": "prisma generate",
-        "db:update": "npx tsx scripts/manage-pousada.ts"
+        "db:update": "npx tsx scripts/manage-pousada.ts --action=update-desc --dry-run",
+        "db:update:desc": "npx tsx scripts/manage-pousada.ts --action=update-desc --confirm=YES",
+        "db:update:desc:dry": "npx tsx scripts/manage-pousada.ts --action=update-desc --dry-run",
+        "db:update:prices": "npx tsx scripts/manage-pousada.ts --action=update-prices --price=0.10 --confirm=YES",
+        "db:update:prices:dry": "npx tsx scripts/manage-pousada.ts --action=update-prices --price=0.10 --dry-run",
+        "db:update:fees": "npx tsx scripts/manage-pousada.ts --action=update-fees --extra=100 --child=80 --confirm=YES",
+        "db:update:fees:dry": "npx tsx scripts/manage-pousada.ts --action=update-fees --extra=100 --child=80 --dry-run"
     },
     "dependencies": {
         "@gsap/react": "^2.1.2",
