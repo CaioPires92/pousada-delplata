@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const checkIn = searchParams.get('checkIn');
-        const checkOut = searchParams.get('checkOut');
+        const checkIn = searchParams.get('checkIn');   // "2026-03-08"
+        const checkOut = searchParams.get('checkOut'); // "2026-03-10"
         const adultsCount = parseInt(searchParams.get('adults') || '2', 10);
         const childrenAges = searchParams.get('childrenAges')?.split(',').map(Number) || [];
 
@@ -17,47 +17,34 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Check-in and check-out are required' }, { status: 400 });
         }
 
-        // Padronização das datas para busca exata no banco (meio-dia UTC para evitar conflitos de fuso)
-        const start = new Date(`${checkIn}T12:00:00.000Z`);
-        const end = new Date(`${checkOut}T12:00:00.000Z`);
+        // 1. Cálculos de data usando apenas a parte do dia
+        const start = new Date(`${checkIn}T00:00:00Z`);
+        const end = new Date(`${checkOut}T00:00:00Z`);
+        const stayLength = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-        const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (stayLength <= 0) return NextResponse.json({ error: 'invalid_date_range' }, { status: 400 });
 
-        if (diffDays <= 0) {
-            return NextResponse.json({ error: 'invalid_date_range' }, { status: 400 });
-        }
-        const stayLength = diffDays;
-
-        // 1. Buscar tipos de quarto com fotos
         const roomTypes = await prisma.roomType.findMany({
-            include: {
-                photos: { orderBy: { position: 'asc' } }
-            }
+            include: { photos: { orderBy: { position: 'asc' } } }
         });
 
         const availableRooms = [];
 
         for (const room of roomTypes) {
-
-            // --- TRAVA 1: Inventário e Fechamento (Stop Sell) ---
-            // Verifica se existe algum dia no intervalo com totalUnits = 0 no Turso
-            const inventoryBlock = await prisma.inventoryAdjustment.findFirst({
+            // --- TRAVA 1: STOP SELL (Inventário) ---
+            // Buscamos todos os ajustes do período para este quarto
+            const adjustments = await prisma.inventoryAdjustment.findMany({
                 where: {
                     roomTypeId: room.id,
-                    date: {
-                        gte: new Date(`${checkIn}T00:00:00.000Z`),
-                        lt: new Date(`${checkOut}T00:00:00.000Z`)
-                    },
-                    totalUnits: 0
+                    date: { gte: start, lt: end }
                 }
             });
 
-            if (inventoryBlock) {
-                console.log(`[StopSell] Quarto ${room.name} bloqueado para o dia ${inventoryBlock.date}`);
-                continue;
-            }
+            // Se houver QUALQUER dia com totalUnits = 0, bloqueia o quarto
+            const isBlocked = adjustments.some(adj => adj.totalUnits === 0);
+            if (isBlocked) continue;
 
-            // 2. Buscar tarifas para o período
+            // --- TRAVA 2: MÍNIMO DE DIÁRIAS (minLos) ---
             const rates = await prisma.rate.findMany({
                 where: {
                     roomTypeId: room.id,
@@ -66,27 +53,29 @@ export async function GET(request: Request) {
                 }
             });
 
-            // --- TRAVA 2: Mínimo de Diárias (minLos) ---
-            // Verifica a regra de permanência mínima para o dia do Check-in
-            const checkInRate = rates.find(r => start >= r.startDate && start <= r.endDate);
+            // Busca a regra específica do dia da entrada (check-in)
+            const checkInRate = rates.find(r => {
+                const rStart = r.startDate.toISOString().split('T')[0];
+                const rEnd = r.endDate.toISOString().split('T')[0];
+                return checkIn >= rStart && checkIn <= rEnd;
+            });
+
             const minAllowed = checkInRate?.minLos || 1;
+            if (stayLength < minAllowed) continue;
 
-            if (stayLength < minAllowed) {
-                console.log(`[MinLos] Quarto ${room.name} exige ${minAllowed} noites, mas a busca foi de ${stayLength}`);
-                continue;
-            }
-
-            // 3. Calcular preço base somando as diárias individuais
+            // 3. Cálculo de Preço
             let baseTotalForStay = 0;
             const days = eachDayKeyInclusive(checkIn, checkOut).slice(0, -1);
 
             for (const dayKey of days) {
-                const dayDate = new Date(`${dayKey}T12:00:00.000Z`);
-                const specificRate = rates.find(r => dayDate >= r.startDate && dayDate <= r.endDate);
+                const specificRate = rates.find(r => {
+                    const rStart = r.startDate.toISOString().split('T')[0];
+                    const rEnd = r.endDate.toISOString().split('T')[0];
+                    return dayKey >= rStart && dayKey <= rEnd;
+                });
                 baseTotalForStay += specificRate ? Number(specificRate.price) : Number(room.basePrice);
             }
 
-            // 4. Calcular Preço Final com Taxas e Convidados Extras
             try {
                 const breakdown = calculateBookingPrice({
                     nights: stayLength,
@@ -99,23 +88,15 @@ export async function GET(request: Request) {
                     child6To11Fee: Number(room.child6To11Fee || 0),
                 });
 
-                availableRooms.push({
-                    ...room,
-                    totalPrice: breakdown.total,
-                    priceBreakdown: breakdown,
-                    isAvailable: true
-                });
+                availableRooms.push({ ...room, totalPrice: breakdown.total, priceBreakdown: breakdown, isAvailable: true });
             } catch (e) {
-                if (e instanceof BookingPriceError && e.code === 'capacity_exceeded') {
-                    continue;
-                }
-                console.error(`[Availability] Erro no quarto ${room.name}:`, e);
+                if (!(e instanceof BookingPriceError && e.code === 'capacity_exceeded')) console.error(e);
             }
         }
 
         return NextResponse.json(availableRooms);
     } catch (error) {
-        console.error('[Availability API] General Error:', error);
+        console.error(error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }
