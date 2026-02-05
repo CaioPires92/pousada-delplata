@@ -26,6 +26,7 @@ export async function GET(request: Request) {
         }
         const stayLength = diffDays;
 
+        // 1. Buscar tipos de quarto
         const roomTypes = await prisma.roomType.findMany({
             include: {
                 photos: { orderBy: { position: 'asc' } }
@@ -35,26 +36,19 @@ export async function GET(request: Request) {
         const availableRooms = [];
 
         for (const room of roomTypes) {
-            // --- TRAVA 1: Mínimo de Diárias ---
-            // Verifica se o quarto tem um mínimo de noites configurado e se a busca atende
-            if (room.minNights && stayLength < room.minNights) {
-                continue; // Pula este quarto se não atingir o mínimo
-            }
-
-            // --- TRAVA 2: Inventário e Fechamento ---
-            // Busca se existe algum dia no intervalo com totalUnits = 0 (fechado)
+            // --- TRAVA 1: Inventário e Fechamento (Stop Sell) ---
+            // Verifica se há algum dia com totalUnits = 0 no Turso
             const inventoryBlock = await prisma.inventoryAdjustment.findFirst({
                 where: {
                     roomTypeId: room.id,
                     date: { gte: start, lt: end },
-                    totalUnits: 0 // Bloqueio manual
+                    totalUnits: 0
                 }
             });
 
-            if (inventoryBlock) {
-                continue; // Pula o quarto se houver algum dia fechado no período
-            }
+            if (inventoryBlock) continue; // Pula se estiver fechado [cite: 5]
 
+            // 2. Buscar tarifas para validar Mínimo de Diárias (minLos)
             const rates = await prisma.rate.findMany({
                 where: {
                     roomTypeId: room.id,
@@ -63,6 +57,16 @@ export async function GET(request: Request) {
                 }
             });
 
+            // --- TRAVA 2: Mínimo de Diárias (usando o minLos do seu Schema) ---
+            // Localiza a regra de tarifa para o dia do Check-in
+            const checkInRate = rates.find(r => start >= r.startDate && start <= r.endDate);
+            const minAllowed = checkInRate?.minLos || 1;
+
+            if (stayLength < minAllowed) {
+                continue; // Pula se a estadia for menor que o exigido 
+            }
+
+            // 3. Calcular preço base
             let baseTotalForStay = 0;
             const days = eachDayKeyInclusive(checkIn, checkOut).slice(0, -1);
 
@@ -72,6 +76,7 @@ export async function GET(request: Request) {
                 baseTotalForStay += specificRate ? Number(specificRate.price) : Number(room.basePrice);
             }
 
+            // 4. Calcular Preço Final com Taxas
             try {
                 const breakdown = calculateBookingPrice({
                     nights: stayLength,
