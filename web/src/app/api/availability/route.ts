@@ -17,7 +17,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Check-in and check-out are required' }, { status: 400 });
         }
 
-        // 1. Cálculos de data usando apenas a parte do dia
+        // 1. Cálculos de data usando apenas a parte do dia (YYYY-MM-DD) para evitar problemas de timezone
         const start = new Date(`${checkIn}T00:00:00Z`);
         const end = new Date(`${checkOut}T00:00:00Z`);
         const stayLength = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
@@ -32,16 +32,20 @@ export async function GET(request: Request) {
 
         for (const room of roomTypes) {
             // --- TRAVA 1: STOP SELL (Inventário) ---
-            // Buscamos todos os ajustes do período para este quarto
             const adjustments = await prisma.inventoryAdjustment.findMany({
                 where: {
                     roomTypeId: room.id,
-                    date: { gte: start, lt: end }
-                }
+                    date: { gte: start, lt: end },
+                },
             });
-
-            // Se houver QUALQUER dia com totalUnits = 0, bloqueia o quarto
-            const isBlocked = adjustments.some(adj => adj.totalUnits === 0);
+            const daysToCheck = eachDayKeyInclusive(checkIn, checkOut).slice(0, -1);
+            const isBlocked = daysToCheck.some((dayKey) =>
+                adjustments.some(
+                    (adj) =>
+                        adj.totalUnits === 0 &&
+                        adj.date.toISOString().split('T')[0] === dayKey
+                )
+            );
             if (isBlocked) continue;
 
             // --- TRAVA 2: MÍNIMO DE DIÁRIAS (minLos) ---

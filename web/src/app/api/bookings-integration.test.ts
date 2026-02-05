@@ -57,6 +57,7 @@ describe('Booking Integration Tests', () => {
 
         // Step 1: Get availability with 3 adults
         (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.$queryRaw as any).mockResolvedValue([]);
 
         const availabilityReq = new Request(
@@ -154,6 +155,7 @@ describe('Booking Integration Tests', () => {
 
         // Step 1: Get availability with 2 adults + 1 child age 8
         (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.$queryRaw as any).mockResolvedValue([]);
 
         const availabilityReq = new Request(
@@ -250,6 +252,7 @@ describe('Booking Integration Tests', () => {
 
         // Step 1: Get availability with 2 adults + 1 child age 12 (should count as adult)
         (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.$queryRaw as any).mockResolvedValue([]);
 
         const availabilityReq = new Request(

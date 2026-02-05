@@ -14,7 +14,9 @@ vi.mock('@/lib/prisma', () => ({
     booking: {
       findMany: vi.fn(),
     },
-    $queryRaw: vi.fn(),
+    inventoryAdjustment: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -23,6 +25,7 @@ describe('Availability API - Pricing Logic', () => {
     vi.clearAllMocks();
     (prisma.booking.findMany as any).mockResolvedValue([]);
     (prisma.rate.findMany as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
   });
 
   it('should return 400 if dates are missing', async () => {
@@ -61,7 +64,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
     (prisma.rate.findMany as any).mockResolvedValue([
       {
         startDate: new Date('2026-01-07T00:00:00.000Z'),
@@ -84,6 +87,92 @@ describe('Availability API - Pricing Logic', () => {
     expect(data[0].priceBreakdown.baseTotal).toBe(200);
   });
 
+  it('should exclude room when InventoryAdjustment has totalUnits=0 in range', async () => {
+    const checkIn = '2026-03-08';
+    const checkOut = '2026-03-10';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
+
+    const mockRoom = {
+      id: 'room-stop',
+      name: 'Blocked Room',
+      basePrice: 100,
+      capacity: 2,
+      totalUnits: 5,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: [],
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
+      { date: new Date('2026-03-08T00:00:00.000Z'), totalUnits: 0 },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBe(0); // Room must be excluded
+  });
+
+  it('should include room when InventoryAdjustment has no stop sell in range', async () => {
+    const checkIn = '2026-03-08';
+    const checkOut = '2026-03-10';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
+
+    const mockRoom = {
+      id: 'room-free',
+      name: 'Free Room',
+      basePrice: 100,
+      capacity: 2,
+      totalUnits: 5,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: [],
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+
+    const res = await GET(req);
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBe(1);
+    expect(data[0].totalPrice).toBe(200);
+  });
+
+  it('should exclude room on multi-night stay when any day is stop sell', async () => {
+    const checkIn = '2026-03-10';
+    const checkOut = '2026-03-13';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
+
+    const mockRoom = {
+      id: 'room-multi',
+      name: 'Multi Room',
+      basePrice: 100,
+      capacity: 2,
+      totalUnits: 5,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: [],
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
+      { date: new Date('2026-03-11T00:00:00.000Z'), totalUnits: 0 },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBe(0);
+  });
+
   it('should fallback to basePrice when no rate exists', async () => {
     const checkIn = '2026-02-01';
     const checkOut = '2026-02-02';
@@ -102,7 +191,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
@@ -133,7 +222,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
@@ -166,7 +255,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
@@ -201,7 +290,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
@@ -234,7 +323,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
@@ -271,7 +360,7 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
 
     const res = await GET(req);
     const data = await res.json();
