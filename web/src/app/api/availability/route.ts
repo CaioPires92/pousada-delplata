@@ -17,8 +17,10 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Check-in and check-out are required' }, { status: 400 });
         }
 
-        const start = new Date(`${checkIn}T00:00:00Z`);
-        const end = new Date(`${checkOut}T00:00:00Z`);
+        // Padronização das datas para busca exata no banco (meio-dia UTC para evitar conflitos de fuso)
+        const start = new Date(`${checkIn}T12:00:00.000Z`);
+        const end = new Date(`${checkOut}T12:00:00.000Z`);
+
         const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
         if (diffDays <= 0) {
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
         }
         const stayLength = diffDays;
 
-        // 1. Buscar tipos de quarto
+        // 1. Buscar tipos de quarto com fotos
         const roomTypes = await prisma.roomType.findMany({
             include: {
                 photos: { orderBy: { position: 'asc' } }
@@ -36,19 +38,26 @@ export async function GET(request: Request) {
         const availableRooms = [];
 
         for (const room of roomTypes) {
+
             // --- TRAVA 1: Inventário e Fechamento (Stop Sell) ---
-            // Verifica se há algum dia com totalUnits = 0 no Turso
+            // Verifica se existe algum dia no intervalo com totalUnits = 0 no Turso
             const inventoryBlock = await prisma.inventoryAdjustment.findFirst({
                 where: {
                     roomTypeId: room.id,
-                    date: { gte: start, lt: end },
+                    date: {
+                        gte: new Date(`${checkIn}T00:00:00.000Z`),
+                        lt: new Date(`${checkOut}T00:00:00.000Z`)
+                    },
                     totalUnits: 0
                 }
             });
 
-            if (inventoryBlock) continue; // Pula se estiver fechado [cite: 5]
+            if (inventoryBlock) {
+                console.log(`[StopSell] Quarto ${room.name} bloqueado para o dia ${inventoryBlock.date}`);
+                continue;
+            }
 
-            // 2. Buscar tarifas para validar Mínimo de Diárias (minLos)
+            // 2. Buscar tarifas para o período
             const rates = await prisma.rate.findMany({
                 where: {
                     roomTypeId: room.id,
@@ -57,26 +66,27 @@ export async function GET(request: Request) {
                 }
             });
 
-            // --- TRAVA 2: Mínimo de Diárias (usando o minLos do seu Schema) ---
-            // Localiza a regra de tarifa para o dia do Check-in
+            // --- TRAVA 2: Mínimo de Diárias (minLos) ---
+            // Verifica a regra de permanência mínima para o dia do Check-in
             const checkInRate = rates.find(r => start >= r.startDate && start <= r.endDate);
             const minAllowed = checkInRate?.minLos || 1;
 
             if (stayLength < minAllowed) {
-                continue; // Pula se a estadia for menor que o exigido 
+                console.log(`[MinLos] Quarto ${room.name} exige ${minAllowed} noites, mas a busca foi de ${stayLength}`);
+                continue;
             }
 
-            // 3. Calcular preço base
+            // 3. Calcular preço base somando as diárias individuais
             let baseTotalForStay = 0;
             const days = eachDayKeyInclusive(checkIn, checkOut).slice(0, -1);
 
             for (const dayKey of days) {
-                const dayDate = new Date(`${dayKey}T00:00:00Z`);
+                const dayDate = new Date(`${dayKey}T12:00:00.000Z`);
                 const specificRate = rates.find(r => dayDate >= r.startDate && dayDate <= r.endDate);
                 baseTotalForStay += specificRate ? Number(specificRate.price) : Number(room.basePrice);
             }
 
-            // 4. Calcular Preço Final com Taxas
+            // 4. Calcular Preço Final com Taxas e Convidados Extras
             try {
                 const breakdown = calculateBookingPrice({
                     nights: stayLength,
