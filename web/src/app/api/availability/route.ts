@@ -20,24 +20,41 @@ export async function GET(request: Request) {
         const start = new Date(`${checkIn}T00:00:00Z`);
         const end = new Date(`${checkOut}T00:00:00Z`);
         const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
         if (diffDays <= 0) {
             return NextResponse.json({ error: 'invalid_date_range' }, { status: 400 });
         }
         const stayLength = diffDays;
 
-        // 1. Buscar todos os tipos de quarto
         const roomTypes = await prisma.roomType.findMany({
             include: {
-                photos: {
-                    orderBy: { position: 'asc' } // Ajustado de 'order' para 'position'
-                }
+                photos: { orderBy: { position: 'asc' } }
             }
         });
 
         const availableRooms = [];
 
         for (const room of roomTypes) {
-            // 2. Buscar tarifas para o período
+            // --- TRAVA 1: Mínimo de Diárias ---
+            // Verifica se o quarto tem um mínimo de noites configurado e se a busca atende
+            if (room.minNights && stayLength < room.minNights) {
+                continue; // Pula este quarto se não atingir o mínimo
+            }
+
+            // --- TRAVA 2: Inventário e Fechamento ---
+            // Busca se existe algum dia no intervalo com totalUnits = 0 (fechado)
+            const inventoryBlock = await prisma.inventoryAdjustment.findFirst({
+                where: {
+                    roomTypeId: room.id,
+                    date: { gte: start, lt: end },
+                    totalUnits: 0 // Bloqueio manual
+                }
+            });
+
+            if (inventoryBlock) {
+                continue; // Pula o quarto se houver algum dia fechado no período
+            }
+
             const rates = await prisma.rate.findMany({
                 where: {
                     roomTypeId: room.id,
@@ -46,9 +63,8 @@ export async function GET(request: Request) {
                 }
             });
 
-            // 3. Calcular preço base somando as diárias individuais
             let baseTotalForStay = 0;
-            const days = eachDayKeyInclusive(checkIn, checkOut).slice(0, -1); // remove o dia do checkout
+            const days = eachDayKeyInclusive(checkIn, checkOut).slice(0, -1);
 
             for (const dayKey of days) {
                 const dayDate = new Date(`${dayKey}T00:00:00Z`);
@@ -56,14 +72,12 @@ export async function GET(request: Request) {
                 baseTotalForStay += specificRate ? Number(specificRate.price) : Number(room.basePrice);
             }
 
-            // 4. Calcular Preço Final com Taxas (Ajuste aqui)
             try {
                 const breakdown = calculateBookingPrice({
                     nights: stayLength,
                     baseTotalForStay,
                     adults: adultsCount,
                     childrenAges,
-                    // Garantimos que os valores venham do banco convertidos para número
                     includedAdults: Number(room.includedAdults ?? 2),
                     maxGuests: Number(room.maxGuests),
                     extraAdultFee: Number(room.extraAdultFee || 0),
@@ -74,11 +88,11 @@ export async function GET(request: Request) {
                     ...room,
                     totalPrice: breakdown.total,
                     priceBreakdown: breakdown,
-                    isAvailable: true // Simplificado para este exemplo
+                    isAvailable: true
                 });
             } catch (e) {
                 if (e instanceof BookingPriceError && e.code === 'capacity_exceeded') {
-                    continue; // Pula quartos que não cabem os hóspedes
+                    continue;
                 }
                 console.error(`[Availability] Erro no quarto ${room.name}:`, e);
             }
