@@ -33,7 +33,9 @@ export default function AdminQuartosPage() {
     const [batchModalOpen, setBatchModalOpen] = useState(false);
     const [batchData, setBatchData] = useState({
         roomTypeId: 'all',
-        totalUnits: 0
+        totalUnits: '',
+        basePrice: '',
+        capacity: ''
     });
 
     const fetchRooms = useCallback(async () => {
@@ -83,8 +85,25 @@ export default function AdminQuartosPage() {
     };
 
     const handleBatchSave = async () => {
-        if (batchData.totalUnits < 0) {
+        const totalUnitsValue = batchData.totalUnits === '' ? undefined : parseInt(batchData.totalUnits);
+        const basePriceValue = batchData.basePrice === '' ? undefined : Number(batchData.basePrice);
+        const capacityValue = batchData.capacity === '' ? undefined : parseInt(batchData.capacity);
+
+        if (totalUnitsValue !== undefined && totalUnitsValue < 0) {
             alert('A quantidade não pode ser negativa.');
+            return;
+        }
+        if (capacityValue !== undefined && capacityValue < 0) {
+            alert('Capacidade inválida.');
+            return;
+        }
+        if (basePriceValue !== undefined && (Number.isNaN(basePriceValue) || basePriceValue < 0)) {
+            alert('Preço base inválido.');
+            return;
+        }
+
+        if (totalUnitsValue === undefined && basePriceValue === undefined && capacityValue === undefined) {
+            alert('Preencha pelo menos um campo para atualizar.');
             return;
         }
 
@@ -92,13 +111,24 @@ export default function AdminQuartosPage() {
             const response = await fetch('/api/admin/rooms', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(batchData)
+                body: JSON.stringify({
+                    roomTypeId: batchData.roomTypeId,
+                    ...(totalUnitsValue !== undefined ? { totalUnits: totalUnitsValue } : {}),
+                    ...(basePriceValue !== undefined ? { basePrice: basePriceValue } : {}),
+                    ...(capacityValue !== undefined ? { capacity: capacityValue } : {})
+                })
             });
 
             if (!response.ok) throw new Error('Erro ao atualizar quartos em lote');
 
             await fetchRooms();
             setBatchModalOpen(false);
+            setBatchData({
+                roomTypeId: 'all',
+                totalUnits: '',
+                basePrice: '',
+                capacity: ''
+            });
             alert('Quartos atualizados com sucesso!');
         } catch (error) {
             alert('Erro ao atualizar quartos em lote');
@@ -468,7 +498,34 @@ export default function AdminQuartosPage() {
                                 value={batchData.totalUnits}
                                 onChange={(e) => setBatchData({
                                     ...batchData,
-                                    totalUnits: parseInt(e.target.value) || 0
+                                    totalUnits: e.target.value
+                                })}
+                            />
+                        </div>
+
+                        <div className={styles.formField}>
+                            <label>Nova Capacidade:</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={batchData.capacity}
+                                onChange={(e) => setBatchData({
+                                    ...batchData,
+                                    capacity: e.target.value
+                                })}
+                            />
+                        </div>
+
+                        <div className={styles.formField}>
+                            <label>Novo Preço Base (R$):</label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={batchData.basePrice}
+                                onChange={(e) => setBatchData({
+                                    ...batchData,
+                                    basePrice: e.target.value
                                 })}
                             />
                         </div>

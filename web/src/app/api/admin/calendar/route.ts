@@ -114,9 +114,10 @@ export async function GET(request: Request) {
         const calendarData = dayKeys.map((dateStr) => {
             const rate = normalizedRates.find((r) => dateStr >= r.dayStart && dateStr <= r.dayEnd);
             const adjustment = inventoryByDay.get(dateStr);
+            const capacityTotal = Number(roomType.totalUnits);
             const totalInventory = adjustment
-                ? Math.min(Number(roomType.totalUnits), Number(adjustment.totalUnits))
-                : Number(roomType.totalUnits);
+                ? Math.min(capacityTotal, Number(adjustment.totalUnits))
+                : capacityTotal;
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
             const available = Math.max(0, totalInventory - bookingsCount);
 
@@ -129,6 +130,7 @@ export async function GET(request: Request) {
                 minLos: rate ? rate.minLos : 1,
                 rateId: rate ? rate.id : null,
                 totalInventory,
+                capacityTotal,
                 bookingsCount,
                 available,
                 isAdjusted: !!adjustment

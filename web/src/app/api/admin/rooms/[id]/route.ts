@@ -10,6 +10,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const { id } = await params
         const data = await request.json()
 
+        const existingRoom = await prisma.roomType.findUnique({
+            where: { id },
+            select: { basePrice: true }
+        })
+
         const updatedRoom = await prisma.roomType.update({
             where: { id },
             data: {
@@ -21,6 +26,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 amenities: data.amenities
             }
         })
+
+        if (existingRoom && Number(existingRoom.basePrice) !== Number(data.basePrice)) {
+            await prisma.rate.updateMany({
+                where: {
+                    roomTypeId: id,
+                    price: Number(existingRoom.basePrice),
+                    stopSell: false,
+                    cta: false,
+                    ctd: false,
+                    minLos: 1
+                },
+                data: {
+                    price: Number(data.basePrice)
+                }
+            })
+        }
 
         return NextResponse.json(updatedRoom)
     } catch (error) {

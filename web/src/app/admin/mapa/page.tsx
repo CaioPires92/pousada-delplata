@@ -34,6 +34,7 @@ interface RoomType {
         minLos: number;
         rateId: string | null;
         totalInventory: number;
+        capacityTotal: number;
         bookingsCount: number;
         available: number;
         isAdjusted: boolean;
@@ -674,6 +675,7 @@ export default function MapaReservas() {
                                             {monthDays.map(day => {
                                                 const data = getDataForDay(day);
                                                 const total = data?.totalInventory ?? 0;
+                                                const capacityTotal = data?.capacityTotal ?? 0;
                                                 const available = data?.available ?? 0;
                                                 return (
                                             <td key={format(day, 'yyyy-MM-dd')} className={styles.cell}>
@@ -695,8 +697,8 @@ export default function MapaReservas() {
                                                             +
                                                         </button>
                                                     </div>
-                                                    <span style={{ fontSize: '0.7rem', color: available === 0 ? 'red' : '#64748b' }}>
-                                                        Disp: {available}
+                                                    <span style={{ fontSize: '0.7rem', color: capacityTotal === 0 ? 'red' : '#64748b' }}>
+                                                        Disp: {capacityTotal}
                                                     </span>
                                                 </div>
                                             </td>

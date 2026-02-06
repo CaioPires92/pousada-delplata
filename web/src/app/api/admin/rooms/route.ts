@@ -82,30 +82,83 @@ export async function PATCH(request: Request) {
         if (auth instanceof Response) return auth;
 
         const body = await request.json();
-        const { roomTypeId, totalUnits } = body;
+        const { roomTypeId, totalUnits, basePrice, capacity } = body;
 
-        if (totalUnits === undefined || totalUnits < 0) {
+        if (totalUnits !== undefined && totalUnits < 0) {
             return NextResponse.json(
                 { error: 'Quantidade inválida' },
                 { status: 400 }
             );
         }
+        if (capacity !== undefined && capacity < 0) {
+            return NextResponse.json(
+                { error: 'Capacidade inválida' },
+                { status: 400 }
+            );
+        }
 
         if (roomTypeId === 'all') {
-            // Update all rooms
-            await prisma.roomType.updateMany({
-                data: {
-                    totalUnits: Number(totalUnits)
+            const rooms = await prisma.roomType.findMany({
+                select: { id: true, basePrice: true }
+            });
+
+            await prisma.$transaction(async (tx) => {
+                await tx.roomType.updateMany({
+                    data: {
+                        ...(totalUnits !== undefined ? { totalUnits: Number(totalUnits) } : {}),
+                        ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
+                        ...(capacity !== undefined ? { capacity: Number(capacity) } : {})
+                    }
+                });
+
+                if (basePrice !== undefined) {
+                    for (const room of rooms) {
+                        await tx.rate.updateMany({
+                            where: {
+                                roomTypeId: room.id,
+                                price: Number(room.basePrice),
+                                stopSell: false,
+                                cta: false,
+                                ctd: false,
+                                minLos: 1
+                            },
+                            data: {
+                                price: Number(basePrice)
+                            }
+                        });
+                    }
                 }
             });
         } else {
-            // Update specific room
+            const existingRoom = await prisma.roomType.findUnique({
+                where: { id: roomTypeId },
+                select: { basePrice: true }
+            });
+
             await prisma.roomType.update({
                 where: { id: roomTypeId },
                 data: {
-                    totalUnits: Number(totalUnits)
+                    ...(totalUnits !== undefined ? { totalUnits: Number(totalUnits) } : {}),
+                    ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
+                    ...(capacity !== undefined ? { capacity: Number(capacity) } : {})
                 }
             });
+
+            if (existingRoom && basePrice !== undefined && Number(existingRoom.basePrice) !== Number(basePrice)) {
+                await prisma.rate.updateMany({
+                    where: {
+                        roomTypeId,
+                        price: Number(existingRoom.basePrice),
+                        stopSell: false,
+                        cta: false,
+                        ctd: false,
+                        minLos: 1
+                    },
+                    data: {
+                        price: Number(basePrice)
+                    }
+                });
+            }
         }
 
         return NextResponse.json({ success: true });
