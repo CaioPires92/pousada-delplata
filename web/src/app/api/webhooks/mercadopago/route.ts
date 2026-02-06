@@ -7,5 +7,5 @@ export async function POST(request: Request) {
 
 // Mercado Pago também faz requests GET para validar a URL
 export async function GET() {
-    return NextResponse.json({ message: 'Webhook endpoint active' });
+    return NextResponse.json({ message: 'Endpoint do webhook ativo' });
 }

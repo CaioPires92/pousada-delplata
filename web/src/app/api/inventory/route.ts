@@ -21,7 +21,7 @@ export async function GET(request: Request) {
                 assertDayKey(endDate, 'endDate');
             } catch (e) {
                 return NextResponse.json(
-                    { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                    { error: e instanceof Error ? e.message : 'Formato de data inválido. Use YYYY-MM-DD' },
                     { status: 400 }
                 );
             }
@@ -37,9 +37,9 @@ export async function GET(request: Request) {
         });
         return NextResponse.json(inventory);
     } catch (error) {
-        console.error('Error fetching inventory:', error);
+        console.error('Erro ao buscar inventário:', error);
         return NextResponse.json(
-            { error: 'Error fetching inventory' },
+            { error: 'Erro ao buscar inventário' },
             { status: 500 }
         );
     }
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
             assertDayKey(date, 'date');
         } catch (e) {
             return NextResponse.json(
-                { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                { error: e instanceof Error ? e.message : 'Formato de data inválido. Use YYYY-MM-DD' },
                 { status: 400 }
             );
         }
@@ -85,9 +85,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json(inventory, { status: 201 });
     } catch (error) {
-        console.error('Error updating inventory:', error);
+        console.error('Erro ao atualizar inventário:', error);
         return NextResponse.json(
-            { error: 'Error updating inventory' },
+            { error: 'Erro ao atualizar inventário' },
             { status: 500 }
         );
     }

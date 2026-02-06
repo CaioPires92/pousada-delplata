@@ -18,18 +18,26 @@ export default function ConfirmacaoPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const bookingId = params.bookingId as string;
-    const status = searchParams.get('status');
+
+    // Pegamos o status inicial da URL do Mercado Pago
+    const initialStatus = searchParams.get('status');
 
     const [booking, setBooking] = useState<Booking | null>(null);
     const [loading, setLoading] = useState(true);
+    const [currentStatus, setCurrentStatus] = useState<string | null>(initialStatus);
 
     const fetchBooking = useCallback(async () => {
         if (!bookingId) return;
         try {
+            // Pequeno delay de 1.5s para dar tempo ao Webhook de processar o banco
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
             const response = await fetch(`/api/bookings/${bookingId}`);
             if (response.ok) {
                 const data = await response.json();
                 setBooking(data);
+                // Atualizamos o status com o que está REALMENTE no banco agora
+                setCurrentStatus(data.status.toLowerCase() === 'confirmed' ? 'approved' : data.status.toLowerCase());
             }
         } catch (error) {
             console.error('Error fetching booking:', error);
@@ -42,28 +50,37 @@ export default function ConfirmacaoPage() {
         fetchBooking();
     }, [fetchBooking]);
 
-    // Show alert when page loads with payment status
+    // Alerta inteligente: só avisa se o banco confirmar que ainda está pendente
     useEffect(() => {
-        if (!loading && status) {
-            const statusMessages: Record<string, string> = {
-                'approved': '✅ PAGAMENTO APROVADO!\n\nSua reserva foi confirmada com sucesso.',
-                'pending': '⏳ PAGAMENTO PENDENTE\n\nSeu pagamento está sendo processado.\nVocê receberá um email quando for confirmado.',
-                'rejected': '❌ PAGAMENTO RECUSADO\n\nNão foi possível processar seu pagamento.\nTente novamente com outro cartão.'
-            };
+        if (!loading && booking) {
+            const statusToNotify = booking.status.toLowerCase();
 
-            const message = statusMessages[status] || 'Reserva criada.';
-            alert(message);
+            if (statusToNotify === 'pending' || initialStatus === 'pending') {
+                // Se no banco já estiver CONFIRMED, não mostramos o alerta de pendente
+                if (booking.status !== 'CONFIRMED') {
+                    alert('⏳ PAGAMENTO SENDO PROCESSADO\n\nSeu pagamento está sendo processado.\nVocê receberá um email quando for confirmado.');
+                }
+            } else if (initialStatus === 'approved' || booking.status === 'CONFIRMED') {
+                alert('✅ PAGAMENTO APROVADO!\n\nSua reserva foi confirmada com sucesso.');
+            } else if (initialStatus === 'rejected') {
+                alert('❌ PAGAMENTO RECUSADO\n\nNão foi possível processar seu pagamento.\nTente novamente com outro cartão.');
+            }
         }
-    }, [loading, status]);
+    }, [loading, booking, initialStatus]);
 
     const getStatusInfo = () => {
-        switch (status) {
-            case 'approved':
-                return {
-                    title: '✅ Pagamento Aprovado!',
-                    message: 'Sua reserva foi confirmada com sucesso.',
-                    color: '#4CAF50',
-                };
+        // Prioriza o status real do banco (booking.status)
+        const dbStatus = booking?.status;
+
+        if (dbStatus === 'CONFIRMED' || initialStatus === 'approved') {
+            return {
+                title: '✅ Pagamento Aprovado!',
+                message: 'Sua reserva foi confirmada com sucesso.',
+                color: '#4CAF50',
+            };
+        }
+
+        switch (initialStatus) {
             case 'pending':
                 return {
                     title: '⏳ Pagamento Pendente',
@@ -89,16 +106,17 @@ export default function ConfirmacaoPage() {
 
     if (loading) {
         return (
-            <main className="container section">
+            <main className="container section" style={{ paddingTop: '120px' }}>
                 <div style={{ textAlign: 'center', padding: '3rem' }}>
-                    <p>Carregando informações da reserva...</p>
+                    <p>Verificando confirmação do pagamento...</p>
                 </div>
             </main>
         );
     }
 
     return (
-        <main className="container section">
+        // ADICIONADO: paddingTop: '120px' para descer o conteúdo abaixo da Navbar
+        <main className="container section" style={{ paddingTop: '120px', minHeight: '100vh', paddingBottom: '40px' }}>
             <div style={{
                 maxWidth: '600px',
                 margin: '0 auto',
@@ -107,6 +125,7 @@ export default function ConfirmacaoPage() {
                 border: `3px solid ${statusInfo.color}`,
                 borderRadius: '8px',
                 backgroundColor: '#f9f9f9',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}>
                 <h1 style={{ color: statusInfo.color, marginBottom: '1rem' }}>
                     {statusInfo.title}
@@ -122,16 +141,26 @@ export default function ConfirmacaoPage() {
                         borderRadius: '8px',
                         marginBottom: '2rem',
                         textAlign: 'left',
+                        border: '1px solid #eee'
                     }}>
                         <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>Detalhes da Reserva</h2>
                         <p><strong>Código:</strong> {booking.id.slice(0, 8).toUpperCase()}</p>
                         <p><strong>Quarto:</strong> {booking.roomType?.name}</p>
                         <p><strong>Hóspede:</strong> {booking.guest?.name}</p>
-                        <p><strong>Email:</strong> {booking.guest?.email}</p>
                         <p><strong>Check-in:</strong> {new Date(booking.checkIn).toLocaleDateString('pt-BR')}</p>
                         <p><strong>Check-out:</strong> {new Date(booking.checkOut).toLocaleDateString('pt-BR')}</p>
                         <p><strong>Valor Total:</strong> R$ {Number(booking.totalPrice).toFixed(2)}</p>
-                        <p><strong>Status:</strong> {booking.status}</p>
+                        <p style={{
+                            marginTop: '10px',
+                            padding: '5px 10px',
+                            backgroundColor: booking.status === 'CONFIRMED' ? '#e8f5e9' : '#fff3e0',
+                            display: 'inline-block',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            color: booking.status === 'CONFIRMED' ? '#2e7d32' : '#ef6c00'
+                        }}>
+                            Status: {booking.status}
+                        </p>
                     </div>
                 )}
 
@@ -139,7 +168,7 @@ export default function ConfirmacaoPage() {
                     <Link href="/" className="btn-primary">
                         Voltar ao Início
                     </Link>
-                    {status === 'rejected' && (
+                    {initialStatus === 'rejected' && (
                         <Link href={`/reservar?checkIn=${booking?.checkIn}&checkOut=${booking?.checkOut}`} className="btn-secondary">
                             Tentar Novamente
                         </Link>

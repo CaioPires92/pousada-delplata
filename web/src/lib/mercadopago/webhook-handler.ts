@@ -65,7 +65,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
         }
         if (!paymentIdRaw) {
             opsLog('warn', 'MP_WEBHOOK_INVALID', { reason: 'MISSING_PAYMENT_ID' });
-            return NextResponse.json({ error: 'Missing payment ID' }, { status: 400 });
+            return NextResponse.json({ error: 'ID de pagamento ausente' }, { status: 400 });
         }
 
         const paymentId = String(paymentIdRaw);
@@ -81,13 +81,13 @@ export async function handleMercadoPagoWebhook(request: Request) {
         });
         if (!sigResult.ok) {
             opsLog('warn', 'MP_WEBHOOK_INVALID', { reason: 'INVALID_SIGNATURE', paymentId });
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            return NextResponse.json({ error: 'Assinatura inválida' }, { status: 401 });
         }
 
         const accessToken = process.env.MP_ACCESS_TOKEN;
         if (!accessToken) {
             opsLog('error', 'MP_WEBHOOK_CONFIG_ERROR', { reason: 'MISSING_MP_ACCESS_TOKEN', paymentId });
-            return NextResponse.json({ error: 'Mercado Pago not configured' }, { status: 500 });
+            return NextResponse.json({ error: 'Mercado Pago não configurado' }, { status: 500 });
         }
 
         const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
@@ -96,7 +96,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
         if (!paymentResponse.ok) {
             opsLog('error', 'MP_WEBHOOK_MP_FETCH_FAILED', { paymentId, status: paymentResponse.status });
             return NextResponse.json(
-                { error: 'Failed to fetch payment', status: paymentResponse.status },
+                { error: 'Falha ao buscar pagamento', status: paymentResponse.status },
                 { status: 502 }
             );
         }
@@ -108,7 +108,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
         if (!bookingId) {
             opsLog('warn', 'MP_WEBHOOK_INVALID', { reason: 'MISSING_BOOKING_REFERENCE', paymentId });
-            return NextResponse.json({ error: 'Missing booking reference' }, { status: 400 });
+            return NextResponse.json({ error: 'Referência de reserva ausente' }, { status: 400 });
         }
 
         const mapped = mapPaymentStatus(mpStatus);
@@ -221,7 +221,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 bookingIdShort: bookingId.slice(0, 8),
                 paymentId,
             });
-            return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
         }
 
         if (result.emailQueued && mpStatus === 'approved') {
@@ -260,9 +260,9 @@ export async function handleMercadoPagoWebhook(request: Request) {
             paymentId: ctxPaymentId,
             bookingId: ctxBookingId,
             bookingIdShort: typeof ctxBookingId === 'string' ? ctxBookingId.slice(0, 8) : undefined,
-            message: error instanceof Error ? error.message : 'Error processing webhook',
+            message: error instanceof Error ? error.message : 'Erro ao processar webhook',
         });
-        const message = error instanceof Error ? error.message : 'Error processing webhook';
-        return NextResponse.json({ error: 'Error processing webhook', message }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Erro ao processar webhook';
+        return NextResponse.json({ error: 'Erro ao processar webhook', message }, { status: 500 });
     }
 }

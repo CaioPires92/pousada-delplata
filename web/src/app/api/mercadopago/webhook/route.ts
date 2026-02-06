@@ -9,7 +9,7 @@ import { handleMercadoPagoWebhook } from '@/lib/mercadopago/webhook-handler';
 export async function POST(request: Request) {
     if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LEGACY_MP_WEBHOOK !== 'true') {
         return NextResponse.json(
-            { error: 'Webhook deprecated. Use /api/webhooks/mercadopago' },
+            { error: 'Webhook obsoleto. Use /api/webhooks/mercadopago' },
             { status: 410 }
         );
     }
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 // Permitir GET para verificação do endpoint
 export async function GET() {
     return NextResponse.json({
-        status: 'Webhook endpoint is active',
+        status: 'Endpoint do webhook ativo',
         timestamp: new Date().toISOString(),
     });
 }

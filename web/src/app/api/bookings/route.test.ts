@@ -15,6 +15,8 @@ vi.mock('@/lib/prisma', () => ({
     },
     guest: {
       create: vi.fn(),
+      findFirst: vi.fn(),
+      update: vi.fn(),
     },
     booking: {
       findMany: vi.fn(),
@@ -50,7 +52,7 @@ describe('Bookings API', () => {
       roomType: { findUnique: prisma.roomType.findUnique },
       inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
       booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
-      guest: { create: prisma.guest.create },
+      guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
       $queryRaw: prisma.$queryRaw,
     };
 
@@ -67,6 +69,7 @@ describe('Bookings API', () => {
     });
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
     (prisma.$queryRaw as any).mockResolvedValue([]);
+    (prisma.guest.findFirst as any).mockResolvedValue(null);
     (prisma.guest.create as any).mockResolvedValue(mockGuest);
     (prisma.booking.create as any).mockResolvedValue(mockBooking);
 
@@ -124,6 +127,6 @@ describe('Bookings API', () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    expect(data.error).toBe('Missing required fields');
+    expect(data.error).toBe('Campos obrigatórios ausentes');
   });
 });

@@ -8,7 +8,7 @@ export async function POST(request: Request) {
 
         if (!bookingId) {
             return NextResponse.json(
-                { error: 'bookingId is required' },
+                { error: 'bookingId é obrigatório' },
                 { status: 400 }
             );
         }
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
         if (!booking) {
             return NextResponse.json(
-                { error: 'Booking not found' },
+                { error: 'Reserva não encontrada' },
                 { status: 404 }
             );
         }

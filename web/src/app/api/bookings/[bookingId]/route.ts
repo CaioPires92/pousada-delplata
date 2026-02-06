@@ -19,16 +19,16 @@ export async function GET(
 
         if (!booking) {
             return NextResponse.json(
-                { error: 'Booking not found' },
+                { error: 'Reserva não encontrada' },
                 { status: 404 }
             );
         }
 
         return NextResponse.json(booking);
     } catch (error) {
-        console.error('Error fetching booking:', error);
+        console.error('Erro ao buscar reserva:', error);
         return NextResponse.json(
-            { error: 'Error fetching booking details' },
+            { error: 'Erro ao buscar detalhes da reserva' },
             { status: 500 }
         );
     }

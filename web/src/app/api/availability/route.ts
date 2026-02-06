@@ -14,7 +14,7 @@ export async function GET(request: Request) {
         const childrenAges = searchParams.get('childrenAges')?.split(',').map(Number) || [];
 
         if (!checkIn || !checkOut) {
-            return NextResponse.json({ error: 'Check-in and check-out are required' }, { status: 400 });
+            return NextResponse.json({ error: 'Check-in e check-out são obrigatórios' }, { status: 400 });
         }
 
         // 1. Definição do período da estadia
@@ -133,6 +133,6 @@ export async function GET(request: Request) {
         return NextResponse.json(availableRooms);
     } catch (error) {
         console.error('[Availability API Error]:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
     }
 }

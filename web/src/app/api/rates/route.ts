@@ -22,7 +22,7 @@ export async function GET(request: Request) {
                 assertDayKey(endDateParam, 'endDate');
             } catch (e) {
                 return NextResponse.json(
-                    { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                    { error: e instanceof Error ? e.message : 'Formato de data inválido. Use YYYY-MM-DD' },
                     { status: 400 }
                 );
             }
@@ -42,9 +42,9 @@ export async function GET(request: Request) {
         });
         return NextResponse.json(rates);
     } catch (error) {
-        console.error('Error fetching rates:', error);
+        console.error('Erro ao buscar tarifas:', error);
         return NextResponse.json(
-            { error: 'Error fetching rates' },
+            { error: 'Erro ao buscar tarifas' },
             { status: 500 }
         );
     }
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
             assertDayKey(endDate, 'endDate');
         } catch (e) {
             return NextResponse.json(
-                { error: e instanceof Error ? e.message : 'Invalid date format. Use YYYY-MM-DD' },
+                { error: e instanceof Error ? e.message : 'Formato de data inválido. Use YYYY-MM-DD' },
                 { status: 400 }
             );
         }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
         const endObj = parseISODateSafe(endDate, true);
 
         if (!startObj || !endObj) {
-            return NextResponse.json({ error: 'Invalid dates' }, { status: 400 });
+            return NextResponse.json({ error: 'Datas inválidas' }, { status: 400 });
         }
 
         const rate = await prisma.rate.create({
@@ -107,9 +107,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json(rate, { status: 201 });
     } catch (error) {
-        console.error('Error creating rate:', error);
+        console.error('Erro ao criar tarifa:', error);
         return NextResponse.json(
-            { error: 'Error creating rate' },
+            { error: 'Erro ao criar tarifa' },
             { status: 500 }
         );
     }

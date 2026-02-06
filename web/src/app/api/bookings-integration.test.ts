@@ -19,7 +19,9 @@ vi.mock('@/lib/prisma', () => ({
             findMany: vi.fn(),
         },
         guest: {
-            create: vi.fn(),
+        create: vi.fn(),
+        findFirst: vi.fn(),
+        update: vi.fn(),
         },
         booking: {
             findMany: vi.fn(),
@@ -94,7 +96,7 @@ describe('Booking Integration Tests', () => {
             roomType: { findUnique: prisma.roomType.findUnique },
             inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
             booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
-            guest: { create: prisma.guest.create },
+            guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
             $queryRaw: prisma.$queryRaw,
         };
 
@@ -102,6 +104,7 @@ describe('Booking Integration Tests', () => {
         (prisma.roomType.findUnique as any).mockResolvedValue(mockRoom);
         (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.booking.findMany as any).mockResolvedValue([]);
+        (prisma.guest.findFirst as any).mockResolvedValue(null);
         (prisma.guest.create as any).mockResolvedValue(mockGuest);
         (prisma.booking.create as any).mockResolvedValue(mockBooking);
 
@@ -192,7 +195,7 @@ describe('Booking Integration Tests', () => {
             roomType: { findUnique: prisma.roomType.findUnique },
             inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
             booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
-            guest: { create: prisma.guest.create },
+            guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
             $queryRaw: prisma.$queryRaw,
         };
 
@@ -200,6 +203,7 @@ describe('Booking Integration Tests', () => {
         (prisma.roomType.findUnique as any).mockResolvedValue(mockRoom);
         (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.booking.findMany as any).mockResolvedValue([]);
+        (prisma.guest.findFirst as any).mockResolvedValue(null);
         (prisma.guest.create as any).mockResolvedValue(mockGuest);
         (prisma.booking.create as any).mockResolvedValue(mockBooking);
 
@@ -292,7 +296,7 @@ describe('Booking Integration Tests', () => {
             roomType: { findUnique: prisma.roomType.findUnique },
             inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
             booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
-            guest: { create: prisma.guest.create },
+            guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
             $queryRaw: prisma.$queryRaw,
         };
 
@@ -300,6 +304,7 @@ describe('Booking Integration Tests', () => {
         (prisma.roomType.findUnique as any).mockResolvedValue(mockRoom);
         (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.booking.findMany as any).mockResolvedValue([]);
+        (prisma.guest.findFirst as any).mockResolvedValue(null);
         (prisma.guest.create as any).mockResolvedValue(mockGuest);
         (prisma.booking.create as any).mockResolvedValue(mockBooking);
 
