@@ -19,28 +19,33 @@ export default function ConfirmacaoPage() {
     const searchParams = useSearchParams();
     const bookingId = params.bookingId as string;
 
-    // Pegamos o status inicial da URL do Mercado Pago
+    // Status que vem na URL do Mercado Pago
     const initialStatus = searchParams.get('status');
 
     const [booking, setBooking] = useState<Booking | null>(null);
     const [loading, setLoading] = useState(true);
-    const [currentStatus, setCurrentStatus] = useState<string | null>(initialStatus);
+
+    // FUNÇÃO PARA CORRIGIR O ERRO DE DATA (05 vs 06)
+    const formatarDataSemFuso = (dateString: string) => {
+        if (!dateString) return '';
+        // Pega apenas a parte YYYY-MM-DD e ignora o resto
+        const [ano, mes, dia] = dateString.split('T')[0].split('-');
+        return `${dia}/${mes}/${ano}`;
+    };
 
     const fetchBooking = useCallback(async () => {
         if (!bookingId) return;
         try {
-            // Pequeno delay de 1.5s para dar tempo ao Webhook de processar o banco
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Delay de 2 segundos para dar tempo ao Webhook de atualizar o Turso
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             const response = await fetch(`/api/bookings/${bookingId}`);
             if (response.ok) {
                 const data = await response.json();
                 setBooking(data);
-                // Atualizamos o status com o que está REALMENTE no banco agora
-                setCurrentStatus(data.status.toLowerCase() === 'confirmed' ? 'approved' : data.status.toLowerCase());
             }
         } catch (error) {
-            console.error('Error fetching booking:', error);
+            console.error('Erro ao buscar reserva:', error);
         } finally {
             setLoading(false);
         }
@@ -50,134 +55,110 @@ export default function ConfirmacaoPage() {
         fetchBooking();
     }, [fetchBooking]);
 
-    // Alerta inteligente: só avisa se o banco confirmar que ainda está pendente
+    // LÓGICA DE ALERTAS INTELIGENTES
     useEffect(() => {
         if (!loading && booking) {
-            const statusToNotify = booking.status.toLowerCase();
+            const dbStatus = booking.status; // 'CONFIRMED', 'PENDING', etc.
 
-            if (statusToNotify === 'pending' || initialStatus === 'pending') {
-                // Se no banco já estiver CONFIRMED, não mostramos o alerta de pendente
-                if (booking.status !== 'CONFIRMED') {
-                    alert('⏳ PAGAMENTO SENDO PROCESSADO\n\nSeu pagamento está sendo processado.\nVocê receberá um email quando for confirmado.');
-                }
-            } else if (initialStatus === 'approved' || booking.status === 'CONFIRMED') {
-                alert('✅ PAGAMENTO APROVADO!\n\nSua reserva foi confirmada com sucesso.');
-            } else if (initialStatus === 'rejected') {
-                alert('❌ PAGAMENTO RECUSADO\n\nNão foi possível processar seu pagamento.\nTente novamente com outro cartão.');
+            // Se no banco já está confirmado, ignoramos qualquer aviso de pendência da URL
+            if (dbStatus === 'CONFIRMED') {
+                alert('✅ RESERVA CONFIRMADA!\n\nSeu pagamento foi aprovado. Você receberá um e-mail com os detalhes em breve.');
+            }
+            // Se o banco ainda diz pendente E a URL também, mostramos o aviso de espera
+            else if (initialStatus === 'pending' || dbStatus === 'PENDING') {
+                alert('⏳ PAGAMENTO EM PROCESSAMENTO\n\nSeu pagamento está sendo validado. Assim que o Pix for compensado, a página atualizará.');
+            }
+            else if (initialStatus === 'rejected') {
+                alert('❌ PAGAMENTO RECUSADO\n\nTente novamente ou utilize outro método de pagamento.');
             }
         }
     }, [loading, booking, initialStatus]);
 
-    const getStatusInfo = () => {
-        // Prioriza o status real do banco (booking.status)
-        const dbStatus = booking?.status;
-
-        if (dbStatus === 'CONFIRMED' || initialStatus === 'approved') {
-            return {
-                title: '✅ Pagamento Aprovado!',
-                message: 'Sua reserva foi confirmada com sucesso.',
-                color: '#4CAF50',
-            };
-        }
-
-        switch (initialStatus) {
-            case 'pending':
-                return {
-                    title: '⏳ Pagamento Pendente',
-                    message: 'Seu pagamento está sendo processado. Você receberá um email quando for confirmado.',
-                    color: '#FF9800',
-                };
-            case 'rejected':
-                return {
-                    title: '❌ Pagamento Recusado',
-                    message: 'Não foi possível processar seu pagamento. Tente novamente.',
-                    color: '#F44336',
-                };
-            default:
-                return {
-                    title: '📋 Reserva Criada',
-                    message: 'Sua reserva foi registrada.',
-                    color: '#2196F3',
-                };
-        }
-    };
-
-    const statusInfo = getStatusInfo();
+    const isConfirmed = booking?.status === 'CONFIRMED';
+    const accentColor = isConfirmed ? '#4CAF50' : '#FF9800';
 
     if (loading) {
         return (
-            <main className="container section" style={{ paddingTop: '120px' }}>
-                <div style={{ textAlign: 'center', padding: '3rem' }}>
-                    <p>Verificando confirmação do pagamento...</p>
-                </div>
+            <main style={{ paddingTop: '140px', textAlign: 'center', minHeight: '100vh' }}>
+                <p>Verificando sua reserva na Pousada Delplata...</p>
             </main>
         );
     }
 
     return (
-        // ADICIONADO: paddingTop: '120px' para descer o conteúdo abaixo da Navbar
-        <main className="container section" style={{ paddingTop: '120px', minHeight: '100vh', paddingBottom: '40px' }}>
+        /* ADICIONADO: paddingTop de 140px para descer o conteúdo da Navbar */
+        <main style={{ paddingTop: '140px', paddingBottom: '60px', minHeight: '100vh', backgroundColor: '#fff' }}>
             <div style={{
                 maxWidth: '600px',
                 margin: '0 auto',
                 textAlign: 'center',
-                padding: '2rem',
-                border: `3px solid ${statusInfo.color}`,
-                borderRadius: '8px',
-                backgroundColor: '#f9f9f9',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                padding: '2.5rem',
+                border: `2px solid ${accentColor}`,
+                borderRadius: '12px',
+                backgroundColor: '#fcfcfc',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.05)'
             }}>
-                <h1 style={{ color: statusInfo.color, marginBottom: '1rem' }}>
-                    {statusInfo.title}
+                <h1 style={{ color: accentColor, marginBottom: '1.5rem', fontSize: '2rem' }}>
+                    {isConfirmed ? '✅ Reserva Confirmada!' : '⏳ Pagamento Pendente'}
                 </h1>
-                <p style={{ fontSize: '1.1rem', marginBottom: '2rem' }}>
-                    {statusInfo.message}
+
+                <p style={{ fontSize: '1.1rem', color: '#555', marginBottom: '2rem' }}>
+                    {isConfirmed
+                        ? 'Tudo pronto! Sua estadia na Pousada Delplata está garantida.'
+                        : 'Estamos aguardando a confirmação do Mercado Pago.'}
                 </p>
 
                 {booking && (
                     <div style={{
                         backgroundColor: 'white',
-                        padding: '1.5rem',
-                        borderRadius: '8px',
+                        padding: '2rem',
+                        borderRadius: '10px',
                         marginBottom: '2rem',
                         textAlign: 'left',
-                        border: '1px solid #eee'
+                        border: '1px solid #eee',
+                        lineHeight: '1.8'
                     }}>
-                        <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>Detalhes da Reserva</h2>
-                        <p><strong>Código:</strong> {booking.id.slice(0, 8).toUpperCase()}</p>
+                        <h2 style={{ marginBottom: '1.2rem', fontSize: '1.4rem', borderBottom: '1px solid #f0f0f0' }}>Detalhes da Reserva</h2>
+                        <p><strong>Código:</strong> <span style={{ color: '#666' }}>{booking.id.toUpperCase()}</span></p>
                         <p><strong>Quarto:</strong> {booking.roomType?.name}</p>
                         <p><strong>Hóspede:</strong> {booking.guest?.name}</p>
-                        <p><strong>Check-in:</strong> {new Date(booking.checkIn).toLocaleDateString('pt-BR')}</p>
-                        <p><strong>Check-out:</strong> {new Date(booking.checkOut).toLocaleDateString('pt-BR')}</p>
+
+                        {/* DATAS CORRIGIDAS AQUI */}
+                        <p><strong>Check-in:</strong> {formatarDataSemFuso(booking.checkIn)}</p>
+                        <p><strong>Check-out:</strong> {formatarDataSemFuso(booking.checkOut)}</p>
+
                         <p><strong>Valor Total:</strong> R$ {Number(booking.totalPrice).toFixed(2)}</p>
-                        <p style={{
-                            marginTop: '10px',
-                            padding: '5px 10px',
-                            backgroundColor: booking.status === 'CONFIRMED' ? '#e8f5e9' : '#fff3e0',
+
+                        <div style={{
+                            marginTop: '15px',
+                            padding: '8px 15px',
+                            backgroundColor: isConfirmed ? '#e8f5e9' : '#fff3e0',
                             display: 'inline-block',
-                            borderRadius: '4px',
+                            borderRadius: '5px',
                             fontWeight: 'bold',
-                            color: booking.status === 'CONFIRMED' ? '#2e7d32' : '#ef6c00'
+                            color: isConfirmed ? '#2e7d32' : '#ef6c00'
                         }}>
-                            Status: {booking.status}
-                        </p>
+                            Status do Sistema: {booking.status}
+                        </div>
                     </div>
                 )}
 
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <Link href="/" className="btn-primary">
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <Link href="/" style={{
+                        padding: '12px 25px',
+                        backgroundColor: '#000',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        textDecoration: 'none',
+                        fontWeight: '600'
+                    }}>
                         Voltar ao Início
                     </Link>
-                    {initialStatus === 'rejected' && (
-                        <Link href={`/reservar?checkIn=${booking?.checkIn}&checkOut=${booking?.checkOut}`} className="btn-secondary">
-                            Tentar Novamente
-                        </Link>
-                    )}
                 </div>
 
-                <div style={{ marginTop: '2rem', fontSize: '0.9rem', color: '#666' }}>
-                    <p>Você receberá um email de confirmação em breve.</p>
-                    <p>Em caso de dúvidas, entre em contato conosco.</p>
+                <div style={{ marginTop: '2.5rem', fontSize: '0.9rem', color: '#888', borderTop: '1px solid #f0f0f0', paddingTop: '1.5rem' }}>
+                    <p>Enviamos um resumo para o e-mail: <strong>{booking?.guest?.email}</strong></p>
+                    <p style={{ marginTop: '10px' }}>Dúvidas? Entre em contato pelo nosso WhatsApp.</p>
                 </div>
             </div>
         </main>
