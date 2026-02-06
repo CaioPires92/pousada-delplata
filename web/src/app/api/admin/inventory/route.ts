@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
                             }
                         })
                     );
-                    current.setDate(current.getDate() + 1);
+                    current.setUTCDate(current.getUTCDate() + 1);
                 }
             }
             await prisma.$transaction(operations);
@@ -47,8 +48,9 @@ export async function POST(request: Request) {
 
         // --- CASO 2: ATUALIZAÇÃO INDIVIDUAL ---
         if (roomTypeId && date && totalUnits !== undefined) {
-            const dKey = String(date);
-            const isoDate = new Date(`${date}T12:00:00Z`);
+            const inputDate = new Date(date);
+            const dKey = inputDate.toISOString().slice(0, 10);
+            const isoDate = new Date(`${dKey}T12:00:00Z`);
 
             const adjustment = await prisma.inventoryAdjustment.upsert({
                 where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
@@ -66,7 +68,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Dados insuficientes' }, { status: 400 });
 
     } catch (error: any) {
-        console.error('ERRO DETALHADO:', error);
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            console.error('PRISMA ERROR:', { code: error.code, meta: error.meta });
+        } else {
+            console.error('ERRO DETALHADO:', error);
+        }
         return NextResponse.json({
             error: 'Internal Server Error',
             details: error.message
