@@ -66,6 +66,8 @@ model InventoryAdjustment {
   date       DateTime
   dateKey    String   // Ex: "2026-02-06"
   totalUnits Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])
