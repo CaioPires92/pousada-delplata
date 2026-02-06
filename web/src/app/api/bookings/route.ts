@@ -23,10 +23,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        const adultsCount = Number.parseInt(String(adults ?? ''), 10);
-        const childrenCount = Number.parseInt(String(children ?? ''), 10);
-        const agesArray = Array.isArray(childrenAges) ? childrenAges : [];
-        const normalizedChildrenAges = agesArray.map((age) => Number.parseInt(String(age), 10));
+        const agesArrayInput = Array.isArray(childrenAges) ? childrenAges : [];
 
         const booking = await prisma.$transaction(async (tx) => {
             const roomType = await tx.roomType.findUnique({
@@ -42,6 +39,10 @@ export async function POST(request: Request) {
                 },
             });
             if (!roomType) return null;
+            const adultsCount = Number.parseInt(String(adults ?? ''), 10);
+            const childrenCount = Number.parseInt(String(children ?? ''), 10);
+            const normalizedChildrenAges = agesArrayInput.map((age) => Number.parseInt(String(age), 10));
+            const effectiveAdults = Number.isNaN(adultsCount) ? Number(roomType.includedAdults ?? 2) : adultsCount;
 
             const startDayKey = checkIn;
             const endDayExclusiveKey = checkOut;
@@ -59,15 +60,6 @@ export async function POST(request: Request) {
                 },
             });
 
-            // --- TRAVA 1: STOP SELL & MINLOS (Baseado na Rate) ---
-            const activeRate = roomType.rates.find(r => {
-                const rStart = r.startDate.toISOString().split('T')[0];
-                const rEnd = r.endDate.toISOString().split('T')[0];
-                return checkIn >= rStart && checkIn <= rEnd;
-            });
-
-            if (activeRate?.stopSell) throw new Error('No availability'); // Stop Sell ativo 
-            if (nightsCount < (activeRate?.minLos || 1)) throw new Error('MinLos error'); // Mínimo de noites 
 
             // --- TRAVA 2: DISPONIBILIDADE FÍSICA ---
             const inventoryByDay = new Map<string, number>(
@@ -124,7 +116,7 @@ export async function POST(request: Request) {
             const breakdown = calculateBookingPrice({
                 nights: nightsCount,
                 baseTotalForStay,
-                adults: adultsCount,
+                adults: effectiveAdults,
                 childrenAges: normalizedChildrenAges,
                 includedAdults: roomType.includedAdults,
                 maxGuests: roomType.maxGuests,

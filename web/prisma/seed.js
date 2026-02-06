@@ -108,6 +108,10 @@ async function seed() {
                     startDate: start,
                     endDate: end,
                     price: room.basePrice,
+                    stopSell: false,
+                    cta: false,
+                    ctd: false,
+                    minLos: 1,
                 }
             });
         }

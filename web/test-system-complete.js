@@ -25,7 +25,7 @@ async function test(name, fn) {
     }
 }
 
-function makeLocalRequest(path, method = 'GET', body = null) {
+function makeLocalRequest(path, method = 'GET', body = null, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: 'localhost',
@@ -33,7 +33,8 @@ function makeLocalRequest(path, method = 'GET', body = null) {
             path: path,
             method: method,
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                ...extraHeaders
             }
         };
 
@@ -43,9 +44,9 @@ function makeLocalRequest(path, method = 'GET', body = null) {
             res.on('end', () => {
                 try {
                     const parsed = data ? JSON.parse(data) : {};
-                    resolve({ status: res.statusCode, data: parsed });
+                    resolve({ status: res.statusCode, data: parsed, headers: res.headers });
                 } catch (e) {
-                    resolve({ status: res.statusCode, data: data });
+                    resolve({ status: res.statusCode, data: data, headers: res.headers });
                 }
             });
         });
@@ -88,6 +89,13 @@ function makeMPRequest(options, body = null) {
 async function runTests() {
     console.log('\n📋 1. TESTES DE INFRAESTRUTURA\n');
 
+    const today = new Date();
+    today.setUTCMinutes(0, 0, 0);
+    const d1 = new Date(today); d1.setUTCDate(today.getUTCDate() + 1);
+    const d2 = new Date(today); d2.setUTCDate(today.getUTCDate() + 2);
+    const checkInStr = d1.toISOString().slice(0, 10);
+    const checkOutStr = d2.toISOString().slice(0, 10);
+
     await test('1.1 - Servidor local está rodando', async () => {
         const response = await makeLocalRequest('/');
         if (response.status !== 200) {
@@ -99,15 +107,17 @@ async function runTests() {
         const { PrismaClient } = require('@prisma/client');
         const { PrismaLibSQL } = require('@prisma/adapter-libsql');
         const { createClient } = require('@libsql/client');
-
-        const libsql = createClient({
-            url: process.env.DATABASE_URL,
-            authToken: process.env.DATABASE_AUTH_TOKEN,
-        });
-
-        const adapter = new PrismaLibSQL(libsql);
-        const prisma = new PrismaClient({ adapter });
-
+        let prisma;
+        if (process.env.DATABASE_AUTH_TOKEN && process.env.DATABASE_URL?.startsWith('libsql:')) {
+            const libsql = createClient({
+                url: process.env.DATABASE_URL,
+                authToken: process.env.DATABASE_AUTH_TOKEN,
+            });
+            const adapter = new PrismaLibSQL(libsql);
+            prisma = new PrismaClient({ adapter });
+        } else {
+            prisma = new PrismaClient();
+        }
         await prisma.$connect();
         const count = await prisma.roomType.count();
         if (count === 0) throw new Error('Sem quartos no banco');
@@ -142,7 +152,7 @@ async function runTests() {
     let availableRooms = [];
     await test('2.1 - API de disponibilidade funciona', async () => {
         const response = await makeLocalRequest(
-            '/api/availability?checkIn=2025-12-01&checkOut=2025-12-02&adults=2&children=0'
+            `/api/availability?checkIn=${checkInStr}&checkOut=${checkOutStr}&adults=2&children=0`
         );
 
         if (response.status !== 200) {
@@ -168,8 +178,8 @@ async function runTests() {
         const room = availableRooms[0];
         const response = await makeLocalRequest('/api/bookings', 'POST', {
             roomTypeId: room.id,
-            checkIn: '2025-12-01',
-            checkOut: '2025-12-02',
+            checkIn: checkInStr,
+            checkOut: checkOutStr,
             totalPrice: room.totalPrice,
             guest: {
                 name: 'Teste Automatizado',
@@ -216,6 +226,7 @@ async function runTests() {
     console.log('\n📋 3. TESTES DO PAINEL ADMIN\n');
 
     let adminToken = null;
+    let adminCookie = null;
     await test('3.1 - API de login admin funciona', async () => {
         const response = await makeLocalRequest('/api/admin/login', 'POST', {
             email: 'admin@delplata.com.br',
@@ -226,15 +237,20 @@ async function runTests() {
             throw new Error(`Status ${response.status}`);
         }
 
-        if (!response.data.token) {
+        const token = response.data && response.data.token;
+        const setCookie = response.headers && (response.headers['set-cookie'] || response.headers['Set-Cookie']);
+        const setCookieStr = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+        const cookieVal = typeof setCookieStr === 'string' ? setCookieStr.split(';')[0] : null;
+        if (!token && !(cookieVal && cookieVal.includes('admin_session='))) {
             throw new Error('Login sem token');
         }
-
-        adminToken = response.data.token;
+        adminToken = token || null;
+        adminCookie = cookieVal || null;
     });
 
     await test('3.2 - API de estatísticas funciona', async () => {
-        const response = await makeLocalRequest('/api/admin/stats');
+        const headers = adminCookie ? { Cookie: adminCookie } : {};
+        const response = await makeLocalRequest('/api/admin/stats', 'GET', null, headers);
 
         if (response.status !== 200) {
             throw new Error(`Status ${response.status}`);
@@ -246,7 +262,8 @@ async function runTests() {
     });
 
     await test('3.3 - API de listagem de reservas funciona', async () => {
-        const response = await makeLocalRequest('/api/admin/bookings');
+        const headers = adminCookie ? { Cookie: adminCookie } : {};
+        const response = await makeLocalRequest('/api/admin/bookings', 'GET', null, headers);
 
         if (response.status !== 200) {
             throw new Error(`Status ${response.status}`);
@@ -258,7 +275,8 @@ async function runTests() {
     });
 
     await test('3.4 - API de listagem de quartos funciona', async () => {
-        const response = await makeLocalRequest('/api/admin/rooms');
+        const headers = adminCookie ? { Cookie: adminCookie } : {};
+        const response = await makeLocalRequest('/api/admin/rooms', 'GET', null, headers);
 
         if (response.status !== 200) {
             throw new Error(`Status ${response.status}`);
@@ -281,14 +299,17 @@ async function runTests() {
         const { PrismaClient } = require('@prisma/client');
         const { PrismaLibSQL } = require('@prisma/adapter-libsql');
         const { createClient } = require('@libsql/client');
-
-        const libsql = createClient({
-            url: process.env.DATABASE_URL,
-            authToken: process.env.DATABASE_AUTH_TOKEN,
-        });
-
-        const adapter = new PrismaLibSQL(libsql);
-        const prisma = new PrismaClient({ adapter });
+        let prisma;
+        if (process.env.DATABASE_AUTH_TOKEN && process.env.DATABASE_URL?.startsWith('libsql:')) {
+            const libsql = createClient({
+                url: process.env.DATABASE_URL,
+                authToken: process.env.DATABASE_AUTH_TOKEN,
+            });
+            const adapter = new PrismaLibSQL(libsql);
+            prisma = new PrismaClient({ adapter });
+        } else {
+            prisma = new PrismaClient();
+        }
 
         const booking = await prisma.booking.findUnique({
             where: { id: bookingId },
@@ -310,14 +331,17 @@ async function runTests() {
         const { PrismaClient } = require('@prisma/client');
         const { PrismaLibSQL } = require('@prisma/adapter-libsql');
         const { createClient } = require('@libsql/client');
-
-        const libsql = createClient({
-            url: process.env.DATABASE_URL,
-            authToken: process.env.DATABASE_AUTH_TOKEN,
-        });
-
-        const adapter = new PrismaLibSQL(libsql);
-        const prisma = new PrismaClient({ adapter });
+        let prisma;
+        if (process.env.DATABASE_AUTH_TOKEN && process.env.DATABASE_URL?.startsWith('libsql:')) {
+            const libsql = createClient({
+                url: process.env.DATABASE_URL,
+                authToken: process.env.DATABASE_AUTH_TOKEN,
+            });
+            const adapter = new PrismaLibSQL(libsql);
+            prisma = new PrismaClient({ adapter });
+        } else {
+            prisma = new PrismaClient();
+        }
 
         const payment = await prisma.payment.findFirst({
             where: { bookingId }
@@ -336,7 +360,7 @@ async function runTests() {
     await test('5.1 - API de disponibilidade < 500ms', async () => {
         const start = Date.now();
         await makeLocalRequest(
-            '/api/availability?checkIn=2025-12-01&checkOut=2025-12-02&adults=2&children=0'
+            `/api/availability?checkIn=${checkInStr}&checkOut=${checkOutStr}&adults=2&children=0`
         );
         const duration = Date.now() - start;
 

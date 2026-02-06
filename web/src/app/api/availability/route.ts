@@ -43,6 +43,11 @@ export async function GET(request: Request) {
         const availableRooms = [];
 
         for (const room of roomTypes) {
+            const rates = room.rates.map((r: any) => ({
+                ...r,
+                startDate: r.startDate instanceof Date ? r.startDate : new Date(`${String(r.startDate)}T00:00:00Z`),
+                endDate: r.endDate instanceof Date ? r.endDate : new Date(`${String(r.endDate)}T00:00:00Z`),
+            }));
             // --- 1. VALIDAÇÃO DE INVENTÁRIO (Quartos físicos) ---
             const adjustments = await prisma.inventoryAdjustment.findMany({
                 where: {
@@ -54,24 +59,10 @@ export async function GET(request: Request) {
             const isSoldOut = adjustments.some((adj) => adj.totalUnits === 0);
             if (isSoldOut) continue;
 
-            // --- 2. VALIDAÇÃO DE REGRAS (Stop Sell / MinLos) ---
-            // Verificamos se algum dos dias selecionados (inclusive o dia 4 ou 15 do seu teste)
-            // possui uma regra de Stop Sell ativa no banco de dados.
-            const isPeriodBlocked = daysSelected.some(day => {
-                return room.rates.some(r => {
-                    const rStart = r.startDate.toISOString().split('T')[0];
-                    const rEnd = r.endDate.toISOString().split('T')[0];
-                    return day >= rStart && day <= rEnd && r.stopSell === true;
-                });
-            });
-
-            if (isPeriodBlocked) {
-                console.log(`[Stop Sell] O quarto ${room.name} está bloqueado em uma das datas escolhidas.`);
-                continue;
-            }
+            // --- 2. VALIDAÇÃO DE REGRAS (MinLos) ---
 
             // Validação de Mínimo de Noites baseada no check-in
-            const activeRate = room.rates.find(r => {
+            const activeRate = rates.find(r => {
                 const rStart = r.startDate.toISOString().split('T')[0];
                 const rEnd = r.endDate.toISOString().split('T')[0];
                 return checkIn >= rStart && checkIn <= rEnd;
@@ -85,7 +76,7 @@ export async function GET(request: Request) {
             // --- 3. CÁLCULO DE PREÇO ---
             let baseTotalForStay = 0;
             for (const dayStr of nightStrings) {
-                const specificRate = room.rates.find(r => {
+                const specificRate = rates.find(r => {
                     const rStart = r.startDate.toISOString().split('T')[0];
                     const rEnd = r.endDate.toISOString().split('T')[0];
                     return dayStr >= rStart && dayStr <= rEnd;
