@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { calculateBookingPrice, BookingPriceError } from '@/lib/booking-price';
+import { calculateBookingPrice } from '@/lib/booking-price';
 import { eachDayKeyInclusive } from '@/lib/day-key';
 
 export const dynamic = 'force-dynamic';
@@ -38,8 +38,8 @@ export async function GET(request: Request) {
         const vinteMinutosAtras = new Date(Date.now() - 20 * 60 * 1000);
 
         for (const room of roomTypes) {
-            // --- NOVA TRAVA ANTI-OVERBOOKING ---
-            const reservaAtiva = await prisma.booking.findFirst({
+            // --- TRAVA ANTI-OVERBOOKING (CONTAGE DE UNIDADES) ---
+            const reservasOcupando = await prisma.booking.count({
                 where: {
                     roomTypeId: room.id,
                     checkIn: { lt: new Date(`${checkOut}T00:00:00Z`) },
@@ -54,7 +54,8 @@ export async function GET(request: Request) {
                 }
             });
 
-            if (reservaAtiva) continue;
+            // Só pula se todas as unidades do tipo de quarto estiverem ocupadas
+            if (reservasOcupando >= (room.totalUnits || 1)) continue;
 
             const rates = room.rates.map((r: any) => ({
                 ...r,
@@ -93,7 +94,8 @@ export async function GET(request: Request) {
                 availableRooms.push({
                     ...room,
                     totalPrice: breakdown.total,
-                    isAvailable: true
+                    isAvailable: true,
+                    remainingUnits: (room.totalUnits || 1) - reservasOcupando
                 });
             } catch (e) { }
         }
