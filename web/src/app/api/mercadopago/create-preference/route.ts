@@ -58,8 +58,17 @@ export async function POST(request: Request) {
             body: JSON.stringify(preferenceData),
         });
 
+        if (!apiResponse.ok) {
+            const errorData = await apiResponse.json().catch(() => ({ message: 'Erro desconhecido' }));
+            return NextResponse.json(
+                {
+                    error: 'Falha ao criar preferência de pagamento',
+                    details: errorData.message,
+                },
+                { status: apiResponse.status }
+            );
+        }
         const result = await apiResponse.json();
-        if (!apiResponse.ok) throw new Error(result.message || 'Erro no Mercado Pago');
 
         // Registro opcional de pagamento no banco
         try {
@@ -77,6 +86,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ preferenceId: result.id, initPoint: result.init_point });
 
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Erro ao criar preferência de pagamento', details: error.message }, { status: 500 });
     }
 }

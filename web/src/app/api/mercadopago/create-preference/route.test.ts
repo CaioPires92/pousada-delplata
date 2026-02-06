@@ -50,7 +50,7 @@ describe('MercadoPago Create Preference API', () => {
     };
 
     (prisma.booking.findUnique as any).mockResolvedValue(mockBooking);
-    
+
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockMPResponse,
@@ -118,6 +118,6 @@ describe('MercadoPago Create Preference API', () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    expect(data.error).toContain('Failed to create');
+    expect(data.error).toContain('Falha ao criar preferência de pagamento');
   });
 });
