@@ -114,7 +114,9 @@ export async function GET(request: Request) {
         const calendarData = dayKeys.map((dateStr) => {
             const rate = normalizedRates.find((r) => dateStr >= r.dayStart && dateStr <= r.dayEnd);
             const adjustment = inventoryByDay.get(dateStr);
-            const totalInventory = adjustment ? adjustment.totalUnits : roomType.totalUnits;
+            const totalInventory = adjustment
+                ? Math.min(Number(roomType.totalUnits), Number(adjustment.totalUnits))
+                : Number(roomType.totalUnits);
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
             const available = Math.max(0, totalInventory - bookingsCount);
 

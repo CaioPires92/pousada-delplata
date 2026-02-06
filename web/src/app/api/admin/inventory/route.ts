@@ -26,16 +26,19 @@ export async function POST(request: Request) {
 
                 while (current <= last) {
                     const dKey = current.toISOString().split('T')[0];
+                    const roomType = await prisma.roomType.findUnique({ where: { id } });
+                    const maxUnits = Number(roomType?.totalUnits ?? 1);
+                    const safeUnits = Math.max(0, Math.min(maxUnits, inventoryValue));
 
                     operations.push(
                         prisma.inventoryAdjustment.upsert({
                             where: { roomTypeId_dateKey: { roomTypeId: id, dateKey: dKey } },
-                            update: { totalUnits: inventoryValue, date: new Date(current) },
+                            update: { totalUnits: safeUnits, date: new Date(current) },
                             create: {
                                 roomTypeId: id,
                                 dateKey: dKey,
                                 date: new Date(current),
-                                totalUnits: inventoryValue
+                                totalUnits: safeUnits
                             }
                         })
                     );
@@ -51,15 +54,18 @@ export async function POST(request: Request) {
             const inputDate = new Date(date);
             const dKey = inputDate.toISOString().slice(0, 10);
             const isoDate = new Date(`${dKey}T12:00:00Z`);
+            const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeId } });
+            const maxUnits = Number(roomType?.totalUnits ?? 1);
+            const safeUnits = Math.max(0, Math.min(maxUnits, parseInt(totalUnits)));
 
             const adjustment = await prisma.inventoryAdjustment.upsert({
                 where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
-                update: { totalUnits: parseInt(totalUnits), date: isoDate },
+                update: { totalUnits: safeUnits, date: isoDate },
                 create: {
                     roomTypeId,
                     dateKey: dKey,
                     date: isoDate,
-                    totalUnits: parseInt(totalUnits)
+                    totalUnits: safeUnits
                 }
             });
             return NextResponse.json(adjustment);
