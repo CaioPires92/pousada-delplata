@@ -33,7 +33,10 @@ describe('requireAdminAuth', () => {
     (process.env as any).ADMIN_JWT_SECRET = 'secret';
     const mod = await import('next/headers');
     (mod as any).cookies = async () => ({
-      get: (_name: string) => ({ value: 'token' }),
+      get: (name: string) => {
+        void name;
+        return { value: 'token' };
+      },
     });
     vi.resetModules();
     vi.mock('@/lib/admin-jwt', () => ({
@@ -42,11 +45,15 @@ describe('requireAdminAuth', () => {
         void env;
         return 'token';
       },
-      verifyAdminJwt: async (_token: string, _secret: string): Promise<AdminJwtClaims> => ({
-        adminId: 'admin-1',
-        email: 'admin@delplata.com.br',
-        role: 'admin',
-      }),
+      verifyAdminJwt: async (token: string, secret: string): Promise<AdminJwtClaims> => {
+        void token;
+        void secret;
+        return {
+          adminId: 'admin-1',
+          email: 'admin@delplata.com.br',
+          role: 'admin',
+        };
+      },
     }));
     ({ requireAdminAuth } = await import('./admin-auth'));
     const claims = await requireAdminAuth();

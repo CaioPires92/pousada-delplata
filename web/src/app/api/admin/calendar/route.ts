@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { requireAdminAuth } from '@/lib/admin-auth';
-import { normalizeDateStr } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAdminSessionCookieName, readAdminSessionTokenFromCookies, signAdminJwt, verifyAdminJwt } from './admin-jwt';
+import { getAdminSessionCookieName, readAdminSessionTokenFromCookies } from './admin-jwt';
 import { vi } from 'vitest';
 
 describe('admin-jwt', () => {

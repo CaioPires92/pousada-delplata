@@ -1,22 +1,13 @@
 import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
-import { requireAdminAuth } from '@/lib/admin-auth';
-import { opsLog } from '@/lib/ops-log';
-import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
+import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
+import { calculateBookingPrice } from '@/lib/booking-price';
 import { parseLocalDate } from '@/lib/date-utils';
-import { BookingPriceError, calculateBookingPrice } from '@/lib/booking-price';
 
 export async function POST(request: Request) {
-    let ctxRoomTypeId: string | undefined;
-    let ctxCheckIn: string | undefined;
-    let ctxCheckOut: string | undefined;
     try {
         const body = await request.json();
-        const { roomTypeId, checkIn, checkOut, guest, adults, children, childrenAges, totalPrice } = body;
-        ctxRoomTypeId = roomTypeId;
-        ctxCheckIn = checkIn;
-        ctxCheckOut = checkOut;
+        const { roomTypeId, checkIn, checkOut, guest, adults, childrenAges } = body;
 
         // 1. Validate input
         if (!roomTypeId || !checkIn || !checkOut || !guest) {
@@ -40,7 +31,6 @@ export async function POST(request: Request) {
             });
             if (!roomType) return null;
             const adultsCount = Number.parseInt(String(adults ?? ''), 10);
-            const childrenCount = Number.parseInt(String(children ?? ''), 10);
             const normalizedChildrenAges = agesArrayInput.map((age) => Number.parseInt(String(age), 10));
             const effectiveAdults = Number.isNaN(adultsCount) ? Number(roomType.includedAdults ?? 2) : adultsCount;
 

@@ -224,7 +224,6 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     const childOptions = [0, 1, 2];
     const shouldShowCapacityFallback = showCapacityFallback || isOverCapacity;
     const agesMissing = numChildren > 0 && (childrenAges.length !== numChildren || childrenAges.some((age) => age === null));
-    const filledCount = childrenAges.filter((a) => typeof a === 'number').length;
     const searchDisabled = shouldShowCapacityFallback || numAdults < 1 || (numChildren > 0 && agesMissing) || !checkIn || !checkOut || loading;
 
     useEffect(() => {

@@ -3,11 +3,9 @@ import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
-import { assertDayKey, eachDayKeyInclusive, isNextDay } from '@/lib/day-key';
+import { eachDayKeyInclusive, isNextDay } from '@/lib/day-key';
 
 export async function POST(request: Request) {
-    let ctxStartDate: string | undefined;
-    let ctxEndDate: string | undefined;
     try {
         opsLog('info', 'BULK_ROUTE_HIT_v3', { path: '/api/rates/bulk' });
         const auth = await requireAdminAuth();
@@ -21,8 +19,6 @@ export async function POST(request: Request) {
 
         const effectiveStartDate = (date || startDate) as string | undefined;
         const effectiveEndDate = (date || endDate) as string | undefined;
-        ctxStartDate = effectiveStartDate;
-        ctxEndDate = effectiveEndDate;
 
         if ((!roomTypeId && !roomTypes) || !effectiveStartDate || !effectiveEndDate || !updates) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './reservas.module.css';
 
@@ -31,11 +31,7 @@ export default function AdminReservasPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
 
-    useEffect(() => {
-        fetchBookings();
-    }, [router]);
-
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         try {
             const response = await fetch('/api/admin/bookings');
             if (response.status === 401) {
@@ -51,7 +47,11 @@ export default function AdminReservasPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [router]);
+
+    useEffect(() => {
+        fetchBookings();
+    }, [fetchBookings]);
 
     const filteredBookings = bookings.filter(b => {
         if (filter === 'ALL') return true;

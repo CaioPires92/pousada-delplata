@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './quartos.module.css';
 
@@ -36,11 +36,7 @@ export default function AdminQuartosPage() {
         totalUnits: 0
     });
 
-    useEffect(() => {
-        fetchRooms();
-    }, [router]);
-
-    const fetchRooms = async () => {
+    const fetchRooms = useCallback(async () => {
         try {
             const response = await fetch('/api/admin/rooms');
             if (response.status === 401) {
@@ -56,7 +52,11 @@ export default function AdminQuartosPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [router]);
+
+    useEffect(() => {
+        fetchRooms();
+    }, [fetchRooms]);
 
     const handleEdit = (room: RoomType) => {
         setEditingRoom(room);
