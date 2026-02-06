@@ -60,19 +60,20 @@ model Rate {
 }
 
 model InventoryAdjustment {
-  id          String   @id @default(uuid())
-  roomTypeId  String
-  roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-  date        DateTime 
-  dateKey     String
-  totalUnits  Int      
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  date       DateTime
+  dateKey    String   // Ex: "2026-02-06"
+  totalUnits Int
 
-  @@unique([roomTypeId, date])
+  // REMOVA a linha @@unique([roomTypeId, date])
+  // MANTENHA APENAS ESTA:
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])
 }
+
+
 
 model Guest {
   id          String    @id @default(uuid())
