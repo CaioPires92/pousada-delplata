@@ -25,7 +25,7 @@ export async function GET(request: Request) {
                     { status: 400 }
                 );
             }
-            where.date = {
+            where.dateKey = {
                 gte: startDate,
                 lte: endDate,
             };
@@ -61,20 +61,24 @@ export async function POST(request: Request) {
             );
         }
 
-        // Upsert to handle both creation and update of inventory for a specific date
+        const dateKey = String(date);
+        const isoDate = new Date(`${date}T00:00:00Z`);
+        // Upsert using day-key, keeping legacy DateTime field populated
         const inventory = await prisma.inventoryAdjustment.upsert({
             where: {
-                roomTypeId_date: {
+                roomTypeId_dateKey: {
                     roomTypeId,
-                    date,
-                },
+                    dateKey,
+                }
             },
             update: {
                 totalUnits: parseInt(totalUnits),
+                date: isoDate
             },
             create: {
                 roomTypeId,
-                date,
+                dateKey,
+                date: isoDate,
                 totalUnits: parseInt(totalUnits),
             },
         });

@@ -14,23 +14,23 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
 
-        // Converte a string "YYYY-MM-DD" para um objeto Date válido.
-        // Adicionamos 'T12:00:00' para garantir que o fuso horário não mude o dia.
-        const isoDate = new Date(`${date}T12:00:00Z`);
+        const isoDate = new Date(`${date}T00:00:00Z`);
 
         // Upsert Inventory Adjustment
         const adjustment = await prisma.inventoryAdjustment.upsert({
             where: {
-                roomTypeId_date: {
+                roomTypeId_dateKey: {
                     roomTypeId,
-                    date: isoDate
+                    dateKey: String(date),
                 }
             },
             update: {
-                totalUnits: parseInt(totalUnits)
+                totalUnits: parseInt(totalUnits),
+                date: isoDate
             },
             create: {
                 roomTypeId,
+                dateKey: String(date),
                 date: isoDate,
                 totalUnits: parseInt(totalUnits)
             }

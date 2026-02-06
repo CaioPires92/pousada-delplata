@@ -171,10 +171,11 @@ export async function POST(request: Request) {
             if (hasInventoryUpdate) {
                 const inventoryValue = Number.parseInt(updates.inventory || updates.availableRooms);
                 ops.push(prisma.inventoryAdjustment.deleteMany({
-                    where: { roomTypeId: currentRoomId, date: { gte: startObj, lte: endObj } }
+                    where: { roomTypeId: currentRoomId, dateKey: { gte: start, lte: end } }
                 }));
                 const invRows = dayKeysInRange.map(dateKey => ({
                     roomTypeId: currentRoomId,
+                    dateKey,
                     date: new Date(`${dateKey}T00:00:00Z`),
                     totalUnits: inventoryValue
                 }));

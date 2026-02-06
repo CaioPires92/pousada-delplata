@@ -106,7 +106,7 @@ describe('Availability API - Pricing Logic', () => {
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
-      { date: new Date('2026-03-08T00:00:00.000Z'), totalUnits: 0 },
+      { dateKey: '2026-03-08', totalUnits: 0 },
     ]);
 
     const res = await GET(req);
@@ -163,7 +163,7 @@ describe('Availability API - Pricing Logic', () => {
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
-      { date: new Date('2026-03-11T00:00:00.000Z'), totalUnits: 0 },
+      { dateKey: '2026-03-11', totalUnits: 0 },
     ]);
 
     const res = await GET(req);

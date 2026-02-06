@@ -1,21 +1,15 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
-
-datasource db {
-  provider = "sqlite" // Mantenha sqlite
-  url      = env("DATABASE_URL")
-}
-
-
-
-
-
-
 
 model RoomType {
   id          String   @id @default(uuid())
@@ -68,11 +62,14 @@ model InventoryAdjustment {
   roomTypeId  String
   roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
   date        DateTime 
+  dateKey     String
   totalUnits  Int      
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([roomTypeId, date])
+  @@unique([roomTypeId, dateKey])
+  @@index([dateKey])
 }
 
 model Guest {
