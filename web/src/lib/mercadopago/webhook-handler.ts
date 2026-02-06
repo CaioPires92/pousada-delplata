@@ -234,7 +234,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 checkIn: result.booking.checkIn,
                 checkOut: result.booking.checkOut,
                 totalPrice: Number(result.booking.totalPrice),
-            }).catch(() => { });
+            }).catch(() => {});
         }
 
         opsLog('info', 'MP_WEBHOOK_PROCESSED', {
