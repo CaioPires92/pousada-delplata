@@ -8,7 +8,6 @@ import { assertDayKey, eachDayKeyInclusive, isNextDay } from '@/lib/day-key';
 export async function POST(request: Request) {
     let ctxStartDate: string | undefined;
     let ctxEndDate: string | undefined;
-    let ctxTargetCount: number | undefined;
     try {
         opsLog('info', 'BULK_ROUTE_HIT_v3', { path: '/api/rates/bulk' });
         const auth = await requireAdminAuth();
@@ -29,7 +28,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Função para garantir que temos apenas a string YYYY-MM-DD para lógica interna
         function coerceToYmd(input: unknown, label: string): string {
             if (typeof input !== 'string' || !input.trim()) {
                 throw new Error(`[THROW_ORIGIN=BULK_COERCE] ${label} is required and must be string`);
@@ -42,14 +40,13 @@ export async function POST(request: Request) {
             return ymd;
         }
 
+        // Variáveis corretamente definidas como String YMD 
         const startStr = coerceToYmd(effectiveStartDate, 'startDate');
         const endStr = coerceToYmd(effectiveEndDate, 'endDate');
 
-        // Objetos Date para o Prisma (fixados ao meio-dia para evitar erros de Timezone)
         const startObj = new Date(`${startStr}T00:00:00Z`);
         const endObj = new Date(`${endStr}T00:00:00Z`);
 
-        // Identificação dos quartos alvo
         let targetRoomIds: string[] = [];
         const targetInput = roomTypes || roomTypeId;
 
@@ -74,7 +71,6 @@ export async function POST(request: Request) {
         for (const currentRoomId of targetRoomIds) {
             const basePrice = basePriceByRoomId.get(currentRoomId) || 0;
 
-            // Busca sobreposições usando tipos DateTime corretos
             const overlaps = await prisma.rate.findMany({
                 where: {
                     roomTypeId: currentRoomId,
@@ -85,7 +81,6 @@ export async function POST(request: Request) {
 
             const dayMap = new Map<string, any>();
 
-            // Mapeia dados existentes
             for (const r of overlaps) {
                 const sDay = r.startDate.toISOString().split('T')[0];
                 const eDay = r.endDate.toISOString().split('T')[0];
@@ -100,7 +95,6 @@ export async function POST(request: Request) {
                 }
             }
 
-            // Aplica os novos updates
             const hasPriceUpdate = updates.price !== undefined && updates.price !== '';
             const priceValue = hasPriceUpdate ? Number(updates.price) : undefined;
             const hasMinLosUpdate = updates.minLos !== undefined && updates.minLos !== '';
@@ -124,7 +118,6 @@ export async function POST(request: Request) {
                 });
             }
 
-            // Agrupa em intervalos consecutivos para otimizar o banco
             const sortedDates = Array.from(dayMap.keys()).sort();
             const intervals: any[] = [];
             let currentInterval: any = null;
@@ -147,7 +140,6 @@ export async function POST(request: Request) {
             }
             if (currentInterval) intervals.push(currentInterval);
 
-            // Adiciona operações de deleção e criação na transação
             if (overlaps.length > 0) {
                 ops.push(prisma.rate.deleteMany({ where: { id: { in: overlaps.map(o => o.id) } } }));
             }
@@ -166,13 +158,18 @@ export async function POST(request: Request) {
                 ops.push(prisma.rate.createMany({ data: rateRows }));
             }
 
-            // Tratamento de Inventário (também usando Date para o campo 'date')
             const hasInventoryUpdate = updates.inventory !== undefined || updates.availableRooms !== undefined;
             if (hasInventoryUpdate) {
                 const inventoryValue = Number.parseInt(updates.inventory || updates.availableRooms);
+
+                // --- CORREÇÃO AQUI: Trocado 'start' por 'startStr' e 'end' por 'endStr' --- 
                 ops.push(prisma.inventoryAdjustment.deleteMany({
-                    where: { roomTypeId: currentRoomId, dateKey: { gte: start, lte: end } }
+                    where: {
+                        roomTypeId: currentRoomId,
+                        dateKey: { gte: startStr, lte: endStr }
+                    }
                 }));
+
                 const invRows = dayKeysInRange.map(dateKey => ({
                     roomTypeId: currentRoomId,
                     dateKey,
