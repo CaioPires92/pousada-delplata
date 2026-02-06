@@ -77,7 +77,7 @@ model InventoryAdjustment {
 model Guest {
   id          String    @id @default(uuid())
   name        String
-  email       String
+  email       String    @unique
   phone       String
   bookings    Booking[]
   createdAt   DateTime  @default(now())

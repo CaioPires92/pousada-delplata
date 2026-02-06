@@ -1,47 +1,61 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SearchWidget from './SearchWidget';
 
+const pushMock = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
-  usePathname: () => '/home',
+  useRouter: () => ({ push: pushMock }),
+  usePathname: () => '/',
 }));
 
 describe('SearchWidget', () => {
-  it('desabilita Buscar quando faltam idades das crianças', () => {
-    render(<SearchWidget />);
-    const adults = screen.getByLabelText('Adultos') as HTMLSelectElement;
-    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
-    fireEvent.change(adults, { target: { value: '2' } });
-    fireEvent.change(children, { target: { value: '1' } });
-    const button = screen.getByRole('button', { name: /Buscar/i });
-    expect(button).toBeDisabled();
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    pushMock.mockReset();
   });
 
-  it('habilita Buscar quando entradas são válidas', () => {
+  it('disables search when ages for children are missing', () => {
     render(<SearchWidget />);
-    const adults = screen.getByLabelText('Adultos') as HTMLSelectElement;
-    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
-    fireEvent.change(adults, { target: { value: '2' } });
-    fireEvent.change(children, { target: { value: '0' } });
-    const button = screen.getByRole('button', { name: /Buscar/i });
-    expect(button).not.toBeDisabled();
+    const adultsSelect = screen.getByLabelText(/Adultos/i) as HTMLSelectElement;
+    const childrenSelect = screen.getByLabelText(/Crianças/i) as HTMLSelectElement;
+    fireEvent.change(adultsSelect, { target: { value: '2' } });
+    fireEvent.change(childrenSelect, { target: { value: '1' } });
+    const submit = screen.getByRole('button', { name: /Buscar/i });
+    expect(submit).toBeDisabled();
+    expect(screen.getByText(/Informe a idade das crianças/i)).toBeInTheDocument();
   });
 
-  it('faz fetch com parâmetros corretos ao buscar', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [{ id: 'room-1' }],
-    });
-    global.fetch = mockFetch;
+  // Nota: o widget evita seleção acima da capacidade via UI.
+  // A validação de fallback visual é exercitada indiretamente nos testes de fluxo E2E.
+
+  it('navega para /reservar quando há disponibilidade', async () => {
+    (global as any).fetch = vi.fn(async () => new Response(JSON.stringify([{ id: 'rt1' }]), { status: 200 }));
     render(<SearchWidget />);
-    const adults = screen.getByLabelText('Adultos') as HTMLSelectElement;
-    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
-    fireEvent.change(adults, { target: { value: '2' } });
-    fireEvent.change(children, { target: { value: '0' } });
-    const button = screen.getByRole('button', { name: /Buscar/i });
-    expect(button).not.toBeDisabled();
-    fireEvent.click(button);
-    expect(mockFetch).toHaveBeenCalled();
+    const btn = screen.getByRole('button', { name: /Buscar/i });
+    fireEvent.click(btn);
+    await new Promise(r => setTimeout(r, 0));
+    expect(pushMock).toHaveBeenCalled();
+    const callArg = pushMock.mock.calls[0][0] as string;
+    expect(callArg).toMatch(/\/reservar\?/);
+  });
+
+  it('exibe mensagem de sem disponibilidade quando API retorna vazio', async () => {
+    (global as any).fetch = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    render(<SearchWidget />);
+    const btn = screen.getByRole('button', { name: /Buscar/i });
+    fireEvent.click(btn);
+    await new Promise(r => setTimeout(r, 0));
+    expect(screen.getByText(/Sem disponibilidade/i)).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('exibe erro retornado pela API quando status não ok', async () => {
+    (global as any).fetch = vi.fn(async () => new Response(JSON.stringify({ error: 'Erro simulado' }), { status: 500 }));
+    render(<SearchWidget />);
+    const btn = screen.getByRole('button', { name: /Buscar/i });
+    fireEvent.click(btn);
+    await new Promise(r => setTimeout(r, 0));
+    expect(screen.getByText(/Erro simulado/i)).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });
