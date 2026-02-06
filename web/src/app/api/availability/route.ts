@@ -64,10 +64,21 @@ export async function GET(request: Request) {
             }));
 
             const adjustments = await prisma.inventoryAdjustment.findMany({
-                where: { roomTypeId: room.id, date: { in: nightObjects } },
+                where: { roomTypeId: room.id, dateKey: { in: nightStrings } },
             });
 
-            if (adjustments.some((adj) => adj.totalUnits === 0)) continue;
+            const adjustmentByDay = new Map(
+                adjustments.map((adj) => [adj.dateKey, adj.totalUnits])
+            );
+
+            const effectiveTotalUnits = nightStrings.reduce((min, dayKey) => {
+                const dayUnits = adjustmentByDay.has(dayKey)
+                    ? Number(adjustmentByDay.get(dayKey))
+                    : Number(room.totalUnits || 1);
+                return Math.min(min, dayUnits);
+            }, Number(room.totalUnits || 1));
+
+            if (effectiveTotalUnits <= 0) continue;
 
             let baseTotalForStay = 0;
             for (const dayStr of nightStrings) {
@@ -91,11 +102,14 @@ export async function GET(request: Request) {
                     child6To11Fee: Number(room.child6To11Fee || 0),
                 });
 
+                const remainingUnits = effectiveTotalUnits - reservasOcupando;
+                if (remainingUnits <= 0) continue;
+
                 availableRooms.push({
                     ...room,
                     totalPrice: breakdown.total,
                     isAvailable: true,
-                    remainingUnits: (room.totalUnits || 1) - reservasOcupando
+                    remainingUnits
                 });
             } catch (e) { }
         }
