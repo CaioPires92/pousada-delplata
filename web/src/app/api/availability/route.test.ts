@@ -13,6 +13,7 @@ vi.mock('@/lib/prisma', () => ({
     },
     booking: {
       findMany: vi.fn(),
+      count: vi.fn(),
     },
     inventoryAdjustment: {
       findMany: vi.fn(),
@@ -24,6 +25,7 @@ describe('Availability API - Pricing Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (prisma.booking.findMany as any).mockResolvedValue([]);
+    (prisma.booking.count as any).mockResolvedValue(0);
     (prisma.rate.findMany as any).mockResolvedValue([]);
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
   });

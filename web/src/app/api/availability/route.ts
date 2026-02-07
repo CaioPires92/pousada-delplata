@@ -25,7 +25,6 @@ export async function GET(request: Request) {
 
         const daysSelected = eachDayKeyInclusive(checkIn, checkOut);
         const nightStrings = daysSelected.slice(0, -1);
-        const nightObjects = nightStrings.map(d => new Date(`${d}T00:00:00Z`));
 
         const roomTypes = await prisma.roomType.findMany({
             include: {
@@ -119,11 +118,12 @@ export async function GET(request: Request) {
                 availableRooms.push({
                     ...room,
                     totalPrice: breakdown.total,
+                    priceBreakdown: breakdown,
                     isAvailable: true,
                     remainingUnits,
                     minLos: requiredMinLos
                 });
-            } catch (e) { }
+            } catch { }
         }
 
         if (availableRooms.length === 0 && eligibleMinLosCount === 0 && Number.isFinite(minRequiredAcrossRooms)) {
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
         }
 
         return NextResponse.json(availableRooms);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
 }

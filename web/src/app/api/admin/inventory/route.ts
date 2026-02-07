@@ -25,7 +25,6 @@ export async function POST(request: Request) {
                 const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
                 const startStr = String(startDate);
                 const endStr = String(endDate);
-                const dayKeys = eachDayKeyInclusive(startStr, endStr);
                 const start = new Date(`${startStr}T12:00:00Z`);
                 const end = new Date(`${endStr}T12:00:00Z`);
 
@@ -66,7 +65,7 @@ export async function POST(request: Request) {
                     }
                 }
 
-                let current = new Date(`${startDate}T12:00:00Z`);
+                const current = new Date(`${startDate}T12:00:00Z`);
                 const last = new Date(`${endDate}T12:00:00Z`);
 
                 while (current <= last) {

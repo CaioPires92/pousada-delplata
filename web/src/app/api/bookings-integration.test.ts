@@ -25,6 +25,7 @@ vi.mock('@/lib/prisma', () => ({
         },
         booking: {
             findMany: vi.fn(),
+            count: vi.fn(),
             create: vi.fn(),
         },
     },
@@ -34,6 +35,7 @@ describe('Booking Integration Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         (prisma.rate.findMany as any).mockResolvedValue([]);
+        (prisma.booking.count as any).mockResolvedValue(0);
     });
 
     it('should complete booking flow with extra adult fee', async () => {

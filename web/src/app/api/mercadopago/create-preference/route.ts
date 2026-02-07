@@ -81,7 +81,7 @@ export async function POST(request: Request) {
                     providerId: result.id,
                 },
             });
-        } catch (e) { console.error('Aviso: Tabela Payment não encontrada ou erro na gravação.'); }
+        } catch { console.error('Aviso: Tabela Payment não encontrada ou erro na gravação.'); }
 
         return NextResponse.json({ preferenceId: result.id, initPoint: result.init_point });
 

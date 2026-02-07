@@ -684,7 +684,6 @@ export default function MapaReservas() {
                                                 const data = getDataForDay(day);
                                                 const total = data?.totalInventory ?? 0;
                                                 const capacityTotal = data?.capacityTotal ?? 0;
-                                                const available = data?.available ?? 0;
                                                 return (
                                             <td key={format(day, 'yyyy-MM-dd')} className={styles.cell}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -985,7 +984,7 @@ export default function MapaReservas() {
 
             {bulkModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setBulkModalOpen(false)}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '95%' }}>
+                    <div data-testid="bulk-modal" className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '95%' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <div>
                                 <h2 className={styles.modalTitle} style={{ marginBottom: '0.5rem' }}>⚡ Edição em Lote</h2>

@@ -169,11 +169,13 @@ function ReservarContent() {
                 { cache: 'no-store', signal }
             );
             if (!response.ok) {
-                const data = await response.json().catch(() => null);
+                const data = typeof response.json === 'function'
+                    ? await response.json().catch(() => null)
+                    : null;
                 if (data && data.error === 'min_stay_required') {
                     throw new Error(`Estadia mínima: ${data.minLos} noites`);
                 }
-                throw new Error('Erro ao buscar disponibilidade');
+                throw new Error('Erro ao carregar quartos disponíveis');
             }
             const data = await response.json();
 
@@ -688,9 +690,12 @@ function ReservarContent() {
 
                                         {pixData?.qr_code_base64 ? (
                                             <div className="flex flex-col items-center gap-3">
-                                                <img
+                                                <Image
                                                     src={`data:image/png;base64,${pixData.qr_code_base64}`}
                                                     alt="QR Code Pix"
+                                                    width={200}
+                                                    height={200}
+                                                    unoptimized
                                                     className="h-[200px] w-[200px] rounded-lg bg-white p-2 border border-border/60"
                                                 />
                                                 {pixData.qr_code ? (

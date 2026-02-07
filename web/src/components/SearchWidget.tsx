@@ -247,8 +247,8 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                         Check-in
                     </label>
                     <Popover open={isCheckInOpen} onOpenChange={setIsCheckInOpen}>
-                        <PopoverTrigger asChild>
-                            <div className={cn(dateInputClass, !checkIn && "text-muted-foreground")}>
+                    <PopoverTrigger asChild>
+                        <div data-testid="checkin-trigger" className={cn(dateInputClass, !checkIn && "text-muted-foreground")}>
                                 {checkIn ? (
                                     format(checkIn, "dd/MM/yyyy", { locale: ptBR })
                                 ) : (
@@ -257,7 +257,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </div>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
+                        <PopoverContent data-testid="checkin-popover" className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
                             <Calendar
                                 mode="single"
                                 selected={checkIn}
@@ -277,8 +277,8 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                         Check-out
                     </label>
                     <Popover open={isCheckOutOpen} onOpenChange={setIsCheckOutOpen}>
-                        <PopoverTrigger asChild>
-                            <div className={cn(dateInputClass, !checkOut && "text-muted-foreground")}>
+                    <PopoverTrigger asChild>
+                        <div data-testid="checkout-trigger" className={cn(dateInputClass, !checkOut && "text-muted-foreground")}>
                                 {checkOut ? (
                                     format(checkOut, "dd/MM/yyyy", { locale: ptBR })
                                 ) : (
@@ -287,7 +287,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </div>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
+                        <PopoverContent data-testid="checkout-popover" className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
                             <Calendar
                                 mode="single"
                                 selected={checkOut}

@@ -1,13 +1,12 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { formatDateBR } from '@/lib/date';
 
 export default function ConfirmacaoPage() {
     const params = useParams();
-    const router = useRouter();
     const bookingId = params.bookingId as string;
 
     const [booking, setBooking] = useState<any>(null);
