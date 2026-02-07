@@ -65,6 +65,7 @@ export default function AdminReservasPage() {
             'PENDING': styles.statusPending,
             'CONFIRMED': styles.statusConfirmed,
             'CANCELLED': styles.statusCancelled,
+            'EXPIRED': styles.statusExpired,
         };
         return badges[status] || styles.statusPending;
     };
@@ -74,6 +75,7 @@ export default function AdminReservasPage() {
             'PENDING': 'Pendente',
             'CONFIRMED': 'Confirmada',
             'CANCELLED': 'Cancelada',
+            'EXPIRED': 'Expirada',
         };
         return texts[status] || status;
     };
@@ -113,6 +115,12 @@ export default function AdminReservasPage() {
                         onClick={() => setFilter('CANCELLED')}
                     >
                         Canceladas
+                    </button>
+                    <button
+                        className={filter === 'EXPIRED' ? styles.filterActive : styles.filter}
+                        onClick={() => setFilter('EXPIRED')}
+                    >
+                        Expiradas
                     </button>
                 </div>
             </div>

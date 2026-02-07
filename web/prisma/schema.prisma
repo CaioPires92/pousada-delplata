@@ -95,6 +95,8 @@ model Booking {
   checkOut    DateTime
   totalPrice  Decimal
   status      String   // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  pendingEmailSentAt DateTime?
+  expiredEmailSentAt DateTime?
   payment     Payment?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

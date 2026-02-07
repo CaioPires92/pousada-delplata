@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendBookingExpiredEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +12,48 @@ export async function GET(request: Request) {
     }
 
     try {
-        // Define o limite de 30 minutos
+        // Define os limites
+        const quinzeMinutosAtras = new Date(Date.now() - 15 * 60 * 1000);
         const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
+
+        const pendingToNotify = await prisma.booking.findMany({
+            where: {
+                status: 'PENDING',
+                createdAt: { lt: quinzeMinutosAtras },
+                pendingEmailSentAt: null
+            },
+            include: { guest: true, roomType: true }
+        });
+
+        let pendingEmailCount = 0;
+        let expiredEmailCount = 0;
+
+        for (const booking of pendingToNotify) {
+            sendBookingPendingEmail({
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+            }).then((r) => {
+                if (r && (r as any).success) pendingEmailCount++;
+            }).catch(() => {});
+
+            await prisma.booking.update({
+                where: { id: booking.id },
+                data: { pendingEmailSentAt: new Date() }
+            });
+        }
+
+        const pendingBookings = await prisma.booking.findMany({
+            where: {
+                status: 'PENDING',
+                createdAt: { lt: trintaMinutosAtras }
+            },
+            include: { guest: true, roomType: true }
+        });
 
         const result = await prisma.booking.updateMany({
             where: {
@@ -24,8 +65,32 @@ export async function GET(request: Request) {
             }
         });
 
-        console.log(`[Cron Cleanup] ${result.count} reservas expiradas.`);
-        return NextResponse.json({ success: true, count: result.count });
+        for (const booking of pendingBookings) {
+            sendBookingExpiredEmail({
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+            }).then((r) => {
+                if (r && (r as any).success) expiredEmailCount++;
+            }).catch(() => {});
+
+            await prisma.booking.update({
+                where: { id: booking.id },
+                data: { expiredEmailSentAt: new Date() }
+            });
+        }
+
+        console.log(`[Cron Cleanup] ${result.count} reservas expiradas. Emails pendentes: ${pendingEmailCount}, emails expirados: ${expiredEmailCount}.`);
+        return NextResponse.json({
+            success: true,
+            count: result.count,
+            pendingEmailCount,
+            expiredEmailCount
+        });
     } catch (error) {
         console.error('Erro no Cron:', error);
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
