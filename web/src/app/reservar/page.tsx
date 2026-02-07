@@ -9,6 +9,7 @@ import SearchWidget from '@/components/SearchWidget';
 
 import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
  
 
 interface Room {
@@ -103,9 +104,7 @@ function ReservarContent() {
 
     const formatDate = (dateString: string) => {
         if (!dateString) return '';
-        const [y, m, d] = dateString.split('-').map(Number);
-        const date = new Date(y, m - 1, d);
-        return date.toLocaleDateString('pt-BR');
+        return formatDateBRFromYmd(dateString);
     };
 
     const getWhatsAppUrl = () => {
@@ -621,11 +620,11 @@ function ReservarContent() {
                                     <div className="space-y-3 text-sm">
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Check-in</span>
-                                            <span className="font-medium">{new Date(checkIn!).toLocaleDateString('pt-BR')}</span>
+                                            <span className="font-medium">{formatDateBR(checkIn!)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Check-out</span>
-                                            <span className="font-medium">{new Date(checkOut!).toLocaleDateString('pt-BR')}</span>
+                                            <span className="font-medium">{formatDateBR(checkOut!)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Hóspedes</span>

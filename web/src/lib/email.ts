@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { formatDatePtBrLong } from '@/lib/date';
 
 // Validar configuração SMTP
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -38,17 +39,8 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
 
     const { guestName, guestEmail, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
 
-    const checkInFormatted = new Date(checkIn).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-    });
-
-    const checkOutFormatted = new Date(checkOut).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-    });
+    const checkInFormatted = formatDatePtBrLong(checkIn);
+    const checkOutFormatted = formatDatePtBrLong(checkOut);
 
     const htmlContent = `
 <!DOCTYPE html>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './reservas.module.css';
+import { formatDateBR } from '@/lib/date';
 
 interface Booking {
     id: string;
@@ -30,6 +31,7 @@ export default function AdminReservasPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
+
 
     const fetchBookings = useCallback(async () => {
         try {
@@ -148,8 +150,8 @@ export default function AdminReservasPage() {
                                         </div>
                                     </td>
                                     <td>{booking.roomType.name}</td>
-                                    <td>{new Date(booking.checkIn).toLocaleDateString('pt-BR')}</td>
-                                    <td>{new Date(booking.checkOut).toLocaleDateString('pt-BR')}</td>
+                                    <td>{formatDateBR(booking.checkIn)}</td>
+                                    <td>{formatDateBR(booking.checkOut)}</td>
                                     <td>
                                         <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
                                     </td>
@@ -158,7 +160,7 @@ export default function AdminReservasPage() {
                                             {getStatusText(booking.status)}
                                         </span>
                                     </td>
-                                    <td>{new Date(booking.createdAt).toLocaleDateString('pt-BR')}</td>
+                                    <td>{formatDateBR(booking.createdAt)}</td>
                                 </tr>
                             ))}
                         </tbody>

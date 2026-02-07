@@ -22,6 +22,14 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='toLocaleDateString']",
+          message:
+            "Não use toLocaleDateString diretamente. Use os helpers em src/lib/date.ts para evitar bugs de fuso horário.",
+        },
+      ],
     },
   },
 ]);

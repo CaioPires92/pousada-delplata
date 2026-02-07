@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import nodemailer from 'nodemailer';
 import { opsLog } from '@/lib/ops-log';
+import { formatDateBR } from '@/lib/date';
 
 /**
  * API para enviar email de confirmação de reserva
@@ -24,8 +25,8 @@ export async function POST(request: NextRequest) {
         });
 
         // Formatar datas
-        const checkInDate = new Date(checkIn).toLocaleDateString('pt-BR');
-        const checkOutDate = new Date(checkOut).toLocaleDateString('pt-BR');
+        const checkInDate = formatDateBR(checkIn);
+        const checkOutDate = formatDateBR(checkOut);
         const price = Number(totalPrice).toFixed(2);
 
         // HTML do email
