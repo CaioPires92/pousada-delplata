@@ -429,3 +429,23 @@
     color: #0f172a;
     margin-bottom: 0.5rem;
 }
+
+.modalActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.modalActions button {
+    flex: 1 1 160px;
+}
+
+@media (max-width: 640px) {
+    .modalActions {
+        flex-direction: column;
+    }
+
+    .modalActions button {
+        width: 100%;
+    }
+}

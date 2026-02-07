@@ -35,6 +35,8 @@ export async function GET(request: Request) {
         });
 
         const availableRooms = [];
+        let minRequiredAcrossRooms = Infinity;
+        let eligibleMinLosCount = 0;
         const vinteMinutosAtras = new Date(Date.now() - 20 * 60 * 1000);
 
         for (const room of roomTypes) {
@@ -93,7 +95,11 @@ export async function GET(request: Request) {
                 if (dayMinLos > requiredMinLos) requiredMinLos = dayMinLos;
             }
 
+            if (requiredMinLos < minRequiredAcrossRooms) {
+                minRequiredAcrossRooms = requiredMinLos;
+            }
             if (stayLength < requiredMinLos) continue;
+            eligibleMinLosCount += 1;
 
             try {
                 const breakdown = calculateBookingPrice({
@@ -118,6 +124,10 @@ export async function GET(request: Request) {
                     minLos: requiredMinLos
                 });
             } catch (e) { }
+        }
+
+        if (availableRooms.length === 0 && eligibleMinLosCount === 0 && Number.isFinite(minRequiredAcrossRooms)) {
+            return NextResponse.json({ error: 'min_stay_required', minLos: minRequiredAcrossRooms }, { status: 400 });
         }
 
         return NextResponse.json(availableRooms);

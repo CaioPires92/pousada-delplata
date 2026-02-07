@@ -1129,7 +1129,7 @@ export default function MapaReservas() {
                             </div>
                         </div>
 
-                        <div className={styles.modalActions} style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0', gap: '1rem' }}>
+                        <div className={styles.modalActions} style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
                             <button 
                                 onClick={() => setBulkModalOpen(false)}
                                 className={styles.buttonSecondary}

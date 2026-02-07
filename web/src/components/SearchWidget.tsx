@@ -192,6 +192,11 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
             const response = await fetch(`/api/availability?${params.toString()}`, { cache: 'no-store' });
             if (!response.ok) {
                 const errorBody = await response.json().catch(() => ({}));
+                if (errorBody?.error === 'min_stay_required') {
+                    const nights = Number(errorBody.minLos || 1);
+                    setSearchMessage(`Estadia mínima: ${nights} noites.`);
+                    return;
+                }
                 const errorMessage = typeof errorBody?.error === 'string'
                     ? errorBody.error
                     : 'Erro ao buscar disponibilidade. Tente novamente.';
@@ -252,7 +257,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </div>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
                             <Calendar
                                 mode="single"
                                 selected={checkIn}
@@ -282,7 +287,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </div>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
                             <Calendar
                                 mode="single"
                                 selected={checkOut}
