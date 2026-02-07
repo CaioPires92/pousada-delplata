@@ -38,10 +38,9 @@ export default function ConfirmacaoPage() {
                         setStatusToast('Pagamento aprovado!');
                         setTimeout(() => setStatusToast(''), 3000);
                     }
-                    if (!redirectRef.current) {
-                        redirectRef.current = setTimeout(() => {
-                            router.push('/');
-                        }, 5000);
+                    if (redirectRef.current) {
+                        clearTimeout(redirectRef.current);
+                        redirectRef.current = null;
                     }
                 } else if (data.status === 'CANCELLED') {
                     setStatusMessage('❌ Pagamento não aprovado. Sua reserva foi cancelada.');
