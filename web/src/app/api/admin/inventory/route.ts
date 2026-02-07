@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 
 export async function POST(request: Request) {
     try {
@@ -21,14 +22,58 @@ export async function POST(request: Request) {
             const operations = [];
 
             for (const id of targetIds) {
+                const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+                const startStr = String(startDate);
+                const endStr = String(endDate);
+                const dayKeys = eachDayKeyInclusive(startStr, endStr);
+                const start = new Date(`${startStr}T12:00:00Z`);
+                const end = new Date(`${endStr}T12:00:00Z`);
+
+                const roomType = await prisma.roomType.findUnique({ where: { id } });
+                const capacityTotal = Number(roomType?.totalUnits ?? 1);
+
+                const activeBookings = await prisma.booking.findMany({
+                    where: {
+                        roomTypeId: id,
+                        status: { in: ['CONFIRMED', 'PAID', 'PENDING'] },
+                        OR: [
+                            { status: { in: ['CONFIRMED', 'PAID'] } },
+                            {
+                                AND: [
+                                    { status: 'PENDING' },
+                                    { createdAt: { gte: new Date(Date.now() - ttlMinutes * 60000) } }
+                                ]
+                            }
+                        ],
+                        checkIn: { lte: end },
+                        checkOut: { gt: start }
+                    }
+                });
+
+                const bookingsCountByDay = new Map<string, number>();
+                for (const b of activeBookings) {
+                    const bIn = b.checkIn.toISOString().split('T')[0];
+                    const bOut = b.checkOut.toISOString().split('T')[0];
+
+                    const rangeStart = compareDayKey(bIn, startStr) < 0 ? startStr : bIn;
+                    const endInclusive = prevDayKey(bOut);
+                    const rangeEnd = compareDayKey(endInclusive, endStr) > 0 ? endStr : endInclusive;
+
+                    if (compareDayKey(rangeStart, rangeEnd) <= 0) {
+                        for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
+                            bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
+                        }
+                    }
+                }
+
                 let current = new Date(`${startDate}T12:00:00Z`);
                 const last = new Date(`${endDate}T12:00:00Z`);
 
                 while (current <= last) {
                     const dKey = current.toISOString().split('T')[0];
-                    const roomType = await prisma.roomType.findUnique({ where: { id } });
-                    const maxUnits = Number(roomType?.totalUnits ?? 1);
-                    const safeUnits = Math.max(0, Math.min(maxUnits, inventoryValue));
+                    const bookingsCount = bookingsCountByDay.get(dKey) || 0;
+                    const maxSellable = Math.max(0, capacityTotal - bookingsCount);
+                    const safeUnits = Math.max(0, Math.min(maxSellable, inventoryValue));
 
                     operations.push(
                         prisma.inventoryAdjustment.upsert({
@@ -46,7 +91,7 @@ export async function POST(request: Request) {
                 }
             }
             await prisma.$transaction(operations);
-            return NextResponse.json({ success: true });
+            return NextResponse.json({ success: true, appliedLimit: true });
         }
 
         // --- CASO 2: ATUALIZAÇÃO INDIVIDUAL ---
@@ -55,8 +100,27 @@ export async function POST(request: Request) {
             const dKey = inputDate.toISOString().slice(0, 10);
             const isoDate = new Date(`${dKey}T12:00:00Z`);
             const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeId } });
-            const maxUnits = Number(roomType?.totalUnits ?? 1);
-            const safeUnits = Math.max(0, Math.min(maxUnits, parseInt(totalUnits)));
+            const capacityTotal = Number(roomType?.totalUnits ?? 1);
+
+            const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+            const activeBookingsCount = await prisma.booking.count({
+                where: {
+                    roomTypeId,
+                    checkIn: { lt: new Date(`${dKey}T23:59:59Z`) },
+                    checkOut: { gt: new Date(`${dKey}T00:00:00Z`) },
+                    OR: [
+                        { status: 'CONFIRMED' },
+                        { status: 'PAID' },
+                        {
+                            status: 'PENDING',
+                            createdAt: { gte: new Date(Date.now() - ttlMinutes * 60000) }
+                        }
+                    ]
+                }
+            });
+
+            const maxSellable = Math.max(0, capacityTotal - activeBookingsCount);
+            const safeUnits = Math.max(0, Math.min(maxSellable, parseInt(totalUnits)));
 
             const adjustment = await prisma.inventoryAdjustment.upsert({
                 where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
@@ -68,7 +132,7 @@ export async function POST(request: Request) {
                     totalUnits: safeUnits
                 }
             });
-            return NextResponse.json(adjustment);
+            return NextResponse.json({ ...adjustment, appliedLimit: safeUnits !== parseInt(totalUnits) });
         }
 
         return NextResponse.json({ error: 'Dados insuficientes' }, { status: 400 });

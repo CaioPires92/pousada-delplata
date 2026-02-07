@@ -282,7 +282,7 @@ export default function MapaReservas() {
         }));
 
         try {
-            await fetch('/api/admin/inventory', {
+            const res = await fetch('/api/admin/inventory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -291,6 +291,12 @@ export default function MapaReservas() {
                     totalUnits: newTotal
                 })
             });
+            if (res.ok) {
+                const data = await res.json().catch(() => null);
+                if (data && typeof data === 'object' && (data as any).appliedLimit) {
+                    alert('Ajuste limitado devido a reservas existentes.');
+                }
+            }
             // Background refresh to ensure consistency
             fetchRates();
         } catch (error) {
