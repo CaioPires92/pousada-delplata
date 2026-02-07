@@ -33,6 +33,7 @@ export async function POST(request: Request) {
             const nightKeys = eachDayKeyInclusive(checkIn, prevDayKey(checkOut));
 
             let baseTotalForStay = 0;
+            let requiredMinLos = 1;
             for (const night of nightKeys) {
                 const rate = roomType.rates.find(r => {
                     const rStart = r.startDate.toISOString().split('T')[0];
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
                     return night >= rStart && night <= rEnd;
                 });
                 baseTotalForStay += rate ? Number(rate.price) : Number(roomType.basePrice);
+                const dayMinLos = rate ? Number(rate.minLos) : 1;
+                if (dayMinLos > requiredMinLos) requiredMinLos = dayMinLos;
+            }
+
+            if (nightKeys.length < requiredMinLos) {
+                throw new Error(`min_stay_required:${requiredMinLos}`);
             }
 
             const breakdown = calculateBookingPrice({
@@ -86,6 +93,10 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error('[Booking API Error]:', error);
+        if (typeof error?.message === 'string' && error.message.startsWith('min_stay_required:')) {
+            const minLos = error.message.split(':')[1] || '1';
+            return NextResponse.json({ error: 'min_stay_required', minLos: Number(minLos) }, { status: 400 });
+        }
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

@@ -482,20 +482,22 @@ export default function MapaReservas() {
             fetchRates();
             alert('Atualização em lote concluída!');
             
-            // Reset fields
-            setBulkStart('');
-            setBulkEnd('');
-            setBulkPrice('');
-            setBulkMinLos('');
-            setBulkStopSell('');
-            setBulkCta('');
-            setBulkCtd('');
-            setBulkInventory('');
-            setBulkRoomTypeId('all');
         } catch (error) {
             console.error('Error bulk updating:', error);
             alert(error instanceof Error ? error.message : 'Erro ao atualizar em lote.');
         }
+    };
+
+    const clearBulkFields = () => {
+        setBulkRoomTypeId('all');
+        setBulkStart('');
+        setBulkEnd('');
+        setBulkPrice('');
+        setBulkMinLos('');
+        setBulkStopSell('');
+        setBulkCta('');
+        setBulkCtd('');
+        setBulkInventory('');
     };
 
 
@@ -1133,6 +1135,13 @@ export default function MapaReservas() {
                                 className={styles.buttonSecondary}
                             >
                                 Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={clearBulkFields}
+                                className={styles.buttonSecondary}
+                            >
+                                Limpar campos
                             </button>
                             <button 
                                 onClick={handleBulkSave}

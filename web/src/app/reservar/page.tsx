@@ -19,6 +19,7 @@ interface Room {
     capacity: number;
     amenities: string;
     totalPrice: number;
+    minLos?: number;
     priceBreakdown?: {
         nights: number;
         baseTotal: number;
@@ -167,7 +168,13 @@ function ReservarContent() {
                 `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}`,
                 { cache: 'no-store', signal }
             );
-            if (!response.ok) throw new Error('Erro ao buscar disponibilidade');
+            if (!response.ok) {
+                const data = await response.json().catch(() => null);
+                if (data && data.error === 'min_stay_required') {
+                    throw new Error(`Estadia mínima: ${data.minLos} noites`);
+                }
+                throw new Error('Erro ao buscar disponibilidade');
+            }
             const data = await response.json();
 
             // PRICING DIAGNOSTICS: Log price breakdown to verify children >= 12 are counted as adults
@@ -197,7 +204,7 @@ function ReservarContent() {
             } else {
                 console.log('availability:error', err);
                 if (mountedRef.current) {
-                    setError('Erro ao carregar quartos disponíveis. Tente novamente.');
+                    setError(err instanceof Error ? err.message : 'Erro ao carregar quartos disponíveis. Tente novamente.');
                     hasLoadedOnce.current = true;
                 }
             }
@@ -600,6 +607,12 @@ function ReservarContent() {
                                                     <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>
                                                         {room.description}
                                                     </p>
+
+                                                    {room.minLos && room.minLos > 1 ? (
+                                                        <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md inline-flex items-center gap-2">
+                                                            Estadia mínima: {room.minLos} noites
+                                                        </div>
+                                                    ) : null}
 
                                                     <div className="flex flex-wrap gap-2 mb-6">
                                                         {room.amenities.split(',').map((amenity, i) => (

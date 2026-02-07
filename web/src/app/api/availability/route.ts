@@ -81,6 +81,7 @@ export async function GET(request: Request) {
             if (effectiveTotalUnits <= 0) continue;
 
             let baseTotalForStay = 0;
+            let requiredMinLos = 1;
             for (const dayStr of nightStrings) {
                 const specificRate = rates.find(r => {
                     const rStart = r.startDate.toISOString().split('T')[0];
@@ -88,7 +89,11 @@ export async function GET(request: Request) {
                     return dayStr >= rStart && dayStr <= rEnd;
                 });
                 baseTotalForStay += specificRate ? Number(specificRate.price) : Number(room.basePrice);
+                const dayMinLos = specificRate ? Number(specificRate.minLos) : 1;
+                if (dayMinLos > requiredMinLos) requiredMinLos = dayMinLos;
             }
+
+            if (stayLength < requiredMinLos) continue;
 
             try {
                 const breakdown = calculateBookingPrice({
@@ -109,7 +114,8 @@ export async function GET(request: Request) {
                     ...room,
                     totalPrice: breakdown.total,
                     isAvailable: true,
-                    remainingUnits
+                    remainingUnits,
+                    minLos: requiredMinLos
                 });
             } catch (e) { }
         }
