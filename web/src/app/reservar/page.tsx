@@ -72,6 +72,7 @@ function ReservarContent() {
     const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const [pixCopied, setPixCopied] = useState(false);
+    const pollRef = useRef<NodeJS.Timeout | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const paymentContainerId = 'paymentBrick_container';
     const mountedRef = useRef(true);
@@ -387,8 +388,34 @@ function ReservarContent() {
         initBrick();
         return () => {
             cancelled = true;
+            if (pollRef.current) clearInterval(pollRef.current);
         };
     }, [guest.email, paymentAmount, paymentBookingId]);
+
+    useEffect(() => {
+        if (!paymentBookingId) return;
+        if (pollRef.current) return;
+
+        pollRef.current = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/bookings/${paymentBookingId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data?.status === 'CONFIRMED') {
+                    setPaymentStatus('approved');
+                    setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    window.location.href = `/reservar/confirmacao/${paymentBookingId}`;
+                } else if (data?.status === 'CANCELLED') {
+                    setPaymentStatus('rejected');
+                    setPaymentStatusMessage('Pagamento recusado. Tente novamente.');
+                    if (pollRef.current) clearInterval(pollRef.current);
+                }
+            } catch {
+                // ignora falhas de rede temporárias
+            }
+        }, 10000);
+    }, [paymentBookingId]);
 
     if (!checkIn || !checkOut) {
         return (
