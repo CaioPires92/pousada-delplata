@@ -1,43 +1,77 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { formatDateBR } from '@/lib/date';
 
 export default function ConfirmacaoPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
+    const router = useRouter();
     const bookingId = params.bookingId as string;
-    const initialStatus = searchParams.get('status');
 
     const [booking, setBooking] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-
-    // FUNÇÃO QUE CORRIGE O FUSO HORÁRIO (06/02)
-    const formatarDataLocal = (dateString: string) => {
-        if (!dateString) return '';
-        const [ano, mes, dia] = dateString.split('T')[0].split('-');
-        return `${dia}/${mes}/${ano}`;
-    };
+    const [statusMessage, setStatusMessage] = useState('');
+    const [polling, setPolling] = useState(false);
+    const [statusToast, setStatusToast] = useState('');
+    const pollRef = useRef<NodeJS.Timeout | null>(null);
+    const lastStatusRef = useRef<string | null>(null);
+    const redirectRef = useRef<NodeJS.Timeout | null>(null);
 
     const fetchBooking = useCallback(async () => {
         if (!bookingId) return;
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
             const response = await fetch(`/api/bookings/${bookingId}`);
             if (response.ok) {
                 const data = await response.json();
                 setBooking(data);
 
+                const prevStatus = lastStatusRef.current;
+                lastStatusRef.current = data.status;
+
                 if (data.status === 'CONFIRMED') {
-                    alert('✅ RESERVA CONFIRMADA!\n\nSeu pagamento foi aprovado com sucesso.');
+                    setStatusMessage('✅ Pagamento aprovado! Sua reserva está confirmada.');
+                    setPolling(false);
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    if (prevStatus && prevStatus !== 'CONFIRMED') {
+                        setStatusToast('Pagamento aprovado!');
+                        setTimeout(() => setStatusToast(''), 3000);
+                    }
+                    if (!redirectRef.current) {
+                        redirectRef.current = setTimeout(() => {
+                            router.push('/');
+                        }, 5000);
+                    }
+                } else if (data.status === 'CANCELLED') {
+                    setStatusMessage('❌ Pagamento não aprovado. Sua reserva foi cancelada.');
+                    setPolling(false);
+                    if (pollRef.current) clearInterval(pollRef.current);
+                    if (prevStatus && prevStatus !== 'CANCELLED') {
+                        setStatusToast('Pagamento recusado.');
+                        setTimeout(() => setStatusToast(''), 3000);
+                    }
+                } else {
+                    setStatusMessage('⏳ Pagamento pendente. Estamos aguardando a confirmação do Pix.');
                 }
             }
         } catch (error) { console.error(error); }
         finally { setLoading(false); }
     }, [bookingId]);
 
-    useEffect(() => { fetchBooking(); }, [fetchBooking]);
+    useEffect(() => {
+        fetchBooking();
+        if (!pollRef.current) {
+            setPolling(true);
+            pollRef.current = setInterval(() => {
+                fetchBooking();
+            }, 10000);
+        }
+        return () => {
+            if (pollRef.current) clearInterval(pollRef.current);
+            if (redirectRef.current) clearTimeout(redirectRef.current);
+        };
+    }, [fetchBooking]);
 
     if (loading) return (
         <main style={{ paddingTop: '140px', textAlign: 'center' }}>
@@ -46,7 +80,7 @@ export default function ConfirmacaoPage() {
     );
 
     const isConfirmed = booking?.status === 'CONFIRMED';
-    const accentColor = isConfirmed ? '#4CAF50' : '#FF9800';
+    const accentColor = isConfirmed ? '#0f172a' : '#FF9800';
 
     return (
         /* ADICIONADO: pt-140px para descer o texto da Navbar */
@@ -61,6 +95,11 @@ export default function ConfirmacaoPage() {
                 backgroundColor: '#f9f9f9',
                 boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
             }}>
+                {statusToast ? (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#0f172a', color: '#fff', borderRadius: '8px' }}>
+                        {statusToast}
+                    </div>
+                ) : null}
                 <h1 style={{ color: accentColor, marginBottom: '1.5rem' }}>
                     {isConfirmed ? '✅ Pagamento Aprovado!' : '⏳ Pagamento Pendente'}
                 </h1>
@@ -72,13 +111,25 @@ export default function ConfirmacaoPage() {
                         <p><strong>Hóspede:</strong> {booking.guest?.name}</p>
 
                         {/* DATAS CORRIGIDAS ABAIXO */}
-                        <p><strong>Check-in:</strong> {formatarDataLocal(booking.checkIn)}</p>
-                        <p><strong>Check-out:</strong> {formatarDataLocal(booking.checkOut)}</p>
+                        <p><strong>Check-in:</strong> {formatDateBR(booking.checkIn)}</p>
+                        <p><strong>Check-out:</strong> {formatDateBR(booking.checkOut)}</p>
 
                         <p><strong>Total:</strong> R$ {Number(booking.totalPrice).toFixed(2)}</p>
                         <p style={{ marginTop: '10px', color: accentColor, fontWeight: 'bold' }}>Status: {booking.status}</p>
                     </div>
                 )}
+
+                {statusMessage ? (
+                    <div style={{ marginTop: '1rem', fontWeight: 600, color: accentColor }}>
+                        {statusMessage}
+                    </div>
+                ) : null}
+
+                {polling && !isConfirmed ? (
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.9rem', color: '#64748b' }}>
+                        Atualizando automaticamente a cada 10 segundos...
+                    </div>
+                ) : null}
 
                 <div style={{ marginTop: '2rem' }}>
                     <Link href="/" style={{ padding: '12px 25px', background: '#000', color: '#fff', borderRadius: '6px', textDecoration: 'none' }}>

@@ -65,6 +65,15 @@ function ReservarContent() {
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
+    const [paymentError, setPaymentError] = useState<string>('');
+    const [paymentStatus, setPaymentStatus] = useState<'idle' | 'approved' | 'rejected' | 'pending' | 'error'>('idle');
+    const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
+    const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
+    const [pixCopied, setPixCopied] = useState(false);
+    const paymentBrickRef = useRef<any>(null);
+    const paymentContainerId = 'paymentBrick_container';
     const mountedRef = useRef(true);
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
@@ -253,26 +262,12 @@ function ReservarContent() {
             }
 
             const booking = await bookingResponse.json();
-
-            const mpResponse = await fetch('/api/mercadopago/create-preference', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bookingId: booking.id }),
-            });
-
-            if (!mpResponse.ok) {
-                const errorData = await mpResponse.json().catch(() => ({}));
-                throw new Error(errorData.details || 'Erro ao gerar link de pagamento');
-            }
-
-            const { sandboxInitPoint, initPoint } = await mpResponse.json();
-            const paymentUrl = initPoint || sandboxInitPoint;
-
-            if (paymentUrl) {
-                window.location.href = paymentUrl;
-            } else {
-                throw new Error('URL de pagamento não gerada');
-            }
+            setPaymentBookingId(booking.id);
+            setPaymentAmount(Number(booking.totalPrice));
+            setPaymentError('');
+            setPaymentStatus('idle');
+            setPaymentStatusMessage('');
+            setPixData(null);
 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
@@ -280,6 +275,120 @@ function ReservarContent() {
         }
         setProcessing(false);
     };
+
+    useEffect(() => {
+        if (!paymentBookingId || !paymentAmount) return;
+
+        let cancelled = false;
+        const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
+        if (!publicKey) {
+            setPaymentError('Chave pública do Mercado Pago não configurada.');
+            return;
+        }
+
+        const loadSdk = () => new Promise<void>((resolve, reject) => {
+            if (typeof window === 'undefined') return resolve();
+            if ((window as any).MercadoPago) return resolve();
+            const script = document.createElement('script');
+            script.src = 'https://sdk.mercadopago.com/js/v2';
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Falha ao carregar SDK do Mercado Pago'));
+            document.body.appendChild(script);
+        });
+
+        const initBrick = async () => {
+            try {
+                await loadSdk();
+                if (cancelled) return;
+
+                const mp = new (window as any).MercadoPago(publicKey, { locale: 'pt-BR' });
+                const bricksBuilder = mp.bricks();
+
+                if (paymentBrickRef.current) {
+                    await paymentBrickRef.current.unmount();
+                }
+
+                paymentBrickRef.current = await bricksBuilder.create('payment', paymentContainerId, {
+                    initialization: {
+                        amount: paymentAmount,
+                        payer: {
+                            email: guest.email,
+                        },
+                    },
+                    customization: {
+                        paymentMethods: {
+                            creditCard: 'all',
+                            debitCard: 'all',
+                            pix: 'all',
+                            bankTransfer: 'all',
+                        },
+                    },
+                    callbacks: {
+                        onReady: () => {
+                            // Brick pronto
+                        },
+                        onSubmit: ({ formData }: any) => {
+                            return fetch('/api/mercadopago/payment', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    ...formData,
+                                    bookingId: paymentBookingId,
+                                    description: `Reserva ${paymentBookingId}`,
+                                    transaction_amount: paymentAmount,
+                                }),
+                            }).then(async (res) => {
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok) {
+                                    const msg = data?.message || data?.error || 'Erro ao processar pagamento';
+                                    setPaymentStatus('error');
+                                    setPaymentStatusMessage(msg);
+                                    throw new Error(msg);
+                                }
+
+                                const status = data?.status;
+                                const pix = data?.pix;
+                                if (pix) setPixData(pix);
+                                if (status === 'approved') {
+                                    setPaymentStatus('approved');
+                                    setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
+                                    window.location.href = `/reservar/confirmacao/${paymentBookingId}`;
+                                    return;
+                                }
+
+                                if (status === 'rejected') {
+                                    setPaymentStatus('rejected');
+                                    setPaymentStatusMessage('Pagamento recusado. Tente outro método.');
+                                    return;
+                                }
+
+                                setPaymentStatus('pending');
+                                if (pix?.qr_code || pix?.qr_code_base64) {
+                                    setPaymentStatusMessage('Pix gerado. Escaneie o QR Code ou copie o código.');
+                                } else {
+                                    setPaymentStatusMessage('Pagamento em análise. Você verá a confirmação em breve.');
+                                }
+                            });
+                        },
+                        onError: (err: any) => {
+                            console.error('Mercado Pago Brick Error:', err);
+                            setPaymentStatus('error');
+                            setPaymentError('Erro no pagamento. Tente novamente.');
+                        },
+                    },
+                });
+            } catch (err) {
+                console.error(err);
+                setPaymentError('Não foi possível inicializar o pagamento.');
+            }
+        };
+
+        initBrick();
+        return () => {
+            cancelled = true;
+        };
+    }, [guest.email, paymentAmount, paymentBookingId]);
 
     if (!checkIn || !checkOut) {
         return (
@@ -489,6 +598,99 @@ function ReservarContent() {
                                 ))}
                             </div>
                         )}
+                    </div>
+                ) : paymentBookingId ? (
+                    <div className="max-w-4xl mx-auto">
+                        <Card className="border-border/50 shadow-lg">
+                            <CardHeader className="bg-primary/5 border-b border-border/60 pb-6">
+                                <CardTitle className="text-xl">Pagamento</CardTitle>
+                                <CardDescription>Escolha o método e finalize sua reserva com segurança.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6">
+                                {paymentError ? (
+                                    <div className="bg-destructive/10 text-destructive p-4 rounded-lg border border-destructive/20">
+                                        {paymentError}
+                                    </div>
+                                ) : null}
+
+                                {paymentStatus !== 'idle' && paymentStatusMessage ? (
+                                    <div className={`p-4 rounded-xl border mt-4 ${paymentStatus === 'approved' ? 'bg-green-50 border-green-200 text-green-700' : paymentStatus === 'pending' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                                        {paymentStatusMessage}
+                                    </div>
+                                ) : null}
+
+                                <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                                    <div>
+                                        <h3 className="text-xs font-semibold text-primary uppercase tracking-widest mb-3">
+                                            Meios de pagamento
+                                        </h3>
+                                        <div className="rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+                                            <div id={paymentContainerId} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white border border-border/60 rounded-xl p-4 shadow-sm">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-xs font-semibold text-primary uppercase tracking-widest">
+                                                Pix instantâneo
+                                            </h3>
+                                            {pixData?.ticket_url ? (
+                                                <a
+                                                    href={pixData.ticket_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-primary underline"
+                                                >
+                                                    Abrir Pix
+                                                </a>
+                                            ) : null}
+                                        </div>
+
+                                        {pixData?.qr_code_base64 ? (
+                                            <div className="flex flex-col items-center gap-3">
+                                                <img
+                                                    src={`data:image/png;base64,${pixData.qr_code_base64}`}
+                                                    alt="QR Code Pix"
+                                                    className="h-[200px] w-[200px] rounded-lg bg-white p-2 border border-border/60"
+                                                />
+                                                {pixData.qr_code ? (
+                                                    <div className="w-full">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-xs text-muted-foreground">Pix copia e cola</label>
+                                                            <button
+                                                                type="button"
+                                                                className="text-xs text-primary underline"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await navigator.clipboard.writeText(pixData.qr_code || '');
+                                                                        setPixCopied(true);
+                                                                        setTimeout(() => setPixCopied(false), 2000);
+                                                                    } catch {
+                                                                        // fallback silencioso
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {pixCopied ? 'Copiado!' : 'Copiar'}
+                                                            </button>
+                                                        </div>
+                                                        <textarea
+                                                            readOnly
+                                                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                                                            rows={3}
+                                                            value={pixData.qr_code}
+                                                        />
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : (
+                                            <div className="text-sm text-muted-foreground">
+                                                O QR Code aparecerá aqui após gerar o Pix.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 ) : (
                     <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

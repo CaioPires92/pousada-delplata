@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
 import { formatDatePtBrLong } from '@/lib/date';
 
+const HOTEL_NAME = process.env.HOTEL_NAME || 'Hotel Pousada Delplata';
+const HOTEL_EMAIL = process.env.HOTEL_EMAIL || 'contato@pousadadelplata.com.br';
+const HOTEL_WHATSAPP = process.env.HOTEL_WHATSAPP || '(19) 99965-4866';
+
 // Validar configuração SMTP
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     console.warn('⚠️ SMTP não configurado. Configure SMTP_USER e SMTP_PASS no .env para enviar emails.');
@@ -27,22 +31,13 @@ interface BookingEmailData {
     totalPrice: number;
 }
 
-export async function sendBookingConfirmationEmail(data: BookingEmailData) {
-    // Verificar se SMTP está configurado
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.error('❌ SMTP não configurado. Configure SMTP_USER e SMTP_PASS no .env');
-        return {
-            success: false,
-            error: 'SMTP not configured. Please set SMTP_USER and SMTP_PASS in .env file'
-        };
-    }
-
-    const { guestName, guestEmail, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
+export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
+    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
 
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
 
-    const htmlContent = `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -58,7 +53,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0f172a;
             color: white;
             padding: 30px;
             text-align: center;
@@ -94,12 +89,12 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         }
         .total {
             font-size: 1.3em;
-            color: #667eea;
+            color: #0f172a;
             font-weight: bold;
         }
         .instructions {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
+            background: #f8fafc;
+            border-left: 4px solid #0f172a;
             padding: 15px;
             margin: 20px 0;
             border-radius: 4px;
@@ -115,7 +110,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
 <body>
     <div class="header">
         <h1>✅ Reserva Confirmada!</h1>
-        <p>Pousada Delplata Motor</p>
+        <p>${HOTEL_NAME}</p>
     </div>
     
     <div class="content">
@@ -124,7 +119,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         <p>Sua reserva foi confirmada com sucesso! Estamos ansiosos para recebê-lo(a).</p>
         
         <div class="booking-details">
-            <h2 style="margin-top: 0; color: #667eea;">Detalhes da Reserva</h2>
+            <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
             
             <div class="detail-row">
                 <span class="detail-label">Número da Reserva:</span>
@@ -164,25 +159,45 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         
         <p>Em caso de dúvidas ou necessidade de cancelamento, entre em contato conosco:</p>
         <p>
-            📧 Email: contato@pousadadelplata.com<br>
-            📱 WhatsApp: (XX) XXXXX-XXXX
+            📧 Email: ${HOTEL_EMAIL}<br>
+            📱 WhatsApp: ${HOTEL_WHATSAPP}
         </p>
         
         <p>Aguardamos você!</p>
-        <p><strong>Equipe Pousada Delplata Motor</strong></p>
+        <p><strong>Equipe ${HOTEL_NAME}</strong></p>
     </div>
     
     <div class="footer">
         <p>Este é um email automático, por favor não responda.</p>
-        <p>&copy; ${new Date().getFullYear()} Pousada Delplata Motor. Todos os direitos reservados.</p>
+        <p>&copy; ${new Date().getFullYear()} ${HOTEL_NAME}. Todos os direitos reservados.</p>
     </div>
 </body>
 </html>
     `;
+}
+
+export async function sendBookingConfirmationEmail(data: BookingEmailData) {
+    // Verificar se SMTP está configurado
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.error('❌ SMTP não configurado. Configure SMTP_USER e SMTP_PASS no .env');
+        return {
+            success: false,
+            error: 'SMTP not configured. Please set SMTP_USER and SMTP_PASS in .env file'
+        };
+    }
+
+    const { guestEmail, roomName } = data;
+    const htmlContent = buildBookingConfirmationEmailHtml(data);
+
+    const adminEmail =
+        process.env.CONTACT_RECEIVER_EMAIL ||
+        process.env.SMTP_USER ||
+        'contato@pousadadelplata.com.br';
 
     const mailOptions = {
-        from: `"Pousada Delplata Motor" <${process.env.SMTP_USER}>`,
+        from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
         to: guestEmail,
+        bcc: adminEmail,
         subject: `✅ Reserva Confirmada - ${roomName}`,
         html: htmlContent,
     };
