@@ -38,10 +38,16 @@ export async function POST(request: NextRequest) {
             totalPrice: Number(price),
         });
 
+        const adminEmail =
+            process.env.CONTACT_RECEIVER_EMAIL ||
+            process.env.SMTP_USER ||
+            'contato@pousadadelplata.com.br';
+
         // Enviar email
         await transporter.sendMail({
             from: `"Pousada Delplata" <${process.env.SMTP_USER}>`,
             to: email,
+            bcc: adminEmail,
             subject: '✅ Reserva Confirmada - Pousada Delplata',
             html: htmlContent,
         });
