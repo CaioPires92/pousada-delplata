@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendBookingExpiredEmail } from '@/lib/email';
+import { sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
