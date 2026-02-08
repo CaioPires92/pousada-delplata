@@ -610,12 +610,6 @@ function ReservarContent() {
                                                         {room.description}
                                                     </p>
 
-                                                    {room.minLos && room.minLos > 1 ? (
-                                                        <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md inline-flex items-center gap-2">
-                                                            Estadia mínima: {room.minLos} noites
-                                                        </div>
-                                                    ) : null}
-
                                                     <div className="flex flex-wrap gap-2 mb-6">
                                                         {room.amenities.split(',').map((amenity, i) => (
                                                             <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs font-medium border border-secondary/20">
