@@ -170,7 +170,7 @@ describe('MercadoPago Webhook', () => {
     expect(data.paymentStatus).toBe('REJECTED');
   });
 
-  it('should map refunded status to CANCELLED/REJECTED', async () => {
+  it('should map refunded status to CANCELLED/REFUNDED', async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -204,7 +204,7 @@ describe('MercadoPago Webhook', () => {
     const data = await res.json();
     expect(res.status).toBe(200);
     expect(data.bookingStatus).toBe('CANCELLED');
-    expect(data.paymentStatus).toBe('REJECTED');
+    expect(data.paymentStatus).toBe('REFUNDED');
   });
   it('should return 404 when booking not found', async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({

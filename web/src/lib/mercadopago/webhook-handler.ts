@@ -42,8 +42,11 @@ function mapPaymentStatus(mpStatus: string | null | undefined) {
     if (s === 'approved') {
         return { bookingStatus: 'CONFIRMED', paymentStatus: 'APPROVED' } as const;
     }
-    if (s === 'rejected' || s === 'cancelled' || s === 'refunded' || s === 'charged_back') {
+    if (s === 'rejected' || s === 'cancelled') {
         return { bookingStatus: 'CANCELLED', paymentStatus: 'REJECTED' } as const;
+    }
+    if (s === 'refunded' || s === 'charged_back') {
+        return { bookingStatus: 'CANCELLED', paymentStatus: 'REFUNDED' } as const;
     }
     return { bookingStatus: 'PENDING', paymentStatus: 'PENDING' } as const;
 }
@@ -151,10 +154,17 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     });
                     if (update.count === 1) bookingStatus = 'CANCELLED';
                 }
+                if (mapped.paymentStatus === 'REFUNDED' && currentBookingStatus === 'CONFIRMED') {
+                    const update = await tx.booking.updateMany({
+                        where: { id: bookingId, status: 'CONFIRMED' },
+                        data: { status: 'CANCELLED' },
+                    });
+                    if (update.count === 1) bookingStatus = 'CANCELLED';
+                }
                 if (currentBookingStatus === 'CANCELLED') {
                     bookingStatus = 'CANCELLED';
                 }
-                if (currentBookingStatus === 'CONFIRMED') {
+                if (currentBookingStatus === 'CONFIRMED' && mapped.paymentStatus !== 'REFUNDED') {
                     bookingStatus = 'CONFIRMED';
                 }
             }
@@ -183,6 +193,14 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     } else {
                         paymentStatus = booking.payment.status;
                     }
+                } else if (mapped.paymentStatus === 'REFUNDED') {
+                    if (booking.payment.status !== 'REFUNDED') {
+                        await tx.payment.updateMany({
+                            where: { id: booking.payment.id, status: { not: 'REFUNDED' } },
+                            data: { status: 'REFUNDED', providerId: paymentId },
+                        });
+                    }
+                    paymentStatus = 'REFUNDED';
                 } else {
                     if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
