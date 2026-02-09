@@ -394,6 +394,38 @@
     font-size: 1.2rem;
 }
 
+.weekdayGrid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+.weekdayCheckbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.weekdayCheckbox input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #2563eb;
+}
+.weekdayCheckbox:hover {
+    border-color: #2563eb;
+}
+
 /* Modal Styles */
 .modalOverlay {
     position: fixed;

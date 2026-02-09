@@ -126,6 +126,24 @@ export default function MapaReservas() {
     const [bulkCta, setBulkCta] = useState<'true'|'false'|''>('');
     const [bulkCtd, setBulkCtd] = useState<'true'|'false'|''>('');
     const [bulkInventory, setBulkInventory] = useState('');
+    const WEEKDAYS = [
+        { label: 'dom', day: 0 },
+        { label: 'seg', day: 1 },
+        { label: 'ter', day: 2 },
+        { label: 'qua', day: 3 },
+        { label: 'qui', day: 4 },
+        { label: 'sex', day: 5 },
+        { label: 'sáb', day: 6 },
+    ];
+    const defaultWeekdays = () => WEEKDAYS.reduce<Record<number, boolean>>((acc, weekday) => {
+        acc[weekday.day] = true;
+        return acc;
+    }, {});
+    const [bulkWeekdays, setBulkWeekdays] = useState<Record<number, boolean>>(defaultWeekdays);
+    const toggleWeekday = (day: number) => {
+        setBulkWeekdays(prev => ({ ...prev, [day]: !prev[day] }));
+    };
+    const resetBulkWeekdays = () => setBulkWeekdays(defaultWeekdays());
 
     useEffect(() => {
         fetchRoomTypes();
@@ -447,11 +465,20 @@ export default function MapaReservas() {
             return;
         }
 
+        const selectedDays = Object.entries(bulkWeekdays)
+            .filter(([, value]) => value)
+            .map(([day]) => Number(day));
+        if (selectedDays.length === 0) {
+            alert('Selecione ao menos um dia da semana.');
+            return;
+        }
+
         const payload = {
             roomTypeId: bulkRoomTypeId,
             startDate: bulkStart,
             endDate: bulkEnd,
-            updates
+            updates,
+            daysOfWeek: selectedDays
         };
         console.log('[Frontend] Bulk Payload:', JSON.stringify(payload, null, 2));
 
@@ -498,6 +525,7 @@ export default function MapaReservas() {
         setBulkCta('');
         setBulkCtd('');
         setBulkInventory('');
+        resetBulkWeekdays();
     };
 
 
@@ -1034,6 +1062,21 @@ export default function MapaReservas() {
                                         className={styles.input}
                                         style={{ padding: '0.875rem', width: '100%' }}
                                     />
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '1.5rem', padding: '1rem 1rem 0', borderTop: '1px solid #e2e8f0' }}>
+                                <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Só aplicar para</p>
+                                <div className={styles.weekdayGrid}>
+                                    {WEEKDAYS.map(weekday => (
+                                        <label key={weekday.day} className={styles.weekdayCheckbox}>
+                                            <input 
+                                                type="checkbox"
+                                                checked={bulkWeekdays[weekday.day]}
+                                                onChange={() => toggleWeekday(weekday.day)}
+                                            />
+                                            <span>{weekday.label}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         </div>

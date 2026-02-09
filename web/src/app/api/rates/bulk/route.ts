@@ -15,7 +15,7 @@ export async function POST(request: Request) {
         if (!text) return NextResponse.json({ error: 'Request body is empty' }, { status: 400 });
 
         const body = JSON.parse(text);
-        const { roomTypeId, roomTypes, date, startDate, endDate, updates } = body;
+        const { roomTypeId, roomTypes, date, startDate, endDate, updates, daysOfWeek } = body;
 
         const effectiveStartDate = (date || startDate) as string | undefined;
         const effectiveEndDate = (date || endDate) as string | undefined;
@@ -62,6 +62,19 @@ export async function POST(request: Request) {
         const basePriceByRoomId = new Map(roomTypeRows.map(r => [r.id, Number(r.basePrice) || 0]));
 
         const dayKeysInRange = eachDayKeyInclusive(startStr, endStr);
+        const parsedDaysOfWeek = Array.isArray(daysOfWeek)
+            ? daysOfWeek
+                .map((d: unknown) => Number(d))
+                .filter((d: number) => Number.isInteger(d) && d >= 0 && d <= 6)
+            : [];
+        const selectedWeekdays = parsedDaysOfWeek.length > 0 ? new Set(parsedDaysOfWeek) : null;
+        const targetDayKeys = selectedWeekdays
+            ? dayKeysInRange.filter((dateKey) => selectedWeekdays.has(new Date(`${dateKey}T00:00:00Z`).getUTCDay()))
+            : dayKeysInRange;
+
+        if (targetDayKeys.length === 0) {
+            return NextResponse.json({ error: 'No dates match selected weekdays' }, { status: 400 });
+        }
         const ops: any[] = [];
 
         for (const currentRoomId of targetRoomIds) {
@@ -96,7 +109,7 @@ export async function POST(request: Request) {
             const hasMinLosUpdate = updates.minLos !== undefined && updates.minLos !== '';
             const minLosValue = hasMinLosUpdate ? Number.parseInt(updates.minLos) : undefined;
 
-            for (const dateKey of dayKeysInRange) {
+            for (const dateKey of targetDayKeys) {
                 const existing = dayMap.get(dateKey) || {
                     price: basePrice,
                     stopSell: false,
@@ -162,11 +175,11 @@ export async function POST(request: Request) {
                 ops.push(prisma.inventoryAdjustment.deleteMany({
                     where: {
                         roomTypeId: currentRoomId,
-                        dateKey: { gte: startStr, lte: endStr }
+                        dateKey: { in: targetDayKeys }
                     }
                 }));
 
-                const invRows = dayKeysInRange.map(dateKey => ({
+                const invRows = targetDayKeys.map(dateKey => ({
                     roomTypeId: currentRoomId,
                     dateKey,
                     date: new Date(`${dateKey}T00:00:00Z`),
@@ -178,7 +191,7 @@ export async function POST(request: Request) {
 
         await prisma.$transaction(ops);
 
-        return NextResponse.json({ success: true, affectedRooms: targetRoomIds.length, affectedDays: dayKeysInRange.length });
+        return NextResponse.json({ success: true, affectedRooms: targetRoomIds.length, affectedDays: targetDayKeys.length });
     } catch (error) {
         Sentry.captureException(error);
         console.error('[Bulk Update] ERROR:', error);

@@ -93,4 +93,35 @@ describe('Rates Bulk API - day key', () => {
         const res = await POST(req);
         expect(res.status).toBe(200);
     });
+
+    it('applies updates only to selected weekdays', async () => {
+        (prisma.roomType.findMany as any).mockResolvedValue([{ id: 'room-1', basePrice: 300 }]);
+        (prisma.rate.findMany as any).mockResolvedValue([]);
+        (prisma.$transaction as any).mockResolvedValue([]);
+
+        const req = new Request('http://localhost/api/rates/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                startDate: '2026-01-26',
+                endDate: '2026-01-28',
+                daysOfWeek: [1, 2], // seg, ter
+                updates: { inventory: 5, price: 250 },
+            }),
+        });
+
+        const res = await POST(req);
+        expect(res.status).toBe(200);
+
+        expect(prisma.rate.createMany).toHaveBeenCalledTimes(1);
+        const rateArgs = (prisma.rate.createMany as any).mock.calls[0][0];
+        expect(rateArgs.data[0].startDate.toISOString()).toBe('2026-01-26T00:00:00.000Z');
+        expect(rateArgs.data[0].endDate.toISOString()).toBe('2026-01-27T00:00:00.000Z');
+
+        expect(prisma.inventoryAdjustment.createMany).toHaveBeenCalledTimes(1);
+        const invArgs = (prisma.inventoryAdjustment.createMany as any).mock.calls[0][0];
+        const invKeys = invArgs.data.map((row: any) => row.dateKey);
+        expect(invKeys).toEqual(['2026-01-26', '2026-01-27']);
+    });
 });
