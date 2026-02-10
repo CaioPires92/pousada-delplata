@@ -1,6 +1,8 @@
 param(
     [string]$OutputZip = "deploy-hostinger.zip",
-    [switch]$RunChecks = $true
+    [switch]$SkipChecks,
+    [switch]$OptimizeImages,
+    [switch]$KeepAllPhotos
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,22 +20,33 @@ function Resolve-ProjectRoot {
 }
 
 function Get-ReferencedImages {
-    $patterns = @(
-        "src",
+    $targets = New-Object System.Collections.Generic.List[string]
+
+    if (Test-Path "src") {
+        Get-ChildItem "src" -Recurse -File | ForEach-Object { $targets.Add($_.FullName) }
+    }
+
+    @(
         "scripts\seed-production.js",
         "src\lib\room-photos.ts"
-    ) | Where-Object { Test-Path $_ }
+    ) | Where-Object { Test-Path $_ } | ForEach-Object { $targets.Add((Resolve-Path $_).Path) }
 
-    if (-not $patterns.Count) {
+    if ($targets.Count -eq 0) {
         return @()
     }
 
-    $raw = rg -o '/fotos/[^''" )]+\.(jpg|jpeg|png|webp)' @patterns --no-filename
-    if (-not $raw) {
-        return @()
+    $regex = [regex]'/fotos/[^''"")]+\.(jpg|jpeg|png|webp)'
+    $found = New-Object System.Collections.Generic.List[string]
+    foreach ($file in $targets) {
+        $content = Get-Content -LiteralPath $file -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
+        $matches = $regex.Matches($content)
+        foreach ($m in $matches) {
+            $found.Add($m.Value) | Out-Null
+        }
     }
 
-    return $raw | Sort-Object -Unique
+    return $found | Sort-Object -Unique
 }
 
 function Copy-ProjectBase([string]$projectRoot, [string]$stagingRoot) {
@@ -80,12 +93,12 @@ function Copy-ReferencedPhotos([string]$projectRoot, [string]$stagingRoot, [stri
     $missing = New-Object System.Collections.Generic.List[string]
     foreach ($ref in $references) {
         $relative = $ref.TrimStart('/') -replace '/', '\'
-        $src = Join-Path $projectRoot $relative
+        $src = Join-Path $projectRoot ("public\" + $relative)
         if (-not (Test-Path $src)) {
             $missing.Add($ref)
             continue
         }
-        $dst = Join-Path $stagingRoot $relative
+        $dst = Join-Path $stagingRoot ("public\" + $relative)
         $dstDir = Split-Path $dst -Parent
         if (-not (Test-Path $dstDir)) {
             New-Item -ItemType Directory -Path $dstDir -Force | Out-Null
@@ -123,6 +136,20 @@ function Remove-NonRuntimeFiles([string]$stagingRoot) {
     }
 }
 
+function Optimize-StagedImages([string]$stagingRoot) {
+    $target = Join-Path $stagingRoot "public\fotos"
+    if (-not (Test-Path $target)) {
+        Write-Step "Sem public/fotos no staging para otimizar."
+        return
+    }
+    if (-not (Test-Path (Join-Path (Get-Location).Path "node_modules\sharp\package.json"))) {
+        Write-Step "sharp nao encontrado; pulando otimizacao de imagens."
+        return
+    }
+    Write-Step "Otimizando imagens do staging..."
+    node ./scripts/optimize-staged-images.mjs $target | Out-Host
+}
+
 function Run-Guardrails([string]$projectRoot) {
     Write-Step "Rodando testes (guardrail)..."
     npm run test | Out-Host
@@ -134,22 +161,32 @@ $projectRoot = Resolve-ProjectRoot
 $outputPath = Join-Path $projectRoot $OutputZip
 $stagingRoot = Join-Path $env:TEMP "hostinger-deploy-lean"
 
-if ($RunChecks) {
+if (-not $SkipChecks) {
     Run-Guardrails -projectRoot $projectRoot
 }
 
-Write-Step "Coletando imagens referenciadas..."
-$referencedImages = Get-ReferencedImages
-Write-Step "Total de imagens referenciadas: $($referencedImages.Count)"
+if (-not $KeepAllPhotos) {
+    Write-Step "Coletando imagens referenciadas..."
+    $referencedImages = Get-ReferencedImages
+    Write-Step "Total de imagens referenciadas: $($referencedImages.Count)"
+}
 
 Write-Step "Copiando base do projeto..."
 Copy-ProjectBase -projectRoot $projectRoot -stagingRoot $stagingRoot
 
-Write-Step "Mantendo apenas fotos referenciadas em public/fotos..."
-Copy-ReferencedPhotos -projectRoot $projectRoot -stagingRoot $stagingRoot -references $referencedImages
+if (-not $KeepAllPhotos) {
+    Write-Step "Mantendo apenas fotos referenciadas em public/fotos..."
+    Copy-ReferencedPhotos -projectRoot $projectRoot -stagingRoot $stagingRoot -references $referencedImages
+} else {
+    Write-Step "Mantendo todas as fotos (modo sem poda de referencias)."
+}
 
 Write-Step "Removendo arquivos nao essenciais para runtime..."
 Remove-NonRuntimeFiles -stagingRoot $stagingRoot
+
+if ($OptimizeImages) {
+    Optimize-StagedImages -stagingRoot $stagingRoot
+}
 
 if (Test-Path $outputPath) {
     Remove-Item $outputPath -Force
