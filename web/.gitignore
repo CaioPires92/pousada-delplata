@@ -10,6 +10,11 @@
 !.yarn/releases
 !.yarn/versions
 
+
+
+web/deploy-hostinger.zip
+web/.artifacts/
+
 # testing
 /coverage
 
@@ -41,3 +46,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+deploy-hostinger.zip
+
+.artifacts/

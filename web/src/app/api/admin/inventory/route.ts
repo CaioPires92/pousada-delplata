@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
-import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
+import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 
 export async function POST(request: Request) {
     try {
@@ -11,6 +11,14 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         const { roomTypeId, startDate, endDate, updates, date, totalUnits } = body;
+        const coerceToYmd = (input: unknown, label: string): string => {
+            if (typeof input !== 'string' || !input.trim()) {
+                throw new Error(`${label} inválida`);
+            }
+            const value = input.includes('T') ? input.slice(0, 10) : input.trim();
+            assertDayKey(value, label);
+            return value;
+        };
 
         // --- CASO 1: ATUALIZAÇÃO EM LOTE (BULK) ---
         if (startDate && endDate && updates) {
@@ -23,8 +31,8 @@ export async function POST(request: Request) {
 
             for (const id of targetIds) {
                 const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
-                const startStr = String(startDate);
-                const endStr = String(endDate);
+                const startStr = coerceToYmd(startDate, 'startDate');
+                const endStr = coerceToYmd(endDate, 'endDate');
                 const start = new Date(`${startStr}T12:00:00Z`);
                 const end = new Date(`${endStr}T12:00:00Z`);
 
@@ -65,8 +73,8 @@ export async function POST(request: Request) {
                     }
                 }
 
-                const current = new Date(`${startDate}T12:00:00Z`);
-                const last = new Date(`${endDate}T12:00:00Z`);
+                const current = new Date(`${startStr}T12:00:00Z`);
+                const last = new Date(`${endStr}T12:00:00Z`);
 
                 while (current <= last) {
                     const dKey = current.toISOString().split('T')[0];
@@ -95,8 +103,7 @@ export async function POST(request: Request) {
 
         // --- CASO 2: ATUALIZAÇÃO INDIVIDUAL ---
         if (roomTypeId && date && totalUnits !== undefined) {
-            const inputDate = new Date(date);
-            const dKey = inputDate.toISOString().slice(0, 10);
+            const dKey = coerceToYmd(date, 'date');
             const isoDate = new Date(`${dKey}T12:00:00Z`);
             const roomType = await prisma.roomType.findUnique({ where: { id: roomTypeId } });
             const capacityTotal = Number(roomType?.totalUnits ?? 1);

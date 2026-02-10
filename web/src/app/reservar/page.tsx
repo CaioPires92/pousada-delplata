@@ -118,6 +118,14 @@ function ReservarContent() {
         return formatDateBRFromYmd(dateString);
     };
 
+    const stayNights = useMemo(() => {
+        if (!checkIn || !checkOut) return 0;
+        const diff = Math.ceil(
+            (new Date(`${checkOut}T00:00:00Z`).getTime() - new Date(`${checkIn}T00:00:00Z`).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return Math.max(0, diff);
+    }, [checkIn, checkOut]);
+
     const getWhatsAppUrl = () => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
         const checkOutStr = checkOut ? formatDate(checkOut) : 'DATA INDEFINIDA';
@@ -551,6 +559,8 @@ function ReservarContent() {
                             <p className="text-muted-foreground flex items-center gap-2 text-sm">
                                 <span>{formatDate(checkIn!)} - {formatDate(checkOut!)}</span>
                                 <span className="w-1 h-1 bg-muted-foreground rounded-full" />
+                                <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
+                                <span className="w-1 h-1 bg-muted-foreground rounded-full" />
                                 <span>{adults} Adultos, {children} Crianças</span>
                             </p>
                         </div>
@@ -604,6 +614,7 @@ function ReservarContent() {
                                                         <div className="text-right hidden md:block">
                                                             <span className="text-xs text-muted-foreground uppercase tracking-wider">Total da estadia</span>
                                                             <p className="text-2xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
+                                                            <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
                                                         </div>
                                                     </div>
                                                     <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>
@@ -623,6 +634,7 @@ function ReservarContent() {
                                                     <div className="md:hidden">
                                                         <span className="text-xs text-muted-foreground">Total</span>
                                                         <p className="text-xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
+                                                        <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
                                                     </div>
                                                     <Button size="lg" onClick={() => handleSelectRoom(room)} className="ml-auto w-full md:w-auto shadow-lg shadow-primary/20">
                                                         Selecionar e Continuar
