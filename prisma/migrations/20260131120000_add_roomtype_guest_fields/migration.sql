@@ -1,0 +1,5 @@
+-- Add missing guest/capacity fields to RoomType
+ALTER TABLE "RoomType" ADD COLUMN "maxGuests" INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE "RoomType" ADD COLUMN "includedAdults" INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE "RoomType" ADD COLUMN "extraAdultFee" DECIMAL NOT NULL DEFAULT 0;
+ALTER TABLE "RoomType" ADD COLUMN "child6To11Fee" DECIMAL NOT NULL DEFAULT 0;
