@@ -103,6 +103,7 @@ export default function MapaReservas() {
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
     // List View Scroll Ref
     const listScrollRef = useRef<HTMLDivElement>(null);
+    const hasAutoCenteredTodayRef = useRef(false);
 
     const [loading, setLoading] = useState(true);
 
@@ -116,6 +117,7 @@ export default function MapaReservas() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [editPrice, setEditPrice] = useState('');
     const [editMinLos, setEditMinLos] = useState('');
+    const [editInventory, setEditInventory] = useState('');
     const [editStopSell, setEditStopSell] = useState(false);
     const [editCta, setEditCta] = useState(false);
     const [editCtd, setEditCtd] = useState(false);
@@ -328,6 +330,7 @@ export default function MapaReservas() {
             setEditStopSell(Boolean(data.stopSell));
             setEditCta(Boolean(data.cta));
             setEditCtd(Boolean(data.ctd));
+            setEditInventory(String(data.totalInventory ?? data.capacityTotal ?? 0));
             setExistingRateId(rate?.id ?? null);
         } else {
             const room = roomTypes.find(r => r.id === selectedRoomId);
@@ -336,6 +339,7 @@ export default function MapaReservas() {
             setEditStopSell(false);
             setEditCta(false);
             setEditCtd(false);
+            setEditInventory('1');
             setExistingRateId(null);
         }
         
@@ -351,21 +355,32 @@ export default function MapaReservas() {
             return;
         }
 
+        const inventoryValue = Number(editInventory);
+        if (!Number.isFinite(inventoryValue) || inventoryValue < 0) {
+            showToast('error', 'Quantidade de quartos inválida.');
+            return;
+        }
+
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
         try {
-            await saveSingleDayRate(selectedDate, { 
+            await saveSingleDayRate(selectedDate, {
                 price,
                 minLos: parseInt(editMinLos) || 1,
                 stopSell: editStopSell,
                 cta: editCta,
                 ctd: editCtd
-            });
+            }, false);
+
+            await persistInventory(dateStr, Math.floor(inventoryValue));
+            await fetchRates();
+
             setModalOpen(false);
             showToast('success', 'Alteração aplicada com sucesso.');
         } catch {
             return;
         }
     };
-
     const handleDelete = async () => {
         if (!existingRateId || !selectedDate) return;
         
@@ -545,9 +560,11 @@ export default function MapaReservas() {
     });
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const todayLabel = format(new Date(), 'dd/MM/yyyy');
+    const selectedDayData = selectedDate ? getDataForDay(selectedDate) : undefined;
 
     useEffect(() => {
         if (viewMode !== 'list' || calendarLoading) return;
+        if (hasAutoCenteredTodayRef.current) return;
         const wrapper = listScrollRef.current;
         if (!wrapper) return;
 
@@ -556,6 +573,7 @@ export default function MapaReservas() {
 
         const left = Math.max(0, target.offsetLeft - (wrapper.clientWidth / 2) + (target.clientWidth / 2));
         wrapper.scrollTo({ left, behavior: 'smooth' });
+        hasAutoCenteredTodayRef.current = true;
     }, [viewMode, currentDate, calendarLoading, todayKey]);
 
     const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -925,9 +943,9 @@ export default function MapaReservas() {
                                     </label>
                                     <div style={{ position: 'relative' }}>
                                         <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>R$</span>
-                                        <input 
-                                            type="number" 
-                                            step="0.01" 
+                                        <input
+                                            type="number"
+                                            step="0.01"
                                             value={editPrice}
                                             onChange={e => setEditPrice(e.target.value)}
                                             className={styles.input}
@@ -941,8 +959,8 @@ export default function MapaReservas() {
                                     <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem', display: 'block' }}>
                                         Min. Noites
                                     </label>
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         min="1"
                                         value={editMinLos}
                                         onChange={e => setEditMinLos(e.target.value)}
@@ -952,27 +970,46 @@ export default function MapaReservas() {
                                 </div>
                             </div>
 
+                            <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#f8fafc' }}>
+                                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.5rem', display: 'block' }}>
+                                    Quartos Disponíveis (Inventário)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={editInventory}
+                                    onChange={e => setEditInventory(e.target.value)}
+                                    className={styles.input}
+                                    style={{ width: '100%', marginBottom: '0.6rem' }}
+                                />
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', fontSize: '0.78rem', color: '#475569' }}>
+                                    <span>Disponíveis: <strong>{selectedDayData?.available ?? '-'}</strong></span>
+                                    <span>Reservados: <strong>{selectedDayData?.bookingsCount ?? '-'}</strong></span>
+                                    <span>Capacidade: <strong>{selectedDayData?.capacityTotal ?? '-'}</strong></span>
+                                </div>
+                            </div>
+
                             {/* Restrictions Cards */}
                             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '0.75rem', display: 'block' }}>
                                 Restrições
                             </label>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <label 
-                                    style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        padding: '1rem', 
-                                        border: editStopSell ? '1px solid #fecaca' : '1px solid #e2e8f0', 
-                                        borderRadius: '8px', 
+                                <label
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '1rem',
+                                        border: editStopSell ? '1px solid #fecaca' : '1px solid #e2e8f0',
+                                        borderRadius: '8px',
                                         cursor: 'pointer',
                                         background: editStopSell ? '#fef2f2' : 'white',
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <input 
-                                        type="checkbox" 
-                                        checked={editStopSell} 
-                                        onChange={e => setEditStopSell(e.target.checked)} 
+                                    <input
+                                        type="checkbox"
+                                        checked={editStopSell}
+                                        onChange={e => setEditStopSell(e.target.checked)}
                                         style={{ width: '1.1rem', height: '1.1rem', marginRight: '1rem', accentColor: '#ef4444' }}
                                     />
                                     <div>
@@ -982,41 +1019,41 @@ export default function MapaReservas() {
                                 </label>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                    <label 
-                                        style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            padding: '0.75rem', 
-                                            border: editCta ? '1px solid #fed7aa' : '1px solid #e2e8f0', 
-                                            borderRadius: '8px', 
+                                    <label
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '0.75rem',
+                                            border: editCta ? '1px solid #fed7aa' : '1px solid #e2e8f0',
+                                            borderRadius: '8px',
                                             cursor: 'pointer',
                                             background: editCta ? '#fff7ed' : 'white'
                                         }}
                                     >
-                                        <input 
-                                            type="checkbox" 
-                                            checked={editCta} 
-                                            onChange={e => setEditCta(e.target.checked)} 
+                                        <input
+                                            type="checkbox"
+                                            checked={editCta}
+                                            onChange={e => setEditCta(e.target.checked)}
                                             style={{ marginRight: '0.75rem', accentColor: '#f97316' }}
                                         />
                                         <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#334155' }}>Bloquear Entrada</span>
                                     </label>
 
-                                    <label 
-                                        style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            padding: '0.75rem', 
-                                            border: editCtd ? '1px solid #fed7aa' : '1px solid #e2e8f0', 
-                                            borderRadius: '8px', 
+                                    <label
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '0.75rem',
+                                            border: editCtd ? '1px solid #fed7aa' : '1px solid #e2e8f0',
+                                            borderRadius: '8px',
                                             cursor: 'pointer',
                                             background: editCtd ? '#fff7ed' : 'white'
                                         }}
                                     >
-                                        <input 
-                                            type="checkbox" 
-                                            checked={editCtd} 
-                                            onChange={e => setEditCtd(e.target.checked)} 
+                                        <input
+                                            type="checkbox"
+                                            checked={editCtd}
+                                            onChange={e => setEditCtd(e.target.checked)}
                                             style={{ marginRight: '0.75rem', accentColor: '#f97316' }}
                                         />
                                         <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#334155' }}>Bloquear Saída</span>
@@ -1024,7 +1061,6 @@ export default function MapaReservas() {
                                 </div>
                             </div>
                         </div>
-
                         {/* Footer Actions */}
                         <div style={{ 
                             padding: '1.5rem', 
@@ -1065,9 +1101,9 @@ export default function MapaReservas() {
                                     onClick={handleSave}
                                     className={styles.buttonPrimary}
                                     style={{ padding: '0.6rem 1.5rem' }}
-                                    disabled={savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null)}
+                                    disabled={savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null) || updatingInventory === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null)}
                                 >
-                                    {savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null) ? 'Salvando...' : 'Salvar Alterações'}
+                                    {(savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null) || updatingInventory === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null)) ? 'Salvando...' : 'Salvar Alterações'}
                                 </button>
                             </div>
                         </div>
