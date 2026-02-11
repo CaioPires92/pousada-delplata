@@ -4,6 +4,26 @@ import { formatDatePtBrLong } from '@/lib/date';
 const HOTEL_NAME = process.env.HOTEL_NAME || 'Hotel Pousada Delplata';
 const HOTEL_EMAIL = process.env.HOTEL_EMAIL || 'contato@pousadadelplata.com.br';
 const HOTEL_WHATSAPP = process.env.HOTEL_WHATSAPP || '(19) 99965-4866';
+const DEFAULT_CONTACT_RECEIVER_EMAIL = 'contato@pousadadelplata.com.br';
+const DEFAULT_ALWAYS_BCC_EMAIL = 'caiocgp92@gmail.com';
+
+function normalizeEmail(value: string | undefined | null) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized.length > 0 ? normalized : '';
+}
+
+function buildBccRecipients(toEmail: string | undefined, candidates: Array<string | undefined>) {
+    const toNormalized = normalizeEmail(toEmail);
+    const unique: string[] = [];
+
+    for (const candidate of candidates) {
+        const normalized = normalizeEmail(candidate);
+        if (!normalized || normalized === toNormalized || unique.includes(normalized)) continue;
+        unique.push(normalized);
+    }
+
+    return unique.length > 0 ? unique : undefined;
+}
 
 // Validar configuração SMTP
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -338,15 +358,14 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingConfirmationEmailHtml(data);
 
-    const adminEmail =
-        process.env.CONTACT_RECEIVER_EMAIL ||
-        process.env.SMTP_USER ||
-        'contato@pousadadelplata.com.br';
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
+    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
 
     const mailOptions = {
         from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
         to: guestEmail,
-        bcc: adminEmail,
+        bcc: bccRecipients,
         subject: `✅ Reserva Confirmada - ${roomName}`,
         html: htmlContent,
     };
@@ -369,16 +388,15 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingPendingEmailHtml(data);
 
-    const adminEmail =
-        process.env.CONTACT_RECEIVER_EMAIL ||
-        process.env.SMTP_USER ||
-        'contato@pousadadelplata.com.br';
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
+    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
 
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
-            bcc: adminEmail,
+            bcc: bccRecipients,
             subject: `⏳ Reserva Pendente - ${roomName}`,
             html: htmlContent,
         });
@@ -396,16 +414,15 @@ export async function sendBookingExpiredEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingExpiredEmailHtml(data);
 
-    const adminEmail =
-        process.env.CONTACT_RECEIVER_EMAIL ||
-        process.env.SMTP_USER ||
-        'contato@pousadadelplata.com.br';
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
+    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
 
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
-            bcc: adminEmail,
+            bcc: bccRecipients,
             subject: `❌ Reserva Expirada - ${roomName}`,
             html: htmlContent,
         });
@@ -428,10 +445,9 @@ export async function sendContactEmail(data: ContactEmailData) {
         return { success: false, error: 'SMTP not configured' };
     }
 
-    const toEmail =
-        process.env.CONTACT_RECEIVER_EMAIL ||
-        process.env.SMTP_USER ||
-        'contato@pousadadelplata.com.br';
+    const toEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
+    const bccRecipients = buildBccRecipients(toEmail, [alwaysBccEmail]);
 
     const html = `
 <html>
@@ -456,6 +472,7 @@ export async function sendContactEmail(data: ContactEmailData) {
             from: `"Site Delplata" <${process.env.SMTP_USER}>`,
             to: toEmail,
             replyTo: data.email,
+            bcc: bccRecipients,
             subject: `Contato: ${data.subject || 'Mensagem do site'}`,
             html,
         });
@@ -464,3 +481,6 @@ export async function sendContactEmail(data: ContactEmailData) {
         return { success: false, error };
     }
 }
+
+
+
