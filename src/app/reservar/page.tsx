@@ -198,7 +198,7 @@ function ReservarContent() {
                     ? await response.json().catch(() => null)
                     : null;
                 if (data && data.error === 'min_stay_required') {
-                    throw new Error(`Estadia mínima: ${data.minLos} noites`);
+                    throw new Error(`Para esta data, o mínimo de reservas é ${data.minLos} noite${Number(data.minLos) > 1 ? 's' : ''}.`);
                 }
                 throw new Error('Erro ao carregar quartos disponíveis');
             }

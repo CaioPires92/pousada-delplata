@@ -194,7 +194,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                 const errorBody = await response.json().catch(() => ({}));
                 if (errorBody?.error === 'min_stay_required') {
                     const nights = Number(errorBody.minLos || 1);
-                    setSearchMessage(`Estadia mínima: ${nights} noites.`);
+                    setSearchMessage(`Para esta data, o mínimo de reservas é ${nights} noite${nights > 1 ? 's' : ''}.`);
                     return;
                 }
                 const errorMessage = typeof errorBody?.error === 'string'
@@ -230,6 +230,9 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     const shouldShowCapacityFallback = showCapacityFallback || isOverCapacity;
     const agesMissing = numChildren > 0 && (childrenAges.length !== numChildren || childrenAges.some((age) => age === null));
     const searchDisabled = shouldShowCapacityFallback || numAdults < 1 || (numChildren > 0 && agesMissing) || !checkIn || !checkOut || loading;
+    const searchMessageClass = variant === 'light'
+        ? 'mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-destructive'
+        : 'mt-4 rounded-xl border border-white/40 bg-black/55 p-4 text-white shadow-lg backdrop-blur-sm';
 
     useEffect(() => {
         if (numChildren > 0) firstAgeRef.current?.focus();
@@ -395,7 +398,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                 ) : null}
             </form>
             {searchMessage ? (
-                <div className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+                <div className={searchMessageClass}>
                     <p className="text-sm font-medium">{searchMessage}</p>
                 </div>
             ) : null}
@@ -414,3 +417,6 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
         </div>
     );
 }
+
+
+
