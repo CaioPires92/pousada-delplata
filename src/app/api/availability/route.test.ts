@@ -375,7 +375,94 @@ describe('Availability API - Pricing Logic', () => {
     expect(data[0].totalPrice).toBe(200); // 100 base + 100 extra adult
   });
 
-  it('should return 400 for invalid date range (checkIn equals checkOut)', async () => {
+
+  it('should exclude room when stopSell is true for the check-in night', async () => {
+    const checkIn = '2026-02-11';
+    const checkOut = '2026-02-12';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
+
+    const mockRoom = {
+      id: 'room-stop-sell-rate',
+      name: 'Stop Sell Room',
+      basePrice: 100,
+      capacity: 2,
+      totalUnits: 5,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: [
+        {
+          startDate: '2026-02-11',
+          endDate: '2026-02-11',
+          price: 120,
+          stopSell: true,
+          cta: false,
+          ctd: false,
+          minLos: 1,
+          createdAt: new Date('2026-02-01T00:00:00.000Z'),
+        }
+      ],
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBe(0);
+  });
+
+  it('should prioritize newer overlapping rate and block when newest is stopSell', async () => {
+    const checkIn = '2026-02-11';
+    const checkOut = '2026-02-12';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
+
+    const mockRoom = {
+      id: 'room-overlap',
+      name: 'Overlap Room',
+      basePrice: 100,
+      capacity: 2,
+      totalUnits: 5,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: [
+        {
+          startDate: '2026-02-01',
+          endDate: '2026-02-20',
+          price: 100,
+          stopSell: false,
+          cta: false,
+          ctd: false,
+          minLos: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+        {
+          startDate: '2026-02-11',
+          endDate: '2026-02-11',
+          price: 100,
+          stopSell: true,
+          cta: false,
+          ctd: false,
+          minLos: 1,
+          createdAt: new Date('2026-02-10T00:00:00.000Z'),
+        }
+      ],
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBe(0);
+  });  it('should return 400 for invalid date range (checkIn equals checkOut)', async () => {
     const checkIn = '2026-02-01';
     const checkOut = '2026-02-01'; // Same day = 0 nights
     const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
@@ -386,3 +473,4 @@ describe('Availability API - Pricing Logic', () => {
     expect(res.status).toBe(400);
   });
 });
+
