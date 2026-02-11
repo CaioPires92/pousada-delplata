@@ -1,9 +1,9 @@
 -- AlterTable
-ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "appliedCouponCode" TEXT;
-ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "discountAmount" DECIMAL;
-ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "expiredEmailSentAt" DATETIME;
-ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "pendingEmailSentAt" DATETIME;
-ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "subtotalPrice" DECIMAL;
+ALTER TABLE "Booking" ADD COLUMN "appliedCouponCode" TEXT;
+ALTER TABLE "Booking" ADD COLUMN "discountAmount" DECIMAL;
+ALTER TABLE "Booking" ADD COLUMN "expiredEmailSentAt" DATETIME;
+ALTER TABLE "Booking" ADD COLUMN "pendingEmailSentAt" DATETIME;
+ALTER TABLE "Booking" ADD COLUMN "subtotalPrice" DECIMAL;
 
 -- CreateTable
 CREATE TABLE "Coupon" (
