@@ -19,9 +19,9 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    // Preparação das datas para o Prisma (Objetos Date com meio-dia para evitar timezone shift)
-    const start = new Date(`${startDateParam}T12:00:00Z`);
-    const end = new Date(`${endDateParam}T12:00:00Z`);
+    // Use inclusive UTC day bounds to avoid dropping 1-day records on range start.
+    const rangeStart = new Date(`${startDateParam}T00:00:00.000Z`);
+    const rangeEnd = new Date(`${endDateParam}T23:59:59.999Z`);
 
     try {
         // 1. Buscar detalhes do quarto
@@ -37,8 +37,8 @@ export async function GET(request: Request) {
         const rates = await prisma.rate.findMany({
             where: {
                 roomTypeId,
-                startDate: { lte: end },
-                endDate: { gte: start }
+                startDate: { lte: rangeEnd },
+                endDate: { gte: rangeStart }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
         const inventoryAdjustments = await prisma.inventoryAdjustment.findMany({
             where: {
                 roomTypeId,
-                date: { gte: start, lte: end }
+                date: { gte: rangeStart, lte: rangeEnd }
             }
         });
 
@@ -87,8 +87,8 @@ export async function GET(request: Request) {
                     }
                 ],
                 // Filtro de sobreposição
-                checkIn: { lte: end },
-                checkOut: { gt: start }
+                checkIn: { lte: rangeEnd },
+                checkOut: { gt: rangeStart }
             }
         });
 
@@ -97,12 +97,12 @@ export async function GET(request: Request) {
             const bIn = b.checkIn.toISOString().split('T')[0];
             const bOut = b.checkOut.toISOString().split('T')[0];
 
-            const rangeStart = compareDayKey(bIn, startDateParam) < 0 ? startDateParam : bIn;
+            const rangeStartDay = compareDayKey(bIn, startDateParam) < 0 ? startDateParam : bIn;
             const endInclusive = prevDayKey(bOut);
-            const rangeEnd = compareDayKey(endInclusive, endDateParam) > 0 ? endDateParam : endInclusive;
+            const rangeEndDay = compareDayKey(endInclusive, endDateParam) > 0 ? endDateParam : endInclusive;
 
-            if (compareDayKey(rangeStart, rangeEnd) <= 0) {
-                for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
+            if (compareDayKey(rangeStartDay, rangeEndDay) <= 0) {
+                for (const dayKey of eachDayKeyInclusive(rangeStartDay, rangeEndDay)) {
                     bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
                 }
             }
