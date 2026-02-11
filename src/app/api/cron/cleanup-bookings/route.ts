@@ -5,14 +5,12 @@ import { sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-    // Verifica segurança da Vercel
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
         return new Response('Unauthorized', { status: 401 });
     }
 
     try {
-        // Define os limites
         const quinzeMinutosAtras = new Date(Date.now() - 15 * 60 * 1000);
         const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
 
@@ -20,9 +18,9 @@ export async function GET(request: Request) {
             where: {
                 status: 'PENDING',
                 createdAt: { lt: quinzeMinutosAtras },
-                pendingEmailSentAt: null
+                pendingEmailSentAt: null,
             },
-            include: { guest: true, roomType: true }
+            include: { guest: true, roomType: true },
         });
 
         let pendingEmailCount = 0;
@@ -37,33 +35,52 @@ export async function GET(request: Request) {
                 checkIn: booking.checkIn,
                 checkOut: booking.checkOut,
                 totalPrice: Number(booking.totalPrice),
-            }).then((r) => {
-                if (r && (r as any).success) pendingEmailCount++;
-            }).catch(() => {});
+            })
+                .then((r) => {
+                    if (r && (r as any).success) pendingEmailCount++;
+                })
+                .catch(() => {});
 
             await prisma.booking.update({
                 where: { id: booking.id },
-                data: { pendingEmailSentAt: new Date() }
+                data: { pendingEmailSentAt: new Date() },
             });
         }
 
         const pendingBookings = await prisma.booking.findMany({
             where: {
                 status: 'PENDING',
-                createdAt: { lt: trintaMinutosAtras }
+                createdAt: { lt: trintaMinutosAtras },
             },
-            include: { guest: true, roomType: true }
+            include: { guest: true, roomType: true },
         });
+
+        const pendingBookingIds = pendingBookings.map((b) => b.id);
 
         const result = await prisma.booking.updateMany({
             where: {
                 status: 'PENDING',
-                createdAt: { lt: trintaMinutosAtras }
+                createdAt: { lt: trintaMinutosAtras },
             },
             data: {
-                status: 'EXPIRED'
-            }
+                status: 'EXPIRED',
+            },
         });
+
+        let couponReleaseCount = 0;
+        if (pendingBookingIds.length > 0) {
+            const released = await prisma.couponRedemption.updateMany({
+                where: {
+                    bookingId: { in: pendingBookingIds },
+                    status: { in: ['RESERVED', 'CONFIRMED'] },
+                },
+                data: {
+                    status: 'RELEASED',
+                    releasedAt: new Date(),
+                },
+            });
+            couponReleaseCount = released.count;
+        }
 
         for (const booking of pendingBookings) {
             sendBookingExpiredEmail({
@@ -74,22 +91,27 @@ export async function GET(request: Request) {
                 checkIn: booking.checkIn,
                 checkOut: booking.checkOut,
                 totalPrice: Number(booking.totalPrice),
-            }).then((r) => {
-                if (r && (r as any).success) expiredEmailCount++;
-            }).catch(() => {});
+            })
+                .then((r) => {
+                    if (r && (r as any).success) expiredEmailCount++;
+                })
+                .catch(() => {});
 
             await prisma.booking.update({
                 where: { id: booking.id },
-                data: { expiredEmailSentAt: new Date() }
+                data: { expiredEmailSentAt: new Date() },
             });
         }
 
-        console.log(`[Cron Cleanup] ${result.count} reservas expiradas. Emails pendentes: ${pendingEmailCount}, emails expirados: ${expiredEmailCount}.`);
+        console.log(
+            `[Cron Cleanup] ${result.count} reservas expiradas. Emails pendentes: ${pendingEmailCount}, emails expirados: ${expiredEmailCount}, cupons liberados: ${couponReleaseCount}.`
+        );
         return NextResponse.json({
             success: true,
             count: result.count,
             pendingEmailCount,
-            expiredEmailCount
+            expiredEmailCount,
+            couponReleaseCount,
         });
     } catch (error) {
         console.error('Erro no Cron:', error);

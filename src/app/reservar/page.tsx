@@ -41,6 +41,15 @@ interface Guest {
     phone: string;
 }
 
+interface AppliedCoupon {
+    reservationId: string;
+    code: string;
+    discountAmount: number;
+    subtotal: number;
+    total: number;
+    expiresAt?: string;
+}
+
 function ReservarContent() {
     const searchParams = useSearchParams();
     const checkIn = searchParams.get('checkIn');
@@ -62,6 +71,10 @@ function ReservarContent() {
     const [availableRooms, setAvailableRooms] = useState<Room[] | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
+    const [couponCode, setCouponCode] = useState('');
+    const [couponMessage, setCouponMessage] = useState('');
+    const [couponApplying, setCouponApplying] = useState(false);
+    const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -125,6 +138,10 @@ function ReservarContent() {
         );
         return Math.max(0, diff);
     }, [checkIn, checkOut]);
+
+    const bookingSubtotal = selectedRoom ? Number(selectedRoom.totalPrice) : 0;
+    const bookingDiscount = appliedCoupon ? Number(appliedCoupon.discountAmount || 0) : 0;
+    const bookingTotal = Math.max(0, bookingSubtotal - bookingDiscount);
 
     const getWhatsAppUrl = () => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
@@ -236,7 +253,122 @@ function ReservarContent() {
         };
     }, [fetchAvailability]);
 
+    const releaseCouponReservation = useCallback(async (reservationId?: string) => {
+        if (!reservationId) return;
+        try {
+            await fetch('/api/coupons/release', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reservationId,
+                    guest: { email: guest.email },
+                }),
+            });
+        } catch {
+            // best-effort release
+        }
+    }, [guest.email]);
+
+    const clearCouponState = useCallback((withRelease: boolean) => {
+        if (withRelease && appliedCoupon?.reservationId) {
+            void releaseCouponReservation(appliedCoupon.reservationId);
+        }
+        setAppliedCoupon(null);
+        setCouponCode('');
+        setCouponMessage('');
+    }, [appliedCoupon?.reservationId, releaseCouponReservation]);
+
+    const applyCoupon = async () => {
+        if (!selectedRoom) {
+            setCouponMessage('Selecione um quarto antes de aplicar cupom.');
+            return;
+        }
+
+        const normalizedCode = couponCode.trim();
+        if (!normalizedCode) {
+            setCouponMessage('Informe um cupom para aplicar.');
+            return;
+        }
+
+        setCouponApplying(true);
+        setCouponMessage('');
+
+        try {
+            const response = await fetch('/api/coupons/reserve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code: normalizedCode,
+                    guest: {
+                        email: guest.email,
+                        phone: guest.phone,
+                    },
+                    context: {
+                        roomTypeId: selectedRoom.id,
+                        source: 'direct',
+                        subtotal: bookingSubtotal,
+                    },
+                }),
+            });
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || !data?.valid) {
+                const reason = String(data?.reason || data?.error || 'INVALID_CODE');
+                const reasonMessage = reason === 'MIN_BOOKING_NOT_REACHED'
+                    ? 'Cupom indisponivel: valor minimo da reserva nao atingido.'
+                    : reason === 'EXPIRED'
+                        ? 'Este cupom expirou.'
+                        : reason === 'NOT_STARTED'
+                            ? 'Este cupom ainda nao esta ativo.'
+                            : reason === 'GUEST_NOT_ELIGIBLE'
+                                ? 'Este cupom nao e valido para este hospede.'
+                                : reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED'
+                                    ? 'Limite de uso deste cupom foi atingido.'
+                                    : 'Cupom invalido ou indisponivel.';
+
+                setAppliedCoupon(null);
+                setCouponMessage(reasonMessage);
+                return;
+            }
+
+            if (appliedCoupon?.reservationId && appliedCoupon.reservationId !== data.reservationId) {
+                void releaseCouponReservation(appliedCoupon.reservationId);
+            }
+
+            const discountAmount = Number(data?.discountAmount || 0);
+            const subtotal = Number(data?.subtotal || bookingSubtotal);
+            const total = Number(data?.total || Math.max(0, subtotal - discountAmount));
+
+            setAppliedCoupon({
+                reservationId: String(data.reservationId),
+                code: normalizedCode.toUpperCase(),
+                discountAmount,
+                subtotal,
+                total,
+                expiresAt: data?.reservationExpiresAt ? String(data.reservationExpiresAt) : undefined,
+            });
+            setCouponCode(normalizedCode.toUpperCase());
+            setCouponMessage('Cupom aplicado com sucesso.');
+        } catch {
+            setCouponMessage('Nao foi possivel validar o cupom. Tente novamente.');
+        } finally {
+            setCouponApplying(false);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (appliedCoupon?.reservationId) {
+                void releaseCouponReservation(appliedCoupon.reservationId);
+            }
+        };
+    }, [appliedCoupon?.reservationId, releaseCouponReservation]);
+
     const handleSelectRoom = (room: Room) => {
+        if (selectedRoom?.id && selectedRoom.id !== room.id) {
+            clearCouponState(true);
+        }
         setSelectedRoom(room);
         setTimeout(() => {
             document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -269,8 +401,12 @@ function ReservarContent() {
                     adults: Number.parseInt(adults, 10) || 0,
                     children: Number.parseInt(children, 10) || 0,
                     childrenAges,
-                    totalPrice: selectedRoom.totalPrice,
+                    totalPrice: bookingTotal,
                     guest,
+                    coupon: appliedCoupon ? {
+                        reservationId: appliedCoupon.reservationId,
+                        code: appliedCoupon.code,
+                    } : undefined,
                 }),
             });
 
@@ -746,7 +882,7 @@ function ReservarContent() {
                 ) : (
                     <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="lg:col-span-2 space-y-6">
-                            <Button variant="ghost" onClick={() => setSelectedRoom(null)} className="pl-0 hover:pl-2 transition-all gap-2 text-muted-foreground">
+                            <Button variant="ghost" onClick={() => { clearCouponState(true); setSelectedRoom(null); }} className="pl-0 hover:pl-2 transition-all gap-2 text-muted-foreground">
                                 <ArrowLeft className="w-4 h-4" /> Voltar para seleção de quartos
                             </Button>
 
@@ -812,6 +948,37 @@ function ReservarContent() {
                                                     />
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+                                            <label htmlFor="couponCode" className="text-sm font-medium">Cupom de desconto</label>
+                                            <div className="flex flex-col gap-2 md:flex-row">
+                                                <input
+                                                    id="couponCode"
+                                                    type="text"
+                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                    placeholder="Ex: VIP10"
+                                                    value={couponCode}
+                                                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                                    disabled={processing || couponApplying}
+                                                />
+                                                <Button type="button" variant="outline" onClick={applyCoupon} disabled={processing || couponApplying}>
+                                                    {couponApplying ? 'Aplicando...' : 'Aplicar'}
+                                                </Button>
+                                                {appliedCoupon ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => clearCouponState(true)}
+                                                        disabled={processing || couponApplying}
+                                                    >
+                                                        Remover
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                            {couponMessage ? (
+                                                <p className={`text-xs ${appliedCoupon ? 'text-emerald-600' : 'text-destructive'}`}>{couponMessage}</p>
+                                            ) : null}
                                         </div>
 
                                         <div className="bg-secondary/5 p-4 rounded-lg border border-secondary/20">
@@ -893,8 +1060,8 @@ function ReservarContent() {
 
                                     <div className="bg-muted/30 p-4 rounded-lg mt-4">
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className="text-sm text-muted-foreground">Valor Total</span>
-                                            <span className="text-2xl font-bold text-primary">R$ {selectedRoom.totalPrice.toFixed(2)}</span>
+                                            <span className="text-sm text-muted-foreground">Total com desconto</span>
+                                            <span className="text-2xl font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
                                         </div>
                                         {selectedRoom.priceBreakdown ? (
                                             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
@@ -902,6 +1069,18 @@ function ReservarContent() {
                                                     <span>Base</span>
                                                     <span>R$ {Number(selectedRoom.priceBreakdown.baseTotal).toFixed(2)}</span>
                                                 </div>
+                                                {appliedCoupon ? (
+                                                    <>
+                                                        <div className="flex justify-between text-emerald-600">
+                                                            <span>Desconto ({appliedCoupon.code})</span>
+                                                            <span>- R$ {bookingDiscount.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between font-semibold text-foreground">
+                                                            <span>Subtotal</span>
+                                                            <span>R$ {bookingSubtotal.toFixed(2)}</span>
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                                 {selectedRoom.priceBreakdown.extraAdultTotal > 0 ? (
                                                     <div className="flex justify-between">
                                                         <span>Adulto extra</span>
@@ -920,7 +1099,7 @@ function ReservarContent() {
                                         )}
                                     </div>
 
-                                    <Button variant="outline" className="w-full border-dashed" onClick={() => setSelectedRoom(null)}>
+                                    <Button variant="outline" className="w-full border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>
                                         Trocar Quarto
                                     </Button>
                                 </CardContent>
@@ -944,3 +1123,4 @@ export default function ReservarPage() {
         </Suspense>
     );
 }
+

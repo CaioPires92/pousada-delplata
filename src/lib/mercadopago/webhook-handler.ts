@@ -129,6 +129,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let bookingStatus = currentBookingStatus;
             let paymentStatus = currentPaymentStatus || 'PENDING';
             let emailQueued = false;
+            let couponReleased = false;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
                 if (currentBookingStatus === 'PENDING') {
@@ -152,14 +153,40 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         where: { id: bookingId, status: 'PENDING' },
                         data: { status: 'CANCELLED' },
                     });
-                    if (update.count === 1) bookingStatus = 'CANCELLED';
+                    if (update.count === 1) {
+                        bookingStatus = 'CANCELLED';
+                        const release = await tx.couponRedemption.updateMany({
+                            where: {
+                                bookingId,
+                                status: { in: ['RESERVED', 'CONFIRMED'] },
+                            },
+                            data: {
+                                status: 'RELEASED',
+                                releasedAt: new Date(),
+                            },
+                        });
+                        couponReleased = release.count > 0;
+                    }
                 }
                 if (mapped.paymentStatus === 'REFUNDED' && currentBookingStatus === 'CONFIRMED') {
                     const update = await tx.booking.updateMany({
                         where: { id: bookingId, status: 'CONFIRMED' },
                         data: { status: 'CANCELLED' },
                     });
-                    if (update.count === 1) bookingStatus = 'CANCELLED';
+                    if (update.count === 1) {
+                        bookingStatus = 'CANCELLED';
+                        const release = await tx.couponRedemption.updateMany({
+                            where: {
+                                bookingId,
+                                status: { in: ['RESERVED', 'CONFIRMED'] },
+                            },
+                            data: {
+                                status: 'RELEASED',
+                                releasedAt: new Date(),
+                            },
+                        });
+                        couponReleased = release.count > 0;
+                    }
                 }
                 if (currentBookingStatus === 'CANCELLED') {
                     bookingStatus = 'CANCELLED';
@@ -230,6 +257,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 bookingStatus,
                 paymentStatus,
                 emailQueued,
+                couponReleased,
             };
         });
 
@@ -263,6 +291,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             bookingStatus: result.bookingStatus,
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,
+            couponReleased: result.couponReleased,
         });
         return NextResponse.json({
             ok: true,
@@ -271,6 +300,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             bookingStatus: result.bookingStatus,
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,
+            couponReleased: result.couponReleased,
         });
     } catch (error) {
         Sentry.captureException(error);
@@ -284,3 +314,5 @@ export async function handleMercadoPagoWebhook(request: Request) {
         return NextResponse.json({ error: 'Erro ao processar webhook', message }, { status: 500 });
     }
 }
+
+
