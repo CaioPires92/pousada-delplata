@@ -24,6 +24,11 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Hotel Pousada Delplata",
   description: "Reserve sua estadia no Hotel Pousada Delplata. Conforto e tranquilidade.",
+  icons: {
+    icon: "/fotos/logo.png",
+    shortcut: "/fotos/logo.png",
+    apple: "/fotos/logo.png",
+  },
 };
 
 import Header from "@/components/Header";
