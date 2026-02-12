@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getCouponCodePrefix, hashTelemetryValue, normalizeGuestEmail } from '@/lib/coupons/hash';
 import { reserveCouponUsage } from '@/lib/coupons/reservation';
+import { shouldThrottleCouponRequest } from '@/lib/coupons/rate-limit';
 
 export async function POST(request: Request) {
     try {
@@ -13,6 +14,10 @@ export async function POST(request: Request) {
         const roomTypeId = String(body?.context?.roomTypeId || '');
         const source = String(body?.context?.source || 'direct');
         const subtotal = Number(body?.context?.subtotal);
+
+        if (shouldThrottleCouponRequest({ scope: 'reserve', request, guestEmail })) {
+            return NextResponse.json({ valid: false, reason: 'TOO_MANY_ATTEMPTS' }, { status: 429 });
+        }
 
         if (!Number.isFinite(subtotal)) {
             return NextResponse.json({ valid: false, reason: 'MISSING_SUBTOTAL' }, { status: 400 });
@@ -52,3 +57,4 @@ export async function POST(request: Request) {
         );
     }
 }
+

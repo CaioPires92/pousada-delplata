@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from './route';
 import prisma from '@/lib/prisma';
 import { validateCoupon } from '@/lib/coupons/validate';
+import { __resetCouponRateLimitForTests } from '@/lib/coupons/rate-limit';
 
 vi.mock('@/lib/prisma', () => ({
     default: {
@@ -18,6 +19,7 @@ vi.mock('@/lib/coupons/validate', () => ({
 describe('POST /api/coupons/validate', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        __resetCouponRateLimitForTests();
     });
 
     it('returns 400 when subtotal is missing', async () => {
@@ -89,4 +91,36 @@ describe('POST /api/coupons/validate', () => {
         expect(data.valid).toBe(false);
         expect(data.reason).toBe('EXPIRED');
     });
+    it('returns 429 when validate rate limit is exceeded', async () => {
+        (validateCoupon as any).mockResolvedValue({
+            valid: false,
+            reason: 'INVALID_CODE',
+        });
+
+        const payload = {
+            code: 'WELCOME10',
+            guest: { email: 'john@example.com' },
+            context: { subtotal: 1000, roomTypeId: 'room-1', source: 'direct' },
+        };
+
+        let lastRes: Response | null = null;
+        for (let i = 0; i < 16; i += 1) {
+            const req = new Request('http://localhost/api/coupons/validate', {
+                method: 'POST',
+                headers: {
+                    'x-forwarded-for': '1.2.3.4',
+                    'user-agent': 'vitest-agent',
+                },
+                body: JSON.stringify(payload),
+            });
+            lastRes = await POST(req);
+        }
+
+        expect(lastRes).not.toBeNull();
+        expect(lastRes?.status).toBe(429);
+        const data = await lastRes!.json();
+        expect(data.reason).toBe('TOO_MANY_ATTEMPTS');
+        expect(prisma.couponAttemptLog.create).toHaveBeenCalled();
+    });
 });
+
