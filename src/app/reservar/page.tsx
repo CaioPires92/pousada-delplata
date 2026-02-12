@@ -653,10 +653,12 @@ function ReservarContent() {
                                 <CardDescription>Escolha o método e finalize sua reserva com segurança.</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-6">
-                                <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex items-center justify-between">
-                                    <span className="text-sm text-muted-foreground">Valor total a pagar</span>
-                                    <strong className="text-lg font-bold text-primary">R$ {Number(paymentAmount || 0).toFixed(2)}</strong>
-                                </div>
+                                {Number(paymentAmount || 0) > 0 ? (
+                                    <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex items-center justify-between">
+                                        <span className="text-sm text-muted-foreground">Valor total a pagar</span>
+                                        <strong className="text-lg font-bold text-primary">R$ {Number(paymentAmount || 0).toFixed(2)}</strong>
+                                    </div>
+                                ) : null}
                                 {paymentError ? (
                                     <div className="bg-destructive/10 text-destructive p-4 rounded-lg border border-destructive/20">
                                         {paymentError}
@@ -946,5 +948,9 @@ export default function ReservarPage() {
         </Suspense>
     );
 }
+
+
+
+
 
 
