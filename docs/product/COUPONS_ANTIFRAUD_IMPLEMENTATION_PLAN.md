@@ -274,3 +274,5 @@ Libera lock reservado nao confirmado.
 - Corrida de confirmacao de pagamento: usar transacao e status idempotente.
 - Compartilhamento de cupom privado: bind + single-use + validade curta.
 - Reuso via emails diferentes: opcional bind em telefone/CPF.
+## Operacao
+- Runbook rapido: docs/product/COUPONS_OPERATIONS_RUNBOOK.md
