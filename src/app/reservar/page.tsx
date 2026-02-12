@@ -142,6 +142,9 @@ function ReservarContent() {
     const bookingSubtotal = selectedRoom ? Number(selectedRoom.totalPrice) : 0;
     const bookingDiscount = appliedCoupon ? Number(appliedCoupon.discountAmount || 0) : 0;
     const bookingTotal = Math.max(0, bookingSubtotal - bookingDiscount);
+    const normalizedCouponInput = couponCode.trim().toUpperCase();
+    const hasPendingCouponToApply = normalizedCouponInput.length > 0
+        && (!appliedCoupon || appliedCoupon.code !== normalizedCouponInput);
 
     const getWhatsAppUrl = () => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
@@ -278,16 +281,16 @@ function ReservarContent() {
         setCouponMessage('');
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
-    const applyCoupon = async () => {
+    const applyCoupon = async (): Promise<boolean> => {
         if (!selectedRoom) {
             setCouponMessage('Selecione um quarto antes de aplicar cupom.');
-            return;
+            return false;
         }
 
         const normalizedCode = couponCode.trim();
         if (!normalizedCode) {
             setCouponMessage('Informe um cupom para aplicar.');
-            return;
+            return false;
         }
 
         setCouponApplying(true);
@@ -329,7 +332,7 @@ function ReservarContent() {
 
                 setAppliedCoupon(null);
                 setCouponMessage(reasonMessage);
-                return;
+                return false;
             }
 
             if (appliedCoupon?.reservationId && appliedCoupon.reservationId !== data.reservationId) {
@@ -350,8 +353,10 @@ function ReservarContent() {
             });
             setCouponCode(normalizedCode.toUpperCase());
             setCouponMessage('Cupom aplicado com sucesso.');
+            return true;
         } catch {
             setCouponMessage('Nao foi possivel validar o cupom. Tente novamente.');
+            return false;
         } finally {
             setCouponApplying(false);
         }
@@ -386,6 +391,16 @@ function ReservarContent() {
         if (!termsAccepted) {
             alert('Por favor, aceite os termos e condições.');
             return;
+        }
+
+        if (hasPendingCouponToApply) {
+            const continueWithoutCoupon = window.confirm(
+                'Você digitou um cupom, mas ainda não aplicou. Clique em OK para continuar sem desconto ou em Cancelar para aplicar o cupom agora.'
+            );
+            if (!continueWithoutCoupon) {
+                await applyCoupon();
+                return;
+            }
         }
 
         try {
@@ -986,6 +1001,9 @@ function ReservarContent() {
                                             {couponMessage ? (
                                                 <p className={`text-xs ${appliedCoupon ? 'text-emerald-600' : 'text-destructive'}`}>{couponMessage}</p>
                                             ) : null}
+                                            {hasPendingCouponToApply ? (
+                                                <p className="text-xs text-amber-700">Cupom digitado, mas ainda não aplicado.</p>
+                                            ) : null}
                                         </div>
 
                                         <div className="bg-secondary/5 p-4 rounded-lg border border-secondary/20">
@@ -1130,6 +1148,7 @@ export default function ReservarPage() {
         </Suspense>
     );
 }
+
 
 
 
