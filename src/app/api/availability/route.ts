@@ -59,8 +59,6 @@ export async function GET(request: Request) {
                 },
             });
 
-            if (reservasOcupando >= (room.totalUnits || 1)) continue;
-
             const rates: NormalizedRate[] = room.rates
                 .slice()
                 .sort((a: any, b: any) => {
@@ -94,14 +92,20 @@ export async function GET(request: Request) {
 
             const adjustmentByDay = new Map(adjustments.map((adj) => [adj.dateKey, adj.totalUnits]));
 
-            const effectiveTotalUnits = nightStrings.reduce((min, dayKey) => {
-                const dayUnits = adjustmentByDay.has(dayKey)
+            const capacityTotal = Number(room.totalUnits || 1);
+            const effectiveSellableUnits = nightStrings.reduce((min, dayKey) => {
+                const adjustedValue = adjustmentByDay.has(dayKey)
                     ? Number(adjustmentByDay.get(dayKey))
-                    : Number(room.totalUnits || 1);
-                return Math.min(min, dayUnits);
-            }, Number(room.totalUnits || 1));
+                    : null;
 
-            if (effectiveTotalUnits <= 0) continue;
+                const daySellableUnits = adjustedValue !== null
+                    ? Math.max(0, Math.min(capacityTotal, adjustedValue))
+                    : Math.max(0, capacityTotal - reservasOcupando);
+
+                return Math.min(min, daySellableUnits);
+            }, Number.POSITIVE_INFINITY);
+
+            if (!Number.isFinite(effectiveSellableUnits) || effectiveSellableUnits <= 0) continue;
 
             let baseTotalForStay = 0;
             let requiredMinLos = 1;
@@ -130,8 +134,7 @@ export async function GET(request: Request) {
                     child6To11Fee: Number(room.child6To11Fee || 0),
                 });
 
-                const remainingUnits = effectiveTotalUnits - reservasOcupando;
-                if (remainingUnits <= 0) continue;
+                const remainingUnits = effectiveSellableUnits;
 
                 availableRooms.push({
                     ...room,
@@ -155,4 +158,5 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
 }
+
 

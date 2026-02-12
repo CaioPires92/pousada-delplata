@@ -23,11 +23,13 @@ export async function POST(request: Request) {
         // --- CASO 1: ATUALIZAÇÃO EM LOTE (BULK) ---
         if (startDate && endDate && updates) {
             const inventoryValue = parseInt(updates.inventory);
+            const requestedUnits = Math.max(0, Number.isFinite(inventoryValue) ? inventoryValue : 0);
             const targetIds = roomTypeId === 'all'
-                ? (await prisma.roomType.findMany()).map(r => r.id)
+                ? (await prisma.roomType.findMany()).map((r) => r.id)
                 : [roomTypeId];
 
             const operations = [];
+            let appliedLimit = false;
 
             for (const id of targetIds) {
                 const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
@@ -48,13 +50,13 @@ export async function POST(request: Request) {
                             {
                                 AND: [
                                     { status: 'PENDING' },
-                                    { createdAt: { gte: new Date(Date.now() - ttlMinutes * 60000) } }
-                                ]
-                            }
+                                    { createdAt: { gte: new Date(Date.now() - ttlMinutes * 60000) } },
+                                ],
+                            },
                         ],
                         checkIn: { lte: end },
-                        checkOut: { gt: start }
-                    }
+                        checkOut: { gt: start },
+                    },
                 });
 
                 const bookingsCountByDay = new Map<string, number>();
@@ -80,7 +82,8 @@ export async function POST(request: Request) {
                     const dKey = current.toISOString().split('T')[0];
                     const bookingsCount = bookingsCountByDay.get(dKey) || 0;
                     const maxSellable = Math.max(0, capacityTotal - bookingsCount);
-                    const safeUnits = Math.max(0, Math.min(maxSellable, inventoryValue));
+                    const safeUnits = Math.max(0, Math.min(maxSellable, requestedUnits));
+                    appliedLimit = appliedLimit || safeUnits !== requestedUnits;
 
                     operations.push(
                         prisma.inventoryAdjustment.upsert({
@@ -90,15 +93,15 @@ export async function POST(request: Request) {
                                 roomTypeId: id,
                                 dateKey: dKey,
                                 date: new Date(current),
-                                totalUnits: safeUnits
-                            }
+                                totalUnits: safeUnits,
+                            },
                         })
                     );
                     current.setUTCDate(current.getUTCDate() + 1);
                 }
             }
             await prisma.$transaction(operations);
-            return NextResponse.json({ success: true, appliedLimit: true });
+            return NextResponse.json({ success: true, appliedLimit });
         }
 
         // --- CASO 2: ATUALIZAÇÃO INDIVIDUAL ---
@@ -119,14 +122,16 @@ export async function POST(request: Request) {
                         { status: 'PAID' },
                         {
                             status: 'PENDING',
-                            createdAt: { gte: new Date(Date.now() - ttlMinutes * 60000) }
-                        }
-                    ]
-                }
+                            createdAt: { gte: new Date(Date.now() - ttlMinutes * 60000) },
+                        },
+                    ],
+                },
             });
 
+            const requestedUnits = parseInt(totalUnits);
+            const normalizedRequested = Number.isFinite(requestedUnits) ? requestedUnits : 0;
             const maxSellable = Math.max(0, capacityTotal - activeBookingsCount);
-            const safeUnits = Math.max(0, Math.min(maxSellable, parseInt(totalUnits)));
+            const safeUnits = Math.max(0, Math.min(maxSellable, normalizedRequested));
 
             const adjustment = await prisma.inventoryAdjustment.upsert({
                 where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
@@ -135,23 +140,25 @@ export async function POST(request: Request) {
                     roomTypeId,
                     dateKey: dKey,
                     date: isoDate,
-                    totalUnits: safeUnits
-                }
+                    totalUnits: safeUnits,
+                },
             });
-            return NextResponse.json({ ...adjustment, appliedLimit: safeUnits !== parseInt(totalUnits) });
+            return NextResponse.json({ ...adjustment, appliedLimit: safeUnits !== normalizedRequested });
         }
 
         return NextResponse.json({ error: 'Dados insuficientes' }, { status: 400 });
-
     } catch (error: any) {
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
             console.error('PRISMA ERROR:', { code: error.code, meta: error.meta });
         } else {
             console.error('ERRO DETALHADO:', error);
         }
-        return NextResponse.json({
-            error: 'Internal Server Error',
-            details: error.message
-        }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: 'Internal Server Error',
+                details: error.message,
+            },
+            { status: 500 }
+        );
     }
 }

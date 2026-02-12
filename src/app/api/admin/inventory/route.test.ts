@@ -74,5 +74,26 @@ describe('Admin Inventory API - day key safety', () => {
         expect(upsertArgs.where.roomTypeId_dateKey.dateKey).toBe('2026-02-10');
         expect(upsertArgs.create.date.toISOString()).toBe('2026-02-10T12:00:00.000Z');
     });
-});
+    it('caps manual available by physical capacity minus existing bookings', async () => {
+        (prisma.booking.count as any).mockResolvedValue(1);
 
+        const req = new Request('http://localhost/api/admin/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                date: '2026-02-10',
+                totalUnits: 8,
+            }),
+        });
+
+        const res = await POST(req);
+        expect(res.status).toBe(200);
+
+        const payload = await res.json();
+        expect(payload.appliedLimit).toBe(true);
+
+        const upsertArgs = (prisma.inventoryAdjustment.upsert as any).mock.calls[0][0];
+        expect(upsertArgs.create.totalUnits).toBe(7);
+    });
+});
