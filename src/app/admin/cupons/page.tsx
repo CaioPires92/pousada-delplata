@@ -31,6 +31,21 @@ type Coupon = {
 
 type Room = { id: string; name: string };
 
+type CouponAttempt = {
+    id: string;
+    codePrefix: string | null;
+    guestEmail: string | null;
+    ipHash: string | null;
+    result: string;
+    reason: string | null;
+    createdAt: string;
+    coupon?: {
+        id: string;
+        name: string;
+        codePrefix: string;
+    } | null;
+};
+
 type CouponForm = {
     id?: string;
     name: string;
@@ -102,8 +117,39 @@ export default function AdminCuponsPage() {
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState<CouponForm>(emptyForm());
     const [createdCode, setCreatedCode] = useState<string>('');
+    const [attemptsLoading, setAttemptsLoading] = useState(false);
+    const [attempts, setAttempts] = useState<CouponAttempt[]>([]);
+    const [attemptResultFilter, setAttemptResultFilter] = useState('');
+    const [attemptReasonFilter, setAttemptReasonFilter] = useState('');
+    const [attemptDaysFilter, setAttemptDaysFilter] = useState('7');
 
     const isEdit = useMemo(() => Boolean(form.id), [form.id]);
+    const loadAttempts = useCallback(async () => {
+        try {
+            setAttemptsLoading(true);
+
+            const params = new URLSearchParams();
+            params.set('limit', '80');
+            if (attemptResultFilter) params.set('result', attemptResultFilter);
+            if (attemptReasonFilter) params.set('reason', attemptReasonFilter);
+            if (attemptDaysFilter) params.set('days', attemptDaysFilter);
+
+            const res = await fetch('/api/admin/coupons/attempts?' + params.toString());
+            if (res.status === 401) {
+                router.push('/admin/login');
+                return;
+            }
+            if (!res.ok) throw new Error('Erro ao carregar tentativas de cupom');
+
+            const data = await res.json();
+            setAttempts(Array.isArray(data?.attempts) ? data.attempts : []);
+        } catch (error) {
+            console.error(error);
+            alert('Falha ao carregar auditoria de cupons.');
+        } finally {
+            setAttemptsLoading(false);
+        }
+    }, [router, attemptResultFilter, attemptReasonFilter, attemptDaysFilter]);
 
     const loadData = useCallback(async () => {
         try {
@@ -137,6 +183,10 @@ export default function AdminCuponsPage() {
     useEffect(() => {
         void loadData();
     }, [loadData]);
+
+    useEffect(() => {
+        void loadAttempts();
+    }, [loadAttempts]);
 
     const openCreate = () => {
         setForm(emptyForm());
@@ -221,7 +271,7 @@ export default function AdminCuponsPage() {
             }
 
             setFormOpen(false);
-            await loadData();
+            await Promise.all([loadData(), loadAttempts()]);
         } catch (error) {
             console.error(error);
             alert('Erro ao salvar cupom.');
@@ -235,7 +285,7 @@ export default function AdminCuponsPage() {
         try {
             const res = await fetch(`/api/admin/coupons/${couponId}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Falha ao desativar');
-            await loadData();
+            await Promise.all([loadData(), loadAttempts()]);
         } catch (error) {
             console.error(error);
             alert('Erro ao desativar cupom.');
@@ -303,7 +353,66 @@ export default function AdminCuponsPage() {
                     </tbody>
                 </table>
             </div>
+            <div className={styles.auditHeader}>
+                <h3>Auditoria de Tentativas</h3>
+                <div className={styles.auditFilters}>
+                    <select value={attemptResultFilter} onChange={(e) => setAttemptResultFilter(e.target.value)}>
+                        <option value="">Todos resultados</option>
+                        <option value="VALID">VALID</option>
+                        <option value="INVALID">INVALID</option>
+                    </select>
+                    <select value={attemptReasonFilter} onChange={(e) => setAttemptReasonFilter(e.target.value)}>
+                        <option value="">Todos motivos</option>
+                        <option value="TOO_MANY_ATTEMPTS">TOO_MANY_ATTEMPTS</option>
+                        <option value="INVALID_CODE">INVALID_CODE</option>
+                        <option value="EXPIRED">EXPIRED</option>
+                        <option value="NOT_STARTED">NOT_STARTED</option>
+                        <option value="MIN_BOOKING_NOT_REACHED">MIN_BOOKING_NOT_REACHED</option>
+                        <option value="USAGE_LIMIT_REACHED">USAGE_LIMIT_REACHED</option>
+                    </select>
+                    <select value={attemptDaysFilter} onChange={(e) => setAttemptDaysFilter(e.target.value)}>
+                        <option value="1">Ultimo 1 dia</option>
+                        <option value="7">Ultimos 7 dias</option>
+                        <option value="30">Ultimos 30 dias</option>
+                    </select>
+                    <button className={styles.secondaryButton} onClick={() => void loadAttempts()} disabled={attemptsLoading}>
+                        {attemptsLoading ? 'Atualizando...' : 'Atualizar'}
+                    </button>
+                </div>
+            </div>
 
+            <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Cupom</th>
+                            <th>Prefixo</th>
+                            <th>Resultado</th>
+                            <th>Motivo</th>
+                            <th>Email</th>
+                            <th>IP Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {attempts.length === 0 ? (
+                            <tr>
+                                <td colSpan={7}>Nenhuma tentativa encontrada para os filtros atuais.</td>
+                            </tr>
+                        ) : attempts.map((attempt) => (
+                            <tr key={attempt.id}>
+                                <td>{new Date(attempt.createdAt).toLocaleString('pt-BR')}</td>
+                                <td>{attempt.coupon?.name || '-'}</td>
+                                <td>{attempt.codePrefix || '-'}</td>
+                                <td>{attempt.result}</td>
+                                <td>{attempt.reason || '-'}</td>
+                                <td>{attempt.guestEmail || '-'}</td>
+                                <td>{attempt.ipHash ? `${attempt.ipHash.slice(0, 12)}...` : '-'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
             {formOpen ? (
                 <div className={styles.modal}>
                     <div className={styles.modalContent}>
@@ -490,3 +599,12 @@ export default function AdminCuponsPage() {
         </>
     );
 }
+
+
+
+
+
+
+
+
+

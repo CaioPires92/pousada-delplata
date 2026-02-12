@@ -167,3 +167,33 @@
         grid-template-columns: 1fr;
     }
 }
+
+.auditHeader {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.auditHeader h3 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1rem;
+}
+
+.auditFilters {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.auditFilters select {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.85rem;
+    background: #fff;
+}
