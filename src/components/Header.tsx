@@ -13,6 +13,8 @@ export default function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
 
+    if (pathname.startsWith('/admin')) return null;
+
     // Pages that should have a transparent header initially
     const transparentPaths = ["/", "/acomodacoes", "/lazer", "/restaurante", "/contato"];
     const isTransparentPath = transparentPaths.includes(pathname);
@@ -125,3 +127,6 @@ export default function Header() {
         </motion.header>
     );
 }
+
+
+
