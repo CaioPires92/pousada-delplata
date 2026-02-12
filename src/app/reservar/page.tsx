@@ -556,11 +556,11 @@ function ReservarContent() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold font-heading text-primary">Disponibilidade</h1>
-                            <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                            <p className="text-muted-foreground text-sm grid grid-cols-1 gap-1 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
                                 <span>{formatDate(checkIn!)} - {formatDate(checkOut!)}</span>
-                                <span className="w-1 h-1 bg-muted-foreground rounded-full" />
+                                <span className="hidden sm:inline w-1 h-1 bg-muted-foreground rounded-full" />
                                 <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
-                                <span className="w-1 h-1 bg-muted-foreground rounded-full" />
+                                <span className="hidden sm:inline w-1 h-1 bg-muted-foreground rounded-full" />
                                 <span>{adults} Adultos, {children} Crianças</span>
                             </p>
                         </div>
@@ -630,13 +630,13 @@ function ReservarContent() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between mt-4 border-t pt-4">
+                                                <div className="mt-4 border-t pt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                                     <div className="md:hidden">
                                                         <span className="text-xs text-muted-foreground">Total</span>
                                                         <p className="text-xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
                                                         <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
                                                     </div>
-                                                    <Button size="lg" onClick={() => handleSelectRoom(room)} className="ml-auto w-full md:w-auto shadow-lg shadow-primary/20">
+                                                    <Button size="lg" onClick={() => handleSelectRoom(room)} className="w-full md:w-auto md:ml-auto shadow-lg shadow-primary/20">
                                                         Selecionar e Continuar
                                                     </Button>
                                                 </div>
@@ -944,4 +944,3 @@ export default function ReservarPage() {
         </Suspense>
     );
 }
-
