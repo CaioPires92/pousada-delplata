@@ -51,6 +51,46 @@ function mapPaymentStatus(mpStatus: string | null | undefined) {
     return { bookingStatus: 'PENDING', paymentStatus: 'PENDING' } as const;
 }
 
+function normalizeFinancialSnapshot(params: {
+    totalPrice: number;
+    subtotalPrice: number | null;
+    discountAmount: number | null;
+    appliedCouponCode: string | null;
+    redemptionDiscountAmount: number;
+    redemptionCodePrefix?: string | null;
+}) {
+    const {
+        totalPrice,
+        subtotalPrice,
+        discountAmount,
+        appliedCouponCode,
+        redemptionDiscountAmount,
+        redemptionCodePrefix,
+    } = params;
+
+    const safeTotal = Math.max(0, Number.isFinite(totalPrice) ? totalPrice : 0);
+    const discountCandidate = discountAmount === null ? redemptionDiscountAmount : discountAmount;
+    const safeDiscountCandidate = Math.max(0, Number.isFinite(discountCandidate) ? discountCandidate : 0);
+
+    const subtotalCandidate = subtotalPrice === null
+        ? safeTotal + safeDiscountCandidate
+        : subtotalPrice;
+    const safeSubtotalCandidate = Math.max(0, Number.isFinite(subtotalCandidate) ? subtotalCandidate : 0);
+    const safeSubtotal = Math.max(safeTotal, safeSubtotalCandidate);
+    const safeDiscount = Math.max(0, Math.min(safeDiscountCandidate, safeSubtotal));
+
+    let safeAppliedCouponCode = appliedCouponCode;
+    if (!safeAppliedCouponCode && safeDiscount > 0 && redemptionCodePrefix) {
+        safeAppliedCouponCode = `${String(redemptionCodePrefix).toUpperCase()}******`;
+    }
+
+    return {
+        subtotalPrice: safeSubtotal,
+        discountAmount: safeDiscount,
+        appliedCouponCode: safeAppliedCouponCode,
+    };
+}
+
 export async function handleMercadoPagoWebhook(request: Request) {
     let ctxPaymentId: string | undefined;
     let ctxBookingId: string | undefined;
@@ -119,7 +159,18 @@ export async function handleMercadoPagoWebhook(request: Request) {
         const result = await prisma.$transaction(async (tx) => {
             const booking = await tx.booking.findUnique({
                 where: { id: bookingId },
-                include: { payment: true, guest: true, roomType: true },
+                include: {
+                    payment: true,
+                    guest: true,
+                    roomType: true,
+                    couponRedemption: {
+                        include: {
+                            coupon: {
+                                select: { codePrefix: true },
+                            },
+                        },
+                    },
+                },
             });
             if (!booking) return { kind: 'not_found' as const };
 
@@ -130,6 +181,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let paymentStatus = currentPaymentStatus || 'PENDING';
             let emailQueued = false;
             let couponReleased = false;
+            let couponConfirmed = false;
+            let financialSnapshotUpdated = false;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
                 if (currentBookingStatus === 'PENDING') {
@@ -251,6 +304,49 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 paymentStatus = initialStatus;
             }
 
+            if (mapped.paymentStatus === 'APPROVED') {
+                const normalized = normalizeFinancialSnapshot({
+                    totalPrice: Number(booking.totalPrice),
+                    subtotalPrice: booking.subtotalPrice === null ? null : Number(booking.subtotalPrice),
+                    discountAmount: booking.discountAmount === null ? null : Number(booking.discountAmount),
+                    appliedCouponCode: booking.appliedCouponCode,
+                    redemptionDiscountAmount: Number(booking.couponRedemption?.discountAmount || 0),
+                    redemptionCodePrefix: booking.couponRedemption?.coupon?.codePrefix,
+                });
+
+                const shouldUpdateSnapshot =
+                    booking.subtotalPrice === null ||
+                    booking.discountAmount === null ||
+                    (booking.appliedCouponCode === null && normalized.appliedCouponCode !== null);
+
+                if (shouldUpdateSnapshot) {
+                    await tx.booking.updateMany({
+                        where: { id: bookingId },
+                        data: {
+                            subtotalPrice: normalized.subtotalPrice,
+                            discountAmount: normalized.discountAmount,
+                            appliedCouponCode: normalized.appliedCouponCode,
+                        },
+                    });
+                    financialSnapshotUpdated = true;
+                }
+
+                if (booking.couponRedemption?.status === 'RESERVED') {
+                    const confirm = await tx.couponRedemption.updateMany({
+                        where: {
+                            id: booking.couponRedemption.id,
+                            status: 'RESERVED',
+                        },
+                        data: {
+                            status: 'CONFIRMED',
+                            confirmedAt: new Date(),
+                            bookingId,
+                        },
+                    });
+                    couponConfirmed = confirm.count > 0;
+                }
+            }
+
             return {
                 kind: 'ok' as const,
                 booking,
@@ -258,6 +354,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 paymentStatus,
                 emailQueued,
                 couponReleased,
+                couponConfirmed,
+                financialSnapshotUpdated,
             };
         });
 
@@ -292,6 +390,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,
             couponReleased: result.couponReleased,
+            couponConfirmed: result.couponConfirmed,
+            financialSnapshotUpdated: result.financialSnapshotUpdated,
         });
         return NextResponse.json({
             ok: true,
@@ -301,6 +401,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,
             couponReleased: result.couponReleased,
+            couponConfirmed: result.couponConfirmed,
+            financialSnapshotUpdated: result.financialSnapshotUpdated,
         });
     } catch (error) {
         Sentry.captureException(error);
@@ -314,5 +416,3 @@ export async function handleMercadoPagoWebhook(request: Request) {
         return NextResponse.json({ error: 'Erro ao processar webhook', message }, { status: 500 });
     }
 }
-
-

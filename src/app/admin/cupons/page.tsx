@@ -31,6 +31,55 @@ type Coupon = {
 
 type Room = { id: string; name: string };
 
+type CouponTemplate = {
+    id: 'PRIVATE_1TO1' | 'CAMPAIGN_CONTROLLED' | 'PARTNER_CHANNEL' | 'REACTIVATION';
+    name: string;
+    description: string;
+    antifraudLevel: 'HIGH' | 'MEDIUM';
+    payload: {
+        name: string;
+        type: 'PERCENT' | 'FIXED';
+        value: number;
+        generateCode: boolean;
+        maxDiscountAmount: number | null;
+        minBookingValue: number | null;
+        startsAt: string | null;
+        endsAt: string | null;
+        maxGlobalUses: number | null;
+        maxUsesPerGuest: number | null;
+        bindEmail: string | null;
+        bindPhone: string | null;
+        allowedSources: string[];
+        allowedRoomTypeIds: string[];
+        singleUse: boolean;
+        stackable: boolean;
+        active: boolean;
+    };
+};
+
+type CouponMetrics = {
+    inventory: {
+        totalCoupons: number;
+        activeCoupons: number;
+    };
+    redemptions: {
+        reserved: number;
+        confirmed: number;
+        released: number;
+    };
+    attempts: {
+        last7d: {
+            invalid: number;
+            blocked: number;
+            valid: number;
+        };
+        last30d: {
+            invalid: number;
+            blocked: number;
+            valid: number;
+        };
+    };
+};
 type CouponAttempt = {
     id: string;
     codePrefix: string | null;
@@ -114,6 +163,8 @@ export default function AdminCuponsPage() {
     const [saving, setSaving] = useState(false);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [templates, setTemplates] = useState<CouponTemplate[]>([]);
+    const [metrics, setMetrics] = useState<CouponMetrics | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [form, setForm] = useState<CouponForm>(emptyForm());
     const [createdCode, setCreatedCode] = useState<string>('');
@@ -154,24 +205,32 @@ export default function AdminCuponsPage() {
     const loadData = useCallback(async () => {
         try {
             setLoading(true);
-            const [couponRes, roomRes] = await Promise.all([
+            const [couponRes, roomRes, templateRes, metricsRes] = await Promise.all([
                 fetch('/api/admin/coupons'),
                 fetch('/api/admin/rooms'),
+                fetch('/api/admin/coupons/templates'),
+                fetch('/api/admin/coupons/metrics'),
             ]);
 
-            if (couponRes.status === 401 || roomRes.status === 401) {
+            if (couponRes.status === 401 || roomRes.status === 401 || templateRes.status === 401 || metricsRes.status === 401) {
                 router.push('/admin/login');
                 return;
             }
 
             if (!couponRes.ok) throw new Error('Erro ao carregar cupons');
             if (!roomRes.ok) throw new Error('Erro ao carregar quartos');
+            if (!templateRes.ok) throw new Error('Erro ao carregar modelos de cupons');
+            if (!metricsRes.ok) throw new Error('Erro ao carregar metricas de cupons');
 
             const couponData = await couponRes.json();
             const roomData = await roomRes.json();
+            const templateData = await templateRes.json();
+            const metricsData = await metricsRes.json();
 
             setCoupons(Array.isArray(couponData) ? couponData : []);
             setRooms(Array.isArray(roomData) ? roomData : []);
+            setTemplates(Array.isArray(templateData?.templates) ? templateData.templates : []);
+            setMetrics(metricsData || null);
         } catch (error) {
             console.error(error);
             alert('Falha ao carregar cupons.');
@@ -190,6 +249,32 @@ export default function AdminCuponsPage() {
 
     const openCreate = () => {
         setForm(emptyForm());
+        setFormOpen(true);
+    };
+    const openCreateFromTemplate = (template: CouponTemplate) => {
+        const payload = template.payload;
+        setForm({
+            ...emptyForm(),
+            name: payload.name,
+            code: '',
+            generateCode: payload.generateCode,
+            type: payload.type,
+            value: String(payload.value),
+            maxDiscountAmount: payload.maxDiscountAmount == null ? '' : String(payload.maxDiscountAmount),
+            minBookingValue: payload.minBookingValue == null ? '' : String(payload.minBookingValue),
+            startsAt: toDatetimeLocal(payload.startsAt),
+            endsAt: toDatetimeLocal(payload.endsAt),
+            maxGlobalUses: payload.maxGlobalUses == null ? '' : String(payload.maxGlobalUses),
+            maxUsesPerGuest: payload.maxUsesPerGuest == null ? '' : String(payload.maxUsesPerGuest),
+            bindEmail: payload.bindEmail || '',
+            bindPhone: payload.bindPhone || '',
+            allowedSources: Array.isArray(payload.allowedSources) ? payload.allowedSources.join(', ') : '',
+            allowedRoomTypeIds: Array.isArray(payload.allowedRoomTypeIds) ? payload.allowedRoomTypeIds : [],
+            singleUse: payload.singleUse,
+            stackable: payload.stackable,
+            active: payload.active,
+        });
+        setCreatedCode('');
         setFormOpen(true);
     };
 
@@ -304,7 +389,49 @@ export default function AdminCuponsPage() {
             {createdCode ? (
                 <div className={styles.alert}>Cupom criado com sucesso. Codigo: <strong>{createdCode}</strong></div>
             ) : null}
+            {templates.length > 0 ? (
+                <div className={styles.templateSection}>
+                    <h3>Modelos antifraude</h3>
+                    <div className={styles.templateGrid}>
+                        {templates.map((template) => (
+                            <div key={template.id} className={styles.templateCard}>
+                                <div className={styles.templateHead}>
+                                    <strong>{template.name}</strong>
+                                    <span className={template.antifraudLevel === 'HIGH' ? styles.badgeOn : styles.badgeOff}>
+                                        {template.antifraudLevel}
+                                    </span>
+                                </div>
+                                <p>{template.description}</p>
+                                <button className={styles.secondaryButton} onClick={() => openCreateFromTemplate(template)}>
+                                    Usar modelo
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
 
+
+            {metrics ? (
+                <div className={styles.metricsGrid}>
+                    <div className={styles.metricCard}>
+                        <span>Cupons ativos</span>
+                        <strong>{metrics.inventory.activeCoupons}/{metrics.inventory.totalCoupons}</strong>
+                    </div>
+                    <div className={styles.metricCard}>
+                        <span>Usos confirmados</span>
+                        <strong>{metrics.redemptions.confirmed}</strong>
+                    </div>
+                    <div className={styles.metricCard}>
+                        <span>Tentativas invalidas (7d)</span>
+                        <strong>{metrics.attempts.last7d.invalid}</strong>
+                    </div>
+                    <div className={styles.metricCard}>
+                        <span>Bloqueios antifraude (7d)</span>
+                        <strong>{metrics.attempts.last7d.blocked}</strong>
+                    </div>
+                </div>
+            ) : null}
             <div className={styles.tableWrap}>
                 <table className={styles.table}>
                     <thead>
@@ -381,6 +508,27 @@ export default function AdminCuponsPage() {
                 </div>
             </div>
 
+
+            {metrics ? (
+                <div className={styles.metricsGrid}>
+                    <div className={styles.metricCard}>
+                        <span>Cupons ativos</span>
+                        <strong>{metrics.inventory.activeCoupons}/{metrics.inventory.totalCoupons}</strong>
+                    </div>
+                    <div className={styles.metricCard}>
+                        <span>Usos confirmados</span>
+                        <strong>{metrics.redemptions.confirmed}</strong>
+                    </div>
+                    <div className={styles.metricCard}>
+                        <span>Tentativas invalidas (7d)</span>
+                        <strong>{metrics.attempts.last7d.invalid}</strong>
+                    </div>
+                    <div className={styles.metricCard}>
+                        <span>Bloqueios antifraude (7d)</span>
+                        <strong>{metrics.attempts.last7d.blocked}</strong>
+                    </div>
+                </div>
+            ) : null}
             <div className={styles.tableWrap}>
                 <table className={styles.table}>
                     <thead>
@@ -599,6 +747,10 @@ export default function AdminCuponsPage() {
         </>
     );
 }
+
+
+
+
 
 
 
