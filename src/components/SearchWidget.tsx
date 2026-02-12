@@ -46,6 +46,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     // Controlar abertura dos popovers
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
     const [isCheckOutOpen, setIsCheckOutOpen] = useState(false);
+    const [checkOutViewMonth, setCheckOutViewMonth] = useState<Date>(checkOut || tomorrow);
     const firstAgeRef = useRef<HTMLSelectElement | null>(null);
 
     // Fechar popovers ao mudar de rota (previne estado travado após Back navigation)
@@ -72,10 +73,18 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
 
         // Automatizar Check-out
         if (date) {
+            setCheckOutViewMonth(date);
             // Se check-out não estiver definido, ou for antes/igual ao check-in
             if (!checkOut || isBefore(checkOut, date) || isSameDay(checkOut, date)) {
                 setCheckOut(addDays(date, 1));
             }
+        }
+    };
+
+    const handleCheckOutOpenChange = (open: boolean) => {
+        setIsCheckOutOpen(open);
+        if (open) {
+            setCheckOutViewMonth(checkIn || checkOut || today);
         }
     };
 
@@ -279,7 +288,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                         <CalendarIcon className="w-4 h-4" />
                         Check-out
                     </label>
-                    <Popover open={isCheckOutOpen} onOpenChange={setIsCheckOutOpen}>
+                    <Popover open={isCheckOutOpen} onOpenChange={handleCheckOutOpenChange}>
                     <PopoverTrigger asChild>
                         <div data-testid="checkout-trigger" className={cn(dateInputClass, !checkOut && "text-muted-foreground")}>
                                 {checkOut ? (
@@ -294,6 +303,8 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                             <Calendar
                                 mode="single"
                                 selected={checkOut}
+                                month={checkOutViewMonth}
+                                onMonthChange={setCheckOutViewMonth}
                                 onSelect={handleCheckOutSelect}
                                 disabled={(date) =>
                                     (checkIn ? isBefore(date, checkIn) : isBefore(date, new Date()))
@@ -417,6 +428,3 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
         </div>
     );
 }
-
-
-
