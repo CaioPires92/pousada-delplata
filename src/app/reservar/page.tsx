@@ -812,6 +812,9 @@ function ReservarContent() {
                                         <h3 className="text-xs font-semibold text-primary uppercase tracking-widest mb-3">
                                             Meios de pagamento
                                         </h3>
+                                        <p className="text-xs text-muted-foreground mb-3">
+                                            Parcelamento aparece após preencher os primeiros dígitos do cartão.
+                                        </p>
                                         <div className="rounded-xl border border-border/60 bg-white p-4 shadow-sm">
                                             <div id={paymentContainerId} />
                                         </div>
@@ -1127,6 +1130,9 @@ export default function ReservarPage() {
         </Suspense>
     );
 }
+
+
+
 
 
 
