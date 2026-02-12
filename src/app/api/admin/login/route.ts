@@ -27,9 +27,18 @@ function getClientIp(request: NextRequest) {
 }
 
 async function consumeFailedLoginSlot(key: string) {
-    if (upstashRatelimit) {
-        const result = await upstashRatelimit.limit(key);
-        return !result.success;
+    try {
+        if (upstashRatelimit) {
+            const result = await upstashRatelimit.limit(key);
+            return !result.success;
+        }
+    } catch (error) {
+        // Never fail login flow because external rate-limit service is unavailable.
+        opsLog('error', 'ADMIN_LOGIN_RATELIMIT_ERROR', {
+            hasUpstash: true,
+            key,
+            message: error instanceof Error ? error.message : 'unknown_error',
+        });
     }
 
     const now = Date.now();
@@ -121,10 +130,20 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         Sentry.captureException(error);
-        opsLog('error', 'ADMIN_LOGIN_ERROR');
+        const message = error instanceof Error ? error.message : 'unknown_error';
+        const knownSchemaIssue = typeof message === 'string' && (message.includes('AdminUser') || message.includes('adminUser'));
+
+        opsLog('error', 'ADMIN_LOGIN_ERROR', { message });
+
+        if (knownSchemaIssue) {
+            return NextResponse.json({ error: 'admin_schema_error' }, { status: 500 });
+        }
+
         return NextResponse.json(
             { error: 'Erro ao fazer login' },
             { status: 500 }
         );
     }
 }
+
+

@@ -368,9 +368,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
         }
 
+        let emailSent = false;
+        let emailErrorMessage: string | undefined;
         if (result.emailQueued && mpStatus === 'approved') {
             const { sendBookingConfirmationEmail } = await import('@/lib/email');
-            sendBookingConfirmationEmail({
+            const emailResult = await sendBookingConfirmationEmail({
                 guestName: result.booking.guest.name,
                 guestEmail: result.booking.guest.email,
                 bookingId: result.booking.id,
@@ -378,7 +380,25 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 checkIn: result.booking.checkIn,
                 checkOut: result.booking.checkOut,
                 totalPrice: Number(result.booking.totalPrice),
-            }).catch(() => {});
+            });
+
+            emailSent = Boolean(emailResult?.success);
+            if (!emailSent) {
+                emailErrorMessage =
+                    emailResult?.error instanceof Error
+                        ? emailResult.error.message
+                        : typeof emailResult?.error === 'string'
+                            ? emailResult.error
+                            : 'email_send_failed';
+
+                opsLog('error', 'MP_WEBHOOK_EMAIL_FAILED', {
+                    bookingId,
+                    bookingIdShort: bookingId.slice(0, 8),
+                    paymentId,
+                    mpStatus,
+                    error: emailErrorMessage,
+                });
+            }
         }
 
         opsLog('info', 'MP_WEBHOOK_PROCESSED', {
@@ -389,6 +409,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
             bookingStatus: result.bookingStatus,
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,
+            emailSent,
+            emailErrorMessage,
             couponReleased: result.couponReleased,
             couponConfirmed: result.couponConfirmed,
             financialSnapshotUpdated: result.financialSnapshotUpdated,
@@ -400,6 +422,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
             bookingStatus: result.bookingStatus,
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,
+            emailSent,
+            emailErrorMessage,
             couponReleased: result.couponReleased,
             couponConfirmed: result.couponConfirmed,
             financialSnapshotUpdated: result.financialSnapshotUpdated,
@@ -416,3 +440,6 @@ export async function handleMercadoPagoWebhook(request: Request) {
         return NextResponse.json({ error: 'Erro ao processar webhook', message }, { status: 500 });
     }
 }
+
+
+
