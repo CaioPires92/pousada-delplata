@@ -20,7 +20,7 @@ export async function GET(request: Request) {
                 createdAt: { lt: quinzeMinutosAtras },
                 pendingEmailSentAt: null,
             },
-            include: { guest: true, roomType: true },
+            include: { guest: true, roomType: true, payment: true },
         });
 
         let pendingEmailCount = 0;
@@ -35,6 +35,7 @@ export async function GET(request: Request) {
                 checkIn: booking.checkIn,
                 checkOut: booking.checkOut,
                 totalPrice: Number(booking.totalPrice),
+                paymentMethod: booking.payment?.method || null,
             })
                 .then((r) => {
                     if (r && (r as any).success) pendingEmailCount++;
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
                 status: 'PENDING',
                 createdAt: { lt: trintaMinutosAtras },
             },
-            include: { guest: true, roomType: true },
+            include: { guest: true, roomType: true, payment: true },
         });
 
         const pendingBookingIds = pendingBookings.map((b) => b.id);
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
                 checkIn: booking.checkIn,
                 checkOut: booking.checkOut,
                 totalPrice: Number(booking.totalPrice),
+                paymentMethod: booking.payment?.method || null,
             })
                 .then((r) => {
                     if (r && (r as any).success) expiredEmailCount++;
@@ -118,3 +120,4 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
 }
+

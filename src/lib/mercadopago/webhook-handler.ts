@@ -37,6 +37,15 @@ function validateSignature(params: {
     return { ok: true as const };
 }
 
+function normalizePaymentMethodId(value: unknown) {
+    const m = String(value || '').trim().toLowerCase();
+    if (m === 'pix') return 'PIX';
+    if (m === 'debit_card') return 'DEBIT_CARD';
+    if (m === 'credit_card') return 'CREDIT_CARD';
+    if (m === 'account_money') return 'ACCOUNT_MONEY';
+    return m ? m.toUpperCase() : null;
+}
+
 function mapPaymentStatus(mpStatus: string | null | undefined) {
     const s = (mpStatus || '').toLowerCase();
     if (s === 'approved') {
@@ -146,6 +155,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
         const paymentData = await paymentResponse.json();
         const mpStatus = paymentData?.status as string | undefined;
+        const paymentMethod = normalizePaymentMethodId(paymentData?.payment_method_id);
         const bookingId = paymentData?.external_reference as string | undefined;
         ctxBookingId = bookingId;
 
@@ -183,6 +193,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let couponReleased = false;
             let couponConfirmed = false;
             let financialSnapshotUpdated = false;
+            let paymentMethodValue = paymentMethod || booking.payment?.method || null;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
                 if (currentBookingStatus === 'PENDING') {
@@ -254,12 +265,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     if (booking.payment.status !== 'APPROVED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { not: 'APPROVED' } },
-                            data: { status: 'APPROVED', providerId: paymentId },
+                            data: { status: 'APPROVED', providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
                         });
                     } else if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id },
-                            data: { providerId: paymentId },
+                            data: { providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
                         });
                     }
                     paymentStatus = 'APPROVED';
@@ -267,7 +278,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     if (booking.payment.status !== 'APPROVED' && booking.payment.status !== 'REJECTED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { notIn: ['APPROVED', 'REJECTED'] } },
-                            data: { status: 'REJECTED', providerId: paymentId },
+                            data: { status: 'REJECTED', providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
                         });
                         paymentStatus = 'REJECTED';
                     } else {
@@ -277,7 +288,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     if (booking.payment.status !== 'REFUNDED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { not: 'REFUNDED' } },
-                            data: { status: 'REFUNDED', providerId: paymentId },
+                            data: { status: 'REFUNDED', providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
                         });
                     }
                     paymentStatus = 'REFUNDED';
@@ -285,7 +296,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id },
-                            data: { providerId: paymentId },
+                            data: { providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
                         });
                     }
                     paymentStatus = booking.payment.status;
@@ -298,6 +309,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         amount: booking.totalPrice,
                         provider: 'MERCADOPAGO',
                         providerId: paymentId,
+                        method: paymentMethod,
                         status: initialStatus,
                     },
                 });
@@ -352,6 +364,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 booking,
                 bookingStatus,
                 paymentStatus,
+                paymentMethod: paymentMethodValue,
                 emailQueued,
                 couponReleased,
                 couponConfirmed,
@@ -380,6 +393,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 checkIn: result.booking.checkIn,
                 checkOut: result.booking.checkOut,
                 totalPrice: Number(result.booking.totalPrice),
+                paymentMethod: result.paymentMethod,
             });
 
             emailSent = Boolean(emailResult?.success);
@@ -440,6 +454,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
         return NextResponse.json({ error: 'Erro ao processar webhook', message }, { status: 500 });
     }
 }
+
+
 
 
 

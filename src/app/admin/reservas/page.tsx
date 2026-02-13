@@ -20,10 +20,31 @@ interface Booking {
     roomType: {
         name: string;
     };
-    payment: {
+    payment?: {
         status: string;
         amount: number;
-    }[];
+        method?: string | null;
+        provider?: string;
+    } | null;
+}
+
+function formatPaymentMethod(method?: string | null) {
+    const m = String(method || '').trim().toUpperCase();
+    if (!m) return 'Não informado';
+
+    const labels: Record<string, string> = {
+        PIX: 'Pix',
+        CREDIT_CARD: 'Cartão de crédito',
+        DEBIT_CARD: 'Cartão de débito',
+        ACCOUNT_MONEY: 'Saldo MP',
+        MASTER: 'Master',
+        VISA: 'Visa',
+        ELO: 'Elo',
+        AMEX: 'Amex',
+        HIPERCARD: 'Hipercard',
+    };
+
+    return labels[m] || m.replace(/_/g, ' ');
 }
 
 export default function AdminReservasPage() {
@@ -31,7 +52,6 @@ export default function AdminReservasPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
-
 
     const fetchBookings = useCallback(async () => {
         try {
@@ -55,37 +75,35 @@ export default function AdminReservasPage() {
         fetchBookings();
     }, [fetchBookings]);
 
-    const filteredBookings = bookings.filter(b => {
+    const filteredBookings = bookings.filter((b) => {
         if (filter === 'ALL') return true;
         return b.status === filter;
     });
 
     const getStatusBadge = (status: string) => {
         const badges: Record<string, string> = {
-            'PENDING': styles.statusPending,
-            'CONFIRMED': styles.statusConfirmed,
-            'CANCELLED': styles.statusCancelled,
-            'EXPIRED': styles.statusExpired,
-            'REFUNDED': styles.statusRefunded,
+            PENDING: styles.statusPending,
+            CONFIRMED: styles.statusConfirmed,
+            CANCELLED: styles.statusCancelled,
+            EXPIRED: styles.statusExpired,
+            REFUNDED: styles.statusRefunded,
         };
         return badges[status] || styles.statusPending;
     };
 
     const getStatusText = (status: string) => {
         const texts: Record<string, string> = {
-            'PENDING': 'Pendente',
-            'CONFIRMED': 'Confirmada',
-            'CANCELLED': 'Cancelada',
-            'EXPIRED': 'Expirada',
-            'REFUNDED': 'Estornada',
+            PENDING: 'Pendente',
+            CONFIRMED: 'Confirmada',
+            CANCELLED: 'Cancelada',
+            EXPIRED: 'Expirada',
+            REFUNDED: 'Estornada',
         };
         return texts[status] || status;
     };
 
     if (loading) {
-        return (
-            <div className={styles.loading}>Carregando...</div>
-        );
+        return <div className={styles.loading}>Carregando...</div>;
     }
 
     return (
@@ -94,40 +112,22 @@ export default function AdminReservasPage() {
                 <h2>Todas as Reservas ({filteredBookings.length})</h2>
 
                 <div className={styles.filters}>
-                    <button
-                        className={filter === 'ALL' ? styles.filterActive : styles.filter}
-                        onClick={() => setFilter('ALL')}
-                    >
+                    <button className={filter === 'ALL' ? styles.filterActive : styles.filter} onClick={() => setFilter('ALL')}>
                         Todas
                     </button>
-                    <button
-                        className={filter === 'PENDING' ? styles.filterActive : styles.filter}
-                        onClick={() => setFilter('PENDING')}
-                    >
+                    <button className={filter === 'PENDING' ? styles.filterActive : styles.filter} onClick={() => setFilter('PENDING')}>
                         Pendentes
                     </button>
-                    <button
-                        className={filter === 'CONFIRMED' ? styles.filterActive : styles.filter}
-                        onClick={() => setFilter('CONFIRMED')}
-                    >
+                    <button className={filter === 'CONFIRMED' ? styles.filterActive : styles.filter} onClick={() => setFilter('CONFIRMED')}>
                         Confirmadas
                     </button>
-                    <button
-                        className={filter === 'CANCELLED' ? styles.filterActive : styles.filter}
-                        onClick={() => setFilter('CANCELLED')}
-                    >
+                    <button className={filter === 'CANCELLED' ? styles.filterActive : styles.filter} onClick={() => setFilter('CANCELLED')}>
                         Canceladas
                     </button>
-                    <button
-                        className={filter === 'REFUNDED' ? styles.filterActive : styles.filter}
-                        onClick={() => setFilter('REFUNDED')}
-                    >
+                    <button className={filter === 'REFUNDED' ? styles.filterActive : styles.filter} onClick={() => setFilter('REFUNDED')}>
                         Estornadas
                     </button>
-                    <button
-                        className={filter === 'EXPIRED' ? styles.filterActive : styles.filter}
-                        onClick={() => setFilter('EXPIRED')}
-                    >
+                    <button className={filter === 'EXPIRED' ? styles.filterActive : styles.filter} onClick={() => setFilter('EXPIRED')}>
                         Expiradas
                     </button>
                 </div>
@@ -148,6 +148,7 @@ export default function AdminReservasPage() {
                                 <th>Check-in</th>
                                 <th>Check-out</th>
                                 <th>Valor</th>
+                                <th>Pagamento</th>
                                 <th>Status</th>
                                 <th>Criada em</th>
                             </tr>
@@ -172,9 +173,13 @@ export default function AdminReservasPage() {
                                         <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
                                     </td>
                                     <td>
-                                        <span className={getStatusBadge(booking.status)}>
-                                            {getStatusText(booking.status)}
-                                        </span>
+                                        <div className={styles.guestInfo}>
+                                            <strong>{formatPaymentMethod(booking.payment?.method)}</strong>
+                                            <small>{booking.payment?.status || 'Sem pagamento'}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className={getStatusBadge(booking.status)}>{getStatusText(booking.status)}</span>
                                     </td>
                                     <td>{formatDateBR(booking.createdAt)}</td>
                                 </tr>

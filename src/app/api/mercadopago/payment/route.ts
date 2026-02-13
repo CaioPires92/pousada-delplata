@@ -9,6 +9,16 @@ type MercadoPagoCause = {
     data?: string;
 };
 
+function normalizePaymentMethod(paymentMethodId: string) {
+    const m = String(paymentMethodId || '').trim().toLowerCase();
+    if (m === 'pix') return 'PIX';
+    if (m === 'debit_card') return 'DEBIT_CARD';
+    if (m === 'credit_card') return 'CREDIT_CARD';
+    if (m === 'account_money') return 'ACCOUNT_MONEY';
+    if (!m) return 'UNKNOWN';
+    return m.toUpperCase();
+}
+
 function detectPixKeyNotEnabled(error: any) {
     const status = Number(error?.status || 0);
     const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
@@ -37,6 +47,7 @@ export async function POST(request: Request) {
         }
 
         const paymentMethodId = formData?.payment_method_id;
+        const normalizedPaymentMethod = normalizePaymentMethod(String(paymentMethodId || ''));
         const payerEmail = formData?.payer?.email;
         if (!paymentMethodId || typeof paymentMethodId !== 'string') {
             return NextResponse.json({ error: 'payment_method_id ausente' }, { status: 400 });
@@ -102,6 +113,7 @@ export async function POST(request: Request) {
                     status: result.status || 'PENDING',
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
+                    method: normalizedPaymentMethod,
                 },
                 create: {
                     bookingId,
@@ -109,6 +121,7 @@ export async function POST(request: Request) {
                     status: result.status || 'PENDING',
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
+                    method: normalizedPaymentMethod,
                 },
             });
         } catch (e) {

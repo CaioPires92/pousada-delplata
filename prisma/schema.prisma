@@ -109,6 +109,7 @@ model Payment {
   amount     Decimal
   provider   String   // MERCADOPAGO
   providerId String?  // Mercado Pago Payment ID
+  method     String?  // PIX, CREDIT_CARD, DEBIT_CARD, etc.
   status     String   // PENDING, APPROVED, REJECTED
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -4,6 +4,7 @@ import { eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { calculateBookingPrice } from '@/lib/booking-price';
 import { parseLocalDate } from '@/lib/date-utils';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/coupons/hash';
+import { sendBookingCreatedAlertEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
     try {
@@ -136,6 +137,11 @@ export async function POST(request: Request) {
                     totalPrice: Math.max(0, subtotalPrice - discountAmount),
                     status: 'PENDING',
                 },
+                include: {
+                    guest: true,
+                    roomType: true,
+                    payment: true,
+                },
             });
 
             if (couponReservationId) {
@@ -161,6 +167,25 @@ export async function POST(request: Request) {
         });
 
         if (!booking) return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 });
+
+        try {
+            const bookingAny = booking as any;
+            if (bookingAny?.guest?.name && bookingAny?.roomType?.name) {
+                void sendBookingCreatedAlertEmail({
+                    guestName: bookingAny.guest.name,
+                    guestEmail: bookingAny.guest.email,
+                    bookingId: booking.id,
+                    roomName: bookingAny.roomType.name,
+                    checkIn: booking.checkIn,
+                    checkOut: booking.checkOut,
+                    totalPrice: Number(booking.totalPrice),
+                    paymentMethod: booking.payment?.method || null,
+                });
+            }
+        } catch (emailError) {
+            console.error('[Booking API] Failed to queue created booking email', emailError);
+        }
+
         return NextResponse.json(booking, { status: 201 });
 
     } catch (error: any) {
@@ -175,3 +200,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+
