@@ -22,7 +22,7 @@ export async function GET(request: Request) {
                 createdAt: { lt: quinzeMinutosAtras },
                 pendingEmailSentAt: null
             },
-            include: { guest: true, roomType: true }
+            include: { guest: true, roomType: true, payment: true }
         });
 
         let pendingEmailCount = 0;
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
                 status: 'PENDING',
                 createdAt: { lt: trintaMinutosAtras }
             },
-            include: { guest: true, roomType: true }
+            include: { guest: true, roomType: true, payment: true }
         });
 
         const result = await prisma.booking.updateMany({

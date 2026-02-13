@@ -7,6 +7,25 @@ const HOTEL_WHATSAPP = process.env.HOTEL_WHATSAPP || '(19) 99965-4866';
 const DEFAULT_CONTACT_RECEIVER_EMAIL = 'contato@pousadadelplata.com.br';
 const DEFAULT_ALWAYS_BCC_EMAIL = 'caiocgp92@gmail.com';
 
+function formatPaymentMethodLabel(paymentMethod?: string | null) {
+    const method = String(paymentMethod || '').trim().toUpperCase();
+    if (!method) return 'Não informado';
+
+    const labels: Record<string, string> = {
+        PIX: 'Pix',
+        CREDIT_CARD: 'Cartão de crédito',
+        DEBIT_CARD: 'Cartão de débito',
+        ACCOUNT_MONEY: 'Saldo Mercado Pago',
+        MASTER: 'Cartão Master',
+        VISA: 'Cartão Visa',
+        ELO: 'Cartão Elo',
+        AMEX: 'Cartão Amex',
+        HIPERCARD: 'Cartão Hipercard',
+    };
+
+    return labels[method] || method.replace(/_/g, ' ');
+}
+
 function normalizeEmail(value: string | undefined | null) {
     const normalized = String(value || '').trim().toLowerCase();
     return normalized.length > 0 ? normalized : '';
@@ -49,10 +68,11 @@ interface BookingEmailData {
     checkIn: Date;
     checkOut: Date;
     totalPrice: number;
+    paymentMethod?: string | null;
 }
 
 export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
-    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
+    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice, paymentMethod } = data;
 
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
@@ -165,6 +185,10 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Valor Total:</span>
                 <span class="detail-value total">R$ ${totalPrice.toFixed(2)}</span>
             </div>
+            <div class="detail-row">
+                <span class="detail-label">Método de Pagamento:</span>
+                <span class="detail-value">${formatPaymentMethodLabel(paymentMethod)}</span>
+            </div>
         </div>
         
         <div class="instructions">
@@ -197,7 +221,7 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
 }
 
 export function buildBookingPendingEmailHtml(data: BookingEmailData) {
-    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
+    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice, paymentMethod } = data;
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
 
@@ -252,6 +276,10 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Valor Total:</span>
                 <span class="detail-value total">R$ ${totalPrice.toFixed(2)}</span>
             </div>
+            <div class="detail-row">
+                <span class="detail-label">Método de Pagamento:</span>
+                <span class="detail-value">${formatPaymentMethodLabel(paymentMethod)}</span>
+            </div>
         </div>
 
         <div class="notice">
@@ -272,7 +300,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
 }
 
 export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
-    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice } = data;
+    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice, paymentMethod } = data;
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
 
@@ -325,6 +353,10 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
             <div class="detail-row">
                 <span class="detail-label">Valor Total:</span>
                 <span class="detail-value">R$ ${totalPrice.toFixed(2)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Método de Pagamento:</span>
+                <span class="detail-value">${formatPaymentMethodLabel(paymentMethod)}</span>
             </div>
         </div>
 
@@ -483,4 +515,48 @@ export async function sendContactEmail(data: ContactEmailData) {
 }
 
 
+
+
+
+export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        return { success: false, error: 'SMTP not configured' };
+    }
+
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
+    const bccRecipients = buildBccRecipients(adminEmail, [alwaysBccEmail]);
+
+    const checkInFormatted = formatDatePtBrLong(data.checkIn);
+    const checkOutFormatted = formatDatePtBrLong(data.checkOut);
+
+    const html = `
+<html>
+<body style="font-family: Arial, sans-serif; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
+  <h2 style="margin-top:0; color:#0f172a;">Nova reserva criada (pendente)</h2>
+  <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px;">
+    <p><strong>Reserva:</strong> ${data.bookingId.slice(0, 8).toUpperCase()}</p>
+    <p><strong>Hóspede:</strong> ${data.guestName} (${data.guestEmail})</p>
+    <p><strong>Quarto:</strong> ${data.roomName}</p>
+    <p><strong>Período:</strong> ${checkInFormatted} - ${checkOutFormatted}</p>
+    <p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2)}</p>
+    <p><strong>Método de pagamento:</strong> ${formatPaymentMethodLabel(data.paymentMethod)}</p>
+    <p><strong>Status:</strong> PENDENTE</p>
+  </div>
+</body>
+</html>`;
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
+            to: adminEmail,
+            bcc: bccRecipients,
+            subject: `🆕 Nova reserva criada - ${data.roomName}`,
+            html,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        return { success: false, error };
+    }
+}
 

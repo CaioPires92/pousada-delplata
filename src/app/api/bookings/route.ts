@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { calculateBookingPrice } from '@/lib/booking-price';
 import { parseLocalDate } from '@/lib/date-utils';
+import { sendBookingCreatedAlertEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
     try {
