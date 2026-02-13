@@ -2,6 +2,32 @@ import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
+import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } from '@/lib/email';
+
+type MercadoPagoCause = {
+    code?: number | string;
+    description?: string;
+    data?: string;
+};
+
+function normalizePaymentMethod(paymentMethodId: string) {
+    const m = String(paymentMethodId || '').trim().toLowerCase();
+    if (m === 'pix') return 'PIX';
+    if (m === 'debit_card') return 'DEBIT_CARD';
+    if (m === 'credit_card') return 'CREDIT_CARD';
+    if (m === 'account_money') return 'ACCOUNT_MONEY';
+    if (!m) return 'UNKNOWN';
+    return m.toUpperCase();
+}
+
+function detectPixKeyNotEnabled(error: any) {
+    const status = Number(error?.status || 0);
+    const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
+    const has13253 = causes.some((c) => Number(c?.code) === 13253);
+    const hasMessage = causes.some((c) => String(c?.description || '').toLowerCase().includes('without key enabled for qr'));
+
+    return status === 400 && (has13253 || hasMessage);
+}
 
 export async function POST(request: Request) {
     try {
@@ -11,19 +37,14 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const {
-            bookingId,
-            transaction_amount,
-            description,
-            ...formData
-        } = body || {};
+        const { bookingId, transaction_amount, description, ...formData } = body || {};
 
         if (!bookingId || !transaction_amount) {
             return NextResponse.json({ error: 'Dados insuficientes para pagamento' }, { status: 400 });
         }
 
-        // Validação mínima do payload
         const paymentMethodId = formData?.payment_method_id;
+        const normalizedPaymentMethod = normalizePaymentMethod(String(paymentMethodId || ''));
         const payerEmail = formData?.payer?.email;
         if (!paymentMethodId || typeof paymentMethodId !== 'string') {
             return NextResponse.json({ error: 'payment_method_id ausente' }, { status: 400 });
@@ -34,7 +55,11 @@ export async function POST(request: Request) {
 
         const booking = await prisma.booking.findUnique({
             where: { id: bookingId },
-            include: { payment: true },
+            include: {
+                payment: true,
+                guest: true,
+                roomType: true,
+            },
         });
         if (!booking) {
             opsLog('warn', 'MP_PAYMENT_INVALID_BOOKING', {
@@ -45,7 +70,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
         }
 
-        // Evita duplicidade: se já existe pagamento aprovado ou pendente para a mesma reserva
         if (booking.payment?.status === 'APPROVED' || booking.payment?.status === 'PENDING') {
             opsLog('warn', 'MP_PAYMENT_DUPLICATE_BLOCK', {
                 bookingId,
@@ -59,7 +83,6 @@ export async function POST(request: Request) {
         if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
             return NextResponse.json({ error: 'transaction_amount inválido' }, { status: 400 });
         }
-        // Evita alteração de valor pelo cliente
         if (Math.abs(bookingAmount - requestedAmount) > 0.01) {
             opsLog('warn', 'MP_PAYMENT_AMOUNT_MISMATCH', {
                 bookingId,
@@ -83,34 +106,87 @@ export async function POST(request: Request) {
             },
         });
 
-        // Atualiza/insere pagamento no banco
+        const normalizedStatus = String(result.status || 'PENDING').toUpperCase();
+
         try {
             await prisma.payment.upsert({
                 where: { bookingId },
                 update: {
                     amount: Number(transaction_amount),
-                    status: result.status || 'PENDING',
+                    status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
+                    method: normalizedPaymentMethod,
                 },
                 create: {
                     bookingId,
                     amount: Number(transaction_amount),
-                    status: result.status || 'PENDING',
+                    status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
+                    method: normalizedPaymentMethod,
                 },
             });
         } catch (e) {
             console.error('Aviso: erro ao registrar pagamento', e);
         }
 
+        if (normalizedStatus === 'APPROVED') {
+            await prisma.booking.updateMany({
+                where: { id: bookingId, status: 'PENDING' },
+                data: { status: 'CONFIRMED' },
+            });
+
+            try {
+                await sendBookingConfirmationEmail({
+                    guestName: booking.guest.name,
+                    guestEmail: booking.guest.email,
+                    guestPhone: booking.guest.phone || null,
+                    bookingId: booking.id,
+                    roomName: booking.roomType.name,
+                    checkIn: booking.checkIn,
+                    checkOut: booking.checkOut,
+                    totalPrice: Number(booking.totalPrice),
+                    paymentMethod: normalizedPaymentMethod,
+                    bookingStatus: 'CONFIRMED',
+                    paymentStatus: 'APPROVED',
+                    bookingCreatedAt: booking.createdAt,
+                });
+
+                await sendBookingCreatedAlertEmail({
+                    guestName: booking.guest.name,
+                    guestEmail: booking.guest.email,
+                    guestPhone: booking.guest.phone || null,
+                    bookingId: booking.id,
+                    roomName: booking.roomType.name,
+                    checkIn: booking.checkIn,
+                    checkOut: booking.checkOut,
+                    totalPrice: Number(booking.totalPrice),
+                    paymentMethod: normalizedPaymentMethod,
+                    bookingStatus: 'CONFIRMED',
+                    paymentStatus: 'APPROVED',
+                    bookingCreatedAt: booking.createdAt,
+                });
+            } catch (emailError) {
+                opsLog('error', 'MP_PAYMENT_APPROVED_EMAIL_FAILED', {
+                    bookingId,
+                    paymentMethod: normalizedPaymentMethod,
+                    error: emailError instanceof Error ? emailError.message : String(emailError),
+                });
+            }
+        } else if (['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)) {
+            await prisma.booking.updateMany({
+                where: { id: bookingId, status: 'PENDING' },
+                data: { status: 'CANCELLED' },
+            });
+        }
+
         const pixData = (result as any)?.point_of_interaction?.transaction_data
             ? {
-                qr_code: (result as any).point_of_interaction.transaction_data.qr_code,
-                qr_code_base64: (result as any).point_of_interaction.transaction_data.qr_code_base64,
-                ticket_url: (result as any).point_of_interaction.transaction_data.ticket_url,
-            }
+                  qr_code: (result as any).point_of_interaction.transaction_data.qr_code,
+                  qr_code_base64: (result as any).point_of_interaction.transaction_data.qr_code_base64,
+                  ticket_url: (result as any).point_of_interaction.transaction_data.ticket_url,
+              }
             : null;
 
         return NextResponse.json({
@@ -118,10 +194,21 @@ export async function POST(request: Request) {
             pix: pixData,
         });
     } catch (error: any) {
+        if (detectPixKeyNotEnabled(error)) {
+            opsLog('warn', 'MP_PIX_KEY_NOT_ENABLED', {
+                status: error?.status,
+                cause: error?.cause,
+            });
+            return NextResponse.json(
+                {
+                    error: 'PIX_NOT_ENABLED',
+                    message: 'Pix indisponível nesta conta do Mercado Pago. Ative uma chave Pix na conta recebedora ou use cartão.',
+                },
+                { status: 400 }
+            );
+        }
+
         console.error('Erro Mercado Pago:', error);
-        return NextResponse.json(
-            { error: 'Erro ao processar pagamento', message: error?.message || 'Unknown error' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Erro ao processar pagamento', message: error?.message || 'Unknown error' }, { status: 500 });
     }
 }

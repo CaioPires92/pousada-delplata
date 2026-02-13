@@ -181,7 +181,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
             }
 
             if (booking.payment) {
-                if (mapped.paymentStatus === 'APPROVED') {
+                if (mapped.paymentStatus === 'APPROVED' && currentPaymentStatus !== 'APPROVED') {
+                emailQueued = true;
+            }
+
+            if (mapped.paymentStatus === 'APPROVED') {
                     if (booking.payment.status !== 'APPROVED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { not: 'APPROVED' } },
@@ -254,20 +258,26 @@ export async function handleMercadoPagoWebhook(request: Request) {
             });
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
         }
-
         let emailSent = false;
         let emailErrorMessage: string | undefined;
+        let adminAlertSent = false;
+        let adminAlertErrorMessage: string | undefined;
+        const { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } = await import('@/lib/email');
+
         if (result.emailQueued && mpStatus === 'approved') {
-            const { sendBookingConfirmationEmail } = await import('@/lib/email');
             const emailResult = await sendBookingConfirmationEmail({
                 guestName: result.booking.guest.name,
                 guestEmail: result.booking.guest.email,
+                guestPhone: result.booking.guest.phone || null,
                 bookingId: result.booking.id,
                 roomName: result.booking.roomType.name,
                 checkIn: result.booking.checkIn,
                 checkOut: result.booking.checkOut,
                 totalPrice: Number(result.booking.totalPrice),
                 paymentMethod: result.paymentMethod,
+                bookingStatus: result.bookingStatus,
+                paymentStatus: result.paymentStatus,
+                bookingCreatedAt: result.booking.createdAt,
             });
 
             emailSent = Boolean(emailResult?.success);
@@ -286,6 +296,38 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     mpStatus,
                     error: emailErrorMessage,
                 });
+            }
+        }
+
+        const normalizedMpStatus = String(mpStatus || '').toLowerCase();
+        const shouldSendAdminAlert =
+            (normalizedMpStatus === 'approved' && result.emailQueued) ||
+            ['rejected', 'refunded', 'cancelled', 'charged_back'].includes(normalizedMpStatus);
+
+        if (shouldSendAdminAlert) {
+            const adminAlertResult = await sendBookingCreatedAlertEmail({
+                guestName: result.booking.guest.name,
+                guestEmail: result.booking.guest.email,
+                guestPhone: result.booking.guest.phone || null,
+                bookingId: result.booking.id,
+                roomName: result.booking.roomType.name,
+                checkIn: result.booking.checkIn,
+                checkOut: result.booking.checkOut,
+                totalPrice: Number(result.booking.totalPrice),
+                paymentMethod: result.paymentMethod,
+                bookingStatus: result.bookingStatus,
+                paymentStatus: result.paymentStatus,
+                bookingCreatedAt: result.booking.createdAt,
+            });
+
+            adminAlertSent = Boolean(adminAlertResult?.success);
+            if (!adminAlertSent) {
+                adminAlertErrorMessage =
+                    adminAlertResult?.error instanceof Error
+                        ? adminAlertResult.error.message
+                        : typeof adminAlertResult?.error === 'string'
+                            ? adminAlertResult.error
+                            : 'admin_alert_send_failed';
             }
         }
 

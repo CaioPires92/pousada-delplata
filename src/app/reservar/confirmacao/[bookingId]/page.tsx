@@ -26,10 +26,19 @@ export default function ConfirmacaoPage() {
                 const data = await response.json();
                 setBooking(data);
 
-                const prevStatus = lastStatusRef.current;
-                lastStatusRef.current = data.status;
+                const bookingStatus = String(data?.status || '').toUpperCase();
+                const paymentStatus = String(data?.payment?.status || '').toUpperCase();
+                const paymentMethod = String(data?.payment?.method || '').toUpperCase();
+                const paymentRejectedStatuses = ['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'];
 
-                if (data.status === 'CONFIRMED') {
+                const isConfirmedNow = bookingStatus === 'CONFIRMED' || paymentStatus === 'APPROVED';
+                const isCancelledNow = bookingStatus === 'CANCELLED' || paymentRejectedStatuses.includes(paymentStatus);
+                const effectiveStatus = isConfirmedNow ? 'CONFIRMED' : isCancelledNow ? 'CANCELLED' : 'PENDING';
+
+                const prevStatus = lastStatusRef.current;
+                lastStatusRef.current = effectiveStatus;
+
+                if (effectiveStatus === 'CONFIRMED') {
                     setStatusMessage('✅ Pagamento aprovado! Sua reserva está confirmada.');
                     setPolling(false);
                     if (pollRef.current) clearInterval(pollRef.current);
@@ -41,7 +50,7 @@ export default function ConfirmacaoPage() {
                         clearTimeout(redirectRef.current);
                         redirectRef.current = null;
                     }
-                } else if (data.status === 'CANCELLED') {
+                } else if (effectiveStatus === 'CANCELLED') {
                     setStatusMessage('❌ Pagamento não aprovado. Sua reserva foi cancelada.');
                     setPolling(false);
                     if (pollRef.current) clearInterval(pollRef.current);
@@ -50,11 +59,19 @@ export default function ConfirmacaoPage() {
                         setTimeout(() => setStatusToast(''), 3000);
                     }
                 } else {
-                    setStatusMessage('⏳ Pagamento pendente. Estamos aguardando a confirmação do Pix.');
+                    const waitingPix = paymentMethod === 'PIX' || paymentMethod === '' || paymentMethod === 'UNKNOWN';
+                    setStatusMessage(
+                        waitingPix
+                            ? '⏳ Pagamento pendente. Estamos aguardando a confirmação do Pix.'
+                            : '⏳ Pagamento pendente. Estamos processando sua transação no cartão.'
+                    );
                 }
             }
-        } catch (error) { console.error(error); }
-        finally { setLoading(false); }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     }, [bookingId]);
 
     useEffect(() => {
@@ -71,62 +88,81 @@ export default function ConfirmacaoPage() {
         };
     }, [fetchBooking]);
 
-    if (loading) return (
-        <main style={{ paddingTop: '140px', textAlign: 'center' }}>
-            <p>Sincronizando com a Pousada Delplata...</p>
-        </main>
-    );
+    if (loading)
+        return (
+            <main style={{ paddingTop: '140px', textAlign: 'center' }}>
+                <p>Sincronizando com a Pousada Delplata...</p>
+            </main>
+        );
 
-    const isConfirmed = booking?.status === 'CONFIRMED';
-    const accentColor = isConfirmed ? '#0f172a' : '#FF9800';
+    const bookingStatus = String(booking?.status || '').toUpperCase();
+    const paymentStatus = String(booking?.payment?.status || '').toUpperCase();
+    const paymentRejectedStatuses = ['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'];
+    const isConfirmed = bookingStatus === 'CONFIRMED' || paymentStatus === 'APPROVED';
+    const isCancelled = bookingStatus === 'CANCELLED' || paymentRejectedStatuses.includes(paymentStatus);
+    const accentColor = isConfirmed ? '#0f172a' : isCancelled ? '#b91c1c' : '#FF9800';
 
     return (
-        /* ADICIONADO: pt-140px para descer o texto da Navbar */
         <main style={{ paddingTop: '140px', paddingBottom: '60px', minHeight: '100vh', backgroundColor: '#fff' }}>
-            <div style={{
-                maxWidth: '600px',
-                margin: '0 auto',
-                padding: '2rem',
-                border: `3px solid ${accentColor}`,
-                borderRadius: '12px',
-                textAlign: 'center',
-                backgroundColor: '#f9f9f9',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-            }}>
+            <div
+                style={{
+                    maxWidth: '600px',
+                    margin: '0 auto',
+                    padding: '2rem',
+                    border: '3px solid ' + accentColor,
+                    borderRadius: '12px',
+                    textAlign: 'center',
+                    backgroundColor: '#f9f9f9',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                }}
+            >
                 {statusToast ? (
                     <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: '#0f172a', color: '#fff', borderRadius: '8px' }}>
                         {statusToast}
                     </div>
                 ) : null}
                 <h1 style={{ color: accentColor, marginBottom: '1.5rem' }}>
-                    {isConfirmed ? '✅ Pagamento Aprovado!' : '⏳ Pagamento Pendente'}
+                    {isConfirmed ? '✅ Pagamento Aprovado!' : isCancelled ? '❌ Pagamento Não Aprovado' : '⏳ Pagamento Pendente'}
                 </h1>
 
                 {booking && (
                     <div style={{ textAlign: 'left', background: '#fff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #eee' }}>
                         <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem', borderBottom: '1px solid #eee' }}>Sua Reserva</h2>
-                        <p><strong>Quarto:</strong> {booking.roomType?.name}</p>
-                        <p><strong>Hóspede:</strong> {booking.guest?.name}</p>
-
-                        {/* DATAS CORRIGIDAS ABAIXO */}
-                        <p><strong>Check-in:</strong> {formatDateBR(booking.checkIn)}</p>
-                        <p><strong>Check-out:</strong> {formatDateBR(booking.checkOut)}</p>
-
-                        <p><strong>Total:</strong> R$ {Number(booking.totalPrice).toFixed(2)}</p>
-                        <p style={{ marginTop: '10px', color: accentColor, fontWeight: 'bold' }}>Status: {booking.status}</p>
+                        <p>
+                            <strong>Quarto:</strong> {booking.roomType?.name}
+                        </p>
+                        <p>
+                            <strong>Hóspede:</strong> {booking.guest?.name}
+                        </p>
+                        <p>
+                            <strong>Check-in:</strong> {formatDateBR(booking.checkIn)}
+                        </p>
+                        <p>
+                            <strong>Check-out:</strong> {formatDateBR(booking.checkOut)}
+                        </p>
+                        <p>
+                            <strong>Total:</strong> R$ {Number(booking.totalPrice).toFixed(2)}
+                        </p>
+                        <p style={{ marginTop: '10px', color: accentColor, fontWeight: 'bold' }}>
+                            Status: {isConfirmed ? 'CONFIRMED' : isCancelled ? 'CANCELLED' : booking.status}
+                        </p>
+                        {booking?.payment?.method ? (
+                            <p>
+                                <strong>Método:</strong> {String(booking.payment.method)}
+                            </p>
+                        ) : null}
+                        {booking?.payment?.status ? (
+                            <p>
+                                <strong>Status do pagamento:</strong> {String(booking.payment.status)}
+                            </p>
+                        ) : null}
                     </div>
                 )}
 
-                {statusMessage ? (
-                    <div style={{ marginTop: '1rem', fontWeight: 600, color: accentColor }}>
-                        {statusMessage}
-                    </div>
-                ) : null}
+                {statusMessage ? <div style={{ marginTop: '1rem', fontWeight: 600, color: accentColor }}>{statusMessage}</div> : null}
 
-                {polling && !isConfirmed ? (
-                    <div style={{ marginTop: '0.75rem', fontSize: '0.9rem', color: '#64748b' }}>
-                        Atualizando automaticamente a cada 10 segundos...
-                    </div>
+                {polling && !isConfirmed && !isCancelled ? (
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.9rem', color: '#64748b' }}>Atualizando automaticamente a cada 10 segundos...</div>
                 ) : null}
 
                 <div style={{ marginTop: '2rem' }}>

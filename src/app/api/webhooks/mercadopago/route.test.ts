@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 // Mock Email
 vi.mock('@/lib/email', () => ({
   sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
+  sendBookingCreatedAlertEmail: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 // Mock Prisma

@@ -26,6 +26,31 @@ function formatPaymentMethodLabel(paymentMethod?: string | null) {
     return labels[method] || method.replace(/_/g, ' ');
 }
 
+function formatDateTimePtBr(date: Date) {
+    return new Intl.DateTimeFormat('pt-BR', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: 'America/Sao_Paulo',
+    }).format(date);
+}
+
+function formatBookingStatusLabel(status?: string | null) {
+    const normalized = String(status || '').trim().toUpperCase();
+    if (!normalized) return 'PENDENTE';
+
+    const labels: Record<string, string> = {
+        PENDING: 'PENDENTE',
+        CONFIRMED: 'CONFIRMADA',
+        CANCELLED: 'CANCELADA',
+        APPROVED: 'APROVADO',
+        REJECTED: 'RECUSADO',
+        REFUNDED: 'ESTORNADO',
+        CHARGED_BACK: 'CONTESTADO',
+    };
+
+    return labels[normalized] || normalized;
+}
+
 function normalizeEmail(value: string | undefined | null) {
     const normalized = String(value || '').trim().toLowerCase();
     return normalized.length > 0 ? normalized : '';
@@ -63,12 +88,16 @@ const transporter = nodemailer.createTransport({
 interface BookingEmailData {
     guestName: string;
     guestEmail: string;
+    guestPhone?: string | null;
     bookingId: string;
     roomName: string;
     checkIn: Date;
     checkOut: Date;
     totalPrice: number;
     paymentMethod?: string | null;
+    bookingStatus?: string | null;
+    paymentStatus?: string | null;
+    bookingCreatedAt?: Date;
 }
 
 export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
@@ -252,7 +281,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     </div>
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
-        <p>Sua reserva foi criada e está aguardando o pagamento.</p>
+        <p>Sua reserva foi iniciada e, até o momento deste envio, ainda não identificamos a conclusão do pagamento.</p>
 
         <div class="booking-details">
             <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
@@ -283,7 +312,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         </div>
 
         <div class="notice">
-            <strong>Importante:</strong> finalize o pagamento para confirmar sua reserva.
+            <strong>Mensagem automática:</strong> percebemos que você tentou realizar uma reserva. Até o momento deste envio, ela ainda não foi finalizada. Se quiser, podemos te ajudar a concluir o processo ou tirar qualquer dúvida. Caso você já tenha finalizado, ou não precise de ajuda, desconsidere este e-mail.
         </div>
 
         <p>Em caso de dúvidas, fale conosco:</p>
@@ -392,11 +421,12 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
     const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
+    const bccRecipients = buildBccRecipients(guestEmail, [alwaysBccEmail]);
 
     const mailOptions = {
         from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
         to: guestEmail,
+        cc: adminEmail,
         bcc: bccRecipients,
         subject: `✅ Reserva Confirmada - ${roomName}`,
         html: htmlContent,
@@ -420,16 +450,11 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingPendingEmailHtml(data);
 
-    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
-
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
-            bcc: bccRecipients,
-            subject: `⏳ Reserva Pendente - ${roomName}`,
+            subject: `⏳ Sua reserva ainda não foi finalizada - ${roomName}`,
             html: htmlContent,
         });
         return { success: true, messageId: info.messageId };
@@ -463,7 +488,6 @@ export async function sendBookingExpiredEmail(data: BookingEmailData) {
         return { success: false, error };
     }
 }
-
 type ContactEmailData = {
     name: string;
     email: string;
@@ -503,8 +527,7 @@ export async function sendContactEmail(data: ContactEmailData) {
         const info = await transporter.sendMail({
             from: `"Site Delplata" <${process.env.SMTP_USER}>`,
             to: toEmail,
-            replyTo: data.email,
-            bcc: bccRecipients,
+            replyTo: data.email,
             subject: `Contato: ${data.subject || 'Mensagem do site'}`,
             html,
         });
@@ -533,15 +556,18 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     const html = `
 <html>
 <body style="font-family: Arial, sans-serif; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
-  <h2 style="margin-top:0; color:#0f172a;">Nova reserva criada (pendente)</h2>
+  <h2 style="margin-top:0; color:#0f172a;">Atualização de reserva</h2>
   <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px;">
     <p><strong>Reserva:</strong> ${data.bookingId.slice(0, 8).toUpperCase()}</p>
     <p><strong>Hóspede:</strong> ${data.guestName} (${data.guestEmail})</p>
+    <p><strong>WhatsApp:</strong> ${String(data.guestPhone || 'Não informado')}</p>
     <p><strong>Quarto:</strong> ${data.roomName}</p>
     <p><strong>Período:</strong> ${checkInFormatted} - ${checkOutFormatted}</p>
     <p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2)}</p>
     <p><strong>Método de pagamento:</strong> ${formatPaymentMethodLabel(data.paymentMethod)}</p>
-    <p><strong>Status:</strong> PENDENTE</p>
+    <p><strong>Status da reserva:</strong> ${formatBookingStatusLabel(data.bookingStatus)}</p>
+    <p><strong>Status do pagamento:</strong> ${formatBookingStatusLabel(data.paymentStatus)}</p>
+    <p><strong>Criada em:</strong> ${formatDateTimePtBr(data.bookingCreatedAt || new Date())}</p>
   </div>
 </body>
 </html>`;
@@ -549,9 +575,8 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
-            to: adminEmail,
-            bcc: bccRecipients,
-            subject: `🆕 Nova reserva criada - ${data.roomName}`,
+            to: adminEmail,
+            subject: `📌 Reserva ${formatBookingStatusLabel(data.bookingStatus)} - ${data.roomName}`,
             html,
         });
         return { success: true, messageId: info.messageId };
@@ -559,4 +584,6 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
         return { success: false, error };
     }
 }
+
+
 
