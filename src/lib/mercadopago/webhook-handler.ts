@@ -115,6 +115,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
         const paymentData = await paymentResponse.json();
         const mpStatus = paymentData?.status as string | undefined;
+        const paymentMethod = normalizePaymentMethodId(paymentData?.payment_method_id);
         const bookingId = paymentData?.external_reference as string | undefined;
         ctxBookingId = bookingId;
 
@@ -215,7 +216,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id },
-                            data: { providerId: paymentId },
+                            data: { providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
                         });
                     }
                     paymentStatus = booking.payment.status;
@@ -228,6 +229,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         amount: booking.totalPrice,
                         provider: 'MERCADOPAGO',
                         providerId: paymentId,
+                        method: paymentMethod,
                         status: initialStatus,
                     },
                 });
@@ -239,6 +241,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 booking,
                 bookingStatus,
                 paymentStatus,
+                paymentMethod: paymentMethodValue,
                 emailQueued,
             };
         });
