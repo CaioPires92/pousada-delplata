@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useCallback, useEffect, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -832,7 +833,12 @@ function ReservarContent() {
                                                     className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                                 />
                                                 <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
-                                                    Declaro que li e aceito os <span className="text-primary font-medium hover:underline">termos e condições</span>, políticas de cancelamento e privacidade da Pousada Delplata.
+                                                    Declaro que li e aceito os{' '}
+                                                    <Link href="/termos-e-condicoes" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">termos e condições</Link>,{' '}
+                                                    <Link href="/politica-de-cancelamento" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">política de cancelamento</Link>{' '}
+                                                    e{' '}
+                                                    <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">política de privacidade</Link>{' '}
+                                                    da Pousada Delplata.
                                                 </label>
                                             </div>
                                         </div>
