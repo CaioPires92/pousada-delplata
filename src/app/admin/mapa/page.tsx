@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     format, 
@@ -59,6 +59,8 @@ type BulkUpdates = {
     inventory?: number;
 };
 
+const ALL_ROOMS_VALUE = 'all';
+
 const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) => {
     const [currentValue, setCurrentValue] = useState(value);
 
@@ -98,6 +100,7 @@ export default function MapaReservas() {
     const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
     const [selectedRoomId, setSelectedRoomId] = useState<string>('');
     const [calendarData, setCalendarData] = useState<CalendarData[]>([]);
+    const [calendarDataByRoom, setCalendarDataByRoom] = useState<Record<string, CalendarData[]>>({});
     const [calendarLoading, setCalendarLoading] = useState(false);
     const [calendarError, setCalendarError] = useState<string | null>(null);
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -174,41 +177,75 @@ export default function MapaReservas() {
         }
     };
 
+    const fetchCalendarForRoom = useCallback(async (roomTypeId: string, startKey: string, endKey: string) => {
+        const res = await fetch(`/api/admin/calendar?roomTypeId=${roomTypeId}&startDate=${startKey}&endDate=${endKey}&_t=${Date.now()}`, {
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            const contentType = res.headers.get('content-type') || '';
+            let message = `Erro ao carregar calendário (HTTP ${res.status})`;
+            if (contentType.includes('application/json')) {
+                const data = await res.json().catch(() => null);
+                if (data && typeof data === 'object') {
+                    if (typeof (data as any).message === 'string') message = (data as any).message;
+                    else if (typeof (data as any).error === 'string') message = (data as any).error;
+                }
+            } else {
+                const responseText = await res.text().catch(() => '');
+                if (responseText) message = responseText;
+            }
+            throw new Error(message);
+        }
+
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+            throw new Error('Resposta inválida da API do calendário');
+        }
+
+        return data as CalendarData[];
+    }, []);
+
     const fetchRates = useCallback(async () => {
         if (!selectedRoomId) return;
-        
+
         const start = startOfMonth(currentDate);
         const end = endOfMonth(currentDate);
-        
+
         setCalendarLoading(true);
         setCalendarError(null);
         try {
             const startKey = format(start, 'yyyy-MM-dd');
             const endKey = format(end, 'yyyy-MM-dd');
-            const res = await fetch(`/api/admin/calendar?roomTypeId=${selectedRoomId}&startDate=${startKey}&endDate=${endKey}&_t=${Date.now()}`, {
-                cache: 'no-store'
-            });
-            if (!res.ok) {
-                const contentType = res.headers.get('content-type') || '';
-                let message = `Erro ao carregar calendário (HTTP ${res.status})`;
-                if (contentType.includes('application/json')) {
-                    const data = await res.json().catch(() => null);
-                    if (data && typeof data === 'object') {
-                        if (typeof (data as any).message === 'string') message = (data as any).message;
-                        else if (typeof (data as any).error === 'string') message = (data as any).error;
-                    }
-                } else {
-                    const text = await res.text().catch(() => '');
-                    if (text) message = text;
+
+            if (selectedRoomId === ALL_ROOMS_VALUE) {
+                const targetRooms = roomTypes.length > 0 ? roomTypes : [];
+                if (targetRooms.length === 0) {
+                    setCalendarData([]);
+                    setCalendarDataByRoom({});
+                    return;
                 }
-                throw new Error(message);
+
+                const roomPayloads = await Promise.all(
+                    targetRooms.map(async (room) => {
+                        const data = await fetchCalendarForRoom(room.id, startKey, endKey);
+                        return { roomId: room.id, data };
+                    })
+                );
+
+                const byRoom: Record<string, CalendarData[]> = {};
+                roomPayloads.forEach((entry) => {
+                    byRoom[entry.roomId] = entry.data;
+                });
+
+                setCalendarDataByRoom(byRoom);
+                setCalendarData(byRoom[targetRooms[0].id] || []);
+                return;
             }
 
-            const data = await res.json();
-            if (!Array.isArray(data)) {
-                throw new Error('Resposta inválida da API do calendário');
-            }
+            const data = await fetchCalendarForRoom(selectedRoomId, startKey, endKey);
             setCalendarData(data);
+            setCalendarDataByRoom(prev => ({ ...prev, [selectedRoomId]: data }));
         } catch (error) {
             console.error('Error loading calendar data:', error);
             setCalendarData([]);
@@ -216,7 +253,7 @@ export default function MapaReservas() {
         } finally {
             setCalendarLoading(false);
         }
-    }, [currentDate, selectedRoomId]);
+    }, [currentDate, selectedRoomId, viewMode, roomTypes, fetchCalendarForRoom]);
 
     useEffect(() => {
         if (selectedRoomId) {
@@ -224,14 +261,22 @@ export default function MapaReservas() {
         }
     }, [selectedRoomId, fetchRates]);
 
-    const getDataForDay = (day: Date) => {
+    const getCalendarDataForRoom = useCallback((roomId: string) => {
+        if (!roomId) return [];
+        if (roomId === selectedRoomId && selectedRoomId !== ALL_ROOMS_VALUE) return calendarData;
+        return calendarDataByRoom[roomId] || [];
+    }, [calendarData, calendarDataByRoom, selectedRoomId]);
+
+    const getDataForDay = (day: Date, roomId?: string) => {
         const dateStr = format(day, 'yyyy-MM-dd');
-        return calendarData.find(d => d.date === dateStr);
+        const effectiveRoomId = roomId || selectedRoomId;
+        const roomCalendar = getCalendarDataForRoom(effectiveRoomId);
+        return roomCalendar.find(d => d.date === dateStr);
     };
 
-    const getRateForDay = (day: Date) => {
+    const getRateForDay = (day: Date, roomId?: string) => {
         // Kept for compatibility but should use getDataForDay
-        const data = getDataForDay(day);
+        const data = getDataForDay(day, roomId);
         if (!data) return undefined;
         return {
             id: data.rateId || 'temp',
@@ -249,18 +294,19 @@ export default function MapaReservas() {
 
     const [savingRate, setSavingRate] = useState<string | null>(null);
 
-    const saveSingleDayRate = async (day: Date, updates: RateUpdatePayload, refreshAfter = true) => {
-        if (!selectedRoomId) return;
+    const saveSingleDayRate = async (day: Date, updates: RateUpdatePayload, refreshAfter = true, roomTypeId?: string) => {
+        const effectiveRoomId = roomTypeId || selectedRoomId;
+        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return;
 
         // Use bulk endpoint for single day update to ensure correct splitting
         const dateStr = format(day, 'yyyy-MM-dd');
-        setSavingRate(dateStr);
+        setSavingRate(`${effectiveRoomId}:${dateStr}`);
         try {
             const res = await fetch('/api/rates/bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    roomTypeId: selectedRoomId,
+                    roomTypeId: effectiveRoomId,
                     date: dateStr,
                     updates
                 })
@@ -294,15 +340,16 @@ export default function MapaReservas() {
 
     const [updatingInventory, setUpdatingInventory] = useState<string | null>(null);
 
-    const persistInventory = async (dateStr: string, newTotal: number) => {
-        if (!selectedRoomId) return;
-        setUpdatingInventory(dateStr);
+    const persistInventory = async (dateStr: string, newTotal: number, roomTypeId?: string) => {
+        const effectiveRoomId = roomTypeId || selectedRoomId;
+        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return;
+        setUpdatingInventory(`${effectiveRoomId}:${dateStr}`);
         try {
             const res = await fetch('/api/admin/inventory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    roomTypeId: selectedRoomId,
+                    roomTypeId: effectiveRoomId,
                     date: dateStr,
                     totalUnits: newTotal
                 })
@@ -440,18 +487,26 @@ export default function MapaReservas() {
 
     // --- List View Logic ---
 
-    const updateRateField = async (day: Date, field: 'price' | 'minLos' | 'stopSell' | 'cta' | 'ctd' | 'inventory', value: string | number | boolean) => {
+    const updateRateField = async (
+        day: Date,
+        field: 'price' | 'minLos' | 'stopSell' | 'cta' | 'ctd' | 'inventory',
+        value: string | number | boolean,
+        roomTypeId?: string
+    ) => {
         const dateStr = format(day, 'yyyy-MM-dd');
+        const effectiveRoomId = roomTypeId || selectedRoomId;
+        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return;
+
         try {
             if (field === 'inventory') {
                 const inv = Number(value);
                 if (Number.isNaN(inv) || inv < 0) return;
-                await persistInventory(dateStr, inv);
+                await persistInventory(dateStr, inv, effectiveRoomId);
                 await fetchRates();
                 showToast('success', `Inventário atualizado para ${dateStr}.`);
                 return;
             }
-            await saveSingleDayRate(day, { [field]: value });
+            await saveSingleDayRate(day, { [field]: value }, true, effectiveRoomId);
             showToast('success', `Alteração aplicada em ${dateStr}.`);
         } catch (error) {
             console.error('Error updating field:', error);
@@ -561,6 +616,10 @@ export default function MapaReservas() {
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const todayLabel = format(new Date(), 'dd/MM/yyyy');
     const selectedDayData = selectedDate ? getDataForDay(selectedDate) : undefined;
+    const selectedDateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+    const modalSaving = selectedDateKey
+        ? savingRate === `${selectedRoomId}:${selectedDateKey}` || updatingInventory === `${selectedRoomId}:${selectedDateKey}`
+        : false;
 
     useEffect(() => {
         if (viewMode !== 'list' || calendarLoading) return;
@@ -577,6 +636,171 @@ export default function MapaReservas() {
     }, [viewMode, currentDate, calendarLoading, todayKey]);
 
     const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const listRoomTypes = selectedRoomId === ALL_ROOMS_VALUE
+        ? roomTypes
+        : roomTypes.filter(room => room.id === selectedRoomId);
+
+    const renderListRowsForRoom = (room: RoomType) => (
+        <Fragment key={room.id}>
+            {selectedRoomId === ALL_ROOMS_VALUE && (
+                <tr>
+                    <td className={styles.stickyCol} style={{ background: '#eef2ff', fontWeight: 800 }}>🏨 {room.name}</td>
+                    <td colSpan={monthDays.length} style={{ textAlign: 'left', paddingLeft: '1rem', background: '#f8fafc', color: '#475569', fontWeight: 600 }}>
+                        Tarifa base: R$ {Number(room.basePrice || 0).toFixed(2)}
+                    </td>
+                </tr>
+            )}
+
+            <tr>
+                <td className={styles.stickyCol}>Status</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isTodayCol = dateStr === todayKey;
+                    const isClosed = data?.stopSell;
+                    const isZero = (data?.available ?? 1) <= 0;
+                    return (
+                        <td
+                            key={`${room.id}-status-${dateStr}`}
+                            className={styles.cell}
+                            onClick={() => updateRateField(day, 'stopSell', !isClosed, room.id)}
+                            style={isTodayCol ? { background: '#eff6ff' } : undefined}
+                        >
+                            <div className={`${styles.statusPill} ${(isClosed || isZero) ? styles.closed : styles.open}`}>
+                                {isClosed ? 'FECHADO' : (isZero ? 'ESGOTADO' : 'ABERTO')}
+                            </div>
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Quartos para venda</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const total = data?.totalInventory ?? 0;
+                    const available = data?.available ?? 0;
+                    const bookingsCount = data?.bookingsCount ?? 0;
+                    const capacityTotal = data?.capacityTotal ?? 0;
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const inventoryKey = `${room.id}:${dateStr}`;
+                    const isTodayCol = dateStr === todayKey;
+                    return (
+                        <td key={`${room.id}-inventory-${dateStr}`} className={styles.cell}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: isTodayCol ? '#eff6ff' : 'transparent', borderRadius: '8px', padding: '0.2rem 0.35rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: updatingInventory === inventoryKey ? 0.5 : 1 }}>
+                                    <button
+                                        className={styles.miniBtn}
+                                        onClick={() => updateRateField(day, 'inventory', Math.max(0, total - 1), room.id)}
+                                        disabled={updatingInventory === inventoryKey}
+                                    >
+                                        -
+                                    </button>
+                                    <span style={{ fontWeight: 600 }}>{total}</span>
+                                    <button
+                                        className={styles.miniBtn}
+                                        onClick={() => updateRateField(day, 'inventory', total + 1, room.id)}
+                                        disabled={updatingInventory === inventoryKey}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                                <span style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>
+                                    Disponíveis: {available}
+                                </span>
+                                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                    Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
+                                </span>
+                            </div>
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Preço (R$)</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const price = data ? data.price : Number(room.basePrice || 0);
+                    const isTodayCol = dateStr === todayKey;
+                    return (
+                        <td key={`${room.id}-price-${dateStr}`} className={styles.cell} style={isTodayCol ? { background: '#eff6ff' } : undefined}>
+                            <EditableCell
+                                type="number"
+                                value={price}
+                                onSave={(val) => updateRateField(day, 'price', val, room.id)}
+                            />
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Min. Noites</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const minLos = data ? data.minLos : 1;
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isTodayCol = dateStr === todayKey;
+                    return (
+                        <td key={`${room.id}-minlos-${dateStr}`} className={styles.cell} style={isTodayCol ? { background: '#eff6ff' } : undefined}>
+                            <EditableCell
+                                type="number"
+                                min="1"
+                                value={minLos}
+                                onSave={(val) => updateRateField(day, 'minLos', val, room.id)}
+                            />
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Entrada (CTA)</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const cta = data?.cta;
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isTodayCol = dateStr === todayKey;
+                    return (
+                        <td
+                            key={`${room.id}-cta-${dateStr}`}
+                            className={styles.cell}
+                            onClick={() => updateRateField(day, 'cta', !cta, room.id)}
+                            style={isTodayCol ? { background: '#eff6ff' } : undefined}
+                        >
+                            <div className={`${styles.restrictionCell} ${cta ? styles.restrictionActive : ''}`}>
+                                {cta ? '🚫' : ''}
+                            </div>
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Saída (CTD)</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const ctd = data?.ctd;
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isTodayCol = dateStr === todayKey;
+                    return (
+                        <td
+                            key={`${room.id}-ctd-${dateStr}`}
+                            className={styles.cell}
+                            onClick={() => updateRateField(day, 'ctd', !ctd, room.id)}
+                            style={isTodayCol ? { background: '#eff6ff' } : undefined}
+                        >
+                            <div className={`${styles.restrictionCell} ${ctd ? styles.restrictionActive : ''}`}>
+                                {ctd ? '🚫' : ''}
+                            </div>
+                        </td>
+                    );
+                })}
+            </tr>
+        </Fragment>
+    );
 
     return (
         <>
@@ -616,10 +840,17 @@ export default function MapaReservas() {
                         <label style={{ fontWeight: 600, color: '#64748b', fontSize: '0.9rem' }}>Acomodação:</label>
                         <select 
                             value={selectedRoomId} 
-                            onChange={(e) => setSelectedRoomId(e.target.value)}
+                            onChange={(e) => {
+                                const nextValue = e.target.value;
+                                setSelectedRoomId(nextValue);
+                                if (nextValue === ALL_ROOMS_VALUE) {
+                                    setViewMode('list');
+                                }
+                            }}
                             className={styles.input}
-                            style={{ minWidth: '200px' }}
+                            style={{ minWidth: '260px' }}
                         >
+                            <option value={ALL_ROOMS_VALUE}>Todos os quartos (Lista)</option>
                             {roomTypes.map(room => (
                                 <option key={room.id} value={room.id}>{room.name}</option>
                             ))}
@@ -629,7 +860,13 @@ export default function MapaReservas() {
                     <div className={styles.viewToggle}>
                         <button 
                             className={`${styles.toggleButton} ${viewMode === 'grid' ? styles.active : ''}`}
-                            onClick={() => setViewMode('grid')}
+                            onClick={() => {
+                                if (selectedRoomId === ALL_ROOMS_VALUE) {
+                                    showToast('info', 'No modo Mapa selecione uma acomodação específica.');
+                                    return;
+                                }
+                                setViewMode('grid');
+                            }}
                         >
                             📅 Mapa
                         </button>
@@ -683,7 +920,7 @@ export default function MapaReservas() {
                 <div className={styles.loading}>Carregando...</div>
             ) : (
                 <>
-                    {viewMode === 'grid' ? (
+                    {viewMode === 'grid' && selectedRoomId !== ALL_ROOMS_VALUE ? (
                         <div className={styles.calendarGrid}>
                             {weekDays.map(day => (
                                 <div key={day} className={styles.weekDay}>{day}</div>
@@ -726,7 +963,7 @@ export default function MapaReservas() {
                     ) : (
                         <div className={styles.listViewContainer}>
                             <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: '0.82rem', fontWeight: 600 }}>
-                                Exibindo período: {format(startOfMonth(currentDate), 'dd/MM/yyyy')} a {format(endOfMonth(currentDate), 'dd/MM/yyyy')} | Hoje: {todayLabel} | Role horizontalmente para ver todos os dias
+                                Exibindo período: {format(startOfMonth(currentDate), 'dd/MM/yyyy')} a {format(endOfMonth(currentDate), 'dd/MM/yyyy')} | Hoje: {todayLabel} | {selectedRoomId === ALL_ROOMS_VALUE ? `Visualização: ${listRoomTypes.length} acomodações` : 'Visualização: 1 acomodação'} | Role horizontalmente para ver todos os dias
                             </div>
                             <div className={styles.listViewWrapper} ref={listScrollRef}>
                                 <table className={styles.listViewTable}>
@@ -750,150 +987,7 @@ export default function MapaReservas() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {/* Status Row */}
-                                        <tr>
-                                            <td className={styles.stickyCol}>Status</td>
-                                            {monthDays.map(day => {
-                                                const data = getDataForDay(day);
-                                                const isTodayCol = format(day, 'yyyy-MM-dd') === todayKey;
-                                                const isClosed = data?.stopSell;
-                                                const isZero = (data?.available ?? 1) <= 0;
-                                                return (
-                                                    <td key={format(day, 'yyyy-MM-dd')} 
-                                                        className={styles.cell}
-                                                        onClick={() => updateRateField(day, 'stopSell', !isClosed)}
-                                                        style={isTodayCol ? { background: '#eff6ff' } : undefined}
-                                                    >
-                                                        <div className={`${styles.statusPill} ${(isClosed || isZero) ? styles.closed : styles.open}`}>
-                                                            {isClosed ? 'FECHADO' : (isZero ? 'ESGOTADO' : 'ABERTO')}
-                                                        </div>
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                        {/* Inventory Row */}
-                                        <tr>
-                                            <td className={styles.stickyCol}>Quartos para venda</td>
-                                            {monthDays.map(day => {
-                                                const data = getDataForDay(day);
-                                                const total = data?.totalInventory ?? 0;
-                                                const available = data?.available ?? 0;
-                                                const bookingsCount = data?.bookingsCount ?? 0;
-                                                const capacityTotal = data?.capacityTotal ?? 0;
-                                                const dateStr = format(day, 'yyyy-MM-dd');
-                                                const isTodayCol = dateStr === todayKey;
-                                                return (
-                                            <td key={format(day, 'yyyy-MM-dd')} className={styles.cell}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: isTodayCol ? '#eff6ff' : 'transparent', borderRadius: '8px', padding: '0.2rem 0.35rem' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: updatingInventory === dateStr ? 0.5 : 1 }}>
-                                                        <button 
-                                                            className={styles.miniBtn}
-                                                            onClick={() => updateRateField(day, 'inventory', Math.max(0, total - 1))}
-                                                            disabled={updatingInventory === dateStr}
-                                                        >
-                                                            -
-                                                        </button>
-                                                        <span style={{ fontWeight: 600 }}>{total}</span>
-                                                        <button 
-                                                            className={styles.miniBtn}
-                                                            onClick={() => updateRateField(day, 'inventory', total + 1)}
-                                                            disabled={updatingInventory === dateStr}
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
-                                                    <span style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>
-                                                        Disponíveis: {available}
-                                                    </span>
-                                                    <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                                                        Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                                );
-                                            })}
-                                        </tr>
-                                        {/* Price Row */}
-                                        <tr>
-                                            <td className={styles.stickyCol}>Preço (R$)</td>
-                                            {monthDays.map(day => {
-                                                const data = getDataForDay(day);
-                                                const price = data ? data.price : (roomTypes.find(r => r.id === selectedRoomId)?.basePrice ?? 0);
-                                                const dateStr = format(day, 'yyyy-MM-dd');
-                                                const isTodayCol = dateStr === todayKey;
-                                                return (
-                                                    <td key={format(day, 'yyyy-MM-dd')} className={styles.cell} style={isTodayCol ? { background: '#eff6ff' } : undefined}>
-                                                        <EditableCell 
-                                                            type="number" 
-                                                            value={price}
-                                                            onSave={(val) => updateRateField(day, 'price', val)}
-                                                        />
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                        {/* MinLOS Row */}
-                                        <tr>
-                                            <td className={styles.stickyCol}>Min. Noites</td>
-                                            {monthDays.map(day => {
-                                                const data = getDataForDay(day);
-                                                const minLos = data ? data.minLos : 1;
-                                                const dateStr = format(day, 'yyyy-MM-dd');
-                                                const isTodayCol = dateStr === todayKey;
-                                                return (
-                                                    <td key={format(day, 'yyyy-MM-dd')} className={styles.cell} style={isTodayCol ? { background: '#eff6ff' } : undefined}>
-                                                        <EditableCell 
-                                                            type="number" 
-                                                            min="1"
-                                                            value={minLos}
-                                                            onSave={(val) => updateRateField(day, 'minLos', val)}
-                                                        />
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                        {/* CTA Row */}
-                                        <tr>
-                                            <td className={styles.stickyCol}>Entrada (CTA)</td>
-                                            {monthDays.map(day => {
-                                                const data = getDataForDay(day);
-                                                const cta = data?.cta;
-                                                const dateStr = format(day, 'yyyy-MM-dd');
-                                                const isTodayCol = dateStr === todayKey;
-                                                return (
-                                                    <td key={format(day, 'yyyy-MM-dd')} 
-                                                        className={styles.cell}
-                                                        onClick={() => updateRateField(day, 'cta', !cta)}
-                                                        style={isTodayCol ? { background: '#eff6ff' } : undefined}
-                                                    >
-                                                        <div className={`${styles.restrictionCell} ${cta ? styles.restrictionActive : ''}`}>
-                                                            {cta ? '🚫' : ''}
-                                                        </div>
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
-                                        {/* CTD Row */}
-                                        <tr>
-                                            <td className={styles.stickyCol}>Saída (CTD)</td>
-                                            {monthDays.map(day => {
-                                                const data = getDataForDay(day);
-                                                const ctd = data?.ctd;
-                                                const dateStr = format(day, 'yyyy-MM-dd');
-                                                const isTodayCol = dateStr === todayKey;
-                                                return (
-                                                    <td key={format(day, 'yyyy-MM-dd')} 
-                                                        className={styles.cell}
-                                                        onClick={() => updateRateField(day, 'ctd', !ctd)}
-                                                        style={isTodayCol ? { background: '#eff6ff' } : undefined}
-                                                    >
-                                                        <div className={`${styles.restrictionCell} ${ctd ? styles.restrictionActive : ''}`}>
-                                                            {ctd ? '🚫' : ''}
-                                                        </div>
-                                                    </td>
-                                                );
-                                            })}
-                                        </tr>
+                                        {listRoomTypes.map(renderListRowsForRoom)}
                                     </tbody>
                                 </table>
                             </div>
@@ -1101,9 +1195,9 @@ export default function MapaReservas() {
                                     onClick={handleSave}
                                     className={styles.buttonPrimary}
                                     style={{ padding: '0.6rem 1.5rem' }}
-                                    disabled={savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null) || updatingInventory === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null)}
+                                    disabled={modalSaving}
                                 >
-                                    {(savingRate === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null) || updatingInventory === (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null)) ? 'Salvando...' : 'Salvar Alterações'}
+                                    {modalSaving ? 'Salvando...' : 'Salvar Alterações'}
                                 </button>
                             </div>
                         </div>
