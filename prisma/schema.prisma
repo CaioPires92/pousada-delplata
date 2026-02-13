@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
@@ -14,49 +12,49 @@ datasource db {
 }
 
 model RoomType {
-  id          String   @id @default(uuid())
-  name        String
-  description String
-  capacity    Int
-  maxGuests   Int      @default(3)
-  includedAdults Int   @default(2)
-  totalUnits  Int      @default(1)
-  basePrice   Decimal
-  extraAdultFee Decimal @default(0)
-  child6To11Fee Decimal @default(0)
-  amenities   String   // JSON string or comma separated
-  photos      Photo[]
-  bookings    Booking[]
-  rates       Rate[]
-  inventory   InventoryAdjustment[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String                @id @default(uuid())
+  name           String
+  description    String
+  capacity       Int
+  maxGuests      Int                   @default(3)
+  includedAdults Int                   @default(2)
+  totalUnits     Int                   @default(1)
+  basePrice      Decimal
+  extraAdultFee  Decimal               @default(0)
+  child6To11Fee  Decimal               @default(0)
+  amenities      String                // JSON string or comma separated
+  photos         Photo[]
+  bookings       Booking[]
+  rates          Rate[]
+  inventory      InventoryAdjustment[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 }
 
 model Photo {
-  id          String   @id @default(uuid())
-  url         String
-  position    Int      @default(0) // Adicione esta linha
-  roomTypeId  String
-  roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  url        String
+  position   Int      @default(0)
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
 }
 
 model Rate {
-  id          String   @id @default(uuid())
-  roomTypeId  String
-  roomType    RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-  startDate   DateTime 
-  endDate     DateTime
-  price       Decimal
-  
-  // New fields for Booking-style calendar rules
-  cta         Boolean  @default(false) // Closed to Arrival
-  ctd         Boolean  @default(false) // Closed to Departure
-  stopSell    Boolean  @default(false) // Closed / Blocked
-  minLos      Int      @default(1)     // Minimum Length of Stay
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  startDate  DateTime
+  endDate    DateTime
+  price      Decimal
+
+  // Booking-style calendar rules
+  cta      Boolean  @default(false) // Closed to Arrival
+  ctd      Boolean  @default(false) // Closed to Departure
+  stopSell Boolean  @default(false) // Closed / Blocked
+  minLos   Int      @default(1)     // Minimum Length of Stay
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model InventoryAdjustment {
@@ -73,54 +71,124 @@ model InventoryAdjustment {
   @@index([dateKey])
 }
 
-
-
 model Guest {
-  id          String    @id @default(uuid())
-  name        String
-  email       String
-  phone       String
-  bookings    Booking[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(uuid())
+  name      String
+  email     String
+  phone     String
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Booking {
-  id          String   @id @default(uuid())
-  guestId     String
-  guest       Guest    @relation(fields: [guestId], references: [id])
-  roomTypeId  String
-  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
-  checkIn     DateTime
-  checkOut    DateTime
-  totalPrice  Decimal
-  status      String   // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  id                 String             @id @default(uuid())
+  guestId            String
+  guest              Guest              @relation(fields: [guestId], references: [id])
+  roomTypeId         String
+  roomType           RoomType           @relation(fields: [roomTypeId], references: [id])
+  checkIn            DateTime
+  checkOut           DateTime
+  totalPrice         Decimal
+  subtotalPrice      Decimal?
+  discountAmount     Decimal?
+  appliedCouponCode  String?
+  status             String             // PENDING, CONFIRMED, CANCELLED, COMPLETED
   pendingEmailSentAt DateTime?
   expiredEmailSentAt DateTime?
-  payment     Payment?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  payment            Payment?
+  couponRedemption   CouponRedemption?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 }
 
 model Payment {
-  id            String   @id @default(uuid())
-  bookingId     String   @unique
-  booking       Booking  @relation(fields: [bookingId], references: [id])
-  amount        Decimal
-  provider      String   // MERCADOPAGO
-  providerId    String?  // Mercado Pago Payment ID
-  status        String   // PENDING, APPROVED, REJECTED
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  amount     Decimal
+  provider   String   // MERCADOPAGO
+  providerId String?  // Mercado Pago Payment ID
+  method     String?  // PIX, CREDIT_CARD, DEBIT_CARD, etc.
+  status     String   // PENDING, APPROVED, REJECTED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model AdminUser {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id           String   @id @default(uuid())
+  email        String   @unique
   passwordHash String
-  name      String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  name         String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Coupon {
+  id                String            @id @default(uuid())
+  name              String
+  codeHash          String            @unique
+  codePrefix        String
+  type String   // PERCENT | FIXED
+  value             Decimal
+  maxDiscountAmount Decimal?
+  minBookingValue   Decimal?
+  active            Boolean           @default(true)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  maxGlobalUses     Int?
+  maxUsesPerGuest   Int?
+  bindEmail         String?
+  bindPhone         String?
+  allowedRoomTypeIds String? // JSON string array
+  allowedSources    String? // JSON string array
+  singleUse         Boolean           @default(true)
+  stackable         Boolean           @default(false)
+  redemptions       CouponRedemption[]
+  attemptLogs       CouponAttemptLog[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([codePrefix])
+  @@index([active])
+  @@index([startsAt, endsAt])
+}
+
+model CouponRedemption {
+  id             String                 @id @default(uuid())
+  couponId       String
+  coupon         Coupon                 @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  status         String                 @default("RESERVED") // RESERVED | CONFIRMED | RELEASED
+  bookingId      String?                @unique
+  booking        Booking?               @relation(fields: [bookingId], references: [id])
+  guestEmail     String?
+  guestPhone     String?
+  discountAmount Decimal                @default(0)
+  reservedAt     DateTime               @default(now())
+  expiresAt      DateTime?
+  confirmedAt    DateTime?
+  releasedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([couponId, status])
+  @@index([guestEmail, couponId])
+}
+
+model CouponAttemptLog {
+  id            String   @id @default(uuid())
+  couponId      String?
+  coupon        Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  codePrefix    String?
+  guestEmail    String?
+  ipHash        String?
+  userAgentHash String?
+  result        String
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([codePrefix])
 }
 

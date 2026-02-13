@@ -502,3 +502,4 @@ describe('Availability API - Pricing Logic', () => {
     expect(data[0].remainingUnits).toBe(1);
   });
 });
+

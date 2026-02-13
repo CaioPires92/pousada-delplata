@@ -20,6 +20,9 @@ vi.mock('@/lib/prisma', () => ({
       updateMany: vi.fn(),
       create: vi.fn(),
     },
+    couponRedemption: {
+      updateMany: vi.fn(),
+    },
   },
 }));
 
@@ -28,6 +31,7 @@ describe('MercadoPago Webhook', () => {
     vi.clearAllMocks();
     process.env.MP_ACCESS_TOKEN = 'test-token';
     delete process.env.MP_WEBHOOK_SECRET;
+    ; (prisma.couponRedemption.updateMany as any).mockResolvedValue({ count: 0 });
   });
 
   it('should process approved payment and confirm booking', async () => {
@@ -41,7 +45,6 @@ describe('MercadoPago Webhook', () => {
       }),
     } as any);
 
-    // Mock Booking Found
     const mockBooking = {
       id: 'booking-123',
       status: 'PENDING',
@@ -49,6 +52,10 @@ describe('MercadoPago Webhook', () => {
       guest: { name: 'John', email: 'john@example.com' },
       roomType: { name: 'Luxo' },
       totalPrice: 500,
+      subtotalPrice: 500,
+      discountAmount: 0,
+      appliedCouponCode: null,
+      couponRedemption: null,
       checkIn: new Date(),
       checkOut: new Date(),
     };
@@ -56,6 +63,7 @@ describe('MercadoPago Webhook', () => {
     const tx = {
       booking: { findUnique: prisma.booking.findUnique, updateMany: prisma.booking.updateMany },
       payment: { updateMany: prisma.payment.updateMany, create: prisma.payment.create },
+      couponRedemption: { updateMany: prisma.couponRedemption.updateMany },
     };
     (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
 
@@ -63,7 +71,6 @@ describe('MercadoPago Webhook', () => {
     ; (prisma.booking.updateMany as any).mockResolvedValue({ count: 1 });
     ; (prisma.payment.updateMany as any).mockResolvedValue({ count: 1 });
 
-    // Mock Webhook Payload
     const payload = {
       type: 'payment',
       data: { id: '123456789' },
@@ -81,9 +88,80 @@ describe('MercadoPago Webhook', () => {
     expect(data.bookingStatus).toBe('CONFIRMED');
     expect(data.emailQueued).toBe(true);
 
-    // Verify DB updates
     expect(prisma.booking.updateMany).toHaveBeenCalled();
     expect(prisma.payment.updateMany).toHaveBeenCalled();
+  });
+
+  it('should normalize coupon financial snapshot and confirm reserved coupon on approval', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 444555666,
+        status: 'approved',
+        external_reference: 'booking-coupon-1',
+      }),
+    } as any);
+
+    const tx = {
+      booking: { findUnique: prisma.booking.findUnique, updateMany: prisma.booking.updateMany },
+      payment: { updateMany: prisma.payment.updateMany, create: prisma.payment.create },
+      couponRedemption: { updateMany: prisma.couponRedemption.updateMany },
+    };
+    (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
+
+    (prisma.booking.findUnique as any).mockResolvedValue({
+      id: 'booking-coupon-1',
+      status: 'PENDING',
+      payment: { id: 'payment-1', status: 'PENDING', providerId: null },
+      guest: { name: 'Ana', email: 'ana@example.com' },
+      roomType: { name: 'Suíte' },
+      totalPrice: 450,
+      subtotalPrice: null,
+      discountAmount: null,
+      appliedCouponCode: null,
+      couponRedemption: {
+        id: 'red-1',
+        status: 'RESERVED',
+        discountAmount: 50,
+        coupon: { codePrefix: 'vip10' },
+      },
+      checkIn: new Date(),
+      checkOut: new Date(),
+    });
+    ; (prisma.booking.updateMany as any).mockResolvedValue({ count: 1 });
+    ; (prisma.payment.updateMany as any).mockResolvedValue({ count: 1 });
+    ; (prisma.couponRedemption.updateMany as any).mockResolvedValue({ count: 1 });
+
+    const req = new Request('http://localhost/api/webhooks/mercadopago', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'payment', data: { id: '444555666' } }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.couponConfirmed).toBe(true);
+    expect(data.financialSnapshotUpdated).toBe(true);
+
+    expect(prisma.booking.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'booking-coupon-1' },
+        data: expect.objectContaining({
+          subtotalPrice: 500,
+          discountAmount: 50,
+          appliedCouponCode: 'VIP10******',
+        }),
+      })
+    );
+
+    expect(prisma.couponRedemption.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'red-1', status: 'RESERVED' }),
+        data: expect.objectContaining({ status: 'CONFIRMED', bookingId: 'booking-coupon-1' }),
+      })
+    );
   });
 
   it('should ignore non-payment notifications', async () => {
@@ -147,6 +225,7 @@ describe('MercadoPago Webhook', () => {
     const tx = {
       booking: { findUnique: prisma.booking.findUnique, updateMany: prisma.booking.updateMany },
       payment: { updateMany: prisma.payment.updateMany, create: prisma.payment.create },
+      couponRedemption: { updateMany: prisma.couponRedemption.updateMany },
     };
     (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
     (prisma.booking.findUnique as any).mockResolvedValue({
@@ -156,6 +235,10 @@ describe('MercadoPago Webhook', () => {
       guest: { name: 'A', email: 'a@b.com' },
       roomType: { name: 'R' },
       totalPrice: 100,
+      subtotalPrice: 100,
+      discountAmount: 0,
+      appliedCouponCode: null,
+      couponRedemption: null,
       checkIn: new Date(),
       checkOut: new Date(),
     });
@@ -169,6 +252,7 @@ describe('MercadoPago Webhook', () => {
     expect(res.status).toBe(200);
     expect(data.bookingStatus).toBe('CANCELLED');
     expect(data.paymentStatus).toBe('REJECTED');
+    expect(prisma.couponRedemption.updateMany).toHaveBeenCalledTimes(1);
   });
 
   it('should map refunded status to CANCELLED/REFUNDED', async () => {
@@ -184,6 +268,7 @@ describe('MercadoPago Webhook', () => {
     const tx = {
       booking: { findUnique: prisma.booking.findUnique, updateMany: prisma.booking.updateMany },
       payment: { updateMany: prisma.payment.updateMany, create: prisma.payment.create },
+      couponRedemption: { updateMany: prisma.couponRedemption.updateMany },
     };
     (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
     (prisma.booking.findUnique as any).mockResolvedValue({
@@ -193,6 +278,10 @@ describe('MercadoPago Webhook', () => {
       guest: { name: 'B', email: 'b@c.com' },
       roomType: { name: 'R' },
       totalPrice: 200,
+      subtotalPrice: 200,
+      discountAmount: 0,
+      appliedCouponCode: null,
+      couponRedemption: null,
       checkIn: new Date(),
       checkOut: new Date(),
     });
@@ -207,6 +296,7 @@ describe('MercadoPago Webhook', () => {
     expect(data.bookingStatus).toBe('CANCELLED');
     expect(data.paymentStatus).toBe('REFUNDED');
   });
+
   it('should return 404 when booking not found', async () => {
     global.fetch = vi.fn().mockResolvedValueOnce({
       ok: true,
@@ -216,6 +306,7 @@ describe('MercadoPago Webhook', () => {
     const tx = {
       booking: { findUnique: prisma.booking.findUnique, updateMany: prisma.booking.updateMany },
       payment: { updateMany: prisma.payment.updateMany, create: prisma.payment.create },
+      couponRedemption: { updateMany: prisma.couponRedemption.updateMany },
     };
     (prisma.$transaction as any).mockImplementation(async (cb: any) => cb(tx));
     (prisma.booking.findUnique as any).mockResolvedValue(null);

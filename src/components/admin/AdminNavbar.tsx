@@ -20,6 +20,7 @@ export default function AdminNavbar() {
         { href: '/admin/reservas', label: '📋 Reservas' },
         { href: '/admin/quartos', label: '🏠 Quartos' },
         { href: '/admin/mapa', label: '📅 Mapa de Tarifas' },
+        { href: '/admin/cupons', label: '🎟️ Cupons' },
     ];
 
     const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -60,3 +61,4 @@ export default function AdminNavbar() {
         </>
     );
 }
+
