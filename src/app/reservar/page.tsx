@@ -76,6 +76,8 @@ function ReservarContent() {
     const [couponMessage, setCouponMessage] = useState('');
     const [couponApplying, setCouponApplying] = useState(false);
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+    const [formMessage, setFormMessage] = useState('');
+    const [pendingCouponOverride, setPendingCouponOverride] = useState(false);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -280,6 +282,7 @@ function ReservarContent() {
         setAppliedCoupon(null);
         setCouponCode('');
         setCouponMessage('');
+        setPendingCouponOverride(false);
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
     const applyCoupon = async (): Promise<boolean> => {
@@ -296,6 +299,8 @@ function ReservarContent() {
 
         setCouponApplying(true);
         setCouponMessage('');
+        setFormMessage('');
+        setPendingCouponOverride(false);
 
         try {
             const response = await fetch('/api/coupons/reserve', {
@@ -354,9 +359,12 @@ function ReservarContent() {
             });
             setCouponCode(normalizedCode.toUpperCase());
             setCouponMessage('Cupom aplicado com sucesso.');
+            setFormMessage('');
+            setPendingCouponOverride(false);
             return true;
         } catch {
             setCouponMessage('Nao foi possivel validar o cupom. Tente novamente.');
+            setPendingCouponOverride(false);
             return false;
         } finally {
             setCouponApplying(false);
@@ -375,6 +383,7 @@ function ReservarContent() {
         if (selectedRoom?.id && selectedRoom.id !== room.id) {
             clearCouponState(true);
         }
+        setFormMessage('');
         setSelectedRoom(room);
         setTimeout(() => {
             document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -383,29 +392,27 @@ function ReservarContent() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setFormMessage('');
 
         if (!selectedRoom) {
-            alert('Por favor, selecione um quarto.');
+            setFormMessage('Por favor, selecione um quarto.');
             return;
         }
 
         if (!termsAccepted) {
-            alert('Por favor, aceite os termos e condições.');
+            setFormMessage('Por favor, aceite os termos e condições.');
             return;
         }
 
-        if (hasPendingCouponToApply) {
-            const continueWithoutCoupon = window.confirm(
-                'Você digitou um cupom, mas ainda não aplicou. Clique em OK para continuar sem desconto ou em Cancelar para aplicar o cupom agora.'
-            );
-            if (!continueWithoutCoupon) {
-                await applyCoupon();
-                return;
-            }
+        if (hasPendingCouponToApply && !pendingCouponOverride) {
+            setFormMessage('Voce digitou um cupom, mas ainda nao aplicou. Clique em "Aplicar" para validar ou clique novamente em "Ir para Pagamento Seguro" para continuar sem desconto.');
+            setPendingCouponOverride(true);
+            return;
         }
 
         try {
             setProcessing(true);
+            setFormMessage('');
 
             const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
@@ -441,9 +448,28 @@ function ReservarContent() {
 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
-            alert(message);
+            const couponErrorMessage = message === 'coupon_reservation_expired'
+                ? 'Seu cupom expirou. Aplique novamente para recalcular o desconto.'
+                : message === 'coupon_reservation_not_found'
+                    ? 'Nao encontramos essa validacao de cupom. Aplique o cupom novamente.'
+                    : message === 'coupon_reservation_unavailable' || message === 'coupon_reservation_conflict'
+                        ? 'Este cupom nao esta mais disponivel para esta reserva.'
+                        : message === 'coupon_guest_mismatch'
+                            ? 'Este cupom e valido para outro hospede.'
+                            : message === 'coupon_code_mismatch'
+                                ? 'Codigo de cupom nao confere com a validacao anterior.'
+                                : '';
+
+            if (couponErrorMessage) {
+                setCouponMessage(couponErrorMessage);
+                setPendingCouponOverride(false);
+                setFormMessage('Revise o cupom antes de continuar.');
+            } else {
+                setFormMessage(message);
+            }
+        } finally {
+            setProcessing(false);
         }
-        setProcessing(false);
     };
 
     useEffect(() => {
@@ -982,7 +1008,10 @@ function ReservarContent() {
                                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                                     placeholder="Ex: VIP10"
                                                     value={couponCode}
-                                                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                                    onChange={(e) => {
+                                                        setCouponCode(e.target.value.toUpperCase());
+                                                        setPendingCouponOverride(false);
+                                                    }}
                                                     disabled={processing || couponApplying}
                                                 />
                                                 <Button type="button" variant="outline" onClick={applyCoupon} disabled={processing || couponApplying}>
@@ -1027,6 +1056,12 @@ function ReservarContent() {
                                                 </label>
                                             </div>
                                         </div>
+
+                                        {formMessage ? (
+                                            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                                {formMessage}
+                                            </div>
+                                        ) : null}
 
                                         <Button type="submit" className="w-full h-12 text-lg shadow-lg shadow-primary/20" size="lg" disabled={processing}>
                                             {processing ? (
