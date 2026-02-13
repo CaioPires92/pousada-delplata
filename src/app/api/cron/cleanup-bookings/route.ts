@@ -13,6 +13,8 @@ export async function GET(request: Request) {
     try {
         const quinzeMinutosAtras = new Date(Date.now() - 15 * 60 * 1000);
         const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
+        let pendingEmailCount = 0;
+        let expiredEmailCount = 0;
 
         const pendingToNotify = await prisma.booking.findMany({
             where: {
@@ -22,9 +24,6 @@ export async function GET(request: Request) {
             },
             include: { guest: true, roomType: true, payment: true },
         });
-
-        let pendingEmailCount = 0;
-        let expiredEmailCount = 0;
 
         for (const booking of pendingToNotify) {
             sendBookingPendingEmail({
@@ -120,4 +119,3 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
 }
-

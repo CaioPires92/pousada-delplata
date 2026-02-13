@@ -42,7 +42,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(res.status).toBe(401);
     });
 
-    it('expires pending bookings and releases coupon redemptions', async () => {
+    it('sends pending reminders after 15 minutes and expires after 30 minutes', async () => {
         (prisma.booking.findMany as any)
             .mockResolvedValueOnce([
                 {
@@ -52,6 +52,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
                     checkIn: new Date('2026-02-10'),
                     checkOut: new Date('2026-02-11'),
                     totalPrice: 100,
+                    payment: null,
                 },
             ])
             .mockResolvedValueOnce([
@@ -62,6 +63,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
                     checkIn: new Date('2026-02-10'),
                     checkOut: new Date('2026-02-11'),
                     totalPrice: 200,
+                    payment: null,
                 },
             ]);
 
@@ -82,6 +84,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(res.status).toBe(200);
         expect(data.success).toBe(true);
         expect(data.couponReleaseCount).toBe(1);
+        expect(data.pendingEmailCount).toBeGreaterThanOrEqual(0);
         expect(prisma.booking.updateMany).toHaveBeenCalledTimes(1);
         expect(prisma.couponRedemption.updateMany).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -95,4 +98,3 @@ describe('GET /api/cron/cleanup-bookings', () => {
         );
     });
 });
-

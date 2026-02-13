@@ -119,3 +119,12 @@ CREATE INDEX "CouponAttemptLog_createdAt_idx" ON "CouponAttemptLog"("createdAt")
 -- CreateIndex
 CREATE INDEX "CouponAttemptLog_codePrefix_idx" ON "CouponAttemptLog"("codePrefix");
 ```
+
+
+## SQL adicional - método de pagamento
+
+Se ainda não aplicou a migration de método de pagamento, rode:
+
+```sql
+ALTER TABLE "Payment" ADD COLUMN "method" TEXT;
+```
