@@ -1,6 +1,7 @@
 'use client';
 
-import { Fragment, useState, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     format, 
@@ -13,6 +14,10 @@ import {
     isSameDay, 
     addMonths, 
     subMonths,
+    addDays,
+    parseISO,
+    startOfDay,
+    isValid,
     getDate
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -60,6 +65,19 @@ type BulkUpdates = {
 };
 
 const ALL_ROOMS_VALUE = 'all';
+const ROOM_ORDER_KEYWORDS = ['terreo', 'superior', 'chale', 'anexo'];
+
+const normalizeRoomName = (name: string) =>
+    name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
+const getRoomSortPriority = (name: string) => {
+    const normalized = normalizeRoomName(name);
+    const idx = ROOM_ORDER_KEYWORDS.findIndex(keyword => normalized.includes(keyword));
+    return idx >= 0 ? idx : ROOM_ORDER_KEYWORDS.length;
+};
 
 const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) => {
     const [currentValue, setCurrentValue] = useState(value);
@@ -96,9 +114,12 @@ const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) 
 export default function MapaReservas() {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); // Toggle view
     const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
-    const [selectedRoomId, setSelectedRoomId] = useState<string>('');
+    const [selectedRoomId, setSelectedRoomId] = useState<string>(ALL_ROOMS_VALUE);
+    const [periodMode, setPeriodMode] = useState<'month' | 'custom'>('month');
+    const [customStart, setCustomStart] = useState(() => format(startOfDay(new Date()), 'yyyy-MM-dd'));
+    const [customEnd, setCustomEnd] = useState(() => format(addDays(startOfDay(new Date()), 30), 'yyyy-MM-dd'));
+    const [collapsedRooms, setCollapsedRooms] = useState<Record<string, boolean>>({});
     const [calendarData, setCalendarData] = useState<CalendarData[]>([]);
     const [calendarDataByRoom, setCalendarDataByRoom] = useState<Record<string, CalendarData[]>>({});
     const [calendarLoading, setCalendarLoading] = useState(false);
@@ -107,6 +128,8 @@ export default function MapaReservas() {
     // List View Scroll Ref
     const listScrollRef = useRef<HTMLDivElement>(null);
     const hasAutoCenteredTodayRef = useRef(false);
+    const [isListDragging, setIsListDragging] = useState(false);
+    const listDragStateRef = useRef({ isDragging: false, startX: 0, startScrollLeft: 0 });
 
     const [loading, setLoading] = useState(true);
 
@@ -165,10 +188,14 @@ export default function MapaReservas() {
             const res = await fetch('/api/rooms');
             const data = await res.json();
             if (Array.isArray(data)) {
-                setRoomTypes(data);
-                if (data.length > 0) {
-                    setSelectedRoomId(data[0].id);
-                }
+                const orderedRooms = [...data].sort((a, b) => {
+                    const priorityDiff = getRoomSortPriority(a.name) - getRoomSortPriority(b.name);
+                    if (priorityDiff !== 0) return priorityDiff;
+                    return normalizeRoomName(a.name).localeCompare(normalizeRoomName(b.name), 'pt-BR');
+                });
+
+                setRoomTypes(orderedRooms);
+                setSelectedRoomId(prev => prev || ALL_ROOMS_VALUE);
             }
         } catch (error) {
             console.error('Error loading rooms:', error);
@@ -206,17 +233,56 @@ export default function MapaReservas() {
         return data as CalendarData[];
     }, []);
 
+    const today = useMemo(() => startOfDay(new Date()), []);
+
+    const listQueryInterval = useMemo(() => {
+        if (periodMode === 'month') {
+            return {
+                start: startOfMonth(currentDate),
+                end: endOfMonth(currentDate)
+            };
+        }
+
+        const parsedStart = parseISO(customStart);
+        const parsedEnd = parseISO(customEnd);
+        const safeStart = isValid(parsedStart) ? startOfDay(parsedStart) : today;
+        const safeEndRaw = isValid(parsedEnd) ? startOfDay(parsedEnd) : safeStart;
+        const safeEnd = safeEndRaw.getTime() < safeStart.getTime() ? safeStart : safeEndRaw;
+
+        return {
+            start: safeStart,
+            end: safeEnd
+        };
+    }, [periodMode, currentDate, customStart, customEnd, today]);
+
+    const listVisibleStart = useMemo(() => {
+        if (periodMode === 'custom') {
+            return listQueryInterval.start;
+        }
+
+        const todayTs = today.getTime();
+        const startTs = listQueryInterval.start.getTime();
+        const endTs = listQueryInterval.end.getTime();
+        const todayInsideRange = todayTs >= startTs && todayTs <= endTs;
+
+        if (todayInsideRange) {
+            return today;
+        }
+
+        return listQueryInterval.start;
+    }, [periodMode, listQueryInterval, today]);
+
     const fetchRates = useCallback(async () => {
         if (!selectedRoomId) return;
 
-        const start = startOfMonth(currentDate);
-        const end = endOfMonth(currentDate);
+        const queryStart = listQueryInterval.start;
+        const queryEnd = listQueryInterval.end;
 
         setCalendarLoading(true);
         setCalendarError(null);
         try {
-            const startKey = format(start, 'yyyy-MM-dd');
-            const endKey = format(end, 'yyyy-MM-dd');
+            const startKey = format(queryStart, 'yyyy-MM-dd');
+            const endKey = format(queryEnd, 'yyyy-MM-dd');
 
             if (selectedRoomId === ALL_ROOMS_VALUE) {
                 const targetRooms = roomTypes.length > 0 ? roomTypes : [];
@@ -253,7 +319,7 @@ export default function MapaReservas() {
         } finally {
             setCalendarLoading(false);
         }
-    }, [currentDate, selectedRoomId, viewMode, roomTypes, fetchCalendarForRoom]);
+    }, [selectedRoomId, roomTypes, fetchCalendarForRoom, listQueryInterval]);
 
     useEffect(() => {
         if (selectedRoomId) {
@@ -610,11 +676,14 @@ export default function MapaReservas() {
     });
 
     const monthDays = eachDayOfInterval({
-        start: startOfMonth(currentDate),
-        end: endOfMonth(currentDate)
+        start: listVisibleStart,
+        end: listQueryInterval.end
     });
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
-    const todayLabel = format(new Date(), 'dd/MM/yyyy');
+    const todayKey = format(today, 'yyyy-MM-dd');
+    const todayLabel = format(today, 'dd/MM/yyyy');
+    const listStartLabel = format(listVisibleStart, 'dd/MM/yyyy');
+    const listEndLabel = format(listQueryInterval.end, 'dd/MM/yyyy');
+    const listQueryStartLabel = format(listQueryInterval.start, 'dd/MM/yyyy');
     const selectedDayData = selectedDate ? getDataForDay(selectedDate) : undefined;
     const selectedDateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
     const modalSaving = selectedDateKey
@@ -622,7 +691,11 @@ export default function MapaReservas() {
         : false;
 
     useEffect(() => {
-        if (viewMode !== 'list' || calendarLoading) return;
+        hasAutoCenteredTodayRef.current = false;
+    }, [periodMode, currentDate, customStart, customEnd]);
+
+    useEffect(() => {
+        if (periodMode !== 'month' || calendarLoading) return;
         if (hasAutoCenteredTodayRef.current) return;
         const wrapper = listScrollRef.current;
         if (!wrapper) return;
@@ -633,24 +706,93 @@ export default function MapaReservas() {
         const left = Math.max(0, target.offsetLeft - (wrapper.clientWidth / 2) + (target.clientWidth / 2));
         wrapper.scrollTo({ left, behavior: 'smooth' });
         hasAutoCenteredTodayRef.current = true;
-    }, [viewMode, currentDate, calendarLoading, todayKey]);
+    }, [periodMode, calendarLoading, todayKey]);
 
     const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const listRoomTypes = selectedRoomId === ALL_ROOMS_VALUE
-        ? roomTypes
-        : roomTypes.filter(room => room.id === selectedRoomId);
+    const listRoomTypes = useMemo(() => (
+        selectedRoomId === ALL_ROOMS_VALUE
+            ? roomTypes
+            : roomTypes.filter(room => room.id === selectedRoomId)
+    ), [selectedRoomId, roomTypes]);
+
+    const toggleRoomCollapsed = (roomId: string) => {
+        setCollapsedRooms(prev => ({ ...prev, [roomId]: !prev[roomId] }));
+    };
+
+    const stopListDragging = useCallback(() => {
+        if (!listDragStateRef.current.isDragging) return;
+        listDragStateRef.current.isDragging = false;
+        setIsListDragging(false);
+    }, []);
+
+    const handleListMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+        if (event.button !== 0) return;
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('input, button, select, textarea, label, a')) return;
+
+        const wrapper = listScrollRef.current;
+        if (!wrapper) return;
+
+        listDragStateRef.current = {
+            isDragging: true,
+            startX: event.clientX,
+            startScrollLeft: wrapper.scrollLeft
+        };
+        setIsListDragging(true);
+    }, []);
+
+    const handleListMouseMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+        if (!listDragStateRef.current.isDragging) return;
+        const wrapper = listScrollRef.current;
+        if (!wrapper) return;
+
+        event.preventDefault();
+        const delta = event.clientX - listDragStateRef.current.startX;
+        wrapper.scrollLeft = listDragStateRef.current.startScrollLeft - delta;
+    }, []);
+
+    useEffect(() => {
+        const onWindowMouseUp = () => stopListDragging();
+        window.addEventListener('mouseup', onWindowMouseUp);
+        window.addEventListener('blur', onWindowMouseUp);
+
+        return () => {
+            window.removeEventListener('mouseup', onWindowMouseUp);
+            window.removeEventListener('blur', onWindowMouseUp);
+        };
+    }, [stopListDragging]);
 
     const renderListRowsForRoom = (room: RoomType) => (
         <Fragment key={room.id}>
-            {selectedRoomId === ALL_ROOMS_VALUE && (
-                <tr>
-                    <td className={styles.stickyCol} style={{ background: '#eef2ff', fontWeight: 800 }}>🏨 {room.name}</td>
-                    <td colSpan={monthDays.length} style={{ textAlign: 'left', paddingLeft: '1rem', background: '#f8fafc', color: '#475569', fontWeight: 600 }}>
-                        Tarifa base: R$ {Number(room.basePrice || 0).toFixed(2)}
-                    </td>
-                </tr>
-            )}
+            <tr>
+                <td className={styles.stickyCol} style={{ background: '#eef2ff', fontWeight: 800 }}>
+                    <button
+                        type="button"
+                        onClick={() => toggleRoomCollapsed(room.id)}
+                        aria-label={collapsedRooms[room.id] ? `Expandir ${room.name}` : `Recolher ${room.name}`}
+                        style={{
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            color: '#1e3a8a',
+                            fontWeight: 800,
+                            fontSize: '1rem',
+                            marginRight: '0.5rem',
+                            width: '1.1rem',
+                            textAlign: 'center'
+                        }}
+                    >
+                        {collapsedRooms[room.id] ? '>' : 'v'}
+                    </button>
+                    <span>🏨 {room.name}</span>
+                </td>
+                <td colSpan={monthDays.length} style={{ textAlign: 'left', paddingLeft: '1rem', background: '#f8fafc', color: '#475569', fontWeight: 600 }}>
+                    <span>Tarifa base: R$ {Number(room.basePrice || 0).toFixed(2)}</span>
+                </td>
+            </tr>
 
+            {!collapsedRooms[room.id] && (
+                <>
             <tr>
                 <td className={styles.stickyCol}>Status</td>
                 {monthDays.map(day => {
@@ -799,6 +941,8 @@ export default function MapaReservas() {
                     );
                 })}
             </tr>
+                </>
+            )}
         </Fragment>
     );
 
@@ -812,43 +956,83 @@ export default function MapaReservas() {
             </div>
 
             <div className={styles.controls}>
-                {/* Left Side: Navigation */}
-                <div className={styles.navGroup}>
-                    <button 
-                        onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-                        className={styles.navButton}
-                        title="Mês Anterior"
-                    >
-                        &lt;
-                    </button>
-                    <span className={styles.currentMonth}>
-                        {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
-                    </span>
-                    <button 
-                        onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-                        className={styles.navButton}
-                        title="Próximo Mês"
-                    >
-                        &gt;
-                    </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'nowrap' }}>
+                    <div className={styles.viewToggle}>
+                        <button
+                            className={`${styles.toggleButton} ${periodMode === 'month' ? styles.active : ''}`}
+                            onClick={() => setPeriodMode('month')}
+                        >
+                            Mês
+                        </button>
+                        <button
+                            className={`${styles.toggleButton} ${periodMode === 'custom' ? styles.active : ''}`}
+                            onClick={() => setPeriodMode('custom')}
+                        >
+                            Intervalo
+                        </button>
+                    </div>
+
+                    {periodMode === 'month' ? (
+                        <div className={styles.navGroup}>
+                            <button
+                                onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                                className={styles.navButton}
+                                title="Mês anterior"
+                            >
+                                &lt;
+                            </button>
+                            <span className={styles.currentMonth}>
+                                {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+                            </span>
+                            <button
+                                onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                                className={styles.navButton}
+                                title="Próximo mês"
+                            >
+                                &gt;
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'nowrap' }}>
+                            <input
+                                type="date"
+                                value={customStart}
+                                onChange={(e) => {
+                                    const nextStart = e.target.value;
+                                    setCustomStart(nextStart);
+                                    if (customEnd && nextStart > customEnd) {
+                                        setCustomEnd(nextStart);
+                                    }
+                                }}
+                                className={styles.input}
+                                style={{ minWidth: '132px', padding: '0.45rem 0.55rem' }}
+                            />
+                            <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.78rem' }}>até</span>
+                            <input
+                                type="date"
+                                value={customEnd}
+                                onChange={(e) => {
+                                    const nextEnd = e.target.value;
+                                    setCustomEnd(nextEnd);
+                                    if (customStart && nextEnd < customStart) {
+                                        setCustomStart(nextEnd);
+                                    }
+                                }}
+                                className={styles.input}
+                                style={{ minWidth: '132px', padding: '0.45rem 0.55rem' }}
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* Center/Right Actions */}
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    
-                    <div className={styles.selectWrapper}>
-                        <label style={{ fontWeight: 600, color: '#64748b', fontSize: '0.9rem' }}>Acomodação:</label>
-                        <select 
-                            value={selectedRoomId} 
-                            onChange={(e) => {
-                                const nextValue = e.target.value;
-                                setSelectedRoomId(nextValue);
-                                if (nextValue === ALL_ROOMS_VALUE) {
-                                    setViewMode('list');
-                                }
-                            }}
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'nowrap' }}>
+                    <div className={styles.selectWrapper} style={{ gap: '0.3rem' }}>
+                        <label style={{ fontWeight: 600, color: '#64748b', fontSize: '0.78rem' }}>Acomodação:</label>
+                        <select
+                            value={selectedRoomId}
+                            onChange={(e) => setSelectedRoomId(e.target.value)}
                             className={styles.input}
-                            style={{ minWidth: '260px' }}
+                            style={{ minWidth: '170px', padding: '0.45rem 0.55rem' }}
                         >
                             <option value={ALL_ROOMS_VALUE}>Todos os quartos (Lista)</option>
                             {roomTypes.map(room => (
@@ -857,31 +1041,11 @@ export default function MapaReservas() {
                         </select>
                     </div>
 
-                    <div className={styles.viewToggle}>
-                        <button 
-                            className={`${styles.toggleButton} ${viewMode === 'grid' ? styles.active : ''}`}
-                            onClick={() => {
-                                if (selectedRoomId === ALL_ROOMS_VALUE) {
-                                    showToast('info', 'No modo Mapa selecione uma acomodação específica.');
-                                    return;
-                                }
-                                setViewMode('grid');
-                            }}
-                        >
-                            📅 Mapa
-                        </button>
-                        <button 
-                            className={`${styles.toggleButton} ${viewMode === 'list' ? styles.active : ''}`}
-                            onClick={() => setViewMode('list')}
-                        >
-                            📝 Lista
-                        </button>
-                    </div>
-
-                    <button 
+                    <button
                         className={styles.buttonPrimary}
                         onClick={() => setBulkModalOpen(true)}
                         title="Editar múltiplos dias de uma vez (preço, restrições e quartos disponíveis)"
+                        style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
                     >
                         ⚡ Edição em Lote
                     </button>
@@ -920,7 +1084,7 @@ export default function MapaReservas() {
                 <div className={styles.loading}>Carregando...</div>
             ) : (
                 <>
-                    {viewMode === 'grid' && selectedRoomId !== ALL_ROOMS_VALUE ? (
+                    {false ? (
                         <div className={styles.calendarGrid}>
                             {weekDays.map(day => (
                                 <div key={day} className={styles.weekDay}>{day}</div>
@@ -962,10 +1126,17 @@ export default function MapaReservas() {
                         </div>
                     ) : (
                         <div className={styles.listViewContainer}>
-                            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: '0.82rem', fontWeight: 600 }}>
-                                Exibindo período: {format(startOfMonth(currentDate), 'dd/MM/yyyy')} a {format(endOfMonth(currentDate), 'dd/MM/yyyy')} | Hoje: {todayLabel} | {selectedRoomId === ALL_ROOMS_VALUE ? `Visualização: ${listRoomTypes.length} acomodações` : 'Visualização: 1 acomodação'} | Role horizontalmente para ver todos os dias
+                            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
+                                Exibindo período: {listStartLabel} a {listEndLabel} | Hoje: {todayLabel} | {selectedRoomId === ALL_ROOMS_VALUE ? `Visualização: ${listRoomTypes.length} acomodações` : 'Visualização: 1 acomodação'} | {periodMode === 'custom' ? `Intervalo selecionado: ${listQueryStartLabel} a ${listEndLabel}` : 'Modo mensal (a partir de hoje)'} | Role horizontalmente para ver todos os dias
                             </div>
-                            <div className={styles.listViewWrapper} ref={listScrollRef}>
+                            <div
+                                className={`${styles.listViewWrapper} ${isListDragging ? styles.listViewWrapperDragging : ''}`}
+                                ref={listScrollRef}
+                                onMouseDown={handleListMouseDown}
+                                onMouseMove={handleListMouseMove}
+                                onMouseUp={stopListDragging}
+                                onMouseLeave={stopListDragging}
+                            >
                                 <table className={styles.listViewTable}>
                                     <thead>
                                         <tr>
@@ -976,10 +1147,10 @@ export default function MapaReservas() {
                                                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                                                  return (
                                                     <th key={dateKey} data-date={dateKey} style={{ background: isTodayCol ? '#dbeafe' : (isWeekend ? '#f1f5f9' : 'white') }}>
-                                                        <div style={{fontSize: '0.8rem', color: '#64748b'}}>{format(day, 'EEE', { locale: ptBR })}</div>
-                                                        <div style={{fontSize: '1.1rem'}}>{format(day, 'dd')}</div>
+                                                        <div style={{fontSize: '0.78rem', color: '#64748b'}}>{format(day, 'EEE', { locale: ptBR })}</div>
+                                                        <div style={{fontSize: '1rem'}}>{format(day, 'dd')}</div>
                                                         {isTodayCol && (
-                                                            <div style={{ marginTop: '0.15rem', fontSize: '0.65rem', fontWeight: 700, color: '#1d4ed8' }}>HOJE</div>
+                                                            <div style={{ marginTop: '0.15rem', fontSize: '0.62rem', fontWeight: 700, color: '#1d4ed8' }}>HOJE</div>
                                                         )}
                                                     </th>
                                                  );
