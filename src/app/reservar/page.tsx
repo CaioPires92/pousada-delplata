@@ -1126,7 +1126,7 @@ function ReservarContent() {
 
                                     <div className="bg-muted/30 p-4 rounded-lg mt-4">
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className="text-sm text-muted-foreground">Total com desconto</span>
+                                            <span className="text-sm text-muted-foreground">{bookingDiscount > 0 ? 'Total com desconto' : 'Total'}</span>
                                             <span className="text-2xl font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
                                         </div>
                                         {selectedRoom.priceBreakdown ? (
