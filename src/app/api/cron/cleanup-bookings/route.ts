@@ -35,6 +35,10 @@ export async function GET(request: Request) {
                 checkOut: booking.checkOut,
                 totalPrice: Number(booking.totalPrice),
                 paymentMethod: booking.payment?.method || null,
+                paymentInstallments: booking.payment?.installments ?? null,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
             })
                 .then((r) => {
                     if (r && (r as any).success) pendingEmailCount++;
@@ -92,6 +96,10 @@ export async function GET(request: Request) {
                 checkOut: booking.checkOut,
                 totalPrice: Number(booking.totalPrice),
                 paymentMethod: booking.payment?.method || null,
+                paymentInstallments: booking.payment?.installments ?? null,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
             })
                 .then((r) => {
                     if (r && (r as any).success) expiredEmailCount++;

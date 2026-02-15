@@ -87,6 +87,9 @@ model Booking {
   guest              Guest              @relation(fields: [guestId], references: [id])
   roomTypeId         String
   roomType           RoomType           @relation(fields: [roomTypeId], references: [id])
+  adults             Int                @default(1)
+  children           Int                @default(0)
+  childrenAges       String?            // JSON array com as idades das criancas
   checkIn            DateTime
   checkOut           DateTime
   totalPrice         Decimal
@@ -110,6 +113,7 @@ model Payment {
   provider   String   // MERCADOPAGO
   providerId String?  // Mercado Pago Payment ID
   method     String?  // PIX, CREDIT_CARD, DEBIT_CARD, etc.
+  installments Int?   // Parcelas quando aplicavel (cartao de credito)
   status     String   // PENDING, APPROVED, REJECTED
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

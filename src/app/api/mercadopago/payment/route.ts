@@ -10,14 +10,29 @@ type MercadoPagoCause = {
     data?: string;
 };
 
-function normalizePaymentMethod(paymentMethodId: string) {
-    const m = String(paymentMethodId || '').trim().toLowerCase();
-    if (m === 'pix') return 'PIX';
-    if (m === 'debit_card') return 'DEBIT_CARD';
-    if (m === 'credit_card') return 'CREDIT_CARD';
-    if (m === 'account_money') return 'ACCOUNT_MONEY';
-    if (!m) return 'UNKNOWN';
-    return m.toUpperCase();
+function normalizeInstallments(value: unknown) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+}
+
+function normalizePaymentMethod(params: {
+    paymentMethodId: string;
+    paymentTypeId: string;
+    installments: number | null;
+}) {
+    const paymentMethodId = String(params.paymentMethodId || '').trim().toLowerCase();
+    const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
+    const installments = params.installments;
+
+    if (paymentMethodId === 'pix') return 'PIX';
+    if (paymentTypeId === 'debit_card' || paymentMethodId === 'debit_card') return 'DEBIT_CARD';
+    if (paymentTypeId === 'credit_card' || paymentMethodId === 'credit_card' || (installments !== null && installments >= 1)) {
+        return 'CREDIT_CARD';
+    }
+    if (paymentTypeId === 'account_money' || paymentMethodId === 'account_money') return 'ACCOUNT_MONEY';
+    if (!paymentMethodId) return 'UNKNOWN';
+    return paymentMethodId.toUpperCase();
 }
 
 function detectPixKeyNotEnabled(error: any) {
@@ -44,7 +59,13 @@ export async function POST(request: Request) {
         }
 
         const paymentMethodId = formData?.payment_method_id;
-        const normalizedPaymentMethod = normalizePaymentMethod(String(paymentMethodId || ''));
+        const paymentTypeId = String(formData?.payment_type_id || '');
+        const normalizedInstallments = normalizeInstallments(formData?.installments);
+        const normalizedPaymentMethod = normalizePaymentMethod({
+            paymentMethodId: String(paymentMethodId || ''),
+            paymentTypeId,
+            installments: normalizedInstallments,
+        });
         const payerEmail = formData?.payer?.email;
         if (!paymentMethodId || typeof paymentMethodId !== 'string') {
             return NextResponse.json({ error: 'payment_method_id ausente' }, { status: 400 });
@@ -65,6 +86,8 @@ export async function POST(request: Request) {
             opsLog('warn', 'MP_PAYMENT_INVALID_BOOKING', {
                 bookingId,
                 paymentMethodId,
+                paymentTypeId,
+                installments: normalizedInstallments,
                 payerEmail,
             });
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
@@ -89,6 +112,8 @@ export async function POST(request: Request) {
                 bookingAmount,
                 requestedAmount,
                 paymentMethodId,
+                paymentTypeId,
+                installments: normalizedInstallments,
                 payerEmail,
             });
             return NextResponse.json({ error: 'Valor divergente da reserva' }, { status: 400 });
@@ -117,6 +142,7 @@ export async function POST(request: Request) {
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
                     method: normalizedPaymentMethod,
+                    installments: normalizedInstallments,
                 },
                 create: {
                     bookingId,
@@ -125,6 +151,7 @@ export async function POST(request: Request) {
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
                     method: normalizedPaymentMethod,
+                    installments: normalizedInstallments,
                 },
             });
         } catch (e) {
@@ -148,6 +175,10 @@ export async function POST(request: Request) {
                     checkOut: booking.checkOut,
                     totalPrice: Number(booking.totalPrice),
                     paymentMethod: normalizedPaymentMethod,
+                    paymentInstallments: normalizedInstallments,
+                    adults: booking.adults,
+                    children: booking.children,
+                    childrenAges: booking.childrenAges,
                     bookingStatus: 'CONFIRMED',
                     paymentStatus: 'APPROVED',
                     bookingCreatedAt: booking.createdAt,
@@ -163,6 +194,10 @@ export async function POST(request: Request) {
                     checkOut: booking.checkOut,
                     totalPrice: Number(booking.totalPrice),
                     paymentMethod: normalizedPaymentMethod,
+                    paymentInstallments: normalizedInstallments,
+                    adults: booking.adults,
+                    children: booking.children,
+                    childrenAges: booking.childrenAges,
                     bookingStatus: 'CONFIRMED',
                     paymentStatus: 'APPROVED',
                     bookingCreatedAt: booking.createdAt,

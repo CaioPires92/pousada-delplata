@@ -26,6 +26,106 @@ function formatPaymentMethodLabel(paymentMethod?: string | null) {
     return labels[method] || method.replace(/_/g, ' ');
 }
 
+function normalizeInstallments(value: number | null | undefined) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+}
+
+function getPaymentReceiptDetails(paymentMethod?: string | null, paymentInstallments?: number | null) {
+    const method = String(paymentMethod || '').trim().toUpperCase();
+    const installments = normalizeInstallments(paymentInstallments);
+    const cardBrands = new Set(['MASTER', 'VISA', 'ELO', 'AMEX', 'HIPERCARD']);
+    const isCredit = method === 'CREDIT_CARD' || cardBrands.has(method) || (installments !== null && installments >= 1);
+
+    if (method === 'PIX') {
+        return {
+            paymentTypeLabel: 'Pix',
+            installmentsLabel: 'Não se aplica',
+            showInstallments: false,
+        };
+    }
+
+    if (method === 'DEBIT_CARD') {
+        return {
+            paymentTypeLabel: 'Débito',
+            installmentsLabel: 'Não se aplica',
+            showInstallments: false,
+        };
+    }
+
+    if (isCredit) {
+        const installmentsCount = installments ?? 1;
+        return {
+            paymentTypeLabel: installmentsCount > 1 ? 'Crédito parcelado' : 'Crédito à vista',
+            installmentsLabel: `${installmentsCount}x`,
+            showInstallments: true,
+        };
+    }
+
+    return {
+        paymentTypeLabel: formatPaymentMethodLabel(method),
+        installmentsLabel: installments !== null ? `${installments}x` : 'Não informado',
+        showInstallments: installments !== null,
+    };
+}
+
+function formatGuestCount(adults?: number | null, children?: number | null) {
+    const adultsCount = Math.max(0, Number.parseInt(String(adults ?? ''), 10) || 0);
+    const childrenCount = Math.max(0, Number.parseInt(String(children ?? ''), 10) || 0);
+    const totalGuests = adultsCount + childrenCount;
+
+    if (totalGuests <= 0) return 'Não informado';
+
+    const adultsLabel = adultsCount === 1 ? 'adulto' : 'adultos';
+    const childrenLabel = childrenCount === 1 ? 'criança' : 'crianças';
+    return `${totalGuests} (${adultsCount} ${adultsLabel}, ${childrenCount} ${childrenLabel})`;
+}
+
+function normalizeChildrenAges(childrenAges?: string | number[] | null) {
+    if (Array.isArray(childrenAges)) {
+        return childrenAges
+            .map((age) => Number.parseInt(String(age), 10))
+            .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
+    }
+
+    const raw = String(childrenAges || '').trim();
+    if (!raw) return [];
+
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return parsed
+                .map((age) => Number.parseInt(String(age), 10))
+                .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
+        }
+    } catch {
+        // fallback para CSV simples (ex: "4,8")
+    }
+
+    return raw
+        .split(',')
+        .map((age) => Number.parseInt(age.trim(), 10))
+        .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
+}
+
+function formatChildrenAgesLabel(childrenAges?: string | number[] | null, children?: number | null) {
+    const ages = normalizeChildrenAges(childrenAges);
+    if (ages.length > 0) {
+        if (ages.length === 1) {
+            return `${ages[0]} ${ages[0] === 1 ? 'ano' : 'anos'}`;
+        }
+        return `${ages.join(', ')} anos`;
+    }
+
+    const childrenCount = Math.max(0, Number.parseInt(String(children ?? ''), 10) || 0);
+    if (childrenCount > 0) {
+        return 'Não informada';
+    }
+
+    return null;
+}
+
 function formatDateTimePtBr(date: Date) {
     return new Intl.DateTimeFormat('pt-BR', {
         dateStyle: 'long',
@@ -95,16 +195,35 @@ interface BookingEmailData {
     checkOut: Date;
     totalPrice: number;
     paymentMethod?: string | null;
+    paymentInstallments?: number | null;
+    adults?: number | null;
+    children?: number | null;
+    childrenAges?: string | number[] | null;
     bookingStatus?: string | null;
     paymentStatus?: string | null;
     bookingCreatedAt?: Date;
 }
 
 export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
-    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice, paymentMethod } = data;
+    const {
+        guestName,
+        bookingId,
+        roomName,
+        checkIn,
+        checkOut,
+        totalPrice,
+        paymentMethod,
+        paymentInstallments,
+        adults,
+        children,
+        childrenAges,
+    } = data;
 
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
+    const paymentDetails = getPaymentReceiptDetails(paymentMethod, paymentInstallments);
+    const guestsLabel = formatGuestCount(adults, children);
+    const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
 
     return `
 <!DOCTYPE html>
@@ -215,9 +334,23 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <span class="detail-value total">R$ ${totalPrice.toFixed(2)}</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Método de Pagamento:</span>
-                <span class="detail-value">${formatPaymentMethodLabel(paymentMethod)}</span>
+                <span class="detail-label">Tipo de Pagamento:</span>
+                <span class="detail-value">${paymentDetails.paymentTypeLabel}</span>
             </div>
+            ${paymentDetails.showInstallments ? `
+            <div class="detail-row">
+                <span class="detail-label">Parcelas:</span>
+                <span class="detail-value">${paymentDetails.installmentsLabel}</span>
+            </div>` : ''}
+            <div class="detail-row">
+                <span class="detail-label">Quantidade de Hóspedes:</span>
+                <span class="detail-value">${guestsLabel}</span>
+            </div>
+            ${childrenAgesLabel ? `
+            <div class="detail-row">
+                <span class="detail-label">Idade(s) das crianças:</span>
+                <span class="detail-value">${childrenAgesLabel}</span>
+            </div>` : ''}
         </div>
         
         <div class="instructions">
@@ -250,9 +383,24 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
 }
 
 export function buildBookingPendingEmailHtml(data: BookingEmailData) {
-    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice, paymentMethod } = data;
+    const {
+        guestName,
+        bookingId,
+        roomName,
+        checkIn,
+        checkOut,
+        totalPrice,
+        paymentMethod,
+        paymentInstallments,
+        adults,
+        children,
+        childrenAges,
+    } = data;
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
+    const paymentDetails = getPaymentReceiptDetails(paymentMethod, paymentInstallments);
+    const guestsLabel = formatGuestCount(adults, children);
+    const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
 
     return `
 <!DOCTYPE html>
@@ -306,9 +454,23 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
                 <span class="detail-value total">R$ ${totalPrice.toFixed(2)}</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Método de Pagamento:</span>
-                <span class="detail-value">${formatPaymentMethodLabel(paymentMethod)}</span>
+                <span class="detail-label">Tipo de Pagamento:</span>
+                <span class="detail-value">${paymentDetails.paymentTypeLabel}</span>
             </div>
+            ${paymentDetails.showInstallments ? `
+            <div class="detail-row">
+                <span class="detail-label">Parcelas:</span>
+                <span class="detail-value">${paymentDetails.installmentsLabel}</span>
+            </div>` : ''}
+            <div class="detail-row">
+                <span class="detail-label">Quantidade de Hóspedes:</span>
+                <span class="detail-value">${guestsLabel}</span>
+            </div>
+            ${childrenAgesLabel ? `
+            <div class="detail-row">
+                <span class="detail-label">Idade(s) das crianças:</span>
+                <span class="detail-value">${childrenAgesLabel}</span>
+            </div>` : ''}
         </div>
 
         <div class="notice">
@@ -329,9 +491,24 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
 }
 
 export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
-    const { guestName, bookingId, roomName, checkIn, checkOut, totalPrice, paymentMethod } = data;
+    const {
+        guestName,
+        bookingId,
+        roomName,
+        checkIn,
+        checkOut,
+        totalPrice,
+        paymentMethod,
+        paymentInstallments,
+        adults,
+        children,
+        childrenAges,
+    } = data;
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
+    const paymentDetails = getPaymentReceiptDetails(paymentMethod, paymentInstallments);
+    const guestsLabel = formatGuestCount(adults, children);
+    const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
 
     return `
 <!DOCTYPE html>
@@ -384,9 +561,23 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
                 <span class="detail-value">R$ ${totalPrice.toFixed(2)}</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">Método de Pagamento:</span>
-                <span class="detail-value">${formatPaymentMethodLabel(paymentMethod)}</span>
+                <span class="detail-label">Tipo de Pagamento:</span>
+                <span class="detail-value">${paymentDetails.paymentTypeLabel}</span>
             </div>
+            ${paymentDetails.showInstallments ? `
+            <div class="detail-row">
+                <span class="detail-label">Parcelas:</span>
+                <span class="detail-value">${paymentDetails.installmentsLabel}</span>
+            </div>` : ''}
+            <div class="detail-row">
+                <span class="detail-label">Quantidade de Hóspedes:</span>
+                <span class="detail-value">${guestsLabel}</span>
+            </div>
+            ${childrenAgesLabel ? `
+            <div class="detail-row">
+                <span class="detail-label">Idade(s) das crianças:</span>
+                <span class="detail-value">${childrenAgesLabel}</span>
+            </div>` : ''}
         </div>
 
         <div class="notice">
@@ -527,7 +718,8 @@ export async function sendContactEmail(data: ContactEmailData) {
         const info = await transporter.sendMail({
             from: `"Site Delplata" <${process.env.SMTP_USER}>`,
             to: toEmail,
-            replyTo: data.email,
+            replyTo: data.email,
+
             subject: `Contato: ${data.subject || 'Mensagem do site'}`,
             html,
         });
@@ -552,6 +744,9 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
 
     const checkInFormatted = formatDatePtBrLong(data.checkIn);
     const checkOutFormatted = formatDatePtBrLong(data.checkOut);
+    const paymentDetails = getPaymentReceiptDetails(data.paymentMethod, data.paymentInstallments);
+    const guestsLabel = formatGuestCount(data.adults, data.children);
+    const childrenAgesLabel = formatChildrenAgesLabel(data.childrenAges, data.children);
 
     const html = `
 <html>
@@ -563,8 +758,11 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     <p><strong>WhatsApp:</strong> ${String(data.guestPhone || 'Não informado')}</p>
     <p><strong>Quarto:</strong> ${data.roomName}</p>
     <p><strong>Período:</strong> ${checkInFormatted} - ${checkOutFormatted}</p>
+    <p><strong>Hóspedes:</strong> ${guestsLabel}</p>
+    ${childrenAgesLabel ? `<p><strong>Idade(s) das crianças:</strong> ${childrenAgesLabel}</p>` : ''}
     <p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2)}</p>
-    <p><strong>Método de pagamento:</strong> ${formatPaymentMethodLabel(data.paymentMethod)}</p>
+    <p><strong>Tipo de pagamento:</strong> ${paymentDetails.paymentTypeLabel}</p>
+    ${paymentDetails.showInstallments ? `<p><strong>Parcelas:</strong> ${paymentDetails.installmentsLabel}</p>` : ''}
     <p><strong>Status da reserva:</strong> ${formatBookingStatusLabel(data.bookingStatus)}</p>
     <p><strong>Status do pagamento:</strong> ${formatBookingStatusLabel(data.paymentStatus)}</p>
     <p><strong>Criada em:</strong> ${formatDateTimePtBr(data.bookingCreatedAt || new Date())}</p>
@@ -575,7 +773,9 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
-            to: adminEmail,
+            to: adminEmail,
+            bcc: bccRecipients,
+
             subject: `📌 Reserva ${formatBookingStatusLabel(data.bookingStatus)} - ${data.roomName}`,
             html,
         });

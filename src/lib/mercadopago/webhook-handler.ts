@@ -37,13 +37,28 @@ function validateSignature(params: {
     return { ok: true as const };
 }
 
-function normalizePaymentMethodId(value: unknown) {
-    const m = String(value || '').trim().toLowerCase();
-    if (m === 'pix') return 'PIX';
-    if (m === 'debit_card') return 'DEBIT_CARD';
-    if (m === 'credit_card') return 'CREDIT_CARD';
-    if (m === 'account_money') return 'ACCOUNT_MONEY';
-    return m ? m.toUpperCase() : null;
+function normalizeInstallments(value: unknown) {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return null;
+    return parsed;
+}
+
+function normalizePaymentMethod(params: {
+    paymentMethodId: unknown;
+    paymentTypeId: unknown;
+    installments: number | null;
+}) {
+    const paymentMethodId = String(params.paymentMethodId || '').trim().toLowerCase();
+    const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
+    const installments = params.installments;
+
+    if (paymentMethodId === 'pix') return 'PIX';
+    if (paymentTypeId === 'debit_card' || paymentMethodId === 'debit_card') return 'DEBIT_CARD';
+    if (paymentTypeId === 'credit_card' || paymentMethodId === 'credit_card' || (installments !== null && installments >= 1)) {
+        return 'CREDIT_CARD';
+    }
+    if (paymentTypeId === 'account_money' || paymentMethodId === 'account_money') return 'ACCOUNT_MONEY';
+    return paymentMethodId ? paymentMethodId.toUpperCase() : null;
 }
 
 function mapPaymentStatus(mpStatus: string | null | undefined) {
@@ -155,7 +170,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
         const paymentData = await paymentResponse.json();
         const mpStatus = paymentData?.status as string | undefined;
-        const paymentMethod = normalizePaymentMethodId(paymentData?.payment_method_id);
+        const paymentInstallments = normalizeInstallments(paymentData?.installments);
+        const paymentMethod = normalizePaymentMethod({
+            paymentMethodId: paymentData?.payment_method_id,
+            paymentTypeId: paymentData?.payment_type_id,
+            installments: paymentInstallments,
+        });
         const bookingId = paymentData?.external_reference as string | undefined;
         ctxBookingId = bookingId;
 
@@ -194,6 +214,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let couponConfirmed = false;
             let financialSnapshotUpdated = false;
             let paymentMethodValue = paymentMethod || booking.payment?.method || null;
+            let paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
                 if (currentBookingStatus === 'PENDING') {
@@ -262,47 +283,74 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
             if (booking.payment) {
                 if (mapped.paymentStatus === 'APPROVED' && currentPaymentStatus !== 'APPROVED') {
-                emailQueued = true;
-            }
+                    emailQueued = true;
+                }
 
-            if (mapped.paymentStatus === 'APPROVED') {
+                if (mapped.paymentStatus === 'APPROVED') {
                     if (booking.payment.status !== 'APPROVED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { not: 'APPROVED' } },
-                            data: { status: 'APPROVED', providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
+                            data: {
+                                status: 'APPROVED',
+                                providerId: paymentId,
+                                method: paymentMethod || booking.payment?.method || undefined,
+                                installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
+                            },
                         });
                     } else if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id },
-                            data: { providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
+                            data: {
+                                providerId: paymentId,
+                                method: paymentMethod || booking.payment?.method || undefined,
+                                installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
+                            },
                         });
                     }
+                    paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                     paymentStatus = 'APPROVED';
                 } else if (mapped.paymentStatus === 'REJECTED') {
                     if (booking.payment.status !== 'APPROVED' && booking.payment.status !== 'REJECTED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { notIn: ['APPROVED', 'REJECTED'] } },
-                            data: { status: 'REJECTED', providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
+                            data: {
+                                status: 'REJECTED',
+                                providerId: paymentId,
+                                method: paymentMethod || booking.payment?.method || undefined,
+                                installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
+                            },
                         });
                         paymentStatus = 'REJECTED';
                     } else {
                         paymentStatus = booking.payment.status;
                     }
+                    paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                 } else if (mapped.paymentStatus === 'REFUNDED') {
                     if (booking.payment.status !== 'REFUNDED') {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id, status: { not: 'REFUNDED' } },
-                            data: { status: 'REFUNDED', providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
+                            data: {
+                                status: 'REFUNDED',
+                                providerId: paymentId,
+                                method: paymentMethod || booking.payment?.method || undefined,
+                                installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
+                            },
                         });
                     }
+                    paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                     paymentStatus = 'REFUNDED';
                 } else {
                     if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
                             where: { id: booking.payment.id },
-                            data: { providerId: paymentId, method: paymentMethod || booking.payment?.method || undefined },
+                            data: {
+                                providerId: paymentId,
+                                method: paymentMethod || booking.payment?.method || undefined,
+                                installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
+                            },
                         });
                     }
+                    paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                     paymentStatus = booking.payment.status;
                 }
             } else {
@@ -314,9 +362,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         provider: 'MERCADOPAGO',
                         providerId: paymentId,
                         method: paymentMethod,
+                        installments: paymentInstallments,
                         status: initialStatus,
                     },
                 });
+                paymentInstallmentsValue = paymentInstallments;
                 paymentStatus = initialStatus;
             }
 
@@ -369,6 +419,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 bookingStatus,
                 paymentStatus,
                 paymentMethod: paymentMethodValue,
+                paymentInstallments: paymentInstallmentsValue,
                 emailQueued,
                 couponReleased,
                 couponConfirmed,
@@ -401,6 +452,10 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 checkOut: result.booking.checkOut,
                 totalPrice: Number(result.booking.totalPrice),
                 paymentMethod: result.paymentMethod,
+                paymentInstallments: result.paymentInstallments,
+                adults: result.booking.adults,
+                children: result.booking.children,
+                childrenAges: result.booking.childrenAges,
                 bookingStatus: result.bookingStatus,
                 paymentStatus: result.paymentStatus,
                 bookingCreatedAt: result.booking.createdAt,
@@ -441,6 +496,10 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 checkOut: result.booking.checkOut,
                 totalPrice: Number(result.booking.totalPrice),
                 paymentMethod: result.paymentMethod,
+                paymentInstallments: result.paymentInstallments,
+                adults: result.booking.adults,
+                children: result.booking.children,
+                childrenAges: result.booking.childrenAges,
                 bookingStatus: result.bookingStatus,
                 paymentStatus: result.paymentStatus,
                 bookingCreatedAt: result.booking.createdAt,

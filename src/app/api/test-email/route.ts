@@ -19,6 +19,7 @@ export async function POST(request: Request) {
             include: {
                 guest: true,
                 roomType: true,
+                payment: true,
             },
         });
 
@@ -38,6 +39,11 @@ export async function POST(request: Request) {
             checkIn: booking.checkIn,
             checkOut: booking.checkOut,
             totalPrice: Number(booking.totalPrice),
+            paymentMethod: booking.payment?.method || null,
+            paymentInstallments: booking.payment?.installments ?? null,
+            adults: booking.adults,
+            children: booking.children,
+            childrenAges: booking.childrenAges,
         });
 
         if (result.success) {

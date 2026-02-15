@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { calculateBookingPrice } from '@/lib/booking-price';
-import { eachDayKeyInclusive } from '@/lib/day-key';
+import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,17 +47,43 @@ export async function GET(request: Request) {
         const availableRooms = [];
         let minRequiredAcrossRooms = Infinity;
         let eligibleMinLosCount = 0;
-        const vinteMinutosAtras = new Date(Date.now() - 20 * 60 * 1000);
+        const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+        const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
 
         for (const room of roomTypes) {
-            const reservasOcupando = await prisma.booking.count({
+            const activeBookings = await prisma.booking.findMany({
                 where: {
                     roomTypeId: room.id,
                     checkIn: { lt: new Date(`${checkOut}T00:00:00Z`) },
                     checkOut: { gt: new Date(`${checkIn}T00:00:00Z`) },
-                    OR: [{ status: 'CONFIRMED' }, { status: 'PENDING', createdAt: { gte: vinteMinutosAtras } }],
+                    OR: [
+                        { status: { in: ['CONFIRMED', 'PAID'] } },
+                        { status: 'PENDING', createdAt: { gte: pendingThreshold } },
+                    ],
+                },
+                select: {
+                    checkIn: true,
+                    checkOut: true,
                 },
             });
+
+            const bookingsCountByDay = new Map<string, number>();
+            const firstNight = nightStrings[0];
+            const lastNight = nightStrings[nightStrings.length - 1];
+
+            for (const booking of activeBookings) {
+                const bookingStart = booking.checkIn.toISOString().split('T')[0];
+                const bookingEndExclusive = booking.checkOut.toISOString().split('T')[0];
+                const bookingEndInclusive = prevDayKey(bookingEndExclusive);
+
+                const rangeStart = compareDayKey(bookingStart, firstNight) < 0 ? firstNight : bookingStart;
+                const rangeEnd = compareDayKey(bookingEndInclusive, lastNight) > 0 ? lastNight : bookingEndInclusive;
+                if (compareDayKey(rangeStart, rangeEnd) > 0) continue;
+
+                for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
+                    bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
+                }
+            }
 
             const rates: NormalizedRate[] = room.rates
                 .slice()
@@ -97,10 +123,12 @@ export async function GET(request: Request) {
                 const adjustedValue = adjustmentByDay.has(dayKey)
                     ? Number(adjustmentByDay.get(dayKey))
                     : null;
+                const bookingsCount = bookingsCountByDay.get(dayKey) || 0;
+                const availableByCapacity = Math.max(0, capacityTotal - bookingsCount);
 
                 const daySellableUnits = adjustedValue !== null
-                    ? Math.max(0, Math.min(capacityTotal, adjustedValue))
-                    : Math.max(0, capacityTotal - reservasOcupando);
+                    ? Math.max(0, Math.min(Math.min(capacityTotal, adjustedValue), availableByCapacity))
+                    : availableByCapacity;
 
                 return Math.min(min, daySellableUnits);
             }, Number.POSITIVE_INFINITY);

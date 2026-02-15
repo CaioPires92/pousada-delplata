@@ -472,7 +472,7 @@ describe('Availability API - Pricing Logic', () => {
     // API should validate and return 400 for 0 nights
     expect(res.status).toBe(400);
   });
-  it('should keep room available when manual inventory is set even with existing bookings', async () => {
+  it('should decrement manual inventory when a new booking occupies the day', async () => {
     const req = new Request('http://localhost/api/availability?checkIn=2026-03-08&checkOut=2026-03-09&adults=2&children=0');
 
     const mockRoom = {
@@ -480,7 +480,7 @@ describe('Availability API - Pricing Logic', () => {
       name: 'Manual Room',
       basePrice: 100,
       capacity: 2,
-      totalUnits: 5,
+      totalUnits: 2,
       amenities: '',
       photos: [],
       inventory: [],
@@ -488,9 +488,15 @@ describe('Availability API - Pricing Logic', () => {
     };
 
     (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
-    (prisma.booking.count as any).mockResolvedValue(1);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      {
+        checkIn: new Date('2026-03-08T00:00:00.000Z'),
+        checkOut: new Date('2026-03-09T00:00:00.000Z'),
+        status: 'CONFIRMED',
+      },
+    ]);
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
-      { dateKey: '2026-03-08', totalUnits: 1 },
+      { dateKey: '2026-03-08', totalUnits: 2 },
     ]);
 
     const res = await GET(req);
@@ -499,7 +505,7 @@ describe('Availability API - Pricing Logic', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(1);
-    expect(data[0].remainingUnits).toBe(1);
+    expect(data[0].remainingUnits).toBe(1); // min(adjusted=2, capacity-bookings=1)
   });
 });
 

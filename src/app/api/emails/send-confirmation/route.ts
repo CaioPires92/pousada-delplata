@@ -10,7 +10,20 @@ import { buildBookingConfirmationEmailHtml } from '@/lib/email';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { email, guestName, roomName, checkIn, checkOut, totalPrice, bookingId } = body;
+        const {
+            email,
+            guestName,
+            roomName,
+            checkIn,
+            checkOut,
+            totalPrice,
+            bookingId,
+            paymentMethod,
+            paymentInstallments,
+            adults,
+            children,
+            childrenAges,
+        } = body;
         opsLog('info', 'EMAIL_CONFIRMATION_SEND_START', { bookingId, bookingIdShort: bookingId?.slice?.(0, 8) });
 
         // Configurar transporter do nodemailer
@@ -36,6 +49,11 @@ export async function POST(request: NextRequest) {
             checkIn: new Date(checkIn),
             checkOut: new Date(checkOut),
             totalPrice: Number(price),
+            paymentMethod,
+            paymentInstallments,
+            adults,
+            children,
+            childrenAges,
         });
 
         const adminEmail =

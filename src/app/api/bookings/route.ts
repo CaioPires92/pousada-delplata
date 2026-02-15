@@ -9,12 +9,19 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { roomTypeId, checkIn, checkOut, guest, adults, childrenAges } = body;
+        const adultsCount = Math.max(1, Number.parseInt(String(adults ?? 1), 10) || 1);
+        const childrenCount = Math.max(0, Number.parseInt(String(body?.children ?? 0), 10) || 0);
 
         if (!roomTypeId || !checkIn || !checkOut || !guest || !guest.email) {
             return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
         }
 
-        const agesArrayInput = Array.isArray(childrenAges) ? childrenAges : [];
+        const agesArrayInput = Array.isArray(childrenAges)
+            ? childrenAges
+                .map((age) => Number.parseInt(String(age), 10))
+                .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17)
+            : [];
+        const serializedChildrenAges = agesArrayInput.length > 0 ? JSON.stringify(agesArrayInput) : null;
 
         const couponReservationId =
             typeof body?.coupon?.reservationId === 'string' ? body.coupon.reservationId.trim() : '';
@@ -57,7 +64,7 @@ export async function POST(request: Request) {
             const breakdown = calculateBookingPrice({
                 nights: nightKeys.length,
                 baseTotalForStay: baseTotalForStay,
-                adults: Number(adults),
+                adults: adultsCount,
                 childrenAges: agesArrayInput,
                 includedAdults: Number(roomType.includedAdults),
                 maxGuests: Number(roomType.maxGuests),
@@ -130,6 +137,9 @@ export async function POST(request: Request) {
                     guestId: guestRecord.id,
                     checkIn: parseLocalDate(checkIn),
                     checkOut: parseLocalDate(checkOut),
+                    adults: adultsCount,
+                    children: childrenCount,
+                    childrenAges: serializedChildrenAges,
                     subtotalPrice,
                     discountAmount,
                     appliedCouponCode,

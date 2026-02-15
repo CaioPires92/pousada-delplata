@@ -82,12 +82,18 @@ describe('Admin Calendar API', () => {
         expect(d1?.stopSell).toBe(true);
         expect(d2?.stopSell).toBe(false);
     });
-    it('uses manual inventory as final available value even when there are bookings', async () => {
+    it('caps manual inventory by existing bookings', async () => {
+        (prisma.roomType.findUnique as any).mockResolvedValue({
+            id: 'room-1',
+            totalUnits: 2,
+            basePrice: 500,
+        });
+
         (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
             {
                 roomTypeId: 'room-1',
                 date: new Date('2026-02-11T12:00:00.000Z'),
-                totalUnits: 1,
+                totalUnits: 2,
             },
         ]);
 
@@ -107,9 +113,9 @@ describe('Admin Calendar API', () => {
         expect(res.status).toBe(200);
 
         const data = await res.json();
-        expect(data[0].available).toBe(1);
+        expect(data[0].available).toBe(1); // min(adjusted=2, capacity-bookings=1)
         expect(data[0].bookingsCount).toBe(1);
-        expect(data[0].totalInventory).toBe(1);
+        expect(data[0].totalInventory).toBe(2);
     });
 });
 

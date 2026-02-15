@@ -117,9 +117,10 @@ export async function GET(request: Request) {
             const capacityTotal = Number(roomType.totalUnits);
             const adjustedAvailable = adjustment ? Math.max(0, Math.min(capacityTotal, Number(adjustment.totalUnits))) : null;
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
+            const availableByCapacity = Math.max(0, capacityTotal - bookingsCount);
             const available = adjustedAvailable !== null
-                ? adjustedAvailable
-                : Math.max(0, capacityTotal - bookingsCount);
+                ? Math.min(adjustedAvailable, availableByCapacity)
+                : availableByCapacity;
             const totalInventory = adjustedAvailable !== null ? adjustedAvailable : capacityTotal;
 
             return {
