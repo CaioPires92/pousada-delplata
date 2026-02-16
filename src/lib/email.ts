@@ -207,6 +207,8 @@ interface BookingEmailData {
 export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
     const {
         guestName,
+        guestEmail,
+        guestPhone,
         bookingId,
         roomName,
         checkIn,
@@ -224,6 +226,8 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
     const paymentDetails = getPaymentReceiptDetails(paymentMethod, paymentInstallments);
     const guestsLabel = formatGuestCount(adults, children);
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
+    const bookingCode = bookingId.slice(0, 8).toUpperCase();
+    const stayNights = Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
 
     return `
 <!DOCTYPE html>
@@ -247,6 +251,17 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
             text-align: center;
             border-radius: 8px 8px 0 0;
         }
+        .voucher-code {
+            display: inline-block;
+            background: #ffffff;
+            color: #0f172a;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 20px;
+            letter-spacing: 2px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
         .content {
             background: #f9f9f9;
             padding: 30px;
@@ -258,6 +273,12 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
             border-radius: 8px;
             margin: 20px 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #0f172a;
+            font-size: 18px;
         }
         .detail-row {
             display: flex;
@@ -280,6 +301,15 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
             color: #0f172a;
             font-weight: bold;
         }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 600;
+            font-size: 12px;
+        }
         .instructions {
             background: #f8fafc;
             border-left: 4px solid #0f172a;
@@ -293,25 +323,57 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
             color: #666;
             font-size: 0.9em;
         }
+        .voucher-note {
+            background: #fff;
+            border: 1px dashed #0f172a;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 16px 0;
+            text-align: center;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>✅ Reserva Confirmada!</h1>
+        <h1>🎫 Voucher de Hospedagem</h1>
         <p>${HOTEL_NAME}</p>
+        <div class="voucher-code">${bookingCode}</div>
     </div>
     
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
-        
-        <p>Sua reserva foi confirmada com sucesso! Estamos ansiosos para recebê-lo(a).</p>
-        
+
+        <p>Seu voucher está confirmado. Apresente este código no check-in:</p>
+        <p><span class="badge">Reserva Confirmada</span></p>
+
+        <div class="voucher-note">
+            <strong>Código do Voucher:</strong> ${bookingCode}<br>
+            <strong>Titular:</strong> ${guestName}
+        </div>
+
         <div class="booking-details">
-            <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
+            <h2 class="section-title">Dados do Titular</h2>
+            <div class="detail-row">
+                <span class="detail-label">Nome:</span>
+                <span class="detail-value">${guestName}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">E-mail:</span>
+                <span class="detail-value">${guestEmail}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Telefone:</span>
+                <span class="detail-value">${String(guestPhone || 'Não informado')}</span>
+            </div>
+        </div>
+
+        <div class="booking-details">
+            <h2 class="section-title">Detalhes da Estadia</h2>
             
             <div class="detail-row">
                 <span class="detail-label">Número da Reserva:</span>
-                <span class="detail-value">${bookingId.slice(0, 8).toUpperCase()}</span>
+                <span class="detail-value">${bookingCode}</span>
             </div>
             
             <div class="detail-row">
@@ -328,6 +390,23 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Check-out:</span>
                 <span class="detail-value">${checkOutFormatted}</span>
             </div>
+            <div class="detail-row">
+                <span class="detail-label">Diárias:</span>
+                <span class="detail-value">${stayNights} ${stayNights === 1 ? 'noite' : 'noites'}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Quantidade de Hóspedes:</span>
+                <span class="detail-value">${guestsLabel}</span>
+            </div>
+            ${childrenAgesLabel ? `
+            <div class="detail-row">
+                <span class="detail-label">Idade(s) das crianças:</span>
+                <span class="detail-value">${childrenAgesLabel}</span>
+            </div>` : ''}
+        </div>
+
+        <div class="booking-details">
+            <h2 class="section-title">Pagamento</h2>
             
             <div class="detail-row">
                 <span class="detail-label">Valor Total:</span>
@@ -342,15 +421,6 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Parcelas:</span>
                 <span class="detail-value">${paymentDetails.installmentsLabel}</span>
             </div>` : ''}
-            <div class="detail-row">
-                <span class="detail-label">Quantidade de Hóspedes:</span>
-                <span class="detail-value">${guestsLabel}</span>
-            </div>
-            ${childrenAgesLabel ? `
-            <div class="detail-row">
-                <span class="detail-label">Idade(s) das crianças:</span>
-                <span class="detail-value">${childrenAgesLabel}</span>
-            </div>` : ''}
         </div>
         
         <div class="instructions">
@@ -359,7 +429,7 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <li><strong>Check-in:</strong> A partir das 14h</li>
                 <li><strong>Check-out:</strong> Até às 12h</li>
                 <li><strong>Documento:</strong> Apresente um documento de identidade válido</li>
-                <li><strong>Número da Reserva:</strong> Tenha em mãos o número <strong>${bookingId.slice(0, 8).toUpperCase()}</strong></li>
+                <li><strong>Código do Voucher:</strong> Tenha em mãos o código <strong>${bookingCode}</strong></li>
             </ul>
         </div>
         
@@ -607,8 +677,9 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         };
     }
 
-    const { guestEmail, roomName } = data;
+    const { guestEmail, roomName, bookingId } = data;
     const htmlContent = buildBookingConfirmationEmailHtml(data);
+    const bookingCode = bookingId.slice(0, 8).toUpperCase();
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
     const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
@@ -619,7 +690,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         to: guestEmail,
         cc: adminEmail,
         bcc: bccRecipients,
-        subject: `✅ Reserva Confirmada - ${roomName}`,
+        subject: `🎫 Voucher de Hospedagem - Reserva ${bookingCode} (${roomName})`,
         html: htmlContent,
     };
 

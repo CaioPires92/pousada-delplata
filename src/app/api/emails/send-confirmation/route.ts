@@ -60,13 +60,15 @@ export async function POST(request: NextRequest) {
             process.env.CONTACT_RECEIVER_EMAIL ||
             process.env.SMTP_USER ||
             'contato@pousadadelplata.com.br';
+        const bookingCode = String(bookingId || '').slice(0, 8).toUpperCase();
+        const bookingSubjectCode = bookingCode || 'SEM-CODIGO';
 
         // Enviar email
         await transporter.sendMail({
             from: `"Pousada Delplata" <${process.env.SMTP_USER}>`,
             to: email,
             bcc: adminEmail,
-            subject: '✅ Reserva Confirmada - Pousada Delplata',
+            subject: `🎫 Voucher de Hospedagem - Reserva ${bookingSubjectCode}`,
             html: htmlContent,
         });
 
