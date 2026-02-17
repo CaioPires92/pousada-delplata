@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './cupons.module.css';
+import { formatDateBR } from '@/lib/date';
 
 type Coupon = {
     id: string;
@@ -459,8 +460,8 @@ export default function AdminCuponsPage() {
                                     </span>
                                 </td>
                                 <td>
-                                    <div>{coupon.startsAt ? new Date(coupon.startsAt).toLocaleDateString('pt-BR') : '-'}</div>
-                                    <div>{coupon.endsAt ? new Date(coupon.endsAt).toLocaleDateString('pt-BR') : '-'}</div>
+                                    <div>{coupon.startsAt ? formatDateBR(coupon.startsAt) : '-'}</div>
+                                    <div>{coupon.endsAt ? formatDateBR(coupon.endsAt) : '-'}</div>
                                 </td>
                                 <td>{coupon._count?.redemptions || 0}</td>
                                 <td>

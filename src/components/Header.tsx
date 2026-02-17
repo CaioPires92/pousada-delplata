@@ -14,8 +14,6 @@ export default function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
 
-    if (pathname.startsWith('/admin')) return null;
-
     // Pages that should have a transparent header initially
     const transparentPaths = ["/", "/acomodacoes", "/lazer", "/restaurante", "/contato"];
     const isTransparentPath = transparentPaths.includes(pathname);
@@ -44,6 +42,8 @@ export default function Header() {
         // Force full page reload to clear all client state and ensure a fresh start
         window.location.href = "/";
     };
+
+    if (pathname.startsWith('/admin')) return null;
 
     return (
         <motion.header

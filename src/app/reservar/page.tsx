@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
-import { trackBeginCheckout, trackClickWhatsApp } from '@/lib/analytics';
+import { trackBeginCheckout, trackClickWhatsApp, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 
 import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
@@ -96,6 +96,8 @@ function ReservarContent() {
     const mountedRef = useRef(true);
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
+    const viewItemListKeyRef = useRef<string>('');
+    const beginCheckoutTrackedBookingRef = useRef<string>('');
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
@@ -275,6 +277,23 @@ function ReservarContent() {
         };
     }, [fetchAvailability]);
 
+    useEffect(() => {
+        if (!availableRooms || availableRooms.length === 0) return;
+        if (selectedRoom) return;
+
+        const listKey = `${checkIn || ''}|${checkOut || ''}|${adults}|${children}|${availableRooms.map((room) => room.id).join(',')}`;
+        if (viewItemListKeyRef.current === listKey) return;
+
+        trackViewItemList(
+            availableRooms.map((room) => ({
+                id: room.id,
+                name: room.name,
+                totalPrice: room.totalPrice,
+            }))
+        );
+        viewItemListKeyRef.current = listKey;
+    }, [availableRooms, selectedRoom, checkIn, checkOut, adults, children]);
+
     const releaseCouponReservation = useCallback(async (reservationId?: string) => {
         if (!reservationId) return;
         try {
@@ -396,6 +415,16 @@ function ReservarContent() {
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
     const handleSelectRoom = (room: Room) => {
+        const index = Array.isArray(availableRooms) ? availableRooms.findIndex((item) => item.id === room.id) : -1;
+        trackSelectItem(
+            {
+                id: room.id,
+                name: room.name,
+                totalPrice: room.totalPrice,
+            },
+            index >= 0 ? index : 0
+        );
+
         if (selectedRoom?.id && selectedRoom.id !== room.id) {
             clearCouponState(true);
         }
@@ -461,13 +490,6 @@ function ReservarContent() {
             setPaymentStatus('idle');
             setPaymentStatusMessage('');
             setPixData(null);
-            trackBeginCheckout({
-                value: Number(booking.totalPrice),
-                bookingId: String(booking.id),
-                roomName: selectedRoom.name,
-                adults: Number.parseInt(adults, 10) || 0,
-                children: Number.parseInt(children, 10) || 0,
-            });
 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
@@ -494,6 +516,28 @@ function ReservarContent() {
             setProcessing(false);
         }
     };
+
+    useEffect(() => {
+        if (!paymentBookingId || !selectedRoom) return;
+        if (beginCheckoutTrackedBookingRef.current === paymentBookingId) return;
+
+        const value = Number(paymentAmount || selectedRoom.totalPrice || bookingTotal || 0);
+        trackBeginCheckout({
+            bookingId: paymentBookingId,
+            value,
+            currency: 'BRL',
+            items: [
+                {
+                    item_id: selectedRoom.id,
+                    item_name: selectedRoom.name,
+                    item_category: 'Hospedagem',
+                    price: value,
+                    quantity: 1,
+                },
+            ],
+        });
+        beginCheckoutTrackedBookingRef.current = paymentBookingId;
+    }, [paymentBookingId, paymentAmount, selectedRoom, bookingTotal]);
 
     useEffect(() => {
         if (!paymentBookingId || !paymentAmount) return;

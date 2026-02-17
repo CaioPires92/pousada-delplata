@@ -231,7 +231,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let couponReleased = false;
             let couponConfirmed = false;
             let financialSnapshotUpdated = false;
-            let paymentMethodValue = paymentMethod || booking.payment?.method || null;
+            const paymentMethodValue = paymentMethod || booking.payment?.method || null;
             let paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
 
             if (mapped.bookingStatus === 'CONFIRMED') {

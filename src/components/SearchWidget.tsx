@@ -14,7 +14,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { trackClickWhatsApp } from '@/lib/analytics';
+import { trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
@@ -146,6 +146,12 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setSearchMessage('');
+        trackSearch({
+            checkIn: checkIn ? format(checkIn, 'yyyy-MM-dd') : undefined,
+            checkOut: checkOut ? format(checkOut, 'yyyy-MM-dd') : undefined,
+            adults,
+            children,
+        });
 
         if (numAdults < 1) {
             alert('Selecione ao menos 1 adulto.');

@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { formatDateBR } from '@/lib/date';
-import { trackReservaConfirmada } from '@/lib/analytics';
+import { trackPurchase } from '@/lib/analytics';
 
 export default function ConfirmacaoPage() {
     const params = useParams();
@@ -18,7 +18,7 @@ export default function ConfirmacaoPage() {
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const lastStatusRef = useRef<string | null>(null);
     const redirectRef = useRef<NodeJS.Timeout | null>(null);
-    const confirmationTrackedRef = useRef(false);
+    const purchaseTrackedRef = useRef(false);
 
     const fetchBooking = useCallback(async () => {
         if (!bookingId) return;
@@ -44,16 +44,30 @@ export default function ConfirmacaoPage() {
                     setStatusMessage('✅ Pagamento aprovado! Sua reserva está confirmada.');
                     setPolling(false);
                     if (pollRef.current) clearInterval(pollRef.current);
-                    if (!confirmationTrackedRef.current) {
-                        trackReservaConfirmada({
-                            bookingId,
-                            value: Number(data?.totalPrice || 0),
-                            paymentMethod: String(data?.payment?.method || ''),
-                            roomName: String(data?.roomType?.name || ''),
-                            adults: Number.parseInt(String(data?.adults || 0), 10) || 0,
-                            children: Number.parseInt(String(data?.children || 0), 10) || 0,
+                    if (!purchaseTrackedRef.current) {
+                        const checkInDate = data?.checkIn ? new Date(String(data.checkIn)) : null;
+                        const checkOutDate = data?.checkOut ? new Date(String(data.checkOut)) : null;
+                        const diffTime = checkInDate && checkOutDate ? checkOutDate.getTime() - checkInDate.getTime() : 0;
+                        const nights = diffTime > 0 ? Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24))) : 1;
+                        const totalValue = Number(data?.totalPrice || 0);
+                        const roomTypeId = String(data?.roomType?.id || data?.roomTypeId || 'room_unknown');
+                        const roomName = String(data?.roomType?.name || 'Hospedagem');
+
+                        trackPurchase({
+                            transactionId: String(data?.id || bookingId),
+                            value: totalValue,
+                            currency: 'BRL',
+                            items: [
+                                {
+                                    item_id: roomTypeId,
+                                    item_name: roomName,
+                                    item_category: 'Hospedagem',
+                                    price: nights > 0 ? Number((totalValue / nights).toFixed(2)) : totalValue,
+                                    quantity: nights > 0 ? nights : 1,
+                                },
+                            ],
                         });
-                        confirmationTrackedRef.current = true;
+                        purchaseTrackedRef.current = true;
                     }
                     if (prevStatus && prevStatus !== 'CONFIRMED') {
                         setStatusToast('Pagamento aprovado!');
