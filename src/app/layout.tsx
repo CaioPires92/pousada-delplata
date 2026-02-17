@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Open_Sans, Raleway, Poppins } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const openSans = Open_Sans({
@@ -36,6 +37,8 @@ import Footer from "@/components/Footer";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 
+const GA_MEASUREMENT_ID = "G-5YN158R31V";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -46,6 +49,18 @@ export default function RootLayout({
       <body
         className={`${openSans.variable} ${raleway.variable} ${poppins.variable} font-sans antialiased`}
       >
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         <Header />
         {children}
         <Footer />
