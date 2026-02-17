@@ -159,6 +159,21 @@ function ReservarContent() {
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
 
+    const buildPayerData = useCallback(() => {
+        const normalizedName = String(guest.name || '').trim().replace(/\s+/g, ' ');
+        const nameParts = normalizedName.length > 0 ? normalizedName.split(' ').filter(Boolean) : [];
+        const firstName = nameParts[0] || undefined;
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+
+        return {
+            email: guest.email || undefined,
+            firstName,
+            lastName,
+            first_name: firstName,
+            last_name: lastName,
+        };
+    }, [guest.email, guest.name]);
+
 
     const fetchAvailability = useCallback(async (signal?: AbortSignal) => {
         if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) {
@@ -505,12 +520,12 @@ function ReservarContent() {
                     await paymentBrickRef.current.unmount();
                 }
 
+                const payerData = buildPayerData();
+
                 paymentBrickRef.current = await bricksBuilder.create('payment', paymentContainerId, {
                     initialization: {
                         amount: paymentAmount,
-                        payer: {
-                            email: guest.email,
-                        },
+                        payer: payerData,
                     },
                     customization: {
                         paymentMethods: {
@@ -525,11 +540,21 @@ function ReservarContent() {
                             // Brick pronto
                         },
                         onSubmit: ({ formData }: any) => {
+                            const payerFromBrick = formData?.payer || {};
+                            const fallbackPayer = buildPayerData();
+                            const normalizedPayer = {
+                                ...payerFromBrick,
+                                email: payerFromBrick.email || fallbackPayer.email,
+                                first_name: payerFromBrick.first_name || payerFromBrick.firstName || fallbackPayer.first_name,
+                                last_name: payerFromBrick.last_name || payerFromBrick.lastName || fallbackPayer.last_name,
+                            };
+
                             return fetch('/api/mercadopago/payment', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     ...formData,
+                                    payer: normalizedPayer,
                                     bookingId: paymentBookingId,
                                     description: `Reserva ${paymentBookingId}`,
                                     transaction_amount: paymentAmount,
@@ -570,6 +595,11 @@ function ReservarContent() {
                         onError: (err: any) => {
                             console.error('Mercado Pago Brick Error:', err);
                             setPaymentStatus('error');
+                            const errorMessage = String(err?.message || err?.error || '');
+                            if (/dado obrigat[oó]rio|required/i.test(errorMessage)) {
+                                setPaymentError('Preencha o nome do titular manualmente (sem auto preenchimento) e tente novamente.');
+                                return;
+                            }
                             setPaymentError('Erro no pagamento. Tente novamente.');
                         },
                     },
@@ -585,7 +615,7 @@ function ReservarContent() {
             cancelled = true;
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [guest.email, paymentAmount, paymentBookingId]);
+    }, [buildPayerData, paymentAmount, paymentBookingId]);
 
     useEffect(() => {
         if (!paymentBookingId) return;
