@@ -113,6 +113,7 @@ model Payment {
   provider   String   // MERCADOPAGO
   providerId String?  // Mercado Pago Payment ID
   method     String?  // PIX, CREDIT_CARD, DEBIT_CARD, etc.
+  cardBrand  String?  // VISA, MASTER, ELO, AMEX, etc.
   installments Int?   // Parcelas quando aplicavel (cartao de credito)
   status     String   // PENDING, APPROVED, REJECTED
   createdAt  DateTime @default(now())

@@ -7,6 +7,9 @@ import { formatDateBR } from '@/lib/date';
 
 interface Booking {
     id: string;
+    adults: number;
+    children: number;
+    childrenAges?: string | null;
     checkIn: string;
     checkOut: string;
     totalPrice: number;
@@ -24,27 +27,89 @@ interface Booking {
         status: string;
         amount: number;
         method?: string | null;
+        cardBrand?: string | null;
+        installments?: number | null;
         provider?: string;
     } | null;
 }
 
-function formatPaymentMethod(method?: string | null) {
+function formatPaymentType(method?: string | null) {
     const m = String(method || '').trim().toUpperCase();
-    if (!m) return 'Não informado';
+    if (!m) return '-';
+    const knownBrands = new Set(['VISA', 'MASTER', 'ELO', 'AMEX', 'HIPERCARD', 'MAESTRO', 'CABAL', 'NARANJA']);
+    if (knownBrands.has(m)) return 'Crédito';
 
     const labels: Record<string, string> = {
         PIX: 'Pix',
-        CREDIT_CARD: 'Cartão de crédito',
-        DEBIT_CARD: 'Cartão de débito',
+        CREDIT_CARD: 'Crédito',
+        DEBIT_CARD: 'Débito',
         ACCOUNT_MONEY: 'Saldo MP',
+    };
+
+    return labels[m] || m.replace(/_/g, ' ');
+}
+
+function normalizeChildrenAges(childrenAges?: string | null) {
+    const raw = String(childrenAges || '').trim();
+    if (!raw) return [] as number[];
+
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return parsed
+                .map((age) => Number.parseInt(String(age), 10))
+                .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
+        }
+    } catch {
+        // fallback CSV
+    }
+
+    return raw
+        .split(',')
+        .map((age) => Number.parseInt(age.trim(), 10))
+        .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
+}
+
+function getPaymentBrand(payment?: Booking['payment']) {
+    const explicitBrand = String(payment?.cardBrand || '').trim().toUpperCase();
+    if (explicitBrand) return explicitBrand;
+
+    const method = String(payment?.method || '').trim().toUpperCase();
+    const knownBrands = new Set(['VISA', 'MASTER', 'ELO', 'AMEX', 'HIPERCARD', 'MAESTRO', 'CABAL', 'NARANJA']);
+    if (knownBrands.has(method)) return method;
+    return '';
+}
+
+function formatPaymentBrand(payment?: Booking['payment']) {
+    const brand = getPaymentBrand(payment);
+    if (!brand) return '-';
+
+    const labels: Record<string, string> = {
         MASTER: 'Master',
         VISA: 'Visa',
         ELO: 'Elo',
         AMEX: 'Amex',
         HIPERCARD: 'Hipercard',
+        MAESTRO: 'Maestro',
+        CABAL: 'Cabal',
+        NARANJA: 'Naranja',
     };
 
-    return labels[m] || m.replace(/_/g, ' ');
+    return labels[brand] || brand;
+}
+
+function isCreditPayment(payment?: Booking['payment']) {
+    const method = String(payment?.method || '').trim().toUpperCase();
+    if (method === 'CREDIT_CARD') return true;
+    if (Number(payment?.installments || 0) > 0) return true;
+    return Boolean(getPaymentBrand(payment));
+}
+
+function formatInstallments(payment?: Booking['payment']) {
+    if (!isCreditPayment(payment)) return '-';
+    const installments = Number.parseInt(String(payment?.installments ?? ''), 10);
+    if (!Number.isFinite(installments) || installments <= 0) return '-';
+    return `${installments}x`;
 }
 
 export default function AdminReservasPage() {
@@ -144,6 +209,7 @@ export default function AdminReservasPage() {
                             <tr>
                                 <th>ID</th>
                                 <th>Hóspede</th>
+                                <th>Hóspedes</th>
                                 <th>Quarto</th>
                                 <th>Check-in</th>
                                 <th>Check-out</th>
@@ -166,6 +232,20 @@ export default function AdminReservasPage() {
                                             <small>{booking.guest.phone}</small>
                                         </div>
                                     </td>
+                                    <td>
+                                        <div className={styles.guestInfo}>
+                                            <strong className={styles.compactMain}>{Number(booking.adults || 0) + Number(booking.children || 0)} hosp.</strong>
+                                            <small className={styles.compactSub}>{booking.adults}A / {booking.children}C</small>
+                                            {booking.children > 0 ? (
+                                                <small className={styles.compactSub}>
+                                                    Idades: {(() => {
+                                                        const ages = normalizeChildrenAges(booking.childrenAges);
+                                                        return ages.length > 0 ? ages.join(', ') : '-';
+                                                    })()}
+                                                </small>
+                                            ) : null}
+                                        </div>
+                                    </td>
                                     <td>{booking.roomType.name}</td>
                                     <td>{formatDateBR(booking.checkIn)}</td>
                                     <td>{formatDateBR(booking.checkOut)}</td>
@@ -174,8 +254,9 @@ export default function AdminReservasPage() {
                                     </td>
                                     <td>
                                         <div className={styles.guestInfo}>
-                                            <strong>{formatPaymentMethod(booking.payment?.method)}</strong>
-                                            <small>{booking.payment?.status || 'Sem pagamento'}</small>
+                                            <strong className={styles.compactMain}>{formatPaymentType(booking.payment?.method)}</strong>
+                                            <small className={styles.compactSub}>Parc.: {formatInstallments(booking.payment)}</small>
+                                            <small className={styles.compactSub}>Band.: {formatPaymentBrand(booking.payment)}</small>
                                         </div>
                                     </td>
                                     <td>

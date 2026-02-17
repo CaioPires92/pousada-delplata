@@ -16,6 +16,17 @@ function normalizeInstallments(value: unknown) {
     return parsed;
 }
 
+function normalizeCardBrand(params: { paymentMethodId: string; paymentTypeId: string }) {
+    const paymentMethodId = String(params.paymentMethodId || '').trim().toLowerCase();
+    const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
+
+    if (!paymentMethodId) return null;
+    if (paymentTypeId !== 'credit_card' && paymentTypeId !== 'debit_card') return null;
+    if (paymentMethodId === 'credit_card' || paymentMethodId === 'debit_card') return null;
+
+    return paymentMethodId.toUpperCase();
+}
+
 function normalizePaymentMethod(params: {
     paymentMethodId: string;
     paymentTypeId: string;
@@ -61,6 +72,10 @@ export async function POST(request: Request) {
         const paymentMethodId = formData?.payment_method_id;
         const paymentTypeId = String(formData?.payment_type_id || '');
         const normalizedInstallments = normalizeInstallments(formData?.installments);
+        const normalizedCardBrand = normalizeCardBrand({
+            paymentMethodId: String(paymentMethodId || ''),
+            paymentTypeId,
+        });
         const normalizedPaymentMethod = normalizePaymentMethod({
             paymentMethodId: String(paymentMethodId || ''),
             paymentTypeId,
@@ -142,6 +157,7 @@ export async function POST(request: Request) {
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
                     method: normalizedPaymentMethod,
+                    cardBrand: normalizedCardBrand,
                     installments: normalizedInstallments,
                 },
                 create: {
@@ -151,6 +167,7 @@ export async function POST(request: Request) {
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
                     method: normalizedPaymentMethod,
+                    cardBrand: normalizedCardBrand,
                     installments: normalizedInstallments,
                 },
             });

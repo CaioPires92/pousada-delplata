@@ -43,6 +43,20 @@ function normalizeInstallments(value: unknown) {
     return parsed;
 }
 
+function normalizeCardBrand(params: {
+    paymentMethodId: unknown;
+    paymentTypeId: unknown;
+}) {
+    const paymentMethodId = String(params.paymentMethodId || '').trim().toLowerCase();
+    const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
+
+    if (!paymentMethodId) return null;
+    if (paymentTypeId !== 'credit_card' && paymentTypeId !== 'debit_card') return null;
+    if (paymentMethodId === 'credit_card' || paymentMethodId === 'debit_card') return null;
+
+    return paymentMethodId.toUpperCase();
+}
+
 function normalizePaymentMethod(params: {
     paymentMethodId: unknown;
     paymentTypeId: unknown;
@@ -171,6 +185,10 @@ export async function handleMercadoPagoWebhook(request: Request) {
         const paymentData = await paymentResponse.json();
         const mpStatus = paymentData?.status as string | undefined;
         const paymentInstallments = normalizeInstallments(paymentData?.installments);
+        const paymentCardBrand = normalizeCardBrand({
+            paymentMethodId: paymentData?.payment_method_id,
+            paymentTypeId: paymentData?.payment_type_id,
+        });
         const paymentMethod = normalizePaymentMethod({
             paymentMethodId: paymentData?.payment_method_id,
             paymentTypeId: paymentData?.payment_type_id,
@@ -294,6 +312,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                                 status: 'APPROVED',
                                 providerId: paymentId,
                                 method: paymentMethod || booking.payment?.method || undefined,
+                                cardBrand: paymentCardBrand ?? booking.payment?.cardBrand ?? undefined,
                                 installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
                             },
                         });
@@ -303,6 +322,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                             data: {
                                 providerId: paymentId,
                                 method: paymentMethod || booking.payment?.method || undefined,
+                                cardBrand: paymentCardBrand ?? booking.payment?.cardBrand ?? undefined,
                                 installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
                             },
                         });
@@ -317,6 +337,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                                 status: 'REJECTED',
                                 providerId: paymentId,
                                 method: paymentMethod || booking.payment?.method || undefined,
+                                cardBrand: paymentCardBrand ?? booking.payment?.cardBrand ?? undefined,
                                 installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
                             },
                         });
@@ -333,6 +354,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                                 status: 'REFUNDED',
                                 providerId: paymentId,
                                 method: paymentMethod || booking.payment?.method || undefined,
+                                cardBrand: paymentCardBrand ?? booking.payment?.cardBrand ?? undefined,
                                 installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
                             },
                         });
@@ -346,6 +368,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                             data: {
                                 providerId: paymentId,
                                 method: paymentMethod || booking.payment?.method || undefined,
+                                cardBrand: paymentCardBrand ?? booking.payment?.cardBrand ?? undefined,
                                 installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
                             },
                         });
@@ -362,6 +385,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         provider: 'MERCADOPAGO',
                         providerId: paymentId,
                         method: paymentMethod,
+                        cardBrand: paymentCardBrand,
                         installments: paymentInstallments,
                         status: initialStatus,
                     },

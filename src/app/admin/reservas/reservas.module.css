@@ -189,6 +189,16 @@
     font-size: 0.8rem;
 }
 
+.compactMain {
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.compactSub {
+    white-space: nowrap;
+    font-size: 0.75rem;
+}
+
 .statusPending,
 .statusConfirmed,
 .statusCancelled,
