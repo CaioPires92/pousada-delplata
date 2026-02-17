@@ -14,6 +14,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { trackClickWhatsApp } from '@/lib/analytics';
 
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
@@ -103,6 +104,7 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
 
         const whatsappPhone = '5519999654866';
         const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+        trackClickWhatsApp('search_widget_capacidade');
         window.open(url, '_blank');
     };
 

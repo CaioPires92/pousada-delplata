@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { trackClickReservar } from '@/lib/analytics';
  
 
 interface RoomPhoto {
@@ -148,7 +149,9 @@ export function RoomCard({ room }: RoomCardProps) {
                         </span>
                     </div>
                     <Button asChild>
-                        <Link href={`/reservar?roomTypeId=${room.id}`}>Reservar Agora</Link>
+                        <Link href={`/reservar?roomTypeId=${room.id}`} onClick={() => trackClickReservar(`room_card_${room.id}`)}>
+                            Reservar Agora
+                        </Link>
                     </Button>
                 </CardFooter>
             </Card>

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
+import { trackBeginCheckout, trackClickWhatsApp } from '@/lib/analytics';
 
 import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
@@ -460,6 +461,13 @@ function ReservarContent() {
             setPaymentStatus('idle');
             setPaymentStatusMessage('');
             setPixData(null);
+            trackBeginCheckout({
+                value: Number(booking.totalPrice),
+                bookingId: String(booking.id),
+                roomName: selectedRoom.name,
+                adults: Number.parseInt(adults, 10) || 0,
+                children: Number.parseInt(children, 10) || 0,
+            });
 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
@@ -697,7 +705,12 @@ function ReservarContent() {
                         Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
                     <Button asChild>
-                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                        <a
+                            href={whatsappUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => trackClickWhatsApp('reservar_over_capacity')}
+                        >
                             Falar com a pousada no WhatsApp
                         </a>
                     </Button>

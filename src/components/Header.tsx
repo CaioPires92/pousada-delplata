@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { trackClickReservar } from "@/lib/analytics";
 
 export default function Header() {
     const [isScrolled, setIsScrolled] = useState(false);
@@ -85,7 +86,9 @@ export default function Header() {
                             </Link>
                         ))}
                         <Button asChild variant={!isTransparent ? "default" : "secondary"}>
-                            <Link href="/reservar">Reservar</Link>
+                            <Link href="/reservar" onClick={() => trackClickReservar('header_desktop')}>
+                                Reservar
+                            </Link>
                         </Button>
                     </nav>
 
@@ -117,7 +120,7 @@ export default function Header() {
                             </Link>
                         ))}
                         <Button asChild className="w-full">
-                            <Link href="/reservar" onClick={() => setIsMobileMenuOpen(false)}>
+                            <Link href="/reservar" onClick={() => { trackClickReservar('header_mobile'); setIsMobileMenuOpen(false); }}>
                                 Reservar
                             </Link>
                         </Button>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
 import { Sparkles, Waves, UtensilsCrossed, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { trackClickReservar } from "@/lib/analytics";
 
 
 
@@ -279,7 +280,7 @@ export default function HomeContent() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" variant="secondary" className="text-lg px-8">
-                <Link href="/reservar">Fazer Reserva</Link>
+                <Link href="/reservar" onClick={() => trackClickReservar('home_cta')}>Fazer Reserva</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="text-lg px-8 bg-white/10 border-white text-white hover:bg-white hover:text-primary">
                 <Link href="/contato">Fale Conosco</Link>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Glow } from '@/components/magicui/glow';
+import { trackClickWhatsApp } from '@/lib/analytics';
 import {
     Tooltip,
     TooltipContent,
@@ -32,6 +33,7 @@ export default function WhatsAppFloatingButton() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     aria-label="Falar no WhatsApp"
+                                    onClick={() => trackClickWhatsApp('botao_whatsapp_fixo')}
                                 >
                                     <MessageCircle className="h-6 w-6" />
                                 </Link>

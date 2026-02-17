@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { formatDateBR } from '@/lib/date';
+import { trackReservaConfirmada } from '@/lib/analytics';
 
 export default function ConfirmacaoPage() {
     const params = useParams();
@@ -17,6 +18,7 @@ export default function ConfirmacaoPage() {
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const lastStatusRef = useRef<string | null>(null);
     const redirectRef = useRef<NodeJS.Timeout | null>(null);
+    const confirmationTrackedRef = useRef(false);
 
     const fetchBooking = useCallback(async () => {
         if (!bookingId) return;
@@ -42,6 +44,17 @@ export default function ConfirmacaoPage() {
                     setStatusMessage('✅ Pagamento aprovado! Sua reserva está confirmada.');
                     setPolling(false);
                     if (pollRef.current) clearInterval(pollRef.current);
+                    if (!confirmationTrackedRef.current) {
+                        trackReservaConfirmada({
+                            bookingId,
+                            value: Number(data?.totalPrice || 0),
+                            paymentMethod: String(data?.payment?.method || ''),
+                            roomName: String(data?.roomType?.name || ''),
+                            adults: Number.parseInt(String(data?.adults || 0), 10) || 0,
+                            children: Number.parseInt(String(data?.children || 0), 10) || 0,
+                        });
+                        confirmationTrackedRef.current = true;
+                    }
                     if (prevStatus && prevStatus !== 'CONFIRMED') {
                         setStatusToast('Pagamento aprovado!');
                         setTimeout(() => setStatusToast(''), 3000);

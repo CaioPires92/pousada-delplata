@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { MapPin, Phone, Mail, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { trackClickWhatsApp } from "@/lib/analytics";
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
@@ -91,7 +92,7 @@ export default function Footer() {
                             </li>
                             <li className="flex items-center gap-3 text-white/80 hover:text-secondary transition-colors">
                                 <MessageCircle className="w-5 h-5 flex-shrink-0" />
-                                <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer">
+                                <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer" onClick={() => trackClickWhatsApp('footer_whatsapp')}>
                                     (19) 99965-4866
                                 </a>
                             </li>
