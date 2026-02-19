@@ -38,6 +38,7 @@ import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 
 const GA_MEASUREMENT_ID = "G-5YN158R31V";
+const GOOGLE_ADS_ID = "AW-871445112";
 
 export default function RootLayout({
   children,
@@ -61,7 +62,7 @@ export default function RootLayout({
         className={`${openSans.variable} ${raleway.variable} ${poppins.variable} font-sans antialiased`}
       >
         <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
           strategy="afterInteractive"
         />
         <Script id="google-analytics" strategy="afterInteractive">
@@ -69,6 +70,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
+            gtag('config', '${GOOGLE_ADS_ID}');
             gtag('config', '${GA_MEASUREMENT_ID}');
           `}
         </Script>
