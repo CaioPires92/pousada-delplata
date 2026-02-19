@@ -33,11 +33,33 @@ interface Booking {
     } | null;
 }
 
+const BRAND_ALIASES: Record<string, string> = {
+    MASTERCARD: 'MASTER',
+    AMERICAN_EXPRESS: 'AMEX',
+};
+
+function normalizeBrand(value?: string | null) {
+    const raw = String(value || '').trim().toUpperCase();
+    if (!raw) return '';
+    const normalized = raw.replace(/[\s-]+/g, '_');
+    return BRAND_ALIASES[normalized] || normalized;
+}
+
+const KNOWN_BRANDS = new Set([
+    'VISA',
+    'MASTER',
+    'ELO',
+    'AMEX',
+    'HIPERCARD',
+    'MAESTRO',
+    'CABAL',
+    'NARANJA',
+]);
+
 function formatPaymentType(method?: string | null) {
     const m = String(method || '').trim().toUpperCase();
     if (!m) return '-';
-    const knownBrands = new Set(['VISA', 'MASTER', 'ELO', 'AMEX', 'HIPERCARD', 'MAESTRO', 'CABAL', 'NARANJA']);
-    if (knownBrands.has(m)) return 'Crédito';
+    if (KNOWN_BRANDS.has(normalizeBrand(m))) return 'Crédito';
 
     const labels: Record<string, string> = {
         PIX: 'Pix',
@@ -71,12 +93,11 @@ function normalizeChildrenAges(childrenAges?: string | null) {
 }
 
 function getPaymentBrand(payment?: Booking['payment']) {
-    const explicitBrand = String(payment?.cardBrand || '').trim().toUpperCase();
+    const explicitBrand = normalizeBrand(payment?.cardBrand);
     if (explicitBrand) return explicitBrand;
 
-    const method = String(payment?.method || '').trim().toUpperCase();
-    const knownBrands = new Set(['VISA', 'MASTER', 'ELO', 'AMEX', 'HIPERCARD', 'MAESTRO', 'CABAL', 'NARANJA']);
-    if (knownBrands.has(method)) return method;
+    const method = normalizeBrand(payment?.method);
+    if (KNOWN_BRANDS.has(method)) return method;
     return '';
 }
 

@@ -115,13 +115,10 @@ export async function GET(request: Request) {
             const rate = normalizedRates.find((r) => dateStr >= r.dayStart && dateStr <= r.dayEnd);
             const adjustment = inventoryByDay.get(dateStr);
             const capacityTotal = Number(roomType.totalUnits);
-            const adjustedAvailable = adjustment ? Math.max(0, Math.min(capacityTotal, Number(adjustment.totalUnits))) : null;
+            const adjustedTotal = adjustment ? Math.max(0, Math.min(capacityTotal, Number(adjustment.totalUnits))) : null;
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
-            const availableByCapacity = Math.max(0, capacityTotal - bookingsCount);
-            const available = adjustedAvailable !== null
-                ? Math.min(adjustedAvailable, availableByCapacity)
-                : availableByCapacity;
-            const totalInventory = adjustedAvailable !== null ? adjustedAvailable : capacityTotal;
+            const totalInventory = adjustedTotal !== null ? adjustedTotal : capacityTotal;
+            const available = Math.max(0, totalInventory - bookingsCount);
 
             return {
                 date: dateStr,

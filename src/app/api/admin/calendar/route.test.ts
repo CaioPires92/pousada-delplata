@@ -113,9 +113,45 @@ describe('Admin Calendar API', () => {
         expect(res.status).toBe(200);
 
         const data = await res.json();
-        expect(data[0].available).toBe(1); // min(adjusted=2, capacity-bookings=1)
+        expect(data[0].available).toBe(1);
         expect(data[0].bookingsCount).toBe(1);
         expect(data[0].totalInventory).toBe(2);
+    });
+
+    it('subtracts bookings from adjusted inventory even when physical capacity is larger', async () => {
+        (prisma.roomType.findUnique as any).mockResolvedValue({
+            id: 'room-1',
+            totalUnits: 8,
+            basePrice: 500,
+        });
+
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
+            {
+                roomTypeId: 'room-1',
+                date: new Date('2026-02-11T12:00:00.000Z'),
+                totalUnits: 2,
+            },
+        ]);
+
+        (prisma.booking.findMany as any).mockResolvedValue([
+            {
+                checkIn: new Date('2026-02-11T00:00:00.000Z'),
+                checkOut: new Date('2026-02-12T00:00:00.000Z'),
+                status: 'CONFIRMED',
+            },
+        ]);
+
+        const req = new Request(
+            'http://localhost/api/admin/calendar?roomTypeId=room-1&startDate=2026-02-11&endDate=2026-02-11'
+        );
+
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+
+        const data = await res.json();
+        expect(data[0].totalInventory).toBe(2);
+        expect(data[0].bookingsCount).toBe(1);
+        expect(data[0].available).toBe(1);
     });
 });
 

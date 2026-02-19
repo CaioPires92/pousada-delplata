@@ -124,11 +124,10 @@ export async function GET(request: Request) {
                     ? Number(adjustmentByDay.get(dayKey))
                     : null;
                 const bookingsCount = bookingsCountByDay.get(dayKey) || 0;
-                const availableByCapacity = Math.max(0, capacityTotal - bookingsCount);
-
-                const daySellableUnits = adjustedValue !== null
-                    ? Math.max(0, Math.min(Math.min(capacityTotal, adjustedValue), availableByCapacity))
-                    : availableByCapacity;
+                const dayTotalUnits = adjustedValue !== null
+                    ? Math.max(0, Math.min(capacityTotal, adjustedValue))
+                    : capacityTotal;
+                const daySellableUnits = Math.max(0, dayTotalUnits - bookingsCount);
 
                 return Math.min(min, daySellableUnits);
             }, Number.POSITIVE_INFINITY);

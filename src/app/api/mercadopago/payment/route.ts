@@ -10,6 +10,22 @@ type MercadoPagoCause = {
     data?: string;
 };
 
+const CARD_BRANDS = new Set([
+    'visa',
+    'master',
+    'mastercard',
+    'amex',
+    'american_express',
+    'elo',
+    'hipercard',
+    'maestro',
+    'cabal',
+    'naranja',
+    'diners',
+    'discover',
+    'jcb',
+]);
+
 function normalizeInstallments(value: unknown) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
     if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -21,6 +37,7 @@ function normalizeCardBrand(params: { paymentMethodId: string; paymentTypeId: st
     const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
 
     if (!paymentMethodId) return null;
+    if (CARD_BRANDS.has(paymentMethodId)) return paymentMethodId.toUpperCase();
     if (paymentTypeId !== 'credit_card' && paymentTypeId !== 'debit_card') return null;
     if (paymentMethodId === 'credit_card' || paymentMethodId === 'debit_card') return null;
 
@@ -75,11 +92,6 @@ export async function POST(request: Request) {
         const normalizedCardBrand = normalizeCardBrand({
             paymentMethodId: String(paymentMethodId || ''),
             paymentTypeId,
-        });
-        const normalizedPaymentMethod = normalizePaymentMethod({
-            paymentMethodId: String(paymentMethodId || ''),
-            paymentTypeId,
-            installments: normalizedInstallments,
         });
         const payerEmail = formData?.payer?.email;
         if (!paymentMethodId || typeof paymentMethodId !== 'string') {
@@ -147,6 +159,19 @@ export async function POST(request: Request) {
         });
 
         const normalizedStatus = String(result.status || 'PENDING').toUpperCase();
+        const resultPaymentMethodId = String((result as any)?.payment_method_id || paymentMethodId || '');
+        const resultPaymentTypeId = String((result as any)?.payment_type_id || paymentTypeId || '');
+        const persistedCardBrand =
+            normalizeCardBrand({
+                paymentMethodId: resultPaymentMethodId,
+                paymentTypeId: resultPaymentTypeId,
+            }) ??
+            normalizedCardBrand;
+        const persistedPaymentMethod = normalizePaymentMethod({
+            paymentMethodId: resultPaymentMethodId,
+            paymentTypeId: resultPaymentTypeId,
+            installments: normalizedInstallments,
+        });
 
         try {
             await prisma.payment.upsert({
@@ -156,8 +181,8 @@ export async function POST(request: Request) {
                     status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
-                    method: normalizedPaymentMethod,
-                    cardBrand: normalizedCardBrand,
+                    method: persistedPaymentMethod,
+                    cardBrand: persistedCardBrand,
                     installments: normalizedInstallments,
                 },
                 create: {
@@ -166,8 +191,8 @@ export async function POST(request: Request) {
                     status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
-                    method: normalizedPaymentMethod,
-                    cardBrand: normalizedCardBrand,
+                    method: persistedPaymentMethod,
+                    cardBrand: persistedCardBrand,
                     installments: normalizedInstallments,
                 },
             });
@@ -191,7 +216,7 @@ export async function POST(request: Request) {
                     checkIn: booking.checkIn,
                     checkOut: booking.checkOut,
                     totalPrice: Number(booking.totalPrice),
-                    paymentMethod: normalizedPaymentMethod,
+                    paymentMethod: persistedPaymentMethod,
                     paymentInstallments: normalizedInstallments,
                     adults: booking.adults,
                     children: booking.children,
@@ -210,7 +235,7 @@ export async function POST(request: Request) {
                     checkIn: booking.checkIn,
                     checkOut: booking.checkOut,
                     totalPrice: Number(booking.totalPrice),
-                    paymentMethod: normalizedPaymentMethod,
+                    paymentMethod: persistedPaymentMethod,
                     paymentInstallments: normalizedInstallments,
                     adults: booking.adults,
                     children: booking.children,
@@ -222,7 +247,7 @@ export async function POST(request: Request) {
             } catch (emailError) {
                 opsLog('error', 'MP_PAYMENT_APPROVED_EMAIL_FAILED', {
                     bookingId,
-                    paymentMethod: normalizedPaymentMethod,
+                    paymentMethod: persistedPaymentMethod,
                     error: emailError instanceof Error ? emailError.message : String(emailError),
                 });
             }

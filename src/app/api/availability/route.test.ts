@@ -505,7 +505,43 @@ describe('Availability API - Pricing Logic', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(1);
-    expect(data[0].remainingUnits).toBe(1); // min(adjusted=2, capacity-bookings=1)
+    expect(data[0].remainingUnits).toBe(1);
+  });
+
+  it('should subtract booking count from adjusted inventory when physical capacity is larger', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-03-08&checkOut=2026-03-09&adults=2&children=0');
+
+    const mockRoom = {
+      id: 'room-manual-large-capacity',
+      name: 'Manual Room Large Capacity',
+      basePrice: 100,
+      capacity: 2,
+      totalUnits: 8,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: [],
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      {
+        checkIn: new Date('2026-03-08T00:00:00.000Z'),
+        checkOut: new Date('2026-03-09T00:00:00.000Z'),
+        status: 'CONFIRMED',
+      },
+    ]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
+      { dateKey: '2026-03-08', totalUnits: 2 },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBe(1);
+    expect(data[0].remainingUnits).toBe(1);
   });
 });
 

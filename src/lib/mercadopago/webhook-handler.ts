@@ -9,6 +9,22 @@ type MercadoPagoWebhookBody = {
     data?: { id?: string | number };
 };
 
+const CARD_BRANDS = new Set([
+    'visa',
+    'master',
+    'mastercard',
+    'amex',
+    'american_express',
+    'elo',
+    'hipercard',
+    'maestro',
+    'cabal',
+    'naranja',
+    'diners',
+    'discover',
+    'jcb',
+]);
+
 function validateSignature(params: {
     signature: string | null;
     requestId: string | null;
@@ -51,6 +67,7 @@ function normalizeCardBrand(params: {
     const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
 
     if (!paymentMethodId) return null;
+    if (CARD_BRANDS.has(paymentMethodId)) return paymentMethodId.toUpperCase();
     if (paymentTypeId !== 'credit_card' && paymentTypeId !== 'debit_card') return null;
     if (paymentMethodId === 'credit_card' || paymentMethodId === 'debit_card') return null;
 

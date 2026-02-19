@@ -36,6 +36,8 @@ describe('Booking Integration Tests', () => {
         vi.clearAllMocks();
         (prisma.rate.findMany as any).mockResolvedValue([]);
         (prisma.booking.count as any).mockResolvedValue(0);
+        (prisma.booking.findMany as any).mockResolvedValue([]);
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
     });
 
     it('should complete booking flow with extra adult fee', async () => {
