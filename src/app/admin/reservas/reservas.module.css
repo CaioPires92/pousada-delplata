@@ -287,3 +287,54 @@
         min-width: 800px;
     }
 }
+
+.testModeBanner {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #fcd34d;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 0.875rem;
+}
+
+.testFeedbackSuccess,
+.testFeedbackError {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    border: 1px solid;
+}
+
+.testFeedbackSuccess {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.testFeedbackError {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.testActionCell {
+    white-space: nowrap;
+}
+
+.testActionButton {
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.testActionButton:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

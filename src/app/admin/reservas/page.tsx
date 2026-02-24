@@ -138,6 +138,9 @@ export default function AdminReservasPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
+    const [testPaymentBusyId, setTestPaymentBusyId] = useState<string | null>(null);
+    const [testPaymentFeedback, setTestPaymentFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
 
     const fetchBookings = useCallback(async () => {
         try {
@@ -160,6 +163,38 @@ export default function AdminReservasPage() {
     useEffect(() => {
         fetchBookings();
     }, [fetchBookings]);
+    const approveTestPayment = useCallback(async (bookingId: string) => {
+        if (!testPaymentsEnabled) return;
+
+        const confirmed = window.confirm('Confirmar pagamento manual de teste para esta reserva?');
+        if (!confirmed) return;
+
+        setTestPaymentBusyId(bookingId);
+        setTestPaymentFeedback(null);
+
+        try {
+            const response = await fetch(`/api/admin/bookings/${bookingId}/approve-test`, {
+                method: 'POST',
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data?.message || data?.error || 'Nao foi possivel confirmar o pagamento de teste.');
+            }
+
+            setTestPaymentFeedback({
+                type: 'success',
+                message: `Reserva ${bookingId.slice(0, 8)} confirmada como pagamento de teste.`,
+            });
+
+            await fetchBookings();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Nao foi possivel confirmar o pagamento de teste.';
+            setTestPaymentFeedback({ type: 'error', message });
+        } finally {
+            setTestPaymentBusyId(null);
+        }
+    }, [fetchBookings, testPaymentsEnabled]);
 
     const filteredBookings = bookings.filter((b) => {
         if (filter === 'ALL') return true;
@@ -219,6 +254,18 @@ export default function AdminReservasPage() {
                 </div>
             </div>
 
+            {testPaymentsEnabled ? (
+                <div className={styles.testModeBanner}>
+                    Modo de teste ativo: use "Aprovar teste" para confirmar pagamento e disparar evento no GA4.
+                </div>
+            ) : null}
+
+            {testPaymentFeedback ? (
+                <div className={testPaymentFeedback.type === 'success' ? styles.testFeedbackSuccess : styles.testFeedbackError}>
+                    {testPaymentFeedback.message}
+                </div>
+            ) : null}
+
             {filteredBookings.length === 0 ? (
                 <div className={styles.empty}>
                     <p>Nenhuma reserva encontrada</p>
@@ -238,6 +285,7 @@ export default function AdminReservasPage() {
                                 <th>Pagamento</th>
                                 <th>Status</th>
                                 <th>Criada em</th>
+                                {testPaymentsEnabled ? <th>Ações</th> : null}
                             </tr>
                         </thead>
                         <tbody>
@@ -284,6 +332,31 @@ export default function AdminReservasPage() {
                                         <span className={getStatusBadge(booking.status)}>{getStatusText(booking.status)}</span>
                                     </td>
                                     <td>{formatDateBR(booking.createdAt)}</td>
+                                    {testPaymentsEnabled ? (
+                                        <td className={styles.testActionCell}>
+                                            <button
+                                                type="button"
+                                                className={styles.testActionButton}
+                                                onClick={() => approveTestPayment(booking.id)}
+                                                disabled={
+                                                    testPaymentBusyId === booking.id
+                                                    || (
+                                                        String(booking.status || '').toUpperCase() === 'CONFIRMED'
+                                                        && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
+                                                    )
+                                                }
+                                            >
+                                                {testPaymentBusyId === booking.id
+                                                    ? 'Processando...'
+                                                    : (
+                                                            String(booking.status || '').toUpperCase() === 'CONFIRMED'
+                                                            && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
+                                                        )
+                                                        ? 'Aprovada'
+                                                        : 'Aprovar teste'}
+                                            </button>
+                                        </td>
+                                    ) : null}
                                 </tr>
                             ))}
                         </tbody>
