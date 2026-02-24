@@ -55,8 +55,43 @@ function detectPixKeyNotEnabled(error: any) {
 
     return status === 400 && (has13253 || hasMessage);
 }
+function formatBrl(value: number) {
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getMinTransactionAmount() {
+    const parsed = Number.parseFloat(String(process.env.MP_MIN_TRANSACTION_AMOUNT ?? '1'));
+    if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+    return parsed;
+}
+
+function detectInvalidTransactionAmount(error: any) {
+    const status = Number(error?.status || 0);
+    const message = String(error?.message || '').toLowerCase();
+    const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
+
+    const causeMentionsAmount = causes.some((cause) => {
+        const description = String(cause?.description || '').toLowerCase();
+        const data = String(cause?.data || '').toLowerCase();
+        return description.includes('transaction_amount') || data.includes('transaction_amount');
+    });
+
+    return status === 400 && (message.includes('transaction_amount') || causeMentionsAmount);
+}
+
+function getMercadoPagoErrorMessage(error: any) {
+    const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
+    const firstCause = causes.find((c) => String(c?.description || '').trim().length > 0);
+    if (firstCause?.description) return String(firstCause.description);
+
+    const message = String(error?.message || '').trim();
+    return message || 'Erro ao processar pagamento';
+}
 
 export async function POST(request: Request) {
+    let ctxBookingId: string | undefined;
+    let ctxRequestedAmount: number | undefined;
+
     try {
         const accessToken = process.env.MP_ACCESS_TOKEN;
         if (!accessToken) {
@@ -65,6 +100,8 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         const { bookingId, transaction_amount, description, ...formData } = body || {};
+
+        ctxBookingId = typeof bookingId === 'string' ? bookingId : undefined;
 
         if (!bookingId || !transaction_amount) {
             return NextResponse.json({ error: 'Dados insuficientes para pagamento' }, { status: 400 });
@@ -119,9 +156,31 @@ export async function POST(request: Request) {
 
         const bookingAmount = Number(booking.totalPrice);
         const requestedAmount = Number(transaction_amount);
+        const minTransactionAmount = getMinTransactionAmount();
+
+        ctxRequestedAmount = requestedAmount;
         if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
             return NextResponse.json({ error: 'transaction_amount inválido' }, { status: 400 });
         }
+
+        if (bookingAmount < minTransactionAmount || requestedAmount < minTransactionAmount) {
+            opsLog('warn', 'MP_PAYMENT_AMOUNT_BELOW_MINIMUM', {
+                bookingId,
+                bookingAmount,
+                requestedAmount,
+                minTransactionAmount,
+                paymentMethodId,
+                paymentTypeId,
+            });
+            return NextResponse.json(
+                {
+                    error: 'transaction_amount inválido',
+                    message: `Este valor nao permite pagamento com cartao. Escolha Pix ou aumente o valor da reserva (minimo R$ ${formatBrl(minTransactionAmount)}).`,
+                },
+                { status: 400 }
+            );
+        }
+
         if (Math.abs(bookingAmount - requestedAmount) > 0.01) {
             opsLog('warn', 'MP_PAYMENT_AMOUNT_MISMATCH', {
                 bookingId,
@@ -141,7 +200,7 @@ export async function POST(request: Request) {
         const result = await payment.create({
             body: {
                 ...formData,
-                transaction_amount: Number(transaction_amount),
+                transaction_amount: requestedAmount,
                 description: description || `Reserva ${bookingId}`,
                 external_reference: bookingId,
             },
@@ -153,7 +212,7 @@ export async function POST(request: Request) {
             await prisma.payment.upsert({
                 where: { bookingId },
                 update: {
-                    amount: Number(transaction_amount),
+                    amount: requestedAmount,
                     status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
@@ -163,7 +222,7 @@ export async function POST(request: Request) {
                 },
                 create: {
                     bookingId,
-                    amount: Number(transaction_amount),
+                    amount: requestedAmount,
                     status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
@@ -271,8 +330,44 @@ export async function POST(request: Request) {
             );
         }
 
+        if (detectInvalidTransactionAmount(error)) {
+            const mpMessage = getMercadoPagoErrorMessage(error);
+            opsLog('warn', 'MP_PAYMENT_INVALID_TRANSACTION_AMOUNT', {
+                bookingId: ctxBookingId,
+                requestedAmount: ctxRequestedAmount,
+                status: error?.status,
+                message: error?.message,
+                cause: error?.cause,
+            });
+            return NextResponse.json(
+                {
+                    error: 'INVALID_TRANSACTION_AMOUNT',
+                    message: 'Nao foi possivel processar este valor no metodo escolhido. Tente Pix ou um valor maior.',
+                    details: mpMessage,
+                },
+                { status: 400 }
+            );
+        }
+
+        opsLog('error', 'MP_PAYMENT_CREATE_FAILED', {
+            bookingId: ctxBookingId,
+            requestedAmount: ctxRequestedAmount,
+            status: error?.status,
+            message: error?.message,
+            cause: error?.cause,
+        });
         console.error('Erro Mercado Pago:', error);
         return NextResponse.json({ error: 'Erro ao processar pagamento', message: error?.message || 'Unknown error' }, { status: 500 });
     }
 }
+
+
+
+
+
+
+
+
+
+
 

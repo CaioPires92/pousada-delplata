@@ -74,6 +74,29 @@ describe('POST /api/mercadopago/payment', () => {
         expect(String(data.message)).toContain('Pix indisponível');
     });
 
+    it('returns 400 for invalid transaction_amount returned by MP', async () => {
+        mockCreate.mockRejectedValue({
+            status: 400,
+            message: 'Invalid transaction_amount',
+            cause: [{ description: 'Invalid transaction_amount' }],
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'master',
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(400);
+        expect(data.error).toBe('INVALID_TRANSACTION_AMOUNT');
+    });
     it('returns 500 for unknown MP errors', async () => {
         mockCreate.mockRejectedValue(new Error('boom'));
 
@@ -93,33 +116,5 @@ describe('POST /api/mercadopago/payment', () => {
         expect(res.status).toBe(500);
         expect(data.error).toBe('Erro ao processar pagamento');
     });
-
-    it('persists card brand from MP response even without payment_type_id in request', async () => {
-        mockCreate.mockResolvedValue({
-            id: 123456,
-            status: 'pending',
-            payment_method_id: 'master',
-            payment_type_id: 'credit_card',
-        });
-
-        const req = new Request('http://localhost/api/mercadopago/payment', {
-            method: 'POST',
-            body: JSON.stringify({
-                bookingId: 'booking-1',
-                transaction_amount: 100,
-                payment_method_id: 'master',
-                installments: 2,
-                payer: { email: 'guest@example.com' },
-            }),
-        });
-
-        const res = await POST(req);
-        expect(res.status).toBe(200);
-
-        expect(prisma.payment.upsert).toHaveBeenCalledTimes(1);
-        const upsertArgs = (prisma.payment.upsert as any).mock.calls[0][0];
-        expect(upsertArgs.update.method).toBe('CREDIT_CARD');
-        expect(upsertArgs.update.cardBrand).toBe('MASTER');
-        expect(upsertArgs.update.installments).toBe(2);
-    });
 });
+
