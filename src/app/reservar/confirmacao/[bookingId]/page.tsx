@@ -4,7 +4,58 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { formatDateBR } from '@/lib/date';
-import { trackPurchase } from '@/lib/analytics';
+
+declare global {
+    interface Window {
+        gtag?: (...args: unknown[]) => void;
+        dataLayer?: Array<Record<string, unknown>>;
+    }
+}
+
+function trackPurchaseOnce(booking: any) {
+    if (typeof window === 'undefined') return;
+    if (!booking?.id) return;
+
+    const bookingStatus = String(booking?.status || '').toUpperCase();
+    const paymentStatus = String(booking?.payment?.status || '').toUpperCase();
+    const approved = bookingStatus === 'CONFIRMED' || paymentStatus === 'APPROVED';
+    if (!approved) return;
+
+    const storageKey = `purchase_sent_${booking.id}`;
+    if (window.localStorage.getItem(storageKey)) return;
+
+    const value = Number(booking?.totalPrice || 0);
+    const payload = {
+        transaction_id: String(booking.id),
+        value: Number.isFinite(value) ? value : 0,
+        currency: 'BRL',
+        items: [
+            {
+                item_id: String(booking?.roomType?.id || booking?.roomTypeId || 'quarto'),
+                item_name: String(booking?.roomType?.name || 'Hospedagem'),
+                quantity: 1,
+                price: Number.isFinite(value) ? value : 0,
+            },
+        ],
+    };
+
+    const hasGtag = typeof window.gtag === 'function';
+    const hasDataLayer = Array.isArray(window.dataLayer);
+    if (!hasGtag && !hasDataLayer) return;
+
+    if (hasGtag) {
+        window.gtag?.('event', 'purchase', payload);
+    }
+
+    if (hasDataLayer) {
+        window.dataLayer?.push({
+            event: 'purchase',
+            ecommerce: payload,
+        });
+    }
+
+    window.localStorage.setItem(storageKey, new Date().toISOString());
+}
 
 export default function ConfirmacaoPage() {
     const params = useParams();
@@ -18,7 +69,6 @@ export default function ConfirmacaoPage() {
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const lastStatusRef = useRef<string | null>(null);
     const redirectRef = useRef<NodeJS.Timeout | null>(null);
-    const purchaseTrackedRef = useRef(false);
 
     const fetchBooking = useCallback(async () => {
         if (!bookingId) return;
@@ -44,31 +94,6 @@ export default function ConfirmacaoPage() {
                     setStatusMessage('✅ Pagamento aprovado! Sua reserva está confirmada.');
                     setPolling(false);
                     if (pollRef.current) clearInterval(pollRef.current);
-                    if (!purchaseTrackedRef.current) {
-                        const checkInDate = data?.checkIn ? new Date(String(data.checkIn)) : null;
-                        const checkOutDate = data?.checkOut ? new Date(String(data.checkOut)) : null;
-                        const diffTime = checkInDate && checkOutDate ? checkOutDate.getTime() - checkInDate.getTime() : 0;
-                        const nights = diffTime > 0 ? Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24))) : 1;
-                        const totalValue = Number(data?.totalPrice || 0);
-                        const roomTypeId = String(data?.roomType?.id || data?.roomTypeId || 'room_unknown');
-                        const roomName = String(data?.roomType?.name || 'Hospedagem');
-
-                        trackPurchase({
-                            transactionId: String(data?.id || bookingId),
-                            value: totalValue,
-                            currency: 'BRL',
-                            items: [
-                                {
-                                    item_id: roomTypeId,
-                                    item_name: roomName,
-                                    item_category: 'Hospedagem',
-                                    price: nights > 0 ? Number((totalValue / nights).toFixed(2)) : totalValue,
-                                    quantity: nights > 0 ? nights : 1,
-                                },
-                            ],
-                        });
-                        purchaseTrackedRef.current = true;
-                    }
                     if (prevStatus && prevStatus !== 'CONFIRMED') {
                         setStatusToast('Pagamento aprovado!');
                         setTimeout(() => setStatusToast(''), 3000);
@@ -114,6 +139,10 @@ export default function ConfirmacaoPage() {
             if (redirectRef.current) clearTimeout(redirectRef.current);
         };
     }, [fetchBooking]);
+
+    useEffect(() => {
+        trackPurchaseOnce(booking);
+    }, [booking]);
 
     if (loading)
         return (
@@ -201,3 +230,4 @@ export default function ConfirmacaoPage() {
         </main>
     );
 }
+

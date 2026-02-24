@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
-import { trackBeginCheckout, trackClickWhatsApp, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 
 import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
@@ -96,8 +95,6 @@ function ReservarContent() {
     const mountedRef = useRef(true);
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
-    const viewItemListKeyRef = useRef<string>('');
-    const beginCheckoutTrackedBookingRef = useRef<string>('');
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
@@ -135,6 +132,18 @@ function ReservarContent() {
     const formatDate = (dateString: string) => {
         if (!dateString) return '';
         return formatDateBRFromYmd(dateString);
+    };
+
+    const parseAmount = (value: unknown) => {
+        if (typeof value === 'number') return Number.isFinite(value) ? value : Number.NaN;
+
+        const raw = String(value ?? '').trim();
+        if (!raw) return Number.NaN;
+
+        // Suporta "1436.00" e tambem "1.436,00".
+        const normalized = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+        const parsed = Number.parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : Number.NaN;
     };
 
     const stayNights = useMemo(() => {
@@ -277,23 +286,6 @@ function ReservarContent() {
         };
     }, [fetchAvailability]);
 
-    useEffect(() => {
-        if (!availableRooms || availableRooms.length === 0) return;
-        if (selectedRoom) return;
-
-        const listKey = `${checkIn || ''}|${checkOut || ''}|${adults}|${children}|${availableRooms.map((room) => room.id).join(',')}`;
-        if (viewItemListKeyRef.current === listKey) return;
-
-        trackViewItemList(
-            availableRooms.map((room) => ({
-                id: room.id,
-                name: room.name,
-                totalPrice: room.totalPrice,
-            }))
-        );
-        viewItemListKeyRef.current = listKey;
-    }, [availableRooms, selectedRoom, checkIn, checkOut, adults, children]);
-
     const releaseCouponReservation = useCallback(async (reservationId?: string) => {
         if (!reservationId) return;
         try {
@@ -415,16 +407,6 @@ function ReservarContent() {
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
     const handleSelectRoom = (room: Room) => {
-        const index = Array.isArray(availableRooms) ? availableRooms.findIndex((item) => item.id === room.id) : -1;
-        trackSelectItem(
-            {
-                id: room.id,
-                name: room.name,
-                totalPrice: room.totalPrice,
-            },
-            index >= 0 ? index : 0
-        );
-
         if (selectedRoom?.id && selectedRoom.id !== room.id) {
             clearCouponState(true);
         }
@@ -484,12 +466,22 @@ function ReservarContent() {
             }
 
             const booking = await bookingResponse.json();
+            const parsedAmount = parseAmount(booking?.totalPrice);
+
             setPaymentBookingId(booking.id);
-            setPaymentAmount(Number(booking.totalPrice));
+            setPaymentAmount(parsedAmount);
+            setPixData(null);
+
+            if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+                setPaymentStatus('error');
+                setPaymentStatusMessage('');
+                setPaymentError('Nao foi possivel iniciar o pagamento. Valor da reserva invalido. Refaça a busca ou fale conosco no WhatsApp.');
+                return;
+            }
+
             setPaymentError('');
             setPaymentStatus('idle');
             setPaymentStatusMessage('');
-            setPixData(null);
 
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
@@ -518,34 +510,17 @@ function ReservarContent() {
     };
 
     useEffect(() => {
-        if (!paymentBookingId || !selectedRoom) return;
-        if (beginCheckoutTrackedBookingRef.current === paymentBookingId) return;
-
-        const value = Number(paymentAmount || selectedRoom.totalPrice || bookingTotal || 0);
-        trackBeginCheckout({
-            bookingId: paymentBookingId,
-            value,
-            currency: 'BRL',
-            items: [
-                {
-                    item_id: selectedRoom.id,
-                    item_name: selectedRoom.name,
-                    item_category: 'Hospedagem',
-                    price: value,
-                    quantity: 1,
-                },
-            ],
-        });
-        beginCheckoutTrackedBookingRef.current = paymentBookingId;
-    }, [paymentBookingId, paymentAmount, selectedRoom, bookingTotal]);
-
-    useEffect(() => {
-        if (!paymentBookingId || !paymentAmount) return;
+        if (!paymentBookingId || paymentAmount === null || Number.isNaN(paymentAmount)) return;
 
         let cancelled = false;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
         if (!publicKey) {
             setPaymentError('Chave pública do Mercado Pago não configurada.');
+            return;
+        }
+
+        if (paymentAmount <= 0) {
+            setPaymentError('Nao foi possivel carregar o formulario de pagamento: valor da reserva deve ser maior que zero.');
             return;
         }
 
@@ -583,7 +558,6 @@ function ReservarContent() {
                         paymentMethods: {
                             creditCard: 'all',
                             debitCard: 'all',
-                            pix: 'all',
                             bankTransfer: 'all',
                         },
                     },
@@ -652,13 +626,13 @@ function ReservarContent() {
                                 setPaymentError('Preencha o nome do titular manualmente (sem auto preenchimento) e tente novamente.');
                                 return;
                             }
-                            setPaymentError('Erro no pagamento. Tente novamente.');
+                            setPaymentError('Nao foi possivel carregar o formulario de pagamento. Atualize a pagina e tente sem bloqueadores de anuncio.');
                         },
                     },
                 });
             } catch (err) {
                 console.error(err);
-                setPaymentError('Não foi possível inicializar o pagamento.');
+                setPaymentError('Nao foi possivel inicializar o pagamento. Verifique sua conexao e tente sem bloqueadores de anuncio.');
             }
         };
 
@@ -749,12 +723,7 @@ function ReservarContent() {
                         Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
                     <Button asChild>
-                        <a
-                            href={whatsappUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => trackClickWhatsApp('reservar_over_capacity')}
-                        >
+                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                             Falar com a pousada no WhatsApp
                         </a>
                     </Button>
@@ -1276,13 +1245,4 @@ export default function ReservarPage() {
         </Suspense>
     );
 }
-
-
-
-
-
-
-
-
-
 

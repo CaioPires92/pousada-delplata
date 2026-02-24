@@ -1,10 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MapPin, Phone, Mail, MessageCircle } from "lucide-react";
+import { MapPin, Phone, Mail, MessageCircle, Instagram, Facebook } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { trackClickWhatsApp } from "@/lib/analytics";
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
@@ -92,7 +91,7 @@ export default function Footer() {
                             </li>
                             <li className="flex items-center gap-3 text-white/80 hover:text-secondary transition-colors">
                                 <MessageCircle className="w-5 h-5 flex-shrink-0" />
-                                <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer" onClick={() => trackClickWhatsApp('footer_whatsapp')}>
+                                <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer">
                                     (19) 99965-4866
                                 </a>
                             </li>
@@ -100,6 +99,18 @@ export default function Footer() {
                                 <Mail className="w-5 h-5 flex-shrink-0" />
                                 <a href="mailto:contato@pousadadelplata.com.br">
                                     contato@pousadadelplata.com.br
+                                </a>
+                            </li>
+                            <li className="flex items-center gap-3 text-white/80 hover:text-secondary transition-colors">
+                                <Instagram className="w-5 h-5 flex-shrink-0" />
+                                <a href="https://www.instagram.com/pousadadelplata/" target="_blank" rel="noopener noreferrer">
+                                    Instagram
+                                </a>
+                            </li>
+                            <li className="flex items-center gap-3 text-white/80 hover:text-secondary transition-colors">
+                                <Facebook className="w-5 h-5 flex-shrink-0" />
+                                <a href="https://www.facebook.com/Delplata/?locale=pt_BR" target="_blank" rel="noopener noreferrer">
+                                    Facebook
                                 </a>
                             </li>
                         </ul>
@@ -117,6 +128,23 @@ export default function Footer() {
                         className="text-center text-white/60 text-sm"
                     >
                         © {currentYear} Hotel Pousada Delplata. Todos os direitos reservados.
+                    </motion.p>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                        className="mt-2 text-center text-white/60 text-sm"
+                    >
+                        Desenvolvido por{" "}
+                        <a
+                            href="https://www.instagram.com/caiopires92/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-secondary transition-colors"
+                        >
+                            Caio Pires
+                        </a>
+                        .
                     </motion.p>
                 </div>
             </div>

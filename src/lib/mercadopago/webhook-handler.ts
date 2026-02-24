@@ -3,27 +3,12 @@ import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
+import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 
 type MercadoPagoWebhookBody = {
     type?: string;
     data?: { id?: string | number };
 };
-
-const CARD_BRANDS = new Set([
-    'visa',
-    'master',
-    'mastercard',
-    'amex',
-    'american_express',
-    'elo',
-    'hipercard',
-    'maestro',
-    'cabal',
-    'naranja',
-    'diners',
-    'discover',
-    'jcb',
-]);
 
 function validateSignature(params: {
     signature: string | null;
@@ -67,7 +52,6 @@ function normalizeCardBrand(params: {
     const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
 
     if (!paymentMethodId) return null;
-    if (CARD_BRANDS.has(paymentMethodId)) return paymentMethodId.toUpperCase();
     if (paymentTypeId !== 'credit_card' && paymentTypeId !== 'debit_card') return null;
     if (paymentMethodId === 'credit_card' || paymentMethodId === 'debit_card') return null;
 
@@ -250,6 +234,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let financialSnapshotUpdated = false;
             const paymentMethodValue = paymentMethod || booking.payment?.method || null;
             let paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
+            let purchaseEventQueued = false;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
                 if (currentBookingStatus === 'PENDING') {
@@ -319,6 +304,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             if (booking.payment) {
                 if (mapped.paymentStatus === 'APPROVED' && currentPaymentStatus !== 'APPROVED') {
                     emailQueued = true;
+                    purchaseEventQueued = true;
                 }
 
                 if (mapped.paymentStatus === 'APPROVED') {
@@ -409,6 +395,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 });
                 paymentInstallmentsValue = paymentInstallments;
                 paymentStatus = initialStatus;
+                purchaseEventQueued = initialStatus === 'APPROVED';
             }
 
             if (mapped.paymentStatus === 'APPROVED') {
@@ -465,6 +452,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 couponReleased,
                 couponConfirmed,
                 financialSnapshotUpdated,
+                purchaseEventQueued,
             };
         });
 
@@ -480,6 +468,9 @@ export async function handleMercadoPagoWebhook(request: Request) {
         let emailErrorMessage: string | undefined;
         let adminAlertSent = false;
         let adminAlertErrorMessage: string | undefined;
+        let gaPurchaseSent = false;
+        let gaPurchaseSkipped: string | undefined;
+        let gaPurchaseError: string | undefined;
         const { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } = await import('@/lib/email');
 
         if (result.emailQueued && mpStatus === 'approved') {
@@ -557,6 +548,21 @@ export async function handleMercadoPagoWebhook(request: Request) {
             }
         }
 
+        if (result.purchaseEventQueued && result.paymentStatus === 'APPROVED') {
+            const gaResult = await sendGa4PurchaseServerEvent({
+                transactionId: result.booking.id,
+                value: Number(result.booking.totalPrice),
+                currency: 'BRL',
+                itemId: result.booking.roomType?.id || result.booking.roomTypeId,
+                itemName: result.booking.roomType?.name || 'Hospedagem',
+                userId: result.booking.guest?.id || result.booking.guestId,
+                source: 'mp_webhook',
+            });
+
+            gaPurchaseSent = gaResult.ok;
+            gaPurchaseSkipped = gaResult.skipped;
+            gaPurchaseError = gaResult.error;
+        }
         opsLog('info', 'MP_WEBHOOK_PROCESSED', {
             bookingId,
             bookingIdShort: bookingId.slice(0, 8),
@@ -570,6 +576,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
             couponReleased: result.couponReleased,
             couponConfirmed: result.couponConfirmed,
             financialSnapshotUpdated: result.financialSnapshotUpdated,
+            adminAlertSent,
+            adminAlertErrorMessage,
+            purchaseEventQueued: result.purchaseEventQueued,
+            gaPurchaseSent,
+            gaPurchaseSkipped,
+            gaPurchaseError,
         });
         return NextResponse.json({
             ok: true,
@@ -583,6 +595,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
             couponReleased: result.couponReleased,
             couponConfirmed: result.couponConfirmed,
             financialSnapshotUpdated: result.financialSnapshotUpdated,
+            adminAlertSent,
+            adminAlertErrorMessage,
+            purchaseEventQueued: result.purchaseEventQueued,
+            gaPurchaseSent,
+            gaPurchaseSkipped,
+            gaPurchaseError,
         });
     } catch (error) {
         Sentry.captureException(error);
@@ -596,8 +614,4 @@ export async function handleMercadoPagoWebhook(request: Request) {
         return NextResponse.json({ error: 'Erro ao processar webhook', message }, { status: 500 });
     }
 }
-
-
-
-
 

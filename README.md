@@ -41,6 +41,7 @@ scripts/manage-pousada.ts
 - Configure variáveis na Vercel:
   - DATABASE_URL (Turso), DATABASE_AUTH_TOKEN
   - NEXT_PUBLIC_MP_PUBLIC_KEY, MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET
+  - GA4_MEASUREMENT_ID, GA4_API_SECRET
   - ADMIN_JWT_SECRET
   - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
   - NEXT_PUBLIC_APP_URL (após primeiro deploy)
@@ -60,3 +61,4 @@ npm run diag:legacy:all
 Scripts legados/manuais foram movidos para:
 - `scripts/diagnostics/`
 - `scripts/manual/`
+
