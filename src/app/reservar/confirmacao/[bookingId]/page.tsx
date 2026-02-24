@@ -8,7 +8,7 @@ import { formatDateBR } from '@/lib/date';
 declare global {
     interface Window {
         gtag?: (...args: unknown[]) => void;
-        dataLayer?: Array<Record<string, unknown>>;
+        dataLayer?: unknown[];
     }
 }
 
