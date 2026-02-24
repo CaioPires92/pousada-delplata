@@ -59,9 +59,18 @@ function formatBrl(value: number) {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function getMinTransactionAmount() {
-    const parsed = Number.parseFloat(String(process.env.MP_MIN_TRANSACTION_AMOUNT ?? '1'));
-    if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+function isPixPayment(params: { paymentMethodId: string; paymentTypeId: string }) {
+    const paymentMethodId = String(params.paymentMethodId || '').trim().toLowerCase();
+    const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
+
+    return paymentMethodId === 'pix' || paymentTypeId === 'bank_transfer';
+}
+
+function getMinTransactionAmount(isPix: boolean) {
+    const envKey = isPix ? 'MP_MIN_TRANSACTION_AMOUNT_PIX' : 'MP_MIN_TRANSACTION_AMOUNT';
+    const fallback = isPix ? 0.01 : 1;
+    const parsed = Number.parseFloat(String(process.env[envKey] ?? fallback));
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
     return parsed;
 }
 
@@ -156,7 +165,11 @@ export async function POST(request: Request) {
 
         const bookingAmount = Number(booking.totalPrice);
         const requestedAmount = Number(transaction_amount);
-        const minTransactionAmount = getMinTransactionAmount();
+        const pixPayment = isPixPayment({
+            paymentMethodId: String(paymentMethodId || ''),
+            paymentTypeId,
+        });
+        const minTransactionAmount = getMinTransactionAmount(pixPayment);
 
         ctxRequestedAmount = requestedAmount;
         if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
@@ -164,6 +177,10 @@ export async function POST(request: Request) {
         }
 
         if (bookingAmount < minTransactionAmount || requestedAmount < minTransactionAmount) {
+            const minimumMessage = pixPayment
+                ? `Valor minimo para pagamento via Pix e R$ ${formatBrl(minTransactionAmount)}.`
+                : `Este valor nao permite pagamento com cartao. Escolha Pix ou aumente o valor da reserva (minimo R$ ${formatBrl(minTransactionAmount)}).`;
+
             opsLog('warn', 'MP_PAYMENT_AMOUNT_BELOW_MINIMUM', {
                 bookingId,
                 bookingAmount,
@@ -171,11 +188,12 @@ export async function POST(request: Request) {
                 minTransactionAmount,
                 paymentMethodId,
                 paymentTypeId,
+                pixPayment,
             });
             return NextResponse.json(
                 {
                     error: 'transaction_amount inválido',
-                    message: `Este valor nao permite pagamento com cartao. Escolha Pix ou aumente o valor da reserva (minimo R$ ${formatBrl(minTransactionAmount)}).`,
+                    message: minimumMessage,
                 },
                 { status: 400 }
             );
@@ -360,14 +378,4 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erro ao processar pagamento', message: error?.message || 'Unknown error' }, { status: 500 });
     }
 }
-
-
-
-
-
-
-
-
-
-
 

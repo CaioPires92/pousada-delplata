@@ -74,6 +74,34 @@ describe('POST /api/mercadopago/payment', () => {
         expect(String(data.message)).toContain('Pix indisponível');
     });
 
+    it('allows PIX payment below card minimum when booking total matches', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue({
+            id: 'booking-1',
+            totalPrice: 0.3,
+            payment: null,
+        });
+
+        mockCreate.mockResolvedValue({
+            id: 'mp-1',
+            status: 'pending',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 0.3,
+                payment_method_id: 'pix',
+                payment_type_id: 'bank_transfer',
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(mockCreate).toHaveBeenCalled();
+    });
     it('returns 400 for invalid transaction_amount returned by MP', async () => {
         mockCreate.mockRejectedValue({
             status: 400,
