@@ -33,6 +33,8 @@ interface Booking {
     } | null;
 }
 
+type BookingAction = 'test' | 'expire' | 'assist' | 'delete';
+
 const BRAND_ALIASES: Record<string, string> = {
     MASTERCARD: 'MASTER',
     AMERICAN_EXPRESS: 'AMEX',
@@ -133,13 +135,27 @@ function formatInstallments(payment?: Booking['payment']) {
     return `${installments}x`;
 }
 
+function askActionReason(actionLabel: string) {
+    const input = window.prompt(`Motivo para ${actionLabel}:`);
+    const reason = String(input || '').trim().replace(/\s+/g, ' ');
+    if (!reason) {
+        window.alert('Motivo obrigatório.');
+        return null;
+    }
+    if (reason.length < 5) {
+        window.alert('Informe um motivo com pelo menos 5 caracteres.');
+        return null;
+    }
+    return reason;
+}
+
 export default function AdminReservasPage() {
     const router = useRouter();
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
-    const [testPaymentBusyId, setTestPaymentBusyId] = useState<string | null>(null);
-    const [testPaymentFeedback, setTestPaymentFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [actionBusy, setActionBusy] = useState<{ bookingId: string; action: BookingAction } | null>(null);
+    const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
 
     const fetchBookings = useCallback(async () => {
@@ -163,38 +179,105 @@ export default function AdminReservasPage() {
     useEffect(() => {
         fetchBookings();
     }, [fetchBookings]);
+
+    const runBookingAction = useCallback(async (params: {
+        bookingId: string;
+        action: BookingAction;
+        endpoint: string;
+        method?: 'POST' | 'DELETE';
+        successMessage: string;
+        reason?: string;
+    }) => {
+        setActionBusy({ bookingId: params.bookingId, action: params.action });
+        setActionFeedback(null);
+
+        try {
+            const response = await fetch(params.endpoint, {
+                method: params.method || 'POST',
+                headers: params.reason ? { 'Content-Type': 'application/json' } : undefined,
+                body: params.reason ? JSON.stringify({ reason: params.reason }) : undefined,
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(data?.message || data?.error || 'Nao foi possivel concluir a acao.');
+            }
+
+            setActionFeedback({ type: 'success', message: params.successMessage });
+            await fetchBookings();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Nao foi possivel concluir a acao.';
+            setActionFeedback({ type: 'error', message });
+        } finally {
+            setActionBusy(null);
+        }
+    }, [fetchBookings]);
+
     const approveTestPayment = useCallback(async (bookingId: string) => {
         if (!testPaymentsEnabled) return;
 
         const confirmed = window.confirm('Confirmar pagamento manual de teste para esta reserva?');
         if (!confirmed) return;
 
-        setTestPaymentBusyId(bookingId);
-        setTestPaymentFeedback(null);
+        await runBookingAction({
+            bookingId,
+            action: 'test',
+            endpoint: '/api/admin/bookings/' + bookingId + '/approve-test',
+            method: 'POST',
+            successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' confirmada como pagamento de teste.',
+        });
+    }, [runBookingAction, testPaymentsEnabled]);
 
-        try {
-            const response = await fetch(`/api/admin/bookings/${bookingId}/approve-test`, {
-                method: 'POST',
-            });
-            const data = await response.json().catch(() => ({}));
+    const markBookingExpired = useCallback(async (bookingId: string) => {
+        const confirmed = window.confirm('Marcar esta reserva como expirada?');
+        if (!confirmed) return;
 
-            if (!response.ok) {
-                throw new Error(data?.message || data?.error || 'Nao foi possivel confirmar o pagamento de teste.');
-            }
+        const reason = askActionReason('expirar a reserva');
+        if (!reason) return;
 
-            setTestPaymentFeedback({
-                type: 'success',
-                message: `Reserva ${bookingId.slice(0, 8)} confirmada como pagamento de teste.`,
-            });
+        await runBookingAction({
+            bookingId,
+            action: 'expire',
+            endpoint: '/api/admin/bookings/' + bookingId + '/expire',
+            method: 'POST',
+            successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' marcada como expirada.',
+            reason,
+        });
+    }, [runBookingAction]);
 
-            await fetchBookings();
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Nao foi possivel confirmar o pagamento de teste.';
-            setTestPaymentFeedback({ type: 'error', message });
-        } finally {
-            setTestPaymentBusyId(null);
-        }
-    }, [fetchBookings, testPaymentsEnabled]);
+    const sendAssistEmail = useCallback(async (bookingId: string) => {
+        const confirmed = window.confirm('Enviar email de ajuda para este hóspede?');
+        if (!confirmed) return;
+
+        const reason = askActionReason('enviar email de ajuda');
+        if (!reason) return;
+
+        await runBookingAction({
+            bookingId,
+            action: 'assist',
+            endpoint: '/api/admin/bookings/' + bookingId + '/assist-email',
+            method: 'POST',
+            successMessage: 'Email de ajuda enviado para a reserva ' + bookingId.slice(0, 8) + '.',
+            reason,
+        });
+    }, [runBookingAction]);
+
+    const deleteBooking = useCallback(async (bookingId: string) => {
+        const confirmed = window.confirm('Excluir esta reserva? Esta ação não pode ser desfeita.');
+        if (!confirmed) return;
+
+        const reason = askActionReason('excluir a reserva');
+        if (!reason) return;
+
+        await runBookingAction({
+            bookingId,
+            action: 'delete',
+            endpoint: '/api/admin/bookings/' + bookingId,
+            method: 'DELETE',
+            successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' excluida com sucesso.',
+            reason,
+        });
+    }, [runBookingAction]);
 
     const filteredBookings = bookings.filter((b) => {
         if (filter === 'ALL') return true;
@@ -260,9 +343,9 @@ export default function AdminReservasPage() {
                 </div>
             ) : null}
 
-            {testPaymentFeedback ? (
-                <div className={testPaymentFeedback.type === 'success' ? styles.testFeedbackSuccess : styles.testFeedbackError}>
-                    {testPaymentFeedback.message}
+            {actionFeedback ? (
+                <div className={actionFeedback.type === 'success' ? styles.testFeedbackSuccess : styles.testFeedbackError}>
+                    {actionFeedback.message}
                 </div>
             ) : null}
 
@@ -285,7 +368,7 @@ export default function AdminReservasPage() {
                                 <th>Pagamento</th>
                                 <th>Status</th>
                                 <th>Criada em</th>
-                                {testPaymentsEnabled ? <th>Ações</th> : null}
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -332,31 +415,57 @@ export default function AdminReservasPage() {
                                         <span className={getStatusBadge(booking.status)}>{getStatusText(booking.status)}</span>
                                     </td>
                                     <td>{formatDateBR(booking.createdAt)}</td>
-                                    {testPaymentsEnabled ? (
-                                        <td className={styles.testActionCell}>
+                                    <td className={styles.testActionCell}>
+                                        <div className={styles.actionsGroup}>
                                             <button
                                                 type="button"
-                                                className={styles.testActionButton}
-                                                onClick={() => approveTestPayment(booking.id)}
-                                                disabled={
-                                                    testPaymentBusyId === booking.id
-                                                    || (
-                                                        String(booking.status || '').toUpperCase() === 'CONFIRMED'
-                                                        && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
-                                                    )
-                                                }
+                                                className={styles.secondaryActionButton}
+                                                onClick={() => markBookingExpired(booking.id)}
+                                                disabled={Boolean(actionBusy)}
                                             >
-                                                {testPaymentBusyId === booking.id
-                                                    ? 'Processando...'
-                                                    : (
+                                                {actionBusy?.bookingId === booking.id && actionBusy?.action === 'expire' ? 'Processando...' : 'Expirar'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={styles.secondaryActionButton}
+                                                onClick={() => sendAssistEmail(booking.id)}
+                                                disabled={Boolean(actionBusy)}
+                                            >
+                                                {actionBusy?.bookingId === booking.id && actionBusy?.action === 'assist' ? 'Processando...' : 'Enviar ajuda'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={styles.dangerActionButton}
+                                                onClick={() => deleteBooking(booking.id)}
+                                                disabled={Boolean(actionBusy)}
+                                            >
+                                                {actionBusy?.bookingId === booking.id && actionBusy?.action === 'delete' ? 'Processando...' : 'Excluir'}
+                                            </button>
+                                            {testPaymentsEnabled ? (
+                                                <button
+                                                    type="button"
+                                                    className={styles.testActionButton}
+                                                    onClick={() => approveTestPayment(booking.id)}
+                                                    disabled={
+                                                        Boolean(actionBusy)
+                                                        || (
                                                             String(booking.status || '').toUpperCase() === 'CONFIRMED'
                                                             && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
                                                         )
-                                                        ? 'Aprovada'
-                                                        : 'Aprovar teste'}
-                                            </button>
-                                        </td>
-                                    ) : null}
+                                                    }
+                                                >
+                                                    {actionBusy?.bookingId === booking.id && actionBusy?.action === 'test'
+                                                        ? 'Processando...'
+                                                        : (
+                                                                String(booking.status || '').toUpperCase() === 'CONFIRMED'
+                                                                && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
+                                                            )
+                                                            ? 'Aprovada'
+                                                            : 'Aprovar teste'}
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

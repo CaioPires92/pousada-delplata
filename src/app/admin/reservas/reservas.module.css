@@ -323,6 +323,34 @@
     white-space: nowrap;
 }
 
+.actionsGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.secondaryActionButton,
+.dangerActionButton,
+.testActionButton {
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.secondaryActionButton {
+    border: 1px solid #94a3b8;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.dangerActionButton {
+    border: 1px solid #dc2626;
+    background: #dc2626;
+    color: #fff;
+}
+
 .testActionButton {
     border: 1px solid #2563eb;
     background: #2563eb;
@@ -334,7 +362,10 @@
     cursor: pointer;
 }
 
+.secondaryActionButton:disabled,
+.dangerActionButton:disabled,
 .testActionButton:disabled {
     opacity: 0.65;
     cursor: not-allowed;
 }
+
