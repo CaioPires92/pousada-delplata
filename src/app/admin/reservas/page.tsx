@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './reservas.module.css';
 import { formatDateBR } from '@/lib/date';
@@ -34,6 +34,11 @@ interface Booking {
 }
 
 type BookingAction = 'test' | 'expire' | 'assist' | 'delete';
+
+type ActionModalState = {
+    booking: Booking;
+    action: BookingAction;
+};
 
 const BRAND_ALIASES: Record<string, string> = {
     MASTERCARD: 'MASTER',
@@ -135,6 +140,32 @@ function formatInstallments(payment?: Booking['payment']) {
     return `${installments}x`;
 }
 
+function isBookingApproved(booking: Booking) {
+    return String(booking.status || '').toUpperCase() === 'CONFIRMED'
+        && String(booking.payment?.status || '').toUpperCase() === 'APPROVED';
+}
+
+function getActionLabel(action: BookingAction) {
+    const labels: Record<BookingAction, string> = {
+        expire: 'Expirar reserva',
+        assist: 'Enviar ajuda',
+        delete: 'Excluir reserva',
+        test: 'Aprovar teste',
+    };
+    return labels[action];
+}
+
+function getActionDescription(action: BookingAction, booking: Booking) {
+    if (action === 'delete') {
+        if (String(booking.payment?.status || '').toUpperCase() === 'APPROVED') {
+            return 'Esta reserva possui pagamento aprovado e será excluída permanentemente. Esta ação não pode ser desfeita.';
+        }
+        return 'A reserva será excluída permanentemente. Esta ação não pode ser desfeita.';
+    }
+    if (action === 'expire') return 'A reserva será marcada como expirada.';
+    if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
+    return 'Pagamento de teste será aprovado para esta reserva.';
+}
 
 export default function AdminReservasPage() {
     const router = useRouter();
@@ -143,6 +174,8 @@ export default function AdminReservasPage() {
     const [filter, setFilter] = useState('ALL');
     const [actionBusy, setActionBusy] = useState<{ bookingId: string; action: BookingAction } | null>(null);
     const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
+    const [actionSelectValue, setActionSelectValue] = useState<Record<string, string>>({});
     const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
 
     const fetchBookings = useCallback(async () => {
@@ -166,6 +199,17 @@ export default function AdminReservasPage() {
     useEffect(() => {
         fetchBookings();
     }, [fetchBookings]);
+
+    useEffect(() => {
+        if (!actionModal) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setActionModal(null);
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [actionModal]);
 
     const runBookingAction = useCallback(async (params: {
         bookingId: string;
@@ -203,9 +247,6 @@ export default function AdminReservasPage() {
     const approveTestPayment = useCallback(async (bookingId: string) => {
         if (!testPaymentsEnabled) return;
 
-        const confirmed = window.confirm('Confirmar pagamento manual de teste para esta reserva?');
-        if (!confirmed) return;
-
         await runBookingAction({
             bookingId,
             action: 'test',
@@ -216,43 +257,28 @@ export default function AdminReservasPage() {
     }, [runBookingAction, testPaymentsEnabled]);
 
     const markBookingExpired = useCallback(async (bookingId: string) => {
-        const confirmed = window.confirm('Marcar esta reserva como expirada?');
-        if (!confirmed) return;
         await runBookingAction({
             bookingId,
             action: 'expire',
             endpoint: '/api/admin/bookings/' + bookingId + '/expire',
             method: 'POST',
             successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' marcada como expirada.',
-
         });
     }, [runBookingAction]);
 
     const sendAssistEmail = useCallback(async (bookingId: string) => {
-        const confirmed = window.confirm('Enviar email de ajuda para este hóspede?');
-        if (!confirmed) return;
         await runBookingAction({
             bookingId,
             action: 'assist',
             endpoint: '/api/admin/bookings/' + bookingId + '/assist-email',
             method: 'POST',
             successMessage: 'Email de ajuda enviado para a reserva ' + bookingId.slice(0, 8) + '.',
-
         });
     }, [runBookingAction]);
 
     const deleteBooking = useCallback(async (booking: Booking) => {
-        const bookingId = booking.id;
-        const firstConfirm = window.confirm('Excluir esta reserva? Esta ação não pode ser desfeita.');
-        if (!firstConfirm) return;
-
         const approvedPayment = String(booking.payment?.status || '').toUpperCase() === 'APPROVED';
-        const secondMessage = approvedPayment
-            ? 'Tem certeza? Esta reserva possui pagamento aprovado e será excluída permanentemente.'
-            : 'Tem certeza? Esta reserva será excluída permanentemente.';
-
-        const secondConfirm = window.confirm(secondMessage);
-        if (!secondConfirm) return;
+        const bookingId = booking.id;
 
         await runBookingAction({
             bookingId,
@@ -267,10 +293,58 @@ export default function AdminReservasPage() {
         });
     }, [runBookingAction]);
 
+    const executeAction = useCallback(async (booking: Booking, action: BookingAction) => {
+        if (action === 'expire') {
+            await markBookingExpired(booking.id);
+            return;
+        }
+
+        if (action === 'assist') {
+            await sendAssistEmail(booking.id);
+            return;
+        }
+
+        if (action === 'delete') {
+            await deleteBooking(booking);
+            return;
+        }
+
+        if (action === 'test') {
+            await approveTestPayment(booking.id);
+        }
+    }, [approveTestPayment, deleteBooking, markBookingExpired, sendAssistEmail]);
+
+    const confirmActionModal = useCallback(async () => {
+        if (!actionModal) return;
+
+        const { booking, action } = actionModal;
+        setActionModal(null);
+        await executeAction(booking, action);
+    }, [actionModal, executeAction]);
+
+    const onActionSelect = useCallback((booking: Booking, actionValue: string) => {
+        setActionSelectValue((prev) => ({
+            ...prev,
+            [booking.id]: '',
+        }));
+
+        if (!actionValue) return;
+
+        const action = actionValue as BookingAction;
+        setActionModal({ booking, action });
+    }, []);
+
     const filteredBookings = bookings.filter((b) => {
         if (filter === 'ALL') return true;
         return b.status === filter;
     });
+
+    const modalConfirmClass = useMemo(() => {
+        if (!actionModal) return styles.modalConfirmButton;
+        return actionModal.action === 'delete'
+            ? `${styles.modalConfirmButton} ${styles.modalConfirmDangerButton}`
+            : styles.modalConfirmButton;
+    }, [actionModal]);
 
     const getStatusBadge = (status: string) => {
         const badges: Record<string, string> = {
@@ -360,108 +434,113 @@ export default function AdminReservasPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredBookings.map((booking) => (
-                                <tr key={booking.id}>
-                                    <td>
-                                        <code>{booking.id.slice(0, 8)}</code>
-                                    </td>
-                                    <td>
-                                        <div className={styles.guestInfo}>
-                                            <strong>{booking.guest.name}</strong>
-                                            <small>{booking.guest.email}</small>
-                                            <small>{booking.guest.phone}</small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className={styles.guestInfo}>
-                                            <strong className={styles.compactMain}>{Number(booking.adults || 0) + Number(booking.children || 0)} hosp.</strong>
-                                            <small className={styles.compactSub}>{booking.adults}A / {booking.children}C</small>
-                                            {booking.children > 0 ? (
-                                                <small className={styles.compactSub}>
-                                                    Idades: {(() => {
-                                                        const ages = normalizeChildrenAges(booking.childrenAges);
-                                                        return ages.length > 0 ? ages.join(', ') : '-';
-                                                    })()}
-                                                </small>
-                                            ) : null}
-                                        </div>
-                                    </td>
-                                    <td>{booking.roomType.name}</td>
-                                    <td>{formatDateBR(booking.checkIn)}</td>
-                                    <td>{formatDateBR(booking.checkOut)}</td>
-                                    <td>
-                                        <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
-                                    </td>
-                                    <td>
-                                        <div className={styles.guestInfo}>
-                                            <strong className={styles.compactMain}>{formatPaymentType(booking.payment?.method)}</strong>
-                                            <small className={styles.compactSub}>Parc.: {formatInstallments(booking.payment)}</small>
-                                            <small className={styles.compactSub}>Band.: {formatPaymentBrand(booking.payment)}</small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span className={getStatusBadge(booking.status)}>{getStatusText(booking.status)}</span>
-                                    </td>
-                                    <td>{formatDateBR(booking.createdAt)}</td>
-                                    <td className={styles.testActionCell}>
-                                        <div className={styles.actionsGroup}>
-                                            <button
-                                                type="button"
-                                                className={styles.secondaryActionButton}
-                                                onClick={() => markBookingExpired(booking.id)}
-                                                disabled={Boolean(actionBusy)}
-                                            >
-                                                {actionBusy?.bookingId === booking.id && actionBusy?.action === 'expire' ? 'Processando...' : 'Expirar'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={styles.secondaryActionButton}
-                                                onClick={() => sendAssistEmail(booking.id)}
-                                                disabled={Boolean(actionBusy)}
-                                            >
-                                                {actionBusy?.bookingId === booking.id && actionBusy?.action === 'assist' ? 'Processando...' : 'Enviar ajuda'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={styles.dangerActionButton}
-                                                onClick={() => deleteBooking(booking)}
-                                                disabled={Boolean(actionBusy)}
-                                            >
-                                                {actionBusy?.bookingId === booking.id && actionBusy?.action === 'delete' ? 'Processando...' : 'Excluir'}
-                                            </button>
-                                            {testPaymentsEnabled ? (
-                                                <button
-                                                    type="button"
-                                                    className={styles.testActionButton}
-                                                    onClick={() => approveTestPayment(booking.id)}
-                                                    disabled={
-                                                        Boolean(actionBusy)
-                                                        || (
-                                                            String(booking.status || '').toUpperCase() === 'CONFIRMED'
-                                                            && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
-                                                        )
-                                                    }
+                            {filteredBookings.map((booking) => {
+                                const bookingApproved = isBookingApproved(booking);
+
+                                return (
+                                    <tr key={booking.id}>
+                                        <td>
+                                            <code>{booking.id.slice(0, 8)}</code>
+                                        </td>
+                                        <td>
+                                            <div className={styles.guestInfo}>
+                                                <strong>{booking.guest.name}</strong>
+                                                <small>{booking.guest.email}</small>
+                                                <small>{booking.guest.phone}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className={styles.guestInfo}>
+                                                <strong className={styles.compactMain}>{Number(booking.adults || 0) + Number(booking.children || 0)} hosp.</strong>
+                                                <small className={styles.compactSub}>{booking.adults}A / {booking.children}C</small>
+                                                {booking.children > 0 ? (
+                                                    <small className={styles.compactSub}>
+                                                        Idades: {(() => {
+                                                            const ages = normalizeChildrenAges(booking.childrenAges);
+                                                            return ages.length > 0 ? ages.join(', ') : '-';
+                                                        })()}
+                                                    </small>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                        <td>{booking.roomType.name}</td>
+                                        <td>{formatDateBR(booking.checkIn)}</td>
+                                        <td>{formatDateBR(booking.checkOut)}</td>
+                                        <td>
+                                            <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
+                                        </td>
+                                        <td>
+                                            <div className={styles.guestInfo}>
+                                                <strong className={styles.compactMain}>{formatPaymentType(booking.payment?.method)}</strong>
+                                                <small className={styles.compactSub}>Parc.: {formatInstallments(booking.payment)}</small>
+                                                <small className={styles.compactSub}>Band.: {formatPaymentBrand(booking.payment)}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={getStatusBadge(booking.status)}>{getStatusText(booking.status)}</span>
+                                        </td>
+                                        <td>{formatDateBR(booking.createdAt)}</td>
+                                        <td className={styles.testActionCell}>
+                                            <div className={styles.actionSelectWrap}>
+                                                <select
+                                                    className={styles.actionSelect}
+                                                    value={actionSelectValue[booking.id] || ''}
+                                                    onChange={(event) => onActionSelect(booking, event.target.value)}
+                                                    disabled={Boolean(actionBusy)}
                                                 >
-                                                    {actionBusy?.bookingId === booking.id && actionBusy?.action === 'test'
-                                                        ? 'Processando...'
-                                                        : (
-                                                                String(booking.status || '').toUpperCase() === 'CONFIRMED'
-                                                                && String(booking.payment?.status || '').toUpperCase() === 'APPROVED'
-                                                            )
-                                                            ? 'Aprovada'
-                                                            : 'Aprovar teste'}
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                                    <option value="">Selecionar...</option>
+                                                    <option value="expire">Expirar reserva</option>
+                                                    <option value="assist">Enviar ajuda</option>
+                                                    <option value="delete">Excluir reserva</option>
+                                                    {testPaymentsEnabled ? (
+                                                        <option value="test" disabled={bookingApproved}>
+                                                            {bookingApproved ? 'Aprovar teste (já aprovada)' : 'Aprovar teste'}
+                                                        </option>
+                                                    ) : null}
+                                                </select>
+                                                {actionBusy?.bookingId === booking.id ? (
+                                                    <small className={styles.actionHint}>Processando...</small>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
             )}
+
+            {actionModal ? (
+                <div className={styles.modalBackdrop} onClick={() => setActionModal(null)}>
+                    <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
+                        <h3 className={styles.modalTitle}>{getActionLabel(actionModal.action)}</h3>
+                        <p className={styles.modalDescription}>{getActionDescription(actionModal.action, actionModal.booking)}</p>
+                        <div className={styles.modalMeta}>
+                            <strong>Reserva:</strong> {actionModal.booking.id.slice(0, 8).toUpperCase()} - {actionModal.booking.guest.name}
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                type="button"
+                                className={styles.modalCancelButton}
+                                onClick={() => setActionModal(null)}
+                                disabled={Boolean(actionBusy)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className={modalConfirmClass}
+                                onClick={confirmActionModal}
+                                disabled={Boolean(actionBusy)}
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </>
     );
 }
-
-
