@@ -40,12 +40,12 @@ describe('DELETE /api/admin/bookings/[bookingId]', () => {
         (prisma.$transaction as any).mockImplementation(async (operations: any[]) => Promise.all(operations));
     });
 
-    it('deletes non-approved booking', async () => {
+    it('deletes booking when first confirmation is present', async () => {
         const response = await DELETE(
             new Request('http://localhost/api/admin/bookings/booking-1', {
                 method: 'DELETE',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ reason: 'Reserva de teste antiga' }),
+                body: JSON.stringify({ confirmDelete: true }),
             }),
             {
                 params: Promise.resolve({ bookingId: 'booking-1' }),
@@ -58,7 +58,7 @@ describe('DELETE /api/admin/bookings/[bookingId]', () => {
         expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
-    it('requires reason', async () => {
+    it('requires delete confirmation payload', async () => {
         const response = await DELETE(new Request('http://localhost/api/admin/bookings/booking-1', { method: 'DELETE' }), {
             params: Promise.resolve({ bookingId: 'booking-1' }),
         });
@@ -67,28 +67,7 @@ describe('DELETE /api/admin/bookings/[bookingId]', () => {
         expect(prisma.booking.findUnique).not.toHaveBeenCalled();
     });
 
-    it('allows delete when approved payment is manual test', async () => {
-        (prisma.booking.findUnique as any).mockResolvedValue({
-            id: 'booking-1',
-            payment: { status: 'APPROVED', provider: 'MANUAL_TEST', method: 'MANUAL_TEST', providerId: 'TEST_123' },
-        });
-
-        const response = await DELETE(
-            new Request('http://localhost/api/admin/bookings/booking-1', {
-                method: 'DELETE',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ reason: 'Limpando base de testes' }),
-            }),
-            {
-                params: Promise.resolve({ bookingId: 'booking-1' }),
-            }
-        );
-
-        expect(response.status).toBe(200);
-        expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    });
-
-    it('blocks delete for approved real payment', async () => {
+    it('requires second confirmation when payment is approved', async () => {
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
             payment: { status: 'APPROVED', provider: 'MERCADOPAGO', method: 'PIX', providerId: '123' },
@@ -98,7 +77,7 @@ describe('DELETE /api/admin/bookings/[bookingId]', () => {
             new Request('http://localhost/api/admin/bookings/booking-1', {
                 method: 'DELETE',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ reason: 'Tentativa administrativa' }),
+                body: JSON.stringify({ confirmDelete: true }),
             }),
             {
                 params: Promise.resolve({ bookingId: 'booking-1' }),
@@ -107,5 +86,26 @@ describe('DELETE /api/admin/bookings/[bookingId]', () => {
 
         expect(response.status).toBe(409);
         expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('deletes approved booking when both confirmations are present', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue({
+            id: 'booking-1',
+            payment: { status: 'APPROVED', provider: 'MERCADOPAGO', method: 'PIX', providerId: '123' },
+        });
+
+        const response = await DELETE(
+            new Request('http://localhost/api/admin/bookings/booking-1', {
+                method: 'DELETE',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ confirmDelete: true, confirmApprovedDelete: true }),
+            }),
+            {
+                params: Promise.resolve({ bookingId: 'booking-1' }),
+            }
+        );
+
+        expect(response.status).toBe(200);
+        expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
 });

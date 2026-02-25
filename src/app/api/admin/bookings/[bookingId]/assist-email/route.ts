@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { sendBookingPendingEmail } from '@/lib/email';
 import { opsLog } from '@/lib/ops-log';
-import { readAdminActionReason } from '@/lib/admin-action-reason';
 
 export const runtime = 'nodejs';
 
@@ -16,7 +15,7 @@ function getAssistEmailCooldownMs() {
 }
 
 export async function POST(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ bookingId: string }> }
 ) {
     try {
@@ -26,17 +25,6 @@ export async function POST(
         const { bookingId } = await params;
         if (!bookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
-        }
-
-        const reason = await readAdminActionReason(request);
-        if (!reason) {
-            return NextResponse.json(
-                {
-                    error: 'ACTION_REASON_REQUIRED',
-                    message: 'Informe o motivo para enviar email de ajuda.',
-                },
-                { status: 400 }
-            );
         }
 
         const booking = await prisma.booking.findUnique({
@@ -119,7 +107,6 @@ export async function POST(
             bookingId: booking.id,
             adminId: auth.adminId,
             guestEmail: booking.guest.email,
-            reason,
         });
 
         return NextResponse.json({

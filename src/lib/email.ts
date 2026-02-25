@@ -471,6 +471,16 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     const paymentDetails = getPaymentReceiptDetails(paymentMethod, paymentInstallments);
     const guestsLabel = formatGuestCount(adults, children);
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
+    const bookingCode = bookingId.slice(0, 8).toUpperCase();
+
+    const rawWhatsApp = String(process.env.HOTEL_WHATSAPP_LINK || HOTEL_WHATSAPP || '').replace(/\D/g, '');
+    const normalizedWhatsApp = rawWhatsApp
+        ? (rawWhatsApp.startsWith('55') ? rawWhatsApp : `55${rawWhatsApp}`)
+        : '5519999654866';
+    const whatsappMessage = encodeURIComponent(
+        `Olá! Preciso de ajuda com a minha reserva ${bookingCode} no ${HOTEL_NAME}.`
+    );
+    const whatsappUrl = `https://wa.me/${normalizedWhatsApp}?text=${whatsappMessage}`;
 
     return `
 <!DOCTYPE html>
@@ -489,23 +499,33 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         .detail-value { color: #333; }
         .total { font-size: 1.3em; color: #0f172a; font-weight: bold; }
         .notice { background: #f8fafc; border-left: 4px solid #0f172a; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        .cta-wrapper { text-align: center; margin: 20px 0; }
+        .cta-button {
+            display: inline-block;
+            background: #22c55e;
+            color: #ffffff !important;
+            text-decoration: none;
+            font-weight: bold;
+            padding: 12px 18px;
+            border-radius: 8px;
+        }
         .footer { text-align: center; padding: 20px; color: #666; font-size: 0.9em; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>⏳ Reserva Pendente</h1>
+        <h1>💬 Estamos aqui para ajudar</h1>
         <p>${HOTEL_NAME}</p>
     </div>
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
-        <p>Sua reserva foi iniciada e, até o momento deste envio, ainda não identificamos a conclusão do pagamento.</p>
+        <p>Vimos que sua reserva foi iniciada e queremos te ajudar no que for preciso para finalizar com tranquilidade.</p>
 
         <div class="booking-details">
             <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
             <div class="detail-row">
                 <span class="detail-label">Número da Reserva:</span>
-                <span class="detail-value">${bookingId.slice(0, 8).toUpperCase()}</span>
+                <span class="detail-value">${bookingCode}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Acomodação:</span>
@@ -544,8 +564,14 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         </div>
 
         <div class="notice">
-            <strong>Mensagem automática:</strong> percebemos que você tentou realizar uma reserva. Até o momento deste envio, ela ainda não foi finalizada. Se quiser, podemos te ajudar a concluir o processo ou tirar qualquer dúvida. Caso você já tenha finalizado, ou não precise de ajuda, desconsidere este e-mail.
+            Se você quiser, nossa equipe pode te ajudar a concluir a reserva ou tirar qualquer dúvida.
         </div>
+
+        <div class="cta-wrapper">
+            <a class="cta-button" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Falar no WhatsApp do Hotel</a>
+        </div>
+
+        <p>Se você já concluiu a reserva ou não precisa de ajuda agora, pode desconsiderar este e-mail.</p>
 
         <p>Em caso de dúvidas, fale conosco:</p>
         <p>📧 Email: ${HOTEL_EMAIL}<br>📱 WhatsApp: ${HOTEL_WHATSAPP}</p>
@@ -716,7 +742,7 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
-            subject: `⏳ Sua reserva ainda não foi finalizada - ${roomName}`,
+            subject: `💬 Precisa de ajuda com sua reserva? - ${roomName}`,
             html: htmlContent,
         });
         return { success: true, messageId: info.messageId };
@@ -855,6 +881,7 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
         return { success: false, error };
     }
 }
+
 
 
 

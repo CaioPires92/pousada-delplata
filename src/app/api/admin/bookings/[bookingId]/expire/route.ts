@@ -2,12 +2,11 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
-import { readAdminActionReason } from '@/lib/admin-action-reason';
 
 export const runtime = 'nodejs';
 
 export async function POST(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ bookingId: string }> }
 ) {
     try {
@@ -17,17 +16,6 @@ export async function POST(
         const { bookingId } = await params;
         if (!bookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
-        }
-
-        const reason = await readAdminActionReason(request);
-        if (!reason) {
-            return NextResponse.json(
-                {
-                    error: 'ACTION_REASON_REQUIRED',
-                    message: 'Informe o motivo para marcar a reserva como expirada.',
-                },
-                { status: 400 }
-            );
         }
 
         const booking = await prisma.booking.findUnique({
@@ -61,7 +49,6 @@ export async function POST(
         opsLog('info', 'ADMIN_BOOKING_MARKED_EXPIRED', {
             bookingId,
             adminId: auth.adminId,
-            reason,
         });
 
         return NextResponse.json({ ok: true, bookingId, status: 'EXPIRED' });

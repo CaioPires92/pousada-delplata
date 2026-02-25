@@ -32,16 +32,9 @@ describe('POST /api/admin/bookings/[bookingId]/expire', () => {
     });
 
     it('expires pending booking', async () => {
-        const response = await POST(
-            new Request('http://localhost/api/admin/bookings/booking-1/expire', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ reason: 'Teste administrativo' }),
-            }),
-            {
-                params: Promise.resolve({ bookingId: 'booking-1' }),
-            }
-        );
+        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/expire', { method: 'POST' }), {
+            params: Promise.resolve({ bookingId: 'booking-1' }),
+        });
         const data = await response.json();
 
         expect(response.status).toBe(200);
@@ -52,15 +45,6 @@ describe('POST /api/admin/bookings/[bookingId]/expire', () => {
         });
     });
 
-    it('requires reason', async () => {
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/expire', { method: 'POST' }), {
-            params: Promise.resolve({ bookingId: 'booking-1' }),
-        });
-
-        expect(response.status).toBe(400);
-        expect(prisma.booking.findUnique).not.toHaveBeenCalled();
-    });
-
     it('blocks when payment is approved', async () => {
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
@@ -68,16 +52,9 @@ describe('POST /api/admin/bookings/[bookingId]/expire', () => {
             payment: { status: 'APPROVED' },
         });
 
-        const response = await POST(
-            new Request('http://localhost/api/admin/bookings/booking-1/expire', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ reason: 'Reserva venceu prazo' }),
-            }),
-            {
-                params: Promise.resolve({ bookingId: 'booking-1' }),
-            }
-        );
+        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/expire', { method: 'POST' }), {
+            params: Promise.resolve({ bookingId: 'booking-1' }),
+        });
 
         expect(response.status).toBe(409);
         expect(prisma.booking.update).not.toHaveBeenCalled();

@@ -135,19 +135,6 @@ function formatInstallments(payment?: Booking['payment']) {
     return `${installments}x`;
 }
 
-function askActionReason(actionLabel: string) {
-    const input = window.prompt(`Motivo para ${actionLabel}:`);
-    const reason = String(input || '').trim().replace(/\s+/g, ' ');
-    if (!reason) {
-        window.alert('Motivo obrigatório.');
-        return null;
-    }
-    if (reason.length < 5) {
-        window.alert('Informe um motivo com pelo menos 5 caracteres.');
-        return null;
-    }
-    return reason;
-}
 
 export default function AdminReservasPage() {
     const router = useRouter();
@@ -186,7 +173,7 @@ export default function AdminReservasPage() {
         endpoint: string;
         method?: 'POST' | 'DELETE';
         successMessage: string;
-        reason?: string;
+        payload?: Record<string, unknown>;
     }) => {
         setActionBusy({ bookingId: params.bookingId, action: params.action });
         setActionFeedback(null);
@@ -194,8 +181,8 @@ export default function AdminReservasPage() {
         try {
             const response = await fetch(params.endpoint, {
                 method: params.method || 'POST',
-                headers: params.reason ? { 'Content-Type': 'application/json' } : undefined,
-                body: params.reason ? JSON.stringify({ reason: params.reason }) : undefined,
+                headers: params.payload ? { 'Content-Type': 'application/json' } : undefined,
+                body: params.payload ? JSON.stringify(params.payload) : undefined,
             });
             const data = await response.json().catch(() => ({}));
 
@@ -231,43 +218,41 @@ export default function AdminReservasPage() {
     const markBookingExpired = useCallback(async (bookingId: string) => {
         const confirmed = window.confirm('Marcar esta reserva como expirada?');
         if (!confirmed) return;
-
-        const reason = askActionReason('expirar a reserva');
-        if (!reason) return;
-
         await runBookingAction({
             bookingId,
             action: 'expire',
             endpoint: '/api/admin/bookings/' + bookingId + '/expire',
             method: 'POST',
             successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' marcada como expirada.',
-            reason,
+
         });
     }, [runBookingAction]);
 
     const sendAssistEmail = useCallback(async (bookingId: string) => {
         const confirmed = window.confirm('Enviar email de ajuda para este hóspede?');
         if (!confirmed) return;
-
-        const reason = askActionReason('enviar email de ajuda');
-        if (!reason) return;
-
         await runBookingAction({
             bookingId,
             action: 'assist',
             endpoint: '/api/admin/bookings/' + bookingId + '/assist-email',
             method: 'POST',
             successMessage: 'Email de ajuda enviado para a reserva ' + bookingId.slice(0, 8) + '.',
-            reason,
+
         });
     }, [runBookingAction]);
 
-    const deleteBooking = useCallback(async (bookingId: string) => {
-        const confirmed = window.confirm('Excluir esta reserva? Esta ação não pode ser desfeita.');
-        if (!confirmed) return;
+    const deleteBooking = useCallback(async (booking: Booking) => {
+        const bookingId = booking.id;
+        const firstConfirm = window.confirm('Excluir esta reserva? Esta ação não pode ser desfeita.');
+        if (!firstConfirm) return;
 
-        const reason = askActionReason('excluir a reserva');
-        if (!reason) return;
+        const approvedPayment = String(booking.payment?.status || '').toUpperCase() === 'APPROVED';
+        const secondMessage = approvedPayment
+            ? 'Tem certeza? Esta reserva possui pagamento aprovado e será excluída permanentemente.'
+            : 'Tem certeza? Esta reserva será excluída permanentemente.';
+
+        const secondConfirm = window.confirm(secondMessage);
+        if (!secondConfirm) return;
 
         await runBookingAction({
             bookingId,
@@ -275,7 +260,10 @@ export default function AdminReservasPage() {
             endpoint: '/api/admin/bookings/' + bookingId,
             method: 'DELETE',
             successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' excluida com sucesso.',
-            reason,
+            payload: {
+                confirmDelete: true,
+                confirmApprovedDelete: approvedPayment,
+            },
         });
     }, [runBookingAction]);
 
@@ -436,7 +424,7 @@ export default function AdminReservasPage() {
                                             <button
                                                 type="button"
                                                 className={styles.dangerActionButton}
-                                                onClick={() => deleteBooking(booking.id)}
+                                                onClick={() => deleteBooking(booking)}
                                                 disabled={Boolean(actionBusy)}
                                             >
                                                 {actionBusy?.bookingId === booking.id && actionBusy?.action === 'delete' ? 'Processando...' : 'Excluir'}
@@ -475,3 +463,5 @@ export default function AdminReservasPage() {
         </>
     );
 }
+
+

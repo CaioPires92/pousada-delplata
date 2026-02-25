@@ -2,16 +2,23 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
-import { readAdminActionReason } from '@/lib/admin-action-reason';
 
 export const runtime = 'nodejs';
 
-function isManualTestPayment(payment: { provider?: string | null; method?: string | null; providerId?: string | null } | null | undefined) {
-    if (!payment) return false;
-    const provider = String(payment.provider || '').trim().toUpperCase();
-    const method = String(payment.method || '').trim().toUpperCase();
-    const providerId = String(payment.providerId || '').trim().toUpperCase();
-    return provider === 'MANUAL_TEST' || method === 'MANUAL_TEST' || providerId.startsWith('TEST_');
+type DeleteBody = {
+    confirmDelete?: unknown;
+    confirmApprovedDelete?: unknown;
+};
+
+async function readDeleteBody(request: Request): Promise<DeleteBody> {
+    try {
+        const contentType = String(request.headers.get('content-type') || '').toLowerCase();
+        if (!contentType.includes('application/json')) return {};
+        const body = await request.json().catch(() => ({}));
+        return typeof body === 'object' && body !== null ? (body as DeleteBody) : {};
+    } catch {
+        return {};
+    }
 }
 
 export async function DELETE(
@@ -27,12 +34,15 @@ export async function DELETE(
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
-        const reason = await readAdminActionReason(request);
-        if (!reason) {
+        const body = await readDeleteBody(request);
+        const confirmDelete = body.confirmDelete === true;
+        const confirmApprovedDelete = body.confirmApprovedDelete === true;
+
+        if (!confirmDelete) {
             return NextResponse.json(
                 {
-                    error: 'ACTION_REASON_REQUIRED',
-                    message: 'Informe o motivo para excluir a reserva.',
+                    error: 'DELETE_CONFIRMATION_REQUIRED',
+                    message: 'Confirmação de exclusão obrigatória.',
                 },
                 { status: 400 }
             );
@@ -48,13 +58,11 @@ export async function DELETE(
         }
 
         const isApprovedPayment = String(booking.payment?.status || '').toUpperCase() === 'APPROVED';
-        const allowApprovedDelete = isManualTestPayment(booking.payment);
-
-        if (isApprovedPayment && !allowApprovedDelete) {
+        if (isApprovedPayment && !confirmApprovedDelete) {
             return NextResponse.json(
                 {
-                    error: 'BOOKING_HAS_APPROVED_PAYMENT',
-                    message: 'Nao e permitido excluir reserva com pagamento aprovado.',
+                    error: 'APPROVED_DELETE_CONFIRMATION_REQUIRED',
+                    message: 'Esta reserva possui pagamento aprovado. Confirme novamente para excluir.',
                 },
                 { status: 409 }
             );
@@ -76,9 +84,8 @@ export async function DELETE(
         opsLog('info', 'ADMIN_BOOKING_DELETED', {
             bookingId,
             adminId: auth.adminId,
-            reason,
             hadApprovedPayment: isApprovedPayment,
-            approvedPaymentWasManualTest: isApprovedPayment ? allowApprovedDelete : false,
+            confirmedByAdmin: true,
         });
 
         return NextResponse.json({ ok: true, bookingId });
