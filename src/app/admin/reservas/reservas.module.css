@@ -127,14 +127,18 @@
 }
 
 .table {
+    width: 100%;
     background: white;
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .table table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
 }
 
@@ -156,6 +160,20 @@
     padding: 1rem;
     border-top: 1px solid #f0f0f0;
     color: #666;
+}
+
+.table th:last-child,
+.table td:last-child {
+    min-width: 280px;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #fff;
+}
+
+.table th:last-child {
+    z-index: 3;
+    background: #f8f9fa;
 }
 
 .table tbody tr {
@@ -278,13 +296,8 @@
         flex: 1;
         min-width: 100px;
     }
-
-    .table {
-        overflow-x: auto;
-    }
-
     .table table {
-        min-width: 800px;
+        min-width: 960px;
     }
 }
 
