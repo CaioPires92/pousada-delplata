@@ -160,3 +160,28 @@ export function trackClickWhatsApp(label: string) {
     });
 }
 
+type CtaPosition = 'hero' | 'final' | 'floating' | string;
+
+function buildCtaParams(position: CtaPosition) {
+    return {
+        origin: 'home',
+        position,
+    };
+}
+
+export function trackClickReservarHero(position: CtaPosition = 'hero') {
+    gaEvent('click_reservar_hero', buildCtaParams(position));
+}
+
+export function trackClickReservarFinal(position: CtaPosition = 'final') {
+    gaEvent('click_reservar_final', buildCtaParams(position));
+}
+
+export function trackClickWhatsAppFloating(position: CtaPosition = 'floating') {
+    gaEvent('click_whatsapp_floating', buildCtaParams(position));
+}
+
+export function trackClickWhatsAppFinal(position: CtaPosition = 'final') {
+    gaEvent('click_whatsapp_final', buildCtaParams(position));
+}
+

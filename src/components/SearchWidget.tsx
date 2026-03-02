@@ -19,9 +19,18 @@ import { trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
     ctaMicrocopy?: string;
+    submitLabel?: string;
+    submitLabelMobile?: string;
+    onPrimaryCtaClick?: () => void;
 }
 
-export default function SearchWidget({ variant = 'default', ctaMicrocopy }: SearchWidgetProps) {
+export default function SearchWidget({
+    variant = 'default',
+    ctaMicrocopy,
+    submitLabel = 'Buscar',
+    submitLabelMobile,
+    onPrimaryCtaClick,
+}: SearchWidgetProps) {
     const router = useRouter();
     const pathname = usePathname();
 
@@ -251,6 +260,9 @@ export default function SearchWidget({ variant = 'default', ctaMicrocopy }: Sear
     const searchMessageClass = variant === 'light'
         ? 'mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-destructive'
         : 'mt-4 rounded-xl border border-white/40 bg-black/55 p-4 text-white shadow-lg backdrop-blur-sm';
+    const loadingLabel = 'Buscando...';
+    const mobileLabel = submitLabelMobile || submitLabel;
+    const hasResponsiveLabel = Boolean(submitLabelMobile && submitLabelMobile !== submitLabel);
 
     useEffect(() => {
         if (numChildren > 0) firstAgeRef.current?.focus();
@@ -373,8 +385,11 @@ export default function SearchWidget({ variant = 'default', ctaMicrocopy }: Sear
                     <Button
                         type="submit"
                         size="lg"
-                        className="w-full h-[56px] text-base font-bold flex items-center justify-center gap-2 bg-primary text-white shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
-                        aria-label="Buscar disponibilidade"
+                        className="w-full h-[56px] text-sm md:text-base font-semibold flex items-center justify-center gap-2 bg-primary text-white border border-white/20 shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                        aria-label={submitLabel}
+                        onClick={() => {
+                            onPrimaryCtaClick?.();
+                        }}
                         disabled={searchDisabled}
                     >
                         {loading ? (
@@ -382,7 +397,14 @@ export default function SearchWidget({ variant = 'default', ctaMicrocopy }: Sear
                         ) : (
                             <Search className="w-5 h-5" />
                         )}
-                        <span className="whitespace-nowrap">{loading ? 'Buscando...' : 'Buscar'}</span>
+                        {hasResponsiveLabel ? (
+                            <>
+                                <span className="lg:hidden whitespace-nowrap">{loading ? loadingLabel : mobileLabel}</span>
+                                <span className="hidden lg:inline whitespace-nowrap">{loading ? loadingLabel : submitLabel}</span>
+                            </>
+                        ) : (
+                            <span className="whitespace-nowrap">{loading ? loadingLabel : submitLabel}</span>
+                        )}
                     </Button>
                 </div>
                 {numChildren > 0 ? (
@@ -419,7 +441,7 @@ export default function SearchWidget({ variant = 'default', ctaMicrocopy }: Sear
                 ) : null}
             </form>
             {ctaMicrocopy ? (
-                <p className={`mt-3 text-sm font-semibold text-center md:text-right ${variant === 'light' ? 'text-primary' : 'text-white/95'}`}>
+                <p className={`mt-3 text-sm font-medium text-center ${variant === 'light' ? 'text-primary' : 'text-white/95'}`}>
                     {ctaMicrocopy}
                 </p>
             ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
- 
+
 import { motion } from "framer-motion";
 
 import Link from "next/link";
@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
 import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { trackClickReservar, trackClickWhatsApp } from "@/lib/analytics";
+import {
+  trackClickReservarHero,
+  trackClickReservarFinal,
+  trackClickWhatsAppFinal,
+} from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
-import { BEST_RATE_GUARANTEE_LABEL } from "@/constants/socialProof";
 
 const siteImages = {
   hero: {
@@ -95,8 +98,15 @@ export default function HomeContent() {
   ];
 
   const WHATSAPP_PHONE = "5519999654866";
-  const WHATSAPP_MESSAGE = "Olá! Gostaria de informações, por favor.";
+  const WHATSAPP_MESSAGE = "Olá! Tenho uma dúvida sobre a hospedagem. Já consultei no site, pode me ajudar?";
   const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const HERO_RESERVA_MICROCOPY = "Consulte disponibilidade em tempo real e garanta a melhor tarifa.";
+  const RESERVA_INTERACTION_EVENT = "reservar-cta-interaction";
+
+  const handleHeroPrimaryCtaClick = () => {
+    trackClickReservarHero("hero");
+    window.dispatchEvent(new CustomEvent(RESERVA_INTERACTION_EVENT));
+  };
 
   return (
     <main className="min-h-screen">
@@ -154,7 +164,10 @@ export default function HomeContent() {
           </motion.div>
 
           <motion.div variants={itemVariants} className="max-w-5xl mx-auto mt-8 mb-8 md:mb-0">
-            <SearchWidget ctaMicrocopy={BEST_RATE_GUARANTEE_LABEL} />
+            <SearchWidget
+              ctaMicrocopy={HERO_RESERVA_MICROCOPY}
+              onPrimaryCtaClick={handleHeroPrimaryCtaClick}
+            />
           </motion.div>
 
           <motion.div
@@ -344,23 +357,23 @@ export default function HomeContent() {
             <div className="flex flex-col items-center gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
                 <Button asChild size="lg" className="h-12 text-lg px-8 bg-white text-primary hover:bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.35)]">
-                  <Link href="/reservar" onClick={() => trackClickReservar('home_cta_primary')}>
-                    Fazer reserva
+                  <Link href="/reservar" onClick={() => trackClickReservarFinal("final")}>
+                    Fazer reserva agora
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="h-12 text-lg px-8 bg-white/10 border-white text-white hover:bg-white hover:text-primary">
-                <Link
-                  href={WHATSAPP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackClickWhatsApp('home_cta_whatsapp')}
-                >
-                  Falar no WhatsApp
-                </Link>
+                  <Link
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackClickWhatsAppFinal("final")}
+                  >
+                    Tirar dúvidas no WhatsApp
+                  </Link>
                 </Button>
               </div>
               <p className="text-sm text-white/90 text-center">
-                Confirmação rápida • Melhor tarifa garantida
+                Fins de semana e feriados têm alta procura.
               </p>
             </div>
           </motion.div>

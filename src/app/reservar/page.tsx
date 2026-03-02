@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
 
-import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera } from 'lucide-react';
+import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
  
@@ -51,6 +51,12 @@ interface AppliedCoupon {
     expiresAt?: string;
 }
 
+interface RoomGalleryState {
+    roomName: string;
+    photos: string[];
+    currentIndex: number;
+}
+
 function ReservarContent() {
     const searchParams = useSearchParams();
     const checkIn = searchParams.get('checkIn');
@@ -89,6 +95,7 @@ function ReservarContent() {
     const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const [pixCopied, setPixCopied] = useState(false);
+    const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const paymentContainerId = 'paymentBrick_container';
@@ -117,17 +124,75 @@ function ReservarContent() {
         return placeholderDomains.some((domain) => normalizedUrl.includes(domain));
     };
 
-    const getRoomPrimaryImageSrc = (room: Room) => {
+    const getRoomDisplayPhotos = useCallback((room: Room) => {
         const backendUrls = (room.photos ?? [])
             .map((p) => p?.url?.trim())
             .filter((url): url is string => Boolean(url))
             .filter((url) => !isPlaceholderUrl(url));
 
-        if (backendUrls.length > 0) return backendUrls[0];
+        if (backendUrls.length > 0) return backendUrls;
 
         const localPhotos = getLocalRoomPhotos(room.name);
-        return localPhotos?.[0] ?? null;
-    };
+        return localPhotos ?? [];
+    }, []);
+
+    const getRoomPrimaryImageSrc = useCallback((room: Room) => {
+        const photos = getRoomDisplayPhotos(room);
+        return photos[0] ?? null;
+    }, [getRoomDisplayPhotos]);
+
+    const openRoomGallery = useCallback((room: Room, startIndex = 0) => {
+        const photos = getRoomDisplayPhotos(room);
+        if (photos.length === 0) return;
+        const normalizedIndex = Math.min(Math.max(startIndex, 0), photos.length - 1);
+        setRoomGallery({
+            roomName: room.name,
+            photos,
+            currentIndex: normalizedIndex,
+        });
+    }, [getRoomDisplayPhotos]);
+
+    const closeRoomGallery = useCallback(() => {
+        setRoomGallery(null);
+    }, []);
+
+    const showNextGalleryPhoto = useCallback(() => {
+        setRoomGallery((prev) => {
+            if (!prev || prev.photos.length <= 1) return prev;
+            return {
+                ...prev,
+                currentIndex: (prev.currentIndex + 1) % prev.photos.length,
+            };
+        });
+    }, []);
+
+    const showPrevGalleryPhoto = useCallback(() => {
+        setRoomGallery((prev) => {
+            if (!prev || prev.photos.length <= 1) return prev;
+            return {
+                ...prev,
+                currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length,
+            };
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!roomGallery) return;
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                closeRoomGallery();
+            }
+        };
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', handleEscape);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', handleEscape);
+        };
+    }, [roomGallery, closeRoomGallery]);
 
     const formatDate = (dateString: string) => {
         if (!dateString) return '';
@@ -822,13 +887,30 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-6">
-                                {availableRooms.map((room) => (
+                                {availableRooms.map((room) => {
+                                    const roomPhotos = getRoomDisplayPhotos(room);
+                                    const roomPrimaryImage = roomPhotos[0] ?? null;
+                                    const canOpenGallery = roomPhotos.length > 0;
+
+                                    return (
                                     <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
                                         <div className="grid md:grid-cols-12 gap-0">
-                                            <div className="md:col-span-4 relative h-64 md:h-auto overflow-hidden">
-                                                {getRoomPrimaryImageSrc(room) ? (
+                                            <div
+                                                className={`md:col-span-4 relative h-64 md:h-auto overflow-hidden ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
+                                                role={canOpenGallery ? 'button' : undefined}
+                                                tabIndex={canOpenGallery ? 0 : undefined}
+                                                onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
+                                                onKeyDown={canOpenGallery ? (event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        openRoomGallery(room);
+                                                    }
+                                                } : undefined}
+                                                aria-label={canOpenGallery ? `Abrir galeria de fotos de ${room.name}` : undefined}
+                                            >
+                                                {roomPrimaryImage ? (
                                                     <Image
-                                                        src={getRoomPrimaryImageSrc(room)!}
+                                                        src={roomPrimaryImage}
                                                         alt={room.name}
                                                         fill
                                                         className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -838,6 +920,12 @@ function ReservarContent() {
                                                         <span className="text-muted-foreground">Sem foto</span>
                                                     </div>
                                                 )}
+                                                {canOpenGallery ? (
+                                                    <div className="absolute bottom-3 right-3 bg-black/55 text-white px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5">
+                                                        <Camera className="w-3.5 h-3.5" />
+                                                        <span>Ver fotos ({roomPhotos.length})</span>
+                                                    </div>
+                                                ) : null}
                                             </div>
                                             <div className="md:col-span-8 p-6 flex flex-col justify-between">
                                                 <div>
@@ -875,7 +963,7 @@ function ReservarContent() {
                                             </div>
                                         </div>
                                     </Card>
-                                ))}
+                                )})}
                             </div>
                         )}
                     </div>
@@ -1230,6 +1318,60 @@ function ReservarContent() {
                     </div>
                 )}
             </div>
+            {roomGallery ? (
+                <div
+                    className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm p-4 flex items-center justify-center"
+                    onClick={closeRoomGallery}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={`Galeria de fotos de ${roomGallery.roomName}`}
+                >
+                    <button
+                        type="button"
+                        onClick={closeRoomGallery}
+                        className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors p-2"
+                        aria-label="Fechar galeria"
+                    >
+                        <X className="w-7 h-7" />
+                    </button>
+                    <div
+                        className="relative w-full max-w-6xl h-[82vh]"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <Image
+                            src={roomGallery.photos[roomGallery.currentIndex]}
+                            alt={`${roomGallery.roomName} foto ${roomGallery.currentIndex + 1}`}
+                            fill
+                            className="object-contain"
+                            sizes="(max-width: 768px) 100vw, 85vw"
+                            priority
+                        />
+                        {roomGallery.photos.length > 1 ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={showPrevGalleryPhoto}
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-lg bg-black/50 hover:bg-black/70 text-white p-3"
+                                    aria-label="Foto anterior"
+                                >
+                                    <ChevronLeft className="w-7 h-7" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={showNextGalleryPhoto}
+                                    className="absolute right-0 top-1/2 -translate-y-1/2 rounded-l-lg bg-black/50 hover:bg-black/70 text-white p-3"
+                                    aria-label="Próxima foto"
+                                >
+                                    <ChevronRight className="w-7 h-7" />
+                                </button>
+                            </>
+                        ) : null}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-sm font-medium text-white">
+                            {roomGallery.currentIndex + 1} / {roomGallery.photos.length}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </main>
     );
 }
