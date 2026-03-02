@@ -18,15 +18,15 @@ const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(
 
 export default function WhatsAppFloatingButton() {
     return (
-        <div className="fixed bottom-5 right-5 z-50">
+        <div className="fixed bottom-4 right-4 md:bottom-5 md:right-5 z-50">
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
-                    <Glow className="h-14 w-14">
+                    <Glow className="h-12 w-12 md:h-14 md:w-14">
                         <TooltipTrigger asChild>
                             <Button
                                 asChild
                                 size="icon"
-                                className="relative h-14 w-14 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-green-600 p-3 text-white shadow-[0_16px_32px_rgba(16,185,129,0.35)] ring-1 ring-white/40 focus-visible:ring-2 focus-visible:ring-emerald-200/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.05] motion-safe:active:scale-[0.97] motion-reduce:transition-none motion-reduce:transform-none"
+                                className="relative h-12 w-12 md:h-14 md:w-14 rounded-full bg-gradient-to-br from-emerald-400 via-emerald-500 to-green-600 p-2.5 md:p-3 text-white shadow-[0_16px_32px_rgba(16,185,129,0.35)] ring-1 ring-white/40 focus-visible:ring-2 focus-visible:ring-emerald-200/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.05] motion-safe:active:scale-[0.97] motion-reduce:transition-none motion-reduce:transform-none"
                             >
                                 <Link
                                     href={WHATSAPP_URL}
@@ -35,7 +35,7 @@ export default function WhatsAppFloatingButton() {
                                     aria-label="Falar no WhatsApp"
                                     onClick={() => trackClickWhatsApp('botao_whatsapp_fixo')}
                                 >
-                                    <MessageCircle className="h-6 w-6" />
+                                    <MessageCircle className="h-5 w-5 md:h-6 md:w-6" />
                                 </Link>
                             </Button>
                         </TooltipTrigger>

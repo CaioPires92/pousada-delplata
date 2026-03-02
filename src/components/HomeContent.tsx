@@ -7,9 +7,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
-import { Sparkles, Waves, UtensilsCrossed, ArrowRight } from "lucide-react";
+import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { trackClickReservar } from "@/lib/analytics";
+import SocialProofBadges from "@/components/SocialProofBadges";
+import { BEST_RATE_GUARANTEE_LABEL } from "@/constants/socialProof";
 
 
 
@@ -63,18 +65,20 @@ export default function HomeContent() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
-            src="/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp"
-            alt="Pousada Delplata - Ala Principal"
+            src="/fotos/piscina-aptos/DJI_0845.jpg"
+            alt="Piscina da Pousada Delplata em Serra Negra"
             fill
             sizes="100vw"
             className="object-cover"
+            quality={82}
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/80 to-primary/70" />
+          <div className="absolute inset-0 bg-black/45" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-primary/40 to-primary/50" />
         </div>
 
         {/* Animated background pattern */}
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 opacity-5">
           <div className="absolute inset-0" style={{
             backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
             backgroundSize: '40px 40px'
@@ -82,33 +86,35 @@ export default function HomeContent() {
         </div>
 
         <motion.div
-          className="container relative z-10 text-center space-y-8 py-20"
+          className="container relative z-10 text-center space-y-7 pt-28 pb-28 md:py-20"
           initial="hidden"
           animate="visible"
           variants={containerVariants}
         >
           <motion.div
             variants={itemVariants}
-            className="inline-block"
+            className="absolute top-3 right-0 md:top-6"
           >
-            <Sparkles className="w-16 h-16 mx-auto mb-4 text-secondary" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-white/90 backdrop-blur-sm">
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Site Oficial
+            </span>
           </motion.div>
 
-          <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-bold font-heading leading-tight text-white">
-            Uma das melhores opções em <br />
-            <span className="text-secondary">Serra Negra</span>
+          <motion.h1 variants={itemVariants} className="text-4xl md:text-6xl font-bold font-heading leading-tight text-white">
+            Pousada familiar em <span className="text-secondary">Serra Negra</span>
           </motion.h1>
 
-          <motion.p variants={itemVariants} className="text-xl md:text-2xl text-white/90 max-w-2xl mx-auto">
-            Lazer e diversão para você e sua família.
+          <motion.p variants={itemVariants} className="text-xl md:text-3xl font-medium text-white max-w-3xl mx-auto">
+            Conforto, lazer e ótima localização para sua família.
           </motion.p>
 
-          <motion.p variants={itemVariants} className="text-lg md:text-xl text-white/80">
-            Conheça nossa região, encante-se!
-          </motion.p>
+          <motion.div variants={itemVariants}>
+            <SocialProofBadges className="mt-1" />
+          </motion.div>
 
-          <motion.div variants={itemVariants} className="max-w-5xl mx-auto mt-12 mb-8 md:mb-0">
-            <SearchWidget />
+          <motion.div variants={itemVariants} className="max-w-5xl mx-auto mt-8 mb-8 md:mb-0">
+            <SearchWidget ctaMicrocopy={BEST_RATE_GUARANTEE_LABEL} />
           </motion.div>
 
           <motion.div

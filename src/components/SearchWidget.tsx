@@ -18,9 +18,10 @@ import { trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
+    ctaMicrocopy?: string;
 }
 
-export default function SearchWidget({ variant = 'default' }: SearchWidgetProps) {
+export default function SearchWidget({ variant = 'default', ctaMicrocopy }: SearchWidgetProps) {
     const router = useRouter();
     const pathname = usePathname();
 
@@ -372,7 +373,8 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                     <Button
                         type="submit"
                         size="lg"
-                        className="w-full h-[56px] text-base font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300 bg-primary hover:bg-primary/90 text-white"
+                        className="w-full h-[56px] text-base font-bold flex items-center justify-center gap-2 bg-primary text-white shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                        aria-label="Buscar disponibilidade"
                         disabled={searchDisabled}
                     >
                         {loading ? (
@@ -416,6 +418,11 @@ export default function SearchWidget({ variant = 'default' }: SearchWidgetProps)
                     </div>
                 ) : null}
             </form>
+            {ctaMicrocopy ? (
+                <p className={`mt-3 text-sm font-semibold text-center md:text-right ${variant === 'light' ? 'text-primary' : 'text-white/95'}`}>
+                    {ctaMicrocopy}
+                </p>
+            ) : null}
             {searchMessage ? (
                 <div className={searchMessageClass}>
                     <p className="text-sm font-medium">{searchMessage}</p>
