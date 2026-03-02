@@ -7,11 +7,40 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
-import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight } from "lucide-react";
+import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { trackClickReservar } from "@/lib/analytics";
+import { trackClickReservar, trackClickWhatsApp } from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
 import { BEST_RATE_GUARANTEE_LABEL } from "@/constants/socialProof";
+
+const siteImages = {
+  hero: {
+    src: "/fotos/piscina-aptos/DJI_0845.jpg",
+    alt: "Piscina da Pousada Delplata em Serra Negra",
+  },
+  accommodations: {
+    mainWing: {
+      src: "/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp",
+      alt: "Ala Principal da Pousada Delplata",
+    },
+    annexWing: {
+      src: "/fotos/ala-chales/chales/IMG_0125-1200.webp",
+      alt: "Ala Chalés e Anexos da Pousada Delplata",
+    },
+  },
+  leisure: {
+    src: "/fotos/piscina-aptos/DJI_0863.jpg",
+    alt: "Área de lazer com piscina",
+  },
+  breakfast: {
+    src: "/fotos/restaurante/DSC_0056.jpg",
+    alt: "Café da manhã da pousada",
+  },
+  cta: {
+    src: "/fotos/piscina-aptos/DJI_0908.jpg",
+    alt: "Vista da área da piscina para reserva",
+  },
+} as const;
 
 
 
@@ -46,17 +75,28 @@ export default function HomeContent() {
       id: 'ala-principal',
       title: 'Ala Principal',
       description: 'Conforto e praticidade. Inclui Apartamentos Térreo e Superior.',
-      image: '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp',
+      image: siteImages.accommodations.mainWing,
       link: '/acomodacoes'
     },
     {
       id: 'ala-anexo',
       title: 'Ala Chalés e Anexos',
       description: 'Privacidade e contato com a natureza. Inclui Chalés e Apartamentos Anexo.',
-      image: '/fotos/ala-chales/chales/IMG_0125-1200.webp',
+      image: siteImages.accommodations.annexWing,
       link: '/acomodacoes'
     }
   ];
+
+  const quickBenefits = [
+    "Piscina adulto + infantil",
+    "Café da manhã diário",
+    "Ambiente familiar",
+    "Melhor tarifa garantida",
+  ];
+
+  const WHATSAPP_PHONE = "5519999654866";
+  const WHATSAPP_MESSAGE = "Olá! Gostaria de informações, por favor.";
+  const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
   return (
     <main className="min-h-screen">
@@ -65,8 +105,8 @@ export default function HomeContent() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
-            src="/fotos/piscina-aptos/DJI_0845.jpg"
-            alt="Piscina da Pousada Delplata em Serra Negra"
+            src={siteImages.hero.src}
+            alt={siteImages.hero.alt}
             fill
             sizes="100vw"
             className="object-cover"
@@ -97,7 +137,7 @@ export default function HomeContent() {
           >
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-white/90 backdrop-blur-sm">
               <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              Site Oficial
+              SITE OFICIAL
             </span>
           </motion.div>
 
@@ -132,8 +172,25 @@ export default function HomeContent() {
         </motion.div>
       </section>
 
+      {/* Quick Benefits Section */}
+      <section className="bg-background py-10 md:py-12 border-b border-border/60">
+        <div className="container">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto">
+            {quickBenefits.map((benefit) => (
+              <div
+                key={benefit}
+                className="flex items-center gap-2 rounded-full border border-border/40 bg-card/60 px-3 py-2 text-sm font-medium text-foreground"
+              >
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                <span>{benefit}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Accommodations Section */}
-      <section className="py-20 bg-background">
+      <section className="py-16 md:py-20 bg-background">
         <div className="container">
           <motion.div
             initial="hidden"
@@ -146,7 +203,7 @@ export default function HomeContent() {
               Nossas Acomodações
             </motion.h2>
             <motion.p variants={itemVariants} className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Escolha o ambiente perfeito para sua estadia
+              Escolha o tipo de acomodação e veja disponibilidade no motor de reservas.
             </motion.p>
           </motion.div>
 
@@ -164,8 +221,8 @@ export default function HomeContent() {
                   <Card className="overflow-hidden h-full border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-xl rounded-3xl">
                     <div className="relative h-96 overflow-hidden">
                       <Image
-                        src={wing.image}
-                        alt={wing.title}
+                        src={wing.image.src}
+                        alt={wing.image.alt}
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-700"
@@ -174,8 +231,8 @@ export default function HomeContent() {
                       <div className="absolute bottom-0 left-0 p-8 text-white w-full">
                         <h3 className="text-3xl md:text-4xl font-bold font-heading mb-3">{wing.title}</h3>
                         <p className="text-white/90 text-lg mb-6 line-clamp-2">{wing.description}</p>
-                        <div className="flex items-center text-secondary font-bold uppercase tracking-wider group-hover:translate-x-2 transition-transform">
-                          Ver opções <ArrowRight className="ml-2 w-5 h-5" />
+                        <div className="flex items-center text-secondary font-bold group-hover:translate-x-2 transition-transform">
+                          Ver fotos e detalhes <ArrowRight className="ml-2 w-5 h-5" />
                         </div>
                       </div>
                     </div>
@@ -187,14 +244,14 @@ export default function HomeContent() {
 
           <div className="text-center mt-12">
             <Button asChild size="lg" variant="outline" className="text-lg px-8">
-              <Link href="/acomodacoes">Ver Todas as Acomodações</Link>
+              <Link href="/acomodacoes">Ver todas as acomodações e disponibilidade</Link>
             </Button>
           </div>
         </div>
       </section>
 
       {/* Leisure & Restaurant Section */}
-      <section className="py-20 bg-gradient-to-br from-primary/5 to-secondary/5">
+      <section className="py-16 md:py-20 bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="container">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <motion.div
@@ -206,8 +263,8 @@ export default function HomeContent() {
             >
               <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
                 <Image
-                  src="/fotos/piscina-aptos/DJI_0863.jpg"
-                  alt="Área de Lazer"
+                  src={siteImages.leisure.src}
+                  alt={siteImages.leisure.alt}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
@@ -235,8 +292,8 @@ export default function HomeContent() {
             >
               <div className="relative h-64 rounded-2xl overflow-hidden mb-6">
                 <Image
-                  src="/fotos/restaurante/DSC_0056.jpg"
-                  alt="Café da Manhã"
+                  src={siteImages.breakfast.src}
+                  alt={siteImages.breakfast.alt}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-cover"
@@ -259,11 +316,11 @@ export default function HomeContent() {
       </section>
 
       {/* CTA Section */}
-      <section className="relative py-20 overflow-hidden">
+      <section className="relative pt-16 pb-28 md:pt-20 md:pb-24 overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="/fotos/piscina-aptos/DJI_0908.jpg"
-            alt="Reserve Agora"
+            src={siteImages.cta.src}
+            alt={siteImages.cta.alt}
             fill
             sizes="100vw"
             className="object-cover"
@@ -284,13 +341,27 @@ export default function HomeContent() {
             <p className="text-xl text-white/90">
               Reserve agora e garanta os melhores momentos com sua família
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" variant="secondary" className="text-lg px-8">
-                <Link href="/reservar" onClick={() => trackClickReservar('home_cta')}>Fazer Reserva</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="text-lg px-8 bg-white/10 border-white text-white hover:bg-white hover:text-primary">
-                <Link href="/contato">Fale Conosco</Link>
-              </Button>
+            <div className="flex flex-col items-center gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 justify-center">
+                <Button asChild size="lg" className="h-12 text-lg px-8 bg-white text-primary hover:bg-white/90 shadow-[0_10px_24px_rgba(15,23,42,0.35)]">
+                  <Link href="/reservar" onClick={() => trackClickReservar('home_cta_primary')}>
+                    Fazer reserva
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="h-12 text-lg px-8 bg-white/10 border-white text-white hover:bg-white hover:text-primary">
+                <Link
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackClickWhatsApp('home_cta_whatsapp')}
+                >
+                  Falar no WhatsApp
+                </Link>
+                </Button>
+              </div>
+              <p className="text-sm text-white/90 text-center">
+                Confirmação rápida • Melhor tarifa garantida
+              </p>
             </div>
           </motion.div>
         </div>
