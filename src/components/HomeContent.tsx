@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 
 import { motion } from "framer-motion";
 
@@ -10,11 +11,18 @@ import SearchWidget from "@/components/SearchWidget";
 import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
+  gaEvent,
   trackClickReservarHero,
   trackClickReservarFinal,
   trackClickWhatsAppFinal,
 } from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
+import SpecialDatesSection from "@/components/SpecialDatesSection";
+import {
+  SPECIAL_DATES,
+  buildReservarUrl,
+  getActiveBannerSpecialDate,
+} from "@/constants/specialDates";
 
 const siteImages = {
   hero: {
@@ -102,14 +110,54 @@ export default function HomeContent() {
   const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   const HERO_RESERVA_MICROCOPY = "Consulte disponibilidade em tempo real e garanta a melhor tarifa.";
   const RESERVA_INTERACTION_EVENT = "reservar-cta-interaction";
+  const enabledSpecialDates = useMemo(
+    () => SPECIAL_DATES.filter((specialDate) => specialDate.enabled),
+    []
+  );
+  const activeBanner = useMemo(() => getActiveBannerSpecialDate(new Date()), []);
+  const activeBannerHref = useMemo(() => {
+    if (!activeBanner) return "/reservar";
+    return buildReservarUrl({
+      checkIn: activeBanner.dateFrom,
+      checkOut: activeBanner.dateTo,
+      adults: 2,
+      children: 0,
+    });
+  }, [activeBanner]);
 
   const handleHeroPrimaryCtaClick = () => {
     trackClickReservarHero("hero");
     window.dispatchEvent(new CustomEvent(RESERVA_INTERACTION_EVENT));
   };
 
+  const handleSpecialDateClick = (specialDateId: string) => {
+    gaEvent("home_special_dates_click", { special_date_id: specialDateId });
+  };
+
+  const handleBannerClick = () => {
+    if (!activeBanner) return;
+    gaEvent("home_banner_special_date_click", { special_date_id: activeBanner.id });
+  };
+
   return (
     <main className="min-h-screen">
+      {activeBanner ? (
+        <section className="border-b border-slate-700/80 bg-slate-900 text-slate-100">
+          <div className="container flex min-h-11 flex-wrap items-center justify-between gap-2 py-2 text-sm">
+            <p className="font-medium text-slate-100">
+              {activeBanner.bannerLabel || `${activeBanner.title} com alta procura. Consulte disponibilidade.`}
+            </p>
+            <Link
+              href={activeBannerHref}
+              onClick={handleBannerClick}
+              className="text-xs font-semibold uppercase tracking-wide text-secondary transition hover:text-secondary/80"
+            >
+              Ver datas
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       {/* Hero Section with Background Image */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image */}
@@ -184,6 +232,11 @@ export default function HomeContent() {
           </motion.div>
         </motion.div>
       </section>
+
+      <SpecialDatesSection
+        dates={enabledSpecialDates}
+        onDateClick={(specialDate) => handleSpecialDateClick(specialDate.id)}
+      />
 
       {/* Quick Benefits Section */}
       <section className="bg-background py-10 md:py-12 border-b border-border/60">

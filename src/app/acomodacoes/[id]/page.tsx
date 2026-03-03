@@ -75,11 +75,12 @@ export default async function RoomDetailsPage({
                 </div>
 
                 <div className={styles.info}>
-                    <div className={styles.priceCard}>
-                        <span className={styles.priceLabel}>Diárias a partir de</span>
-                        <span className={styles.price}>R$ {room.basePrice.toFixed(2)}</span>
-                        <Link href={`/reservar?roomTypeId=${room.id}`} className="btn-primary" style={{ display: 'block', textAlign: 'center', marginTop: '1rem' }}>
-                            Reservar Agora
+                    <div className={styles.availabilityCard}>
+                        <p className={styles.availabilityCopy}>
+                            Valores variam conforme data e ocupação. Consulte disponibilidade.
+                        </p>
+                        <Link href={`/reservar?roomTypeId=${room.id}`} className={styles.availabilityButton}>
+                            Ver disponibilidade e preços
                         </Link>
                     </div>
 
