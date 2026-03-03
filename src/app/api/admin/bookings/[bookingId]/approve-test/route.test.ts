@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/admin-auth', () => ({
     requireAdminAuth: vi.fn(async () => ({ adminId: 'admin-1', email: 'admin@example.com', role: 'admin' })),
@@ -29,6 +30,10 @@ import prisma from '@/lib/prisma';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import { POST } from './route';
 
+function makeRequest() {
+    return new NextRequest('http://localhost/api/admin/bookings/booking-1/approve-test', { method: 'POST' });
+}
+
 describe('POST /api/admin/bookings/[bookingId]/approve-test', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -53,7 +58,7 @@ describe('POST /api/admin/bookings/[bookingId]/approve-test', () => {
     it('returns 403 when test payments are disabled', async () => {
         process.env.ENABLE_TEST_PAYMENTS = 'false';
 
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/approve-test', { method: 'POST' }), {
+        const response = await POST(makeRequest(), {
             params: Promise.resolve({ bookingId: 'booking-1' }),
         });
 
@@ -62,7 +67,7 @@ describe('POST /api/admin/bookings/[bookingId]/approve-test', () => {
     });
 
     it('approves payment and sends GA4 server purchase event', async () => {
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/approve-test', { method: 'POST' }), {
+        const response = await POST(makeRequest(), {
             params: Promise.resolve({ bookingId: 'booking-1' }),
         });
 
