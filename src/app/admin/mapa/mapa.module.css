@@ -340,6 +340,87 @@
     z-index: 30;
 }
 
+.cell {
+    background: #ffffff;
+    transition: background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.todayColumnHeader {
+    position: relative;
+    box-shadow: inset 0 0 0 2px #1d4ed8;
+}
+
+.todayLabel {
+    margin-top: 0.2rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #1e40af;
+    letter-spacing: 0.07em;
+}
+
+.todayColumnCell {
+    background: #eff6ff;
+    box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
+.inventoryCellCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    border-radius: 8px;
+    padding: 0.28rem 0.35rem;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.occupancyRow {
+    margin-top: 0.12rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    font-size: 0.68rem;
+    color: #334155;
+}
+
+.occupancyBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.08rem 0.42rem;
+    border-radius: 9999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border: 1px solid transparent;
+}
+
+.occupancyLow {
+    border-color: #bbf7d0;
+    background: rgba(220, 252, 231, 0.72);
+    color: #166534;
+}
+
+.occupancyMedium {
+    border-color: #fde68a;
+    background: rgba(254, 243, 199, 0.78);
+    color: #92400e;
+}
+
+.occupancyHigh {
+    border-color: #fcd34d;
+    background: rgba(254, 215, 170, 0.78);
+    color: #9a3412;
+}
+
+.occupancyVeryHigh {
+    border-color: #fca5a5;
+    background: rgba(254, 226, 226, 0.88);
+    color: #991b1b;
+}
+
 /* Cell Inputs */
 .cellInput {
     width: 100%;
@@ -404,7 +485,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.2s;
+    border-radius: 10px;
+    min-height: 42px;
+    padding: 0.15rem;
 }
 
 .restrictionCell:hover {
@@ -412,9 +496,42 @@
 }
 
 .restrictionActive {
-    color: #ef4444;
-    font-weight: bold;
-    font-size: 1.2rem;
+    transform: translateY(-1px);
+}
+
+.restrictionInactive {
+    background: rgba(248, 250, 252, 0.7);
+}
+
+.restrictionBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    padding: 0.22rem 0.52rem;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+}
+
+.restrictionClosedIn {
+    background: #7f1d1d;
+    color: #fef2f2;
+    border-color: #7f1d1d;
+}
+
+.restrictionClosedOut {
+    background: #78350f;
+    color: #fffbeb;
+    border-color: #78350f;
+}
+
+.restrictionPlaceholder {
+    color: #94a3b8;
+    font-weight: 700;
+    font-size: 0.82rem;
 }
 
 .weekdayGrid {

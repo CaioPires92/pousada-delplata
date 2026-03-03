@@ -66,6 +66,18 @@ type BulkUpdates = {
 
 const ALL_ROOMS_VALUE = 'all';
 const ROOM_ORDER_KEYWORDS = ['terreo', 'superior', 'chale', 'anexo'];
+type OccupancyBand = 'low' | 'medium' | 'high' | 'veryHigh';
+type OccupancyMetrics = {
+    occupancyPct: number | null;
+    occupied: number | null;
+    band: OccupancyBand | null;
+};
+const OCCUPANCY_BAND_LABEL: Record<OccupancyBand, string> = {
+    low: 'baixa',
+    medium: 'média',
+    high: 'alta',
+    veryHigh: 'muito alta'
+};
 
 const normalizeRoomName = (name: string) =>
     name
@@ -77,6 +89,37 @@ const getRoomSortPriority = (name: string) => {
     const normalized = normalizeRoomName(name);
     const idx = ROOM_ORDER_KEYWORDS.findIndex(keyword => normalized.includes(keyword));
     return idx >= 0 ? idx : ROOM_ORDER_KEYWORDS.length;
+};
+
+const normalizeNonNegative = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) return null;
+    return numeric;
+};
+
+export const getOccupancyMetrics = (data?: Partial<CalendarData> | null): OccupancyMetrics => {
+    const capacity = normalizeNonNegative(data?.capacityTotal);
+    if (!capacity || capacity <= 0) {
+        return { occupancyPct: null, occupied: null, band: null };
+    }
+
+    const reserved = normalizeNonNegative(data?.bookingsCount);
+    const available = normalizeNonNegative(data?.available);
+    const occupiedRaw = reserved ?? (available !== null ? capacity - available : null);
+    if (occupiedRaw === null) {
+        return { occupancyPct: null, occupied: null, band: null };
+    }
+
+    const occupied = Math.min(capacity, Math.max(0, occupiedRaw));
+    const occupancyPct = (occupied / capacity) * 100;
+    let band: OccupancyBand = 'low';
+
+    if (occupancyPct >= 85) band = 'veryHigh';
+    else if (occupancyPct >= 60) band = 'high';
+    else if (occupancyPct >= 30) band = 'medium';
+
+    return { occupancyPct, occupied, band };
 };
 
 const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) => {
@@ -685,6 +728,7 @@ export default function MapaReservas() {
     const listEndLabel = format(listQueryInterval.end, 'dd/MM/yyyy');
     const listQueryStartLabel = format(listQueryInterval.start, 'dd/MM/yyyy');
     const selectedDayData = selectedDate ? getDataForDay(selectedDate) : undefined;
+    const selectedDayOccupancy = getOccupancyMetrics(selectedDayData);
     const selectedDateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
     const modalSaving = selectedDateKey
         ? savingRate === `${selectedRoomId}:${selectedDateKey}` || updatingInventory === `${selectedRoomId}:${selectedDateKey}`
@@ -717,6 +761,14 @@ export default function MapaReservas() {
 
     const toggleRoomCollapsed = (roomId: string) => {
         setCollapsedRooms(prev => ({ ...prev, [roomId]: !prev[roomId] }));
+    };
+
+    const getOccupancyBandClass = (band: OccupancyBand | null) => {
+        if (band === 'low') return styles.occupancyLow;
+        if (band === 'medium') return styles.occupancyMedium;
+        if (band === 'high') return styles.occupancyHigh;
+        if (band === 'veryHigh') return styles.occupancyVeryHigh;
+        return '';
     };
 
     const stopListDragging = useCallback(() => {
@@ -787,7 +839,7 @@ export default function MapaReservas() {
                     <span>🏨 {room.name}</span>
                 </td>
                 <td colSpan={monthDays.length} style={{ textAlign: 'left', paddingLeft: '1rem', background: '#f8fafc', color: '#475569', fontWeight: 600 }}>
-                    <span>Tarifa base: R$ {Number(room.basePrice || 0).toFixed(2)}</span>
+                    <span>Visualização diária de disponibilidade, ocupação e restrições.</span>
                 </td>
             </tr>
 
@@ -804,9 +856,8 @@ export default function MapaReservas() {
                     return (
                         <td
                             key={`${room.id}-status-${dateStr}`}
-                            className={styles.cell}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
                             onClick={() => updateRateField(day, 'stopSell', !isClosed, room.id)}
-                            style={isTodayCol ? { background: '#eff6ff' } : undefined}
                         >
                             <div className={`${styles.statusPill} ${(isClosed || isZero) ? styles.closed : styles.open}`}>
                                 {isClosed ? 'FECHADO' : (isZero ? 'ESGOTADO' : 'ABERTO')}
@@ -824,12 +875,16 @@ export default function MapaReservas() {
                     const available = data?.available ?? 0;
                     const bookingsCount = data?.bookingsCount ?? 0;
                     const capacityTotal = data?.capacityTotal ?? 0;
+                    const occupancy = getOccupancyMetrics(data);
+                    const occupancyBandClass = getOccupancyBandClass(occupancy.band);
+                    const occupancyLabel = occupancy.band ? OCCUPANCY_BAND_LABEL[occupancy.band] : null;
+                    const occupancyPctLabel = occupancy.occupancyPct === null ? '—' : `${Math.round(occupancy.occupancyPct)}%`;
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const inventoryKey = `${room.id}:${dateStr}`;
                     const isTodayCol = dateStr === todayKey;
                     return (
-                        <td key={`${room.id}-inventory-${dateStr}`} className={styles.cell}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: isTodayCol ? '#eff6ff' : 'transparent', borderRadius: '8px', padding: '0.2rem 0.35rem' }}>
+                        <td key={`${room.id}-inventory-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
+                            <div className={`${styles.inventoryCellCard} ${occupancyBandClass}`}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: updatingInventory === inventoryKey ? 0.5 : 1 }}>
                                     <button
                                         className={styles.miniBtn}
@@ -853,6 +908,14 @@ export default function MapaReservas() {
                                 <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
                                     Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
                                 </span>
+                                <span className={styles.occupancyRow}>
+                                    Ocupação: <strong>{occupancyPctLabel}</strong>
+                                    {occupancyLabel && (
+                                        <span className={`${styles.occupancyBadge} ${occupancyBandClass}`}>
+                                            {occupancyLabel}
+                                        </span>
+                                    )}
+                                </span>
                             </div>
                         </td>
                     );
@@ -867,7 +930,7 @@ export default function MapaReservas() {
                     const price = data ? data.price : Number(room.basePrice || 0);
                     const isTodayCol = dateStr === todayKey;
                     return (
-                        <td key={`${room.id}-price-${dateStr}`} className={styles.cell} style={isTodayCol ? { background: '#eff6ff' } : undefined}>
+                        <td key={`${room.id}-price-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
                             <EditableCell
                                 type="number"
                                 value={price}
@@ -886,7 +949,7 @@ export default function MapaReservas() {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const isTodayCol = dateStr === todayKey;
                     return (
-                        <td key={`${room.id}-minlos-${dateStr}`} className={styles.cell} style={isTodayCol ? { background: '#eff6ff' } : undefined}>
+                        <td key={`${room.id}-minlos-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
                             <EditableCell
                                 type="number"
                                 min="1"
@@ -908,12 +971,17 @@ export default function MapaReservas() {
                     return (
                         <td
                             key={`${room.id}-cta-${dateStr}`}
-                            className={styles.cell}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
                             onClick={() => updateRateField(day, 'cta', !cta, room.id)}
-                            style={isTodayCol ? { background: '#eff6ff' } : undefined}
                         >
-                            <div className={`${styles.restrictionCell} ${cta ? styles.restrictionActive : ''}`}>
-                                {cta ? '🚫' : ''}
+                            <div className={`${styles.restrictionCell} ${cta ? styles.restrictionActive : styles.restrictionInactive}`}>
+                                {cta ? (
+                                    <span className={`${styles.restrictionBadge} ${styles.restrictionClosedIn}`}>
+                                        FECHADO PARA ENTRADA
+                                    </span>
+                                ) : (
+                                    <span className={styles.restrictionPlaceholder}>—</span>
+                                )}
                             </div>
                         </td>
                     );
@@ -930,12 +998,17 @@ export default function MapaReservas() {
                     return (
                         <td
                             key={`${room.id}-ctd-${dateStr}`}
-                            className={styles.cell}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
                             onClick={() => updateRateField(day, 'ctd', !ctd, room.id)}
-                            style={isTodayCol ? { background: '#eff6ff' } : undefined}
                         >
-                            <div className={`${styles.restrictionCell} ${ctd ? styles.restrictionActive : ''}`}>
-                                {ctd ? '🚫' : ''}
+                            <div className={`${styles.restrictionCell} ${ctd ? styles.restrictionActive : styles.restrictionInactive}`}>
+                                {ctd ? (
+                                    <span className={`${styles.restrictionBadge} ${styles.restrictionClosedOut}`}>
+                                        FECHADO PARA SAÍDA
+                                    </span>
+                                ) : (
+                                    <span className={styles.restrictionPlaceholder}>—</span>
+                                )}
                             </div>
                         </td>
                     );
@@ -1144,16 +1217,21 @@ export default function MapaReservas() {
                                             {monthDays.map(day => {
                                                  const dateKey = format(day, 'yyyy-MM-dd');
                                                  const isTodayCol = dateKey === todayKey;
-                                                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                                                 return (
-                                                    <th key={dateKey} data-date={dateKey} style={{ background: isTodayCol ? '#dbeafe' : (isWeekend ? '#f1f5f9' : 'white') }}>
+                                                  const isWeekend = day.getDay() === 5 || day.getDay() === 6;
+                                                  return (
+                                                    <th
+                                                        key={dateKey}
+                                                        data-date={dateKey}
+                                                        className={isTodayCol ? styles.todayColumnHeader : ''}
+                                                        style={{ background: isTodayCol ? '#dbeafe' : (isWeekend ? '#f1f5f9' : 'white') }}
+                                                    >
                                                         <div style={{fontSize: '0.78rem', color: '#64748b'}}>{format(day, 'EEE', { locale: ptBR })}</div>
                                                         <div style={{fontSize: '1rem'}}>{format(day, 'dd')}</div>
                                                         {isTodayCol && (
-                                                            <div style={{ marginTop: '0.15rem', fontSize: '0.62rem', fontWeight: 700, color: '#1d4ed8' }}>HOJE</div>
+                                                            <div className={styles.todayLabel}>HOJE</div>
                                                         )}
                                                     </th>
-                                                 );
+                                                  );
                                             })}
                                         </tr>
                                     </thead>
@@ -1247,10 +1325,11 @@ export default function MapaReservas() {
                                     className={styles.input}
                                     style={{ width: '100%', marginBottom: '0.6rem' }}
                                 />
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', fontSize: '0.78rem', color: '#475569' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', fontSize: '0.78rem', color: '#475569' }}>
                                     <span>Disponíveis: <strong>{selectedDayData?.available ?? '-'}</strong></span>
                                     <span>Reservados: <strong>{selectedDayData?.bookingsCount ?? '-'}</strong></span>
                                     <span>Capacidade: <strong>{selectedDayData?.capacityTotal ?? '-'}</strong></span>
+                                    <span>Ocupação: <strong>{selectedDayOccupancy.occupancyPct === null ? '—' : `${Math.round(selectedDayOccupancy.occupancyPct)}%`}</strong></span>
                                 </div>
                             </div>
 
