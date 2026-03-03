@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
 
-import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
  
@@ -82,6 +82,7 @@ function ReservarContent() {
     const [couponMessage, setCouponMessage] = useState('');
     const [couponApplying, setCouponApplying] = useState(false);
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+    const [couponExpanded, setCouponExpanded] = useState(false);
     const [formMessage, setFormMessage] = useState('');
     const [pendingCouponOverride, setPendingCouponOverride] = useState(false);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
@@ -96,6 +97,7 @@ function ReservarContent() {
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
+    const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const paymentContainerId = 'paymentBrick_container';
@@ -225,6 +227,15 @@ function ReservarContent() {
     const normalizedCouponInput = couponCode.trim().toUpperCase();
     const hasPendingCouponToApply = normalizedCouponInput.length > 0
         && (!appliedCoupon || appliedCoupon.code !== normalizedCouponInput);
+    const currentStep = paymentBookingId ? 3 : selectedRoom ? 2 : 1;
+    const totalSteps = 3;
+    const progressPercent = Math.round((currentStep / totalSteps) * 100);
+
+    useEffect(() => {
+        if (appliedCoupon || couponMessage || hasPendingCouponToApply) {
+            setCouponExpanded(true);
+        }
+    }, [appliedCoupon, couponMessage, hasPendingCouponToApply]);
 
     const getWhatsAppUrl = () => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
@@ -375,6 +386,7 @@ function ReservarContent() {
         setCouponCode('');
         setCouponMessage('');
         setPendingCouponOverride(false);
+        setCouponExpanded(false);
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
     const applyCoupon = async (): Promise<boolean> => {
@@ -476,6 +488,8 @@ function ReservarContent() {
             clearCouponState(true);
         }
         setFormMessage('');
+        setCouponExpanded(false);
+        setMobileSummaryExpanded(false);
         setSelectedRoom(room);
         setTimeout(() => {
             document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -867,6 +881,21 @@ function ReservarContent() {
                     </Button>
                 </div>
 
+                <div className="mb-6 rounded-lg border border-border/60 bg-white px-4 py-3">
+                    <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm font-medium text-foreground">Passo {currentStep} de {totalSteps}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}
+                        </p>
+                    </div>
+                    <div className="mt-2 h-2 w-full rounded-full bg-muted">
+                        <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
+                </div>
+
                 {!selectedRoom ? (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold font-heading text-primary pl-1">Escolha sua Acomodação</h2>
@@ -1074,6 +1103,52 @@ function ReservarContent() {
                     </div>
                 ) : (
                     <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="lg:hidden sticky top-20 z-30">
+                            <div className="rounded-xl border border-border/60 bg-white/95 backdrop-blur px-4 py-3 shadow-sm">
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center justify-between gap-3 text-left"
+                                    onClick={() => setMobileSummaryExpanded((prev) => !prev)}
+                                    aria-expanded={mobileSummaryExpanded}
+                                    aria-controls="mobile-reservation-summary"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-primary">Resumo da Reserva</p>
+                                        <p className="truncate text-sm font-medium text-foreground">{selectedRoom.name}</p>
+                                        <p className="text-xs text-muted-foreground">{formatDateBR(checkIn!)} - {formatDateBR(checkOut!)}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-sm font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
+                                        <span className="text-xs font-medium text-primary">
+                                            {mobileSummaryExpanded ? 'Ocultar resumo' : 'Ver resumo'}
+                                        </span>
+                                        {mobileSummaryExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                                    </div>
+                                </button>
+
+                                {mobileSummaryExpanded ? (
+                                    <div id="mobile-reservation-summary" className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                                        <div className="flex items-center justify-between">
+                                            <span>Quarto</span>
+                                            <span className="max-w-[70%] truncate text-right font-medium text-foreground">{selectedRoom.name}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Hóspedes</span>
+                                            <span className="font-medium text-foreground">{adults} Adultos, {children} Crianças</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span>Diárias</span>
+                                            <span className="font-medium text-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span>{bookingDiscount > 0 ? 'Total com desconto' : 'Total'}</span>
+                                            <span className="font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+
                         <div className="lg:col-span-2 space-y-6">
                             <Button variant="ghost" onClick={() => { clearCouponState(true); setSelectedRoom(null); }} className="pl-0 hover:pl-2 transition-all gap-2 text-muted-foreground">
                                 <ArrowLeft className="w-4 h-4" /> Voltar para seleção de quartos
@@ -1144,40 +1219,77 @@ function ReservarContent() {
                                         </div>
 
                                         <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                                            <label htmlFor="couponCode" className="text-sm font-medium">Cupom de desconto</label>
-                                            <div className="flex flex-col gap-2 md:flex-row">
-                                                <input
-                                                    id="couponCode"
-                                                    type="text"
-                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                                    placeholder="Ex: VIP10"
-                                                    value={couponCode}
-                                                    onChange={(e) => {
-                                                        setCouponCode(e.target.value.toUpperCase());
-                                                        setPendingCouponOverride(false);
-                                                    }}
-                                                    disabled={processing || couponApplying}
-                                                />
-                                                <Button type="button" variant="outline" onClick={applyCoupon} disabled={processing || couponApplying}>
-                                                    {couponApplying ? 'Aplicando...' : 'Aplicar'}
-                                                </Button>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                                    onClick={() => setCouponExpanded((prev) => !prev)}
+                                                    aria-expanded={couponExpanded}
+                                                    aria-controls="coupon-panel"
+                                                >
+                                                    Tenho um cupom
+                                                    {couponExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                </button>
                                                 {appliedCoupon ? (
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        onClick={() => clearCouponState(true)}
-                                                        disabled={processing || couponApplying}
-                                                    >
-                                                        Remover
-                                                    </Button>
+                                                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                                                        {appliedCoupon.code} aplicado
+                                                    </span>
                                                 ) : null}
                                             </div>
+
+                                            {couponExpanded ? (
+                                                <div id="coupon-panel" className="space-y-3">
+                                                    <label htmlFor="couponCode" className="text-sm font-medium">Cupom de desconto</label>
+                                                    <div className="flex flex-col gap-2 md:flex-row">
+                                                        <input
+                                                            id="couponCode"
+                                                            type="text"
+                                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                            placeholder="Ex: VIP10"
+                                                            value={couponCode}
+                                                            onChange={(e) => {
+                                                                setCouponCode(e.target.value.toUpperCase());
+                                                                setPendingCouponOverride(false);
+                                                            }}
+                                                            disabled={processing || couponApplying}
+                                                        />
+                                                        <Button type="button" variant="outline" onClick={applyCoupon} disabled={processing || couponApplying}>
+                                                            {couponApplying ? 'Aplicando...' : 'Aplicar'}
+                                                        </Button>
+                                                        {appliedCoupon ? (
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => clearCouponState(true)}
+                                                                disabled={processing || couponApplying}
+                                                            >
+                                                                Remover
+                                                            </Button>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+
                                             {couponMessage ? (
                                                 <p className={`text-xs ${appliedCoupon ? 'text-emerald-600' : 'text-destructive'}`}>{couponMessage}</p>
                                             ) : null}
                                             {hasPendingCouponToApply ? (
                                                 <p className="text-xs text-amber-700">Cupom digitado, mas ainda não aplicado.</p>
                                             ) : null}
+                                        </div>
+
+                                        <div className="rounded-lg border border-border/60 bg-white p-3 text-xs text-muted-foreground">
+                                            <span className="font-medium text-foreground">Cancelamento:</span>{' '}
+                                            Consulte prazos e condições antes de concluir a reserva.{' '}
+                                            <Link
+                                                href="/politica-de-cancelamento"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-primary font-medium hover:underline"
+                                            >
+                                                Ver política completa
+                                            </Link>
+                                            .
                                         </div>
 
                                         <div className="bg-secondary/5 p-4 rounded-lg border border-secondary/20">
@@ -1228,7 +1340,7 @@ function ReservarContent() {
                             </Card>
                         </div>
 
-                        <div className="lg:col-span-1">
+                        <div className="hidden lg:block lg:col-span-1">
                             <Card className="sticky top-28 border-border/50 shadow-md overflow-hidden">
                                 <div className="bg-primary p-4 text-white text-center">
                                     <h3 className="font-bold text-lg">Resumo da Reserva</h3>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { buildReservarUrl, type SpecialDateConfig } from '@/constants/specialDates';
@@ -58,23 +59,37 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                         return (
                             <article
                                 key={specialDate.id}
-                                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                                className="rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
                             >
-                                <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                    <CalendarDays className="h-3.5 w-3.5" />
-                                    {formatSpecialDatePeriod(specialDate)}
-                                </div>
-                                <h3 className="text-lg font-semibold text-slate-900">{specialDate.title}</h3>
-                                <p className="mt-2 text-sm text-slate-600">{specialDate.description}</p>
-                                {minNightsLabel ? (
-                                    <p className="mt-3 text-xs font-medium text-slate-500">{minNightsLabel}</p>
+                                {specialDate.image ? (
+                                    <div className="relative aspect-[16/9] w-full">
+                                        <Image
+                                            src={specialDate.image}
+                                            alt={specialDate.title}
+                                            fill
+                                            className="object-cover"
+                                            sizes="(max-width: 768px) 100vw, 33vw"
+                                        />
+                                    </div>
                                 ) : null}
 
-                                <Button asChild className="mt-5 w-full">
-                                    <Link href={href} onClick={() => onDateClick?.(specialDate)}>
-                                        Ver disponibilidade
-                                    </Link>
-                                </Button>
+                                <div className="p-5">
+                                    <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                        <CalendarDays className="h-3.5 w-3.5" />
+                                        {formatSpecialDatePeriod(specialDate)}
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-slate-900">{specialDate.title}</h3>
+                                    <p className="mt-2 text-sm text-slate-600">{specialDate.description}</p>
+                                    {minNightsLabel ? (
+                                        <p className="mt-3 text-xs font-medium text-slate-500">{minNightsLabel}</p>
+                                    ) : null}
+
+                                    <Button asChild className="mt-5 w-full">
+                                        <Link href={href} onClick={() => onDateClick?.(specialDate)}>
+                                            Ver disponibilidade
+                                        </Link>
+                                    </Button>
+                                </div>
                             </article>
                         );
                     })}

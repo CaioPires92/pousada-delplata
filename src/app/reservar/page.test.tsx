@@ -43,6 +43,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Apartamento Anexo')).toBeInTheDocument();
       const prices = screen.getAllByText('R$ 500.00');
       expect(prices.length).toBeGreaterThan(0);
+      expect(screen.getByText(/Passo 1 de 3/i)).toBeInTheDocument();
     });
   });
 
@@ -160,10 +161,88 @@ describe('ReservarPage', () => {
 
     // Wait for breakdown to appear in summary
     await waitFor(() => {
-      expect(screen.getByText(/R\$ 760\.00/)).toBeInTheDocument();
+      const totals = screen.getAllByText(/R\$ 760\.00/);
+      expect(totals.length).toBeGreaterThan(0);
       expect(screen.getByText(/Base/i)).toBeInTheDocument();
       expect(screen.getByText(/Adulto extra/i)).toBeInTheDocument();
       expect(screen.getByText(/Crianças 6–11/i)).toBeInTheDocument();
+    });
+  });
+
+  it('mantém cupom colapsado por padrão e expande ao clicar em "Tenho um cupom"', async () => {
+    const mockRooms = [
+      {
+        id: 'room-1',
+        name: 'Test Room Cupom',
+        description: 'Nice room',
+        capacity: 2,
+        amenities: 'WiFi',
+        totalPrice: 600,
+        photos: [{ url: '/test.jpg' }],
+      }
+    ];
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockRooms,
+    });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Room Cupom')).toBeInTheDocument();
+    });
+
+    screen.getByText(/Selecionar e Continuar/i).click();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Tenho um cupom/i })).toBeInTheDocument();
+      expect(screen.queryByLabelText(/Cupom de desconto/i)).not.toBeInTheDocument();
+    });
+
+    screen.getByRole('button', { name: /Tenho um cupom/i }).click();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Cupom de desconto/i)).toBeInTheDocument();
+    });
+  });
+
+  it('exibe resumo mobile com botão "Ver resumo" e expande detalhes', async () => {
+    const mockRooms = [
+      {
+        id: 'room-1',
+        name: 'Suite Mobile',
+        description: 'Room summary',
+        capacity: 2,
+        amenities: 'WiFi',
+        totalPrice: 650,
+        photos: [{ url: '/test.jpg' }],
+      }
+    ];
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockRooms,
+    });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Suite Mobile')).toBeInTheDocument();
+    });
+
+    screen.getByText(/Selecionar e Continuar/i).click();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Resumo da Reserva/i).length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: /Ver resumo/i })).toBeInTheDocument();
+    });
+
+    screen.getByRole('button', { name: /Ver resumo/i }).click();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Hóspedes/i).length).toBeGreaterThan(0);
     });
   });
 });

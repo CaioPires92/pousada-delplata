@@ -4,6 +4,7 @@ export type SpecialDateConfig = {
     description: string;
     dateFrom: string;
     dateTo?: string;
+    image?: string;
     minNights?: number;
     enabled: boolean;
     bannerLabel?: string;
@@ -34,6 +35,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         description: 'Feriado prolongado com alta procura em Serra Negra.',
         dateFrom: '2026-06-04',
         dateTo: '2026-06-07',
+        image: '/fotos/piscina-aptos/DJI_0845.jpg',
         minNights: 2,
         enabled: true,
         bannerLabel: 'Corpus Christi com alta procura. Consulte disponibilidade.',
