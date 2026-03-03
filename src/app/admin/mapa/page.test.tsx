@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { format } from 'date-fns';
 import type { ReactNode } from 'react';
-import MapaPage, { getOccupancyMetrics } from './page';
+import MapaPage from './page';
+import { getOccupancyMetrics } from './occupancy';
 
 vi.mock('next/link', () => ({
     default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
