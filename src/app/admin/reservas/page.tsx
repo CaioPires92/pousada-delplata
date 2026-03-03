@@ -2,147 +2,46 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { gaEvent } from '@/lib/analytics';
+import BookingRowCard from './booking-row-card';
+import { getStatusText } from './booking-view';
+import {
+    buildBookingsQuery,
+    buildPeriodRange,
+    formatPeriodLabel,
+    shiftAnchorDate,
+    type PeriodMode,
+} from './period';
+import type { Booking, BookingAction } from './types';
 import styles from './reservas.module.css';
-import { formatDateBR } from '@/lib/date';
-
-interface Booking {
-    id: string;
-    adults: number;
-    children: number;
-    childrenAges?: string | null;
-    checkIn: string;
-    checkOut: string;
-    totalPrice: number;
-    status: string;
-    createdAt: string;
-    guest: {
-        name: string;
-        email: string;
-        phone: string;
-    };
-    roomType: {
-        name: string;
-    };
-    payment?: {
-        status: string;
-        amount: number;
-        method?: string | null;
-        cardBrand?: string | null;
-        installments?: number | null;
-        provider?: string;
-    } | null;
-}
-
-type BookingAction = 'test' | 'expire' | 'assist' | 'delete';
 
 type ActionModalState = {
     booking: Booking;
     action: BookingAction;
 };
 
-const BRAND_ALIASES: Record<string, string> = {
-    MASTERCARD: 'MASTER',
-    AMERICAN_EXPRESS: 'AMEX',
-};
+type StatusFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED' | 'EXPIRED';
 
-function normalizeBrand(value?: string | null) {
-    const raw = String(value || '').trim().toUpperCase();
-    if (!raw) return '';
-    const normalized = raw.replace(/[\s-]+/g, '_');
-    return BRAND_ALIASES[normalized] || normalized;
-}
+const ANALYTICS_TEST_MODE_KEY = 'admin_analytics_test_mode';
 
-const KNOWN_BRANDS = new Set([
-    'VISA',
-    'MASTER',
-    'ELO',
-    'AMEX',
-    'HIPERCARD',
-    'MAESTRO',
-    'CABAL',
-    'NARANJA',
-]);
+const STATUS_TABS: Array<{ key: StatusFilter; label: string }> = [
+    { key: 'ALL', label: 'Todas' },
+    { key: 'PENDING', label: 'Pendentes' },
+    { key: 'CONFIRMED', label: 'Confirmadas' },
+    { key: 'CANCELLED', label: 'Canceladas' },
+    { key: 'REFUNDED', label: 'Estornadas' },
+    { key: 'EXPIRED', label: 'Expiradas' },
+];
 
-function formatPaymentType(method?: string | null) {
-    const m = String(method || '').trim().toUpperCase();
-    if (!m) return '-';
-    if (KNOWN_BRANDS.has(normalizeBrand(m))) return 'Crédito';
+const PERIOD_MODES: Array<{ key: PeriodMode; label: string }> = [
+    { key: 'month', label: 'Mês' },
+    { key: 'week', label: 'Semana' },
+    { key: 'day', label: 'Dia' },
+    { key: 'range', label: 'Intervalo' },
+];
 
-    const labels: Record<string, string> = {
-        PIX: 'Pix',
-        CREDIT_CARD: 'Crédito',
-        DEBIT_CARD: 'Débito',
-        ACCOUNT_MONEY: 'Saldo MP',
-    };
-
-    return labels[m] || m.replace(/_/g, ' ');
-}
-
-function normalizeChildrenAges(childrenAges?: string | null) {
-    const raw = String(childrenAges || '').trim();
-    if (!raw) return [] as number[];
-
-    try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-            return parsed
-                .map((age) => Number.parseInt(String(age), 10))
-                .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
-        }
-    } catch {
-        // fallback CSV
-    }
-
-    return raw
-        .split(',')
-        .map((age) => Number.parseInt(age.trim(), 10))
-        .filter((age) => Number.isFinite(age) && age >= 0 && age <= 17);
-}
-
-function getPaymentBrand(payment?: Booking['payment']) {
-    const explicitBrand = normalizeBrand(payment?.cardBrand);
-    if (explicitBrand) return explicitBrand;
-
-    const method = normalizeBrand(payment?.method);
-    if (KNOWN_BRANDS.has(method)) return method;
-    return '';
-}
-
-function formatPaymentBrand(payment?: Booking['payment']) {
-    const brand = getPaymentBrand(payment);
-    if (!brand) return '-';
-
-    const labels: Record<string, string> = {
-        MASTER: 'Master',
-        VISA: 'Visa',
-        ELO: 'Elo',
-        AMEX: 'Amex',
-        HIPERCARD: 'Hipercard',
-        MAESTRO: 'Maestro',
-        CABAL: 'Cabal',
-        NARANJA: 'Naranja',
-    };
-
-    return labels[brand] || brand;
-}
-
-function isCreditPayment(payment?: Booking['payment']) {
-    const method = String(payment?.method || '').trim().toUpperCase();
-    if (method === 'CREDIT_CARD') return true;
-    if (Number(payment?.installments || 0) > 0) return true;
-    return Boolean(getPaymentBrand(payment));
-}
-
-function formatInstallments(payment?: Booking['payment']) {
-    if (!isCreditPayment(payment)) return '-';
-    const installments = Number.parseInt(String(payment?.installments ?? ''), 10);
-    if (!Number.isFinite(installments) || installments <= 0) return '-';
-    return `${installments}x`;
-}
-
-function isBookingApproved(booking: Booking) {
-    return String(booking.status || '').toUpperCase() === 'CONFIRMED'
-        && String(booking.payment?.status || '').toUpperCase() === 'APPROVED';
+function toYmd(date: Date) {
+    return date.toISOString().slice(0, 10);
 }
 
 function getActionLabel(action: BookingAction) {
@@ -167,20 +66,70 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
 
+function getStatusBadge(status: string) {
+    const normalized = String(status || '').toUpperCase();
+    const badges: Record<string, string> = {
+        PENDING: styles.statusPending,
+        CONFIRMED: styles.statusConfirmed,
+        CANCELLED: styles.statusCancelled,
+        EXPIRED: styles.statusExpired,
+        REFUNDED: styles.statusRefunded,
+    };
+    return badges[normalized] || styles.statusPending;
+}
+
 export default function AdminReservasPage() {
     const router = useRouter();
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('ALL');
+    const [filter, setFilter] = useState<StatusFilter>('ALL');
+    const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
+    const [periodAnchor, setPeriodAnchor] = useState(() => new Date());
+    const [rangeFrom, setRangeFrom] = useState('');
+    const [rangeTo, setRangeTo] = useState('');
+    const [analyticsTestMode, setAnalyticsTestMode] = useState(false);
     const [actionBusy, setActionBusy] = useState<{ bookingId: string; action: BookingAction } | null>(null);
     const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
     const [actionSelectValue, setActionSelectValue] = useState<Record<string, string>>({});
+
     const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
+    const periodRange = useMemo(
+        () => buildPeriodRange({ mode: periodMode, anchorDate: periodAnchor, customFrom: rangeFrom, customTo: rangeTo }),
+        [periodMode, periodAnchor, rangeFrom, rangeTo]
+    );
+    const periodLabel = useMemo(
+        () => formatPeriodLabel(periodMode, periodAnchor, periodRange),
+        [periodMode, periodAnchor, periodRange]
+    );
+    const isRangeInvalid = periodMode === 'range' && !periodRange && (rangeFrom.length > 0 || rangeTo.length > 0);
+
+    const trackAdminEvent = useCallback((eventName: string, params: Record<string, string | number | boolean> = {}) => {
+        const payload: Record<string, string | number | boolean> = {
+            section: 'admin_reservas',
+            ...params,
+        };
+        if (analyticsTestMode) {
+            payload.test_mode = true;
+            payload.debug_mode = true;
+        }
+        gaEvent(eventName, payload);
+    }, [analyticsTestMode]);
 
     const fetchBookings = useCallback(async () => {
+        setLoading(true);
         try {
-            const response = await fetch('/api/admin/bookings');
+            const query = buildBookingsQuery({
+                status: filter,
+                mode: periodMode,
+                anchorDate: periodAnchor,
+                customFrom: rangeFrom,
+                customTo: rangeTo,
+                dateField: 'checkIn',
+            });
+            const endpoint = query ? `/api/admin/bookings?${query}` : '/api/admin/bookings';
+            const response = await fetch(endpoint);
+
             if (response.status === 401) {
                 router.push('/admin/login');
                 return;
@@ -188,17 +137,27 @@ export default function AdminReservasPage() {
             if (!response.ok) throw new Error('Erro ao carregar reservas');
 
             const data = await response.json();
-            setBookings(data);
+            setBookings(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Erro:', error);
+            setBookings([]);
         } finally {
             setLoading(false);
         }
-    }, [router]);
+    }, [filter, periodMode, periodAnchor, rangeFrom, rangeTo, router]);
 
     useEffect(() => {
         fetchBookings();
     }, [fetchBookings]);
+
+    useEffect(() => {
+        try {
+            const storedValue = localStorage.getItem(ANALYTICS_TEST_MODE_KEY);
+            setAnalyticsTestMode(storedValue === 'true');
+        } catch {
+            setAnalyticsTestMode(false);
+        }
+    }, []);
 
     useEffect(() => {
         if (!actionModal) return;
@@ -221,6 +180,10 @@ export default function AdminReservasPage() {
     }) => {
         setActionBusy({ bookingId: params.bookingId, action: params.action });
         setActionFeedback(null);
+        trackAdminEvent('admin_booking_action_requested', {
+            action: params.action,
+            booking_id_short: params.bookingId.slice(0, 8).toUpperCase(),
+        });
 
         try {
             const response = await fetch(params.endpoint, {
@@ -235,14 +198,22 @@ export default function AdminReservasPage() {
             }
 
             setActionFeedback({ type: 'success', message: params.successMessage });
+            trackAdminEvent('admin_booking_action_success', {
+                action: params.action,
+                booking_id_short: params.bookingId.slice(0, 8).toUpperCase(),
+            });
             await fetchBookings();
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Nao foi possivel concluir a acao.';
             setActionFeedback({ type: 'error', message });
+            trackAdminEvent('admin_booking_action_error', {
+                action: params.action,
+                booking_id_short: params.bookingId.slice(0, 8).toUpperCase(),
+            });
         } finally {
             setActionBusy(null);
         }
-    }, [fetchBookings]);
+    }, [fetchBookings, trackAdminEvent]);
 
     const approveTestPayment = useCallback(async (bookingId: string) => {
         if (!testPaymentsEnabled) return;
@@ -331,13 +302,54 @@ export default function AdminReservasPage() {
         if (!actionValue) return;
 
         const action = actionValue as BookingAction;
+        trackAdminEvent('admin_booking_action_selected', {
+            action,
+            booking_id_short: booking.id.slice(0, 8).toUpperCase(),
+        });
         setActionModal({ booking, action });
+    }, [trackAdminEvent]);
+
+    const onToggleAnalyticsTestMode = useCallback((enabled: boolean) => {
+        setAnalyticsTestMode(enabled);
+        try {
+            localStorage.setItem(ANALYTICS_TEST_MODE_KEY, String(enabled));
+        } catch {
+            // no-op
+        }
+        gaEvent('admin_analytics_test_mode_toggled', {
+            section: 'admin_reservas',
+            enabled,
+            ...(enabled ? { test_mode: true, debug_mode: true } : {}),
+        });
     }, []);
 
-    const filteredBookings = bookings.filter((b) => {
-        if (filter === 'ALL') return true;
-        return b.status === filter;
-    });
+    const onChangeStatus = useCallback((nextStatus: StatusFilter) => {
+        setFilter(nextStatus);
+        trackAdminEvent('admin_booking_status_filter_changed', { status: nextStatus });
+    }, [trackAdminEvent]);
+
+    const onChangePeriodMode = useCallback((nextMode: PeriodMode) => {
+        setPeriodMode(nextMode);
+        if (nextMode === 'range' && !rangeFrom && !rangeTo) {
+            const today = toYmd(new Date());
+            setRangeFrom(today);
+            setRangeTo(today);
+        }
+        trackAdminEvent('admin_booking_period_mode_changed', { mode: nextMode });
+    }, [rangeFrom, rangeTo, trackAdminEvent]);
+
+    const onShiftPeriod = useCallback((direction: -1 | 1) => {
+        setPeriodAnchor((current) => shiftAnchorDate(current, periodMode, direction));
+        trackAdminEvent('admin_booking_period_navigated', {
+            mode: periodMode,
+            direction: direction > 0 ? 'next' : 'prev',
+        });
+    }, [periodMode, trackAdminEvent]);
+
+    const filteredBookings = useMemo(() => {
+        if (filter === 'ALL') return bookings;
+        return bookings.filter((booking) => String(booking.status || '').toUpperCase() === filter);
+    }, [bookings, filter]);
 
     const modalConfirmClass = useMemo(() => {
         if (!actionModal) return styles.modalConfirmButton;
@@ -346,170 +358,136 @@ export default function AdminReservasPage() {
             : styles.modalConfirmButton;
     }, [actionModal]);
 
-    const getStatusBadge = (status: string) => {
-        const badges: Record<string, string> = {
-            PENDING: styles.statusPending,
-            CONFIRMED: styles.statusConfirmed,
-            CANCELLED: styles.statusCancelled,
-            EXPIRED: styles.statusExpired,
-            REFUNDED: styles.statusRefunded,
-        };
-        return badges[status] || styles.statusPending;
-    };
-
-    const getStatusText = (status: string) => {
-        const texts: Record<string, string> = {
-            PENDING: 'Pendente',
-            CONFIRMED: 'Confirmada',
-            CANCELLED: 'Cancelada',
-            EXPIRED: 'Expirada',
-            REFUNDED: 'Estornada',
-        };
-        return texts[status] || status;
-    };
-
-    if (loading) {
-        return <div className={styles.loading}>Carregando...</div>;
-    }
-
     return (
         <>
-            <div className={styles.pageHeader}>
-                <h2>Todas as Reservas ({filteredBookings.length})</h2>
+            <section className={styles.wrapper}>
+                <header className={styles.stickyHeader}>
+                    <div className={styles.headerTitleRow}>
+                        <h2 className={styles.pageTitle}>Reservas</h2>
+                        <span className={styles.resultCount}>{filteredBookings.length} resultados</span>
+                    </div>
 
-                <div className={styles.filters}>
-                    <button className={filter === 'ALL' ? styles.filterActive : styles.filter} onClick={() => setFilter('ALL')}>
-                        Todas
-                    </button>
-                    <button className={filter === 'PENDING' ? styles.filterActive : styles.filter} onClick={() => setFilter('PENDING')}>
-                        Pendentes
-                    </button>
-                    <button className={filter === 'CONFIRMED' ? styles.filterActive : styles.filter} onClick={() => setFilter('CONFIRMED')}>
-                        Confirmadas
-                    </button>
-                    <button className={filter === 'CANCELLED' ? styles.filterActive : styles.filter} onClick={() => setFilter('CANCELLED')}>
-                        Canceladas
-                    </button>
-                    <button className={filter === 'REFUNDED' ? styles.filterActive : styles.filter} onClick={() => setFilter('REFUNDED')}>
-                        Estornadas
-                    </button>
-                    <button className={filter === 'EXPIRED' ? styles.filterActive : styles.filter} onClick={() => setFilter('EXPIRED')}>
-                        Expiradas
-                    </button>
-                </div>
-            </div>
+                    <div className={styles.headerControls}>
+                        <div className={styles.controlBlock}>
+                            <span className={styles.controlLabel}>Status</span>
+                            <div className={styles.statusTabs}>
+                                {STATUS_TABS.map((tab) => (
+                                    <button
+                                        key={tab.key}
+                                        className={filter === tab.key ? styles.filterActive : styles.filter}
+                                        onClick={() => onChangeStatus(tab.key)}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
-            {testPaymentsEnabled ? (
-                <div className={styles.testModeBanner}>
-                    Modo de teste ativo: use "Aprovar teste" para confirmar pagamento e disparar evento no GA4.
-                </div>
-            ) : null}
+                        <div className={styles.controlBlock}>
+                            <span className={styles.controlLabel}>Período</span>
+                            <div className={styles.periodModeTabs}>
+                                {PERIOD_MODES.map((mode) => (
+                                    <button
+                                        key={mode.key}
+                                        className={periodMode === mode.key ? styles.modeButtonActive : styles.modeButton}
+                                        onClick={() => onChangePeriodMode(mode.key)}
+                                    >
+                                        {mode.label}
+                                    </button>
+                                ))}
+                            </div>
 
-            {actionFeedback ? (
-                <div className={actionFeedback.type === 'success' ? styles.testFeedbackSuccess : styles.testFeedbackError}>
-                    {actionFeedback.message}
-                </div>
-            ) : null}
+                            <div className={styles.periodControls}>
+                                {periodMode !== 'range' ? (
+                                    <div className={styles.periodNavigator}>
+                                        <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(-1)}>
+                                            {'<'}
+                                        </button>
+                                        <span className={styles.periodLabel}>{periodLabel}</span>
+                                        <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(1)}>
+                                            {'>'}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className={styles.rangeInputs}>
+                                        <input
+                                            type="date"
+                                            className={styles.dateInput}
+                                            value={rangeFrom}
+                                            onChange={(event) => setRangeFrom(event.target.value)}
+                                            aria-label="Data inicial"
+                                        />
+                                        <span className={styles.rangeSeparator}>até</span>
+                                        <input
+                                            type="date"
+                                            className={styles.dateInput}
+                                            value={rangeTo}
+                                            onChange={(event) => setRangeTo(event.target.value)}
+                                            aria-label="Data final"
+                                        />
+                                    </div>
+                                )}
+                            </div>
 
-            {filteredBookings.length === 0 ? (
-                <div className={styles.empty}>
-                    <p>Nenhuma reserva encontrada</p>
-                </div>
-            ) : (
-                <div className={styles.table}>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Hóspede</th>
-                                <th>Hóspedes</th>
-                                <th>Quarto</th>
-                                <th>Check-in</th>
-                                <th>Check-out</th>
-                                <th>Valor</th>
-                                <th>Pagamento</th>
-                                <th>Status</th>
-                                <th>Criada em</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredBookings.map((booking) => {
-                                const bookingApproved = isBookingApproved(booking);
+                            {isRangeInvalid ? (
+                                <small className={styles.periodHint}>Intervalo inválido: mantendo comportamento atual sem filtro de data.</small>
+                            ) : null}
+                        </div>
 
-                                return (
-                                    <tr key={booking.id}>
-                                        <td>
-                                            <code>{booking.id.slice(0, 8)}</code>
-                                        </td>
-                                        <td>
-                                            <div className={styles.guestInfo}>
-                                                <strong>{booking.guest.name}</strong>
-                                                <small>{booking.guest.email}</small>
-                                                <small>{booking.guest.phone}</small>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className={styles.guestInfo}>
-                                                <strong className={styles.compactMain}>{Number(booking.adults || 0) + Number(booking.children || 0)} hosp.</strong>
-                                                <small className={styles.compactSub}>{booking.adults}A / {booking.children}C</small>
-                                                {booking.children > 0 ? (
-                                                    <small className={styles.compactSub}>
-                                                        Idades: {(() => {
-                                                            const ages = normalizeChildrenAges(booking.childrenAges);
-                                                            return ages.length > 0 ? ages.join(', ') : '-';
-                                                        })()}
-                                                    </small>
-                                                ) : null}
-                                            </div>
-                                        </td>
-                                        <td>{booking.roomType.name}</td>
-                                        <td>{formatDateBR(booking.checkIn)}</td>
-                                        <td>{formatDateBR(booking.checkOut)}</td>
-                                        <td>
-                                            <strong>R$ {Number(booking.totalPrice).toFixed(2)}</strong>
-                                        </td>
-                                        <td>
-                                            <div className={styles.guestInfo}>
-                                                <strong className={styles.compactMain}>{formatPaymentType(booking.payment?.method)}</strong>
-                                                <small className={styles.compactSub}>Parc.: {formatInstallments(booking.payment)}</small>
-                                                <small className={styles.compactSub}>Band.: {formatPaymentBrand(booking.payment)}</small>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={getStatusBadge(booking.status)}>{getStatusText(booking.status)}</span>
-                                        </td>
-                                        <td>{formatDateBR(booking.createdAt)}</td>
-                                        <td className={styles.testActionCell}>
-                                            <div className={styles.actionSelectWrap}>
-                                                <select
-                                                    className={styles.actionSelect}
-                                                    value={actionSelectValue[booking.id] || ''}
-                                                    onChange={(event) => onActionSelect(booking, event.target.value)}
-                                                    disabled={Boolean(actionBusy)}
-                                                >
-                                                    <option value="">Selecionar...</option>
-                                                    <option value="expire">Expirar reserva</option>
-                                                    <option value="assist">Enviar ajuda</option>
-                                                    <option value="delete">Excluir reserva</option>
-                                                    {testPaymentsEnabled ? (
-                                                        <option value="test" disabled={bookingApproved}>
-                                                            {bookingApproved ? 'Aprovar teste (já aprovada)' : 'Aprovar teste'}
-                                                        </option>
-                                                    ) : null}
-                                                </select>
-                                                {actionBusy?.bookingId === booking.id ? (
-                                                    <small className={styles.actionHint}>Processando...</small>
-                                                ) : null}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                        <div className={styles.controlBlock}>
+                            <span className={styles.controlLabel}>Analytics</span>
+                            <label className={styles.toggleLabel}>
+                                <input
+                                    type="checkbox"
+                                    checked={analyticsTestMode}
+                                    onChange={(event) => onToggleAnalyticsTestMode(event.target.checked)}
+                                />
+                                <span>Modo teste (analytics)</span>
+                                <span className={analyticsTestMode ? styles.modeOnBadge : styles.modeOffBadge} title="Eventos serão marcados como teste">
+                                    {analyticsTestMode ? 'ON' : 'OFF'}
+                                </span>
+                            </label>
+                            {testPaymentsEnabled ? (
+                                <small className={styles.testPaymentsNote}>Test payments habilitado</small>
+                            ) : null}
+                        </div>
+                    </div>
+                </header>
+
+                {actionFeedback ? (
+                    <div className={actionFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}>
+                        {actionFeedback.message}
+                    </div>
+                ) : null}
+
+                {loading && bookings.length > 0 ? (
+                    <div className={styles.inlineLoading}>Atualizando listagem...</div>
+                ) : null}
+
+                {loading && bookings.length === 0 ? (
+                    <div className={styles.loading}>Carregando...</div>
+                ) : filteredBookings.length === 0 ? (
+                    <div className={styles.empty}>
+                        <p>Nenhuma reserva encontrada</p>
+                    </div>
+                ) : (
+                    <div className={styles.cardsList}>
+                        {filteredBookings.map((booking) => (
+                            <BookingRowCard
+                                key={booking.id}
+                                booking={booking}
+                                statusText={getStatusText(booking.status)}
+                                statusClassName={getStatusBadge(booking.status)}
+                                actionValue={actionSelectValue[booking.id] || ''}
+                                actionBusy={Boolean(actionBusy)}
+                                showActionBusy={Boolean(actionBusy?.bookingId === booking.id)}
+                                testPaymentsEnabled={testPaymentsEnabled}
+                                onActionSelect={onActionSelect}
+                            />
+                        ))}
+                    </div>
+                )}
+            </section>
 
             {actionModal ? (
                 <div className={styles.modalBackdrop} onClick={() => setActionModal(null)}>
