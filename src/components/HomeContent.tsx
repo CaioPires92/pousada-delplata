@@ -7,8 +7,9 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import SearchWidget from "@/components/SearchWidget";
-import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, CheckCircle2 } from "lucide-react";
+import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, Coffee, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   gaEvent,
@@ -20,8 +21,6 @@ import SocialProofBadges from "@/components/SocialProofBadges";
 import SpecialDatesSection from "@/components/SpecialDatesSection";
 import {
   SPECIAL_DATES,
-  buildReservarUrl,
-  getActiveBannerSpecialDate,
 } from "@/constants/specialDates";
 
 const siteImages = {
@@ -114,16 +113,6 @@ export default function HomeContent() {
     () => SPECIAL_DATES.filter((specialDate) => specialDate.enabled),
     []
   );
-  const activeBanner = useMemo(() => getActiveBannerSpecialDate(new Date()), []);
-  const activeBannerHref = useMemo(() => {
-    if (!activeBanner) return "/reservar";
-    return buildReservarUrl({
-      checkIn: activeBanner.dateFrom,
-      checkOut: activeBanner.dateTo,
-      adults: 2,
-      children: 0,
-    });
-  }, [activeBanner]);
 
   const handleHeroPrimaryCtaClick = () => {
     trackClickReservarHero("hero");
@@ -134,29 +123,8 @@ export default function HomeContent() {
     gaEvent("home_special_dates_click", { special_date_id: specialDateId });
   };
 
-  const handleBannerClick = () => {
-    if (!activeBanner) return;
-    gaEvent("home_banner_special_date_click", { special_date_id: activeBanner.id });
-  };
-
   return (
     <main className="min-h-screen">
-      {activeBanner ? (
-        <section className="border-b border-slate-700/80 bg-slate-900 text-slate-100">
-          <div className="container flex min-h-11 flex-wrap items-center justify-between gap-2 py-2 text-sm">
-            <p className="font-medium text-slate-100">
-              {activeBanner.bannerLabel || `${activeBanner.title} com alta procura. Consulte disponibilidade.`}
-            </p>
-            <Link
-              href={activeBannerHref}
-              onClick={handleBannerClick}
-              className="text-xs font-semibold uppercase tracking-wide text-secondary transition hover:text-secondary/80"
-            >
-              Ver datas
-            </Link>
-          </div>
-        </section>
-      ) : null}
 
       {/* Hero Section with Background Image */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -243,13 +211,24 @@ export default function HomeContent() {
         <div className="container">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto">
             {quickBenefits.map((benefit) => (
-              <div
+              <Badge
+                variant="secondary"
                 key={benefit}
-                className="flex items-center gap-2 rounded-full border border-border/40 bg-card/60 px-3 py-2 text-sm font-medium text-foreground"
+                className="group flex h-auto w-full items-center justify-start gap-2.5 rounded-full border border-border/60 bg-card/80 px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-card hover:shadow-md"
               >
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                  {benefit === "Piscina adulto + infantil" ? (
+                    <Waves className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : benefit === "Café da manhã diário" ? (
+                    <Coffee className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : benefit === "Ambiente familiar" ? (
+                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                </span>
                 <span>{benefit}</span>
-              </div>
+              </Badge>
             ))}
           </div>
         </div>
