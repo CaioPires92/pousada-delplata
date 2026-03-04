@@ -263,20 +263,20 @@ export default function HomeContent() {
                 transition={{ duration: 0.6, delay: index * 0.2 }}
               >
                 <Link href={wing.link} className="block h-full group">
-                  <Card className="overflow-hidden h-full border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-xl rounded-3xl">
-                    <div className="relative h-96 overflow-hidden">
+                  <Card className="h-full overflow-hidden rounded-2xl border border-border/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+                    <div className="relative w-full aspect-[16/9] overflow-hidden rounded-xl">
                       <Image
                         src={wing.image.src}
                         alt={wing.image.alt}
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
-                        className="object-cover group-hover:scale-110 transition-transform duration-700"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-30 group-hover:opacity-80 transition-opacity" />
-                      <div className="absolute bottom-0 left-0 p-8 text-white w-full">
-                        <h3 className="text-3xl md:text-4xl font-bold font-heading mb-3">{wing.title}</h3>
-                        <p className="text-white/90 text-lg mb-6 line-clamp-2">{wing.description}</p>
-                        <div className="flex items-center text-secondary font-bold group-hover:translate-x-2 transition-transform">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 text-white">
+                        <h3 className="line-clamp-1 text-2xl md:text-3xl font-bold font-heading">{wing.title}</h3>
+                        <p className="mt-1 min-h-[2.75rem] line-clamp-2 text-sm md:text-base text-white/90">{wing.description}</p>
+                        <div className="mt-3 flex items-center text-secondary font-bold group-hover:translate-x-1 transition-transform">
                           Ver fotos e detalhes <ArrowRight className="ml-2 w-5 h-5" />
                         </div>
                       </div>

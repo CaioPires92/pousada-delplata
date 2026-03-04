@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, MoonStar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { buildReservarUrl, type SpecialDateConfig } from '@/constants/specialDates';
 
 type SpecialDatesSectionProps = {
@@ -81,11 +83,18 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
     return (
         <section className="border-b border-border/60 bg-slate-50/80 py-12 md:py-14">
             <div className="container space-y-8">
-                <div className="space-y-2 text-center">
-                    <h2 className="text-2xl md:text-3xl font-bold font-heading text-slate-900">📅 Próximas Datas Especiais</h2>
-                    <p className="text-sm md:text-base text-slate-600">
+                <div className="space-y-4 text-center">
+                    <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border/70 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-sm">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <CalendarDays className="h-3.5 w-3.5" />
+                        </span>
+                        Datas especiais
+                    </div>
+                    <h2 className="text-2xl font-bold font-heading text-slate-900 md:text-3xl">Próximas Datas Especiais</h2>
+                    <p className="mx-auto max-w-2xl text-sm text-muted-foreground md:text-base">
                         Alta procura para os próximos feriados. Garanta sua hospedagem.
                     </p>
+                    <Separator />
                 </div>
 
                 <div className="flex items-center justify-end gap-2">
@@ -129,7 +138,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                         return (
                             <article
                                 key={specialDate.id}
-                                className="relative h-[500px] sm:h-[520px] lg:h-[540px] w-[84%] shrink-0 snap-start rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md sm:w-[66%] md:w-[48%] lg:w-[32%]"
+                                className="relative h-[500px] w-[84%] shrink-0 snap-start rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg sm:h-[520px] sm:w-[66%] md:w-[48%] lg:h-[540px] lg:w-[32%]"
                             >
                                 {specialDate.image ? (
                                     <div className="relative w-full h-44 overflow-hidden rounded-t-xl sm:h-52 lg:h-56">
@@ -145,19 +154,22 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                                 ) : null}
 
                                 <div className="p-4 pb-24">
-                                    <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                    <Badge variant="secondary" className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
                                         <CalendarDays className="h-3.5 w-3.5" />
                                         {formatSpecialDatePeriod(specialDate)}
-                                    </div>
+                                    </Badge>
                                     <h3 className="min-h-[3.25rem] text-lg font-semibold text-slate-900 line-clamp-2">{specialDate.title}</h3>
                                     <p className="mt-2 min-h-[3rem] overflow-hidden text-sm text-slate-600 line-clamp-2">{specialDate.description}</p>
                                     {minNightsLabel ? (
-                                        <p className="mt-2 text-xs font-medium text-slate-500">{minNightsLabel}</p>
+                                        <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                                            <MoonStar className="h-3.5 w-3.5" />
+                                            <span>{minNightsLabel}</span>
+                                        </div>
                                     ) : null}
                                 </div>
 
                                 <div className="absolute left-4 right-4 bottom-4">
-                                    <Button asChild className="h-11 w-full">
+                                    <Button asChild className="h-11 w-full rounded-xl focus-visible:ring-2 focus-visible:ring-offset-2">
                                         <Link href={href} onClick={() => onDateClick?.(specialDate)}>
                                             Ver disponibilidade
                                         </Link>

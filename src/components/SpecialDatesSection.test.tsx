@@ -54,4 +54,15 @@ describe('SpecialDatesSection', () => {
         expect(screen.getByText('República')).toBeInTheDocument();
         expect(screen.getAllByRole('link', { name: /Ver disponibilidade/i })).toHaveLength(3);
     });
+
+    it('renderiza controles do slider para navegar entre cards', () => {
+        const dates = [
+            baseDate,
+            { ...baseDate, id: 'independencia', title: 'Independência', dateFrom: '2026-09-05', dateTo: '2026-09-07', image: undefined },
+        ];
+
+        render(<SpecialDatesSection dates={dates} />);
+        expect(screen.getByRole('button', { name: /Ver datas anteriores/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Ver próximas datas/i })).toBeInTheDocument();
+    });
 });
