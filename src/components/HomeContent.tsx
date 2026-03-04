@@ -19,6 +19,7 @@ import {
 } from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
 import SpecialDatesSection from "@/components/SpecialDatesSection";
+import PromoWeekendCard from "@/components/PromoWeekendCard";
 import {
   SPECIAL_DATES,
 } from "@/constants/specialDates";
@@ -199,6 +200,16 @@ export default function HomeContent() {
             </div>
           </motion.div>
         </motion.div>
+
+        <div className="absolute right-8 top-1/2 z-20 hidden w-full max-w-[280px] -translate-y-1/2 md:block">
+          <PromoWeekendCard />
+        </div>
+      </section>
+
+      <section className="bg-background py-4 md:hidden">
+        <div className="container">
+          <PromoWeekendCard className="w-full" />
+        </div>
       </section>
 
       <SpecialDatesSection

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { Calendar as CalendarIcon, Users, Baby, Search, ChevronDown, Loader2 } from 'lucide-react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { Calendar as CalendarIcon, Users, Baby, Search, ChevronDown, Loader2, Bookmark } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -33,6 +33,7 @@ export default function SearchWidget({
 }: SearchWidgetProps) {
     const router = useRouter();
     const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     // Definir datas padrão (hoje e amanhã)
     const today = new Date();
@@ -45,6 +46,9 @@ export default function SearchWidget({
     const [childrenAges, setChildrenAges] = useState<(number | null)[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchMessage, setSearchMessage] = useState('');
+    const [couponCode, setCouponCode] = useState('');
+    const [couponFeedback, setCouponFeedback] = useState('');
+    const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'warning' | ''>('');
 
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
@@ -156,6 +160,8 @@ export default function SearchWidget({
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setSearchMessage('');
+        setCouponFeedback('');
+        setCouponFeedbackType('');
         trackSearch({
             checkIn: checkIn ? format(checkIn, 'yyyy-MM-dd') : undefined,
             checkOut: checkOut ? format(checkOut, 'yyyy-MM-dd') : undefined,
@@ -214,9 +220,16 @@ export default function SearchWidget({
         if (normalizedChildrenAges.length > 0) {
             params.set('childrenAges', normalizedChildrenAges.map((a) => String(a)).join(','));
         }
+        const normalizedCoupon = couponCode.trim().toUpperCase();
+        if (normalizedCoupon) {
+            params.set('promo', normalizedCoupon);
+        }
 
         try {
             const response = await fetch(`/api/availability?${params.toString()}`, { cache: 'no-store' });
+            const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
+            const responsePromoMessage = response.headers.get('x-promo-message') || '';
+
             if (!response.ok) {
                 const errorBody = await response.json().catch(() => ({}));
                 if (errorBody?.error === 'min_stay_required') {
@@ -235,6 +248,16 @@ export default function SearchWidget({
             if (Array.isArray(data) && data.length === 0) {
                 setSearchMessage('Sem disponibilidade para essas datas/ocupação.');
                 return;
+            }
+
+            if (normalizedCoupon) {
+                if (responsePromoApplied) {
+                    setCouponFeedback(`Cupom ${normalizedCoupon} válido e aplicado.`);
+                    setCouponFeedbackType('success');
+                } else if (responsePromoMessage) {
+                    setCouponFeedback(responsePromoMessage);
+                    setCouponFeedbackType('warning');
+                }
             }
 
             router.push(`/reservar?${params.toString()}`);
@@ -268,13 +291,22 @@ export default function SearchWidget({
         if (numChildren > 0) firstAgeRef.current?.focus();
     }, [numChildren]);
 
+    useEffect(() => {
+        const incomingPromo = String(searchParams.get('promo') || searchParams.get('coupon') || '').trim().toUpperCase();
+        if (incomingPromo) {
+            setCouponCode(incomingPromo);
+            return;
+        }
+        setCouponCode('');
+    }, [searchParams]);
+
 
 
     return (
         <div className="w-full">
-            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <form onSubmit={handleSearch} className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
                 {/* Check-in */}
-                <div className="flex flex-col md:col-span-3">
+                <div className="flex flex-col lg:col-span-2">
                     <label className={labelClass}>
                         <CalendarIcon className="w-4 h-4" />
                         Check-in
@@ -304,7 +336,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Check-out */}
-                <div className="flex flex-col md:col-span-3">
+                <div className="flex flex-col lg:col-span-2">
                     <label className={labelClass}>
                         <CalendarIcon className="w-4 h-4" />
                         Check-out
@@ -338,7 +370,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Adultos */}
-                <div className="flex flex-col md:col-span-2">
+                <div className="flex flex-col lg:col-span-2">
                     <label htmlFor="adults" className={labelClass}>
                         <Users className="w-4 h-4" />
                         Adultos
@@ -359,7 +391,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Crianças */}
-                <div className="flex flex-col md:col-span-2">
+                <div className="flex flex-col lg:col-span-2">
                     <label htmlFor="children" className={labelClass}>
                         <Baby className="w-4 h-4" />
                         Crianças
@@ -380,8 +412,24 @@ export default function SearchWidget({
                     {/* Ages UI moved below the main form */}
                 </div>
 
+                {/* Cupom */}
+                <div className="flex flex-col lg:col-span-2">
+                    <label htmlFor="coupon" className={labelClass}>
+                        <Bookmark className="w-4 h-4" />
+                        Cupom
+                    </label>
+                    <input
+                        id="coupon"
+                        type="text"
+                        className={dateInputClass}
+                        placeholder="Código Promocional"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    />
+                </div>
+
                 {/* Botão de busca */}
-                <div className="md:col-span-2">
+                <div className="lg:col-span-2">
                     <Button
                         type="submit"
                         size="lg"
@@ -408,7 +456,7 @@ export default function SearchWidget({
                     </Button>
                 </div>
                 {numChildren > 0 ? (
-                    <div className="md:col-span-12">
+                    <div className="lg:col-span-12">
                         <p className="text-xs text-white/90 mb-1">
                             Informe a idade das crianças
                         </p>
@@ -444,6 +492,13 @@ export default function SearchWidget({
                 <p className={`mt-3 text-sm font-medium text-center ${variant === 'light' ? 'text-primary' : 'text-white/95'}`}>
                     {ctaMicrocopy}
                 </p>
+            ) : null}
+            {couponFeedback ? (
+                <div className={`mt-3 rounded-xl p-3 text-sm ${couponFeedbackType === 'success'
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {couponFeedback}
+                </div>
             ) : null}
             {searchMessage ? (
                 <div className={searchMessageClass}>

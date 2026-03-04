@@ -1,10 +1,11 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCallback, useEffect, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
 
@@ -20,6 +21,12 @@ interface Room {
     capacity: number;
     amenities: string;
     totalPrice: number;
+    priceOriginal?: number;
+    priceDiscounted?: number;
+    discountAmount?: number;
+    promoApplied?: boolean;
+    promoMessage?: string;
+    promoCodeNormalized?: string;
     minLos?: number;
     priceBreakdown?: {
         nights: number;
@@ -59,11 +66,14 @@ interface RoomGalleryState {
 
 function ReservarContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
     const checkIn = searchParams.get('checkIn');
     const checkOut = searchParams.get('checkOut');
     const adults = searchParams.get('adults') || '2';
     const children = searchParams.get('children') || '0';
     const childrenAgesParam = searchParams.get('childrenAges') || '';
+    const promoFromQuery = String(searchParams.get('promo') || searchParams.get('coupon') || '').trim().toUpperCase();
 
     // Memoize childrenAges to prevent array recreation on every render
     const childrenAges = useMemo(() => {
@@ -80,11 +90,10 @@ function ReservarContent() {
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
     const [couponCode, setCouponCode] = useState('');
     const [couponMessage, setCouponMessage] = useState('');
-    const [couponApplying, setCouponApplying] = useState(false);
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
-    const [couponExpanded, setCouponExpanded] = useState(false);
     const [formMessage, setFormMessage] = useState('');
-    const [pendingCouponOverride, setPendingCouponOverride] = useState(false);
+    const [promoAppliedInResults, setPromoAppliedInResults] = useState(false);
+    const [promoAlertDismissed, setPromoAlertDismissed] = useState(false);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -221,21 +230,40 @@ function ReservarContent() {
         return Math.max(0, diff);
     }, [checkIn, checkOut]);
 
-    const bookingSubtotal = selectedRoom ? Number(selectedRoom.totalPrice) : 0;
+    const roomSubtotal = selectedRoom ? Number(selectedRoom.priceOriginal ?? selectedRoom.totalPrice) : 0;
+    const bookingSubtotal = appliedCoupon ? Number(appliedCoupon.subtotal || roomSubtotal) : roomSubtotal;
     const bookingDiscount = appliedCoupon ? Number(appliedCoupon.discountAmount || 0) : 0;
-    const bookingTotal = Math.max(0, bookingSubtotal - bookingDiscount);
-    const normalizedCouponInput = couponCode.trim().toUpperCase();
-    const hasPendingCouponToApply = normalizedCouponInput.length > 0
-        && (!appliedCoupon || appliedCoupon.code !== normalizedCouponInput);
+    const bookingTotal = appliedCoupon
+        ? Number(appliedCoupon.total || Math.max(0, bookingSubtotal - bookingDiscount))
+        : (selectedRoom ? Number(selectedRoom.totalPrice) : 0);
     const currentStep = paymentBookingId ? 3 : selectedRoom ? 2 : 1;
     const totalSteps = 3;
     const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
     useEffect(() => {
-        if (appliedCoupon || couponMessage || hasPendingCouponToApply) {
-            setCouponExpanded(true);
+        if (promoFromQuery) {
+            setCouponCode(promoFromQuery);
+            return;
         }
-    }, [appliedCoupon, couponMessage, hasPendingCouponToApply]);
+        if (!selectedRoom) {
+            setCouponCode('');
+            setCouponMessage('');
+            setPromoAppliedInResults(false);
+        }
+    }, [promoFromQuery, selectedRoom]);
+
+    useEffect(() => {
+        setPromoAlertDismissed(false);
+    }, [promoFromQuery]);
+
+    const handleTryAnotherPromo = useCallback(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('promo');
+        params.delete('coupon');
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+        setPromoAlertDismissed(true);
+    }, [pathname, router, searchParams]);
 
     const getWhatsAppUrl = () => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
@@ -274,7 +302,8 @@ function ReservarContent() {
         }
 
         // Create stable request key for deduplication
-        const requestKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}`;
+        const normalizedPromo = promoFromQuery;
+        const requestKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}|${normalizedPromo}`;
 
         // Deduplicate: if same request already in flight or just completed, skip
         if (requestKey === lastKeyRef.current) {
@@ -298,8 +327,9 @@ function ReservarContent() {
             }
 
             const childrenAgesQuery = childrenAges.length > 0 ? `&childrenAges=${encodeURIComponent(childrenAges.join(','))}` : '';
+            const promoQuery = normalizedPromo ? `&promo=${encodeURIComponent(normalizedPromo)}` : '';
             const response = await fetch(
-                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}`,
+                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}${promoQuery}`,
                 { cache: 'no-store', signal }
             );
             if (!response.ok) {
@@ -312,6 +342,8 @@ function ReservarContent() {
                 throw new Error('Erro ao carregar quartos disponíveis');
             }
             const data = await response.json();
+            const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
+            const responsePromoMessage = response.headers.get('x-promo-message') || '';
 
             // PRICING DIAGNOSTICS: Log price breakdown to verify children >= 12 are counted as adults
             // and extraAdultFee/child6To11Fee are applied (if configured in DB)
@@ -326,6 +358,8 @@ function ReservarContent() {
 
             if (mountedRef.current) {
                 setAvailableRooms(data);
+                setPromoAppliedInResults(responsePromoApplied);
+                setCouponMessage(responsePromoMessage);
                 hasLoadedOnce.current = true;
             }
 
@@ -348,7 +382,7 @@ function ReservarContent() {
             if (mountedRef.current) setLoading(false);
             console.log('availability:finish', { loading: false });
         }
-    }, [adults, checkIn, checkOut, children, childrenAgesKey, childrenAges, isInvalidAdults, isOverCapacity]);
+    }, [adults, checkIn, checkOut, children, childrenAgesKey, childrenAges, promoFromQuery, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -383,28 +417,22 @@ function ReservarContent() {
             void releaseCouponReservation(appliedCoupon.reservationId);
         }
         setAppliedCoupon(null);
-        setCouponCode('');
-        setCouponMessage('');
-        setPendingCouponOverride(false);
-        setCouponExpanded(false);
+        setFormMessage('');
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
-    const applyCoupon = async (): Promise<boolean> => {
-        if (!selectedRoom) {
-            setCouponMessage('Selecione um quarto antes de aplicar cupom.');
-            return false;
-        }
-
-        const normalizedCode = couponCode.trim();
+    const applyCoupon = async (room: Room): Promise<boolean> => {
+        const normalizedCode = couponCode.trim().toUpperCase();
         if (!normalizedCode) {
-            setCouponMessage('Informe um cupom para aplicar.');
+            setAppliedCoupon(null);
+            setCouponMessage('');
+            return false;
+        }
+        if (!room.promoApplied) {
+            setAppliedCoupon(null);
             return false;
         }
 
-        setCouponApplying(true);
-        setCouponMessage('');
         setFormMessage('');
-        setPendingCouponOverride(false);
 
         try {
             const response = await fetch('/api/coupons/reserve', {
@@ -417,9 +445,9 @@ function ReservarContent() {
                         phone: guest.phone,
                     },
                     context: {
-                        roomTypeId: selectedRoom.id,
+                        roomTypeId: room.id,
                         source: 'direct',
-                        subtotal: bookingSubtotal,
+                        subtotal: Number(room.priceOriginal ?? room.totalPrice),
                     },
                 }),
             });
@@ -429,16 +457,16 @@ function ReservarContent() {
             if (!response.ok || !data?.valid) {
                 const reason = String(data?.reason || data?.error || 'INVALID_CODE');
                 const reasonMessage = reason === 'MIN_BOOKING_NOT_REACHED'
-                    ? 'Cupom indisponivel: valor minimo da reserva nao atingido.'
+                    ? 'Cupom indisponível: valor mínimo da reserva não atingido.'
                     : reason === 'EXPIRED'
                         ? 'Este cupom expirou.'
                         : reason === 'NOT_STARTED'
-                            ? 'Este cupom ainda nao esta ativo.'
+                            ? 'Este cupom ainda não está ativo.'
                             : reason === 'GUEST_NOT_ELIGIBLE'
-                                ? 'Este cupom nao e valido para este hospede.'
+                                ? 'Este cupom não é válido para este hóspede.'
                                 : reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED'
                                     ? 'Limite de uso deste cupom foi atingido.'
-                                    : 'Cupom invalido ou indisponivel.';
+                                    : 'Cupom inválido ou indisponível.';
 
                 setAppliedCoupon(null);
                 setCouponMessage(reasonMessage);
@@ -450,7 +478,7 @@ function ReservarContent() {
             }
 
             const discountAmount = Number(data?.discountAmount || 0);
-            const subtotal = Number(data?.subtotal || bookingSubtotal);
+            const subtotal = Number(data?.subtotal || Number(room.priceOriginal ?? room.totalPrice));
             const total = Number(data?.total || Math.max(0, subtotal - discountAmount));
 
             setAppliedCoupon({
@@ -464,14 +492,10 @@ function ReservarContent() {
             setCouponCode(normalizedCode.toUpperCase());
             setCouponMessage('Cupom aplicado com sucesso.');
             setFormMessage('');
-            setPendingCouponOverride(false);
             return true;
         } catch {
-            setCouponMessage('Nao foi possivel validar o cupom. Tente novamente.');
-            setPendingCouponOverride(false);
+            setCouponMessage('Não foi possível validar o cupom. Tente novamente.');
             return false;
-        } finally {
-            setCouponApplying(false);
         }
     };
 
@@ -483,14 +507,29 @@ function ReservarContent() {
         };
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
-    const handleSelectRoom = (room: Room) => {
-        if (selectedRoom?.id && selectedRoom.id !== room.id) {
-            clearCouponState(true);
+    const handleSelectRoom = async (room: Room) => {
+        if (appliedCoupon?.reservationId) {
+            await releaseCouponReservation(appliedCoupon.reservationId);
+            setAppliedCoupon(null);
         }
+
+        let nextRoom = room;
+        if (couponCode.trim()) {
+            const couponReserved = await applyCoupon(room);
+            if (!couponReserved) {
+                nextRoom = {
+                    ...room,
+                    totalPrice: Number(room.priceOriginal ?? room.totalPrice),
+                    promoApplied: false,
+                    priceDiscounted: undefined,
+                    discountAmount: 0,
+                };
+            }
+        }
+
         setFormMessage('');
-        setCouponExpanded(false);
         setMobileSummaryExpanded(false);
-        setSelectedRoom(room);
+        setSelectedRoom(nextRoom);
         setTimeout(() => {
             document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
@@ -507,12 +546,6 @@ function ReservarContent() {
 
         if (!termsAccepted) {
             setFormMessage('Por favor, aceite os termos e condições.');
-            return;
-        }
-
-        if (hasPendingCouponToApply && !pendingCouponOverride) {
-            setFormMessage('Voce digitou um cupom, mas ainda nao aplicou. Clique em "Aplicar" para validar ou clique novamente em "Ir para Pagamento Seguro" para continuar sem desconto.');
-            setPendingCouponOverride(true);
             return;
         }
 
@@ -578,7 +611,6 @@ function ReservarContent() {
 
             if (couponErrorMessage) {
                 setCouponMessage(couponErrorMessage);
-                setPendingCouponOverride(false);
                 setFormMessage('Revise o cupom antes de continuar.');
             } else {
                 setFormMessage(message);
@@ -899,6 +931,35 @@ function ReservarContent() {
                 {!selectedRoom ? (
                     <div className="space-y-6">
                         <h2 className="text-2xl font-bold font-heading text-primary pl-1">Escolha sua Acomodação</h2>
+                        {couponCode && !promoAppliedInResults && !promoAlertDismissed ? (
+                            <div className="relative flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                <p className="pr-8">
+                                    <strong>O código promocional "{couponCode}" não foi aplicado!</strong>{' '}
+                                    Consulte os resultados ou{' '}
+                                    <button
+                                        type="button"
+                                        onClick={handleTryAnotherPromo}
+                                        className="font-medium underline underline-offset-2 hover:no-underline"
+                                    >
+                                        tente outro código promocional
+                                    </button>
+                                    .
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setPromoAlertDismissed(true)}
+                                    className="absolute right-3 top-3 text-amber-800/70 hover:text-amber-900"
+                                    aria-label="Fechar alerta de cupom"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ) : null}
+                        {couponCode && promoAppliedInResults ? (
+                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                                Cupom {couponCode} aplicado aos preços da busca.
+                            </div>
+                        ) : null}
 
                         {loading || availableRooms === null ? (
                             <div className="space-y-6">
@@ -962,7 +1023,13 @@ function ReservarContent() {
                                                         <h3 className="text-2xl font-bold font-heading text-primary">{room.name}</h3>
                                                         <div className="text-right hidden md:block">
                                                             <span className="text-xs text-muted-foreground uppercase tracking-wider">Total da estadia</span>
+                                                            {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
+                                                                <p className="text-sm text-muted-foreground line-through">R$ {Number(room.priceOriginal).toFixed(2)}</p>
+                                                            ) : null}
                                                             <p className="text-2xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
+                                                            {room.promoApplied && Number(room.discountAmount || 0) > 0 ? (
+                                                                <p className="text-xs font-medium text-emerald-700">Você economiza R$ {Number(room.discountAmount).toFixed(2)}</p>
+                                                            ) : null}
                                                             <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
                                                         </div>
                                                     </div>
@@ -982,7 +1049,13 @@ function ReservarContent() {
                                                 <div className="mt-4 border-t pt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                                     <div className="md:hidden">
                                                         <span className="text-xs text-muted-foreground">Total</span>
+                                                        {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
+                                                            <p className="text-xs text-muted-foreground line-through">R$ {Number(room.priceOriginal).toFixed(2)}</p>
+                                                        ) : null}
                                                         <p className="text-xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
+                                                        {room.promoApplied && Number(room.discountAmount || 0) > 0 ? (
+                                                            <p className="text-xs font-medium text-emerald-700">Economia de R$ {Number(room.discountAmount).toFixed(2)}</p>
+                                                        ) : null}
                                                         <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
                                                     </div>
                                                     <Button size="lg" onClick={() => handleSelectRoom(room)} className="w-auto md:ml-auto shadow-lg shadow-primary/20 h-10 px-4 text-sm">
@@ -1218,65 +1291,17 @@ function ReservarContent() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <button
-                                                    type="button"
-                                                    className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
-                                                    onClick={() => setCouponExpanded((prev) => !prev)}
-                                                    aria-expanded={couponExpanded}
-                                                    aria-controls="coupon-panel"
-                                                >
-                                                    Tenho um cupom
-                                                    {couponExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                </button>
-                                                {appliedCoupon ? (
-                                                    <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                                                        {appliedCoupon.code} aplicado
-                                                    </span>
-                                                ) : null}
-                                            </div>
-
-                                            {couponExpanded ? (
-                                                <div id="coupon-panel" className="space-y-3">
-                                                    <label htmlFor="couponCode" className="text-sm font-medium">Cupom de desconto</label>
-                                                    <div className="flex flex-col gap-2 md:flex-row">
-                                                        <input
-                                                            id="couponCode"
-                                                            type="text"
-                                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm uppercase ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                                            placeholder="Ex: VIP10"
-                                                            value={couponCode}
-                                                            onChange={(e) => {
-                                                                setCouponCode(e.target.value.toUpperCase());
-                                                                setPendingCouponOverride(false);
-                                                            }}
-                                                            disabled={processing || couponApplying}
-                                                        />
-                                                        <Button type="button" variant="outline" onClick={applyCoupon} disabled={processing || couponApplying}>
-                                                            {couponApplying ? 'Aplicando...' : 'Aplicar'}
-                                                        </Button>
-                                                        {appliedCoupon ? (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                onClick={() => clearCouponState(true)}
-                                                                disabled={processing || couponApplying}
-                                                            >
-                                                                Remover
-                                                            </Button>
-                                                        ) : null}
-                                                    </div>
+                                        {appliedCoupon ? (
+                                            <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-sm font-medium text-emerald-800">Cupom aplicado</span>
+                                                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                                                        {appliedCoupon.code}
+                                                    </Badge>
                                                 </div>
-                                            ) : null}
-
-                                            {couponMessage ? (
-                                                <p className={`text-xs ${appliedCoupon ? 'text-emerald-600' : 'text-destructive'}`}>{couponMessage}</p>
-                                            ) : null}
-                                            {hasPendingCouponToApply ? (
-                                                <p className="text-xs text-amber-700">Cupom digitado, mas ainda não aplicado.</p>
-                                            ) : null}
-                                        </div>
+                                                <p className="text-xs text-emerald-700">Desconto confirmado no resumo da reserva.</p>
+                                            </div>
+                                        ) : null}
 
                                         <div className="rounded-lg border border-border/60 bg-white p-3 text-xs text-muted-foreground">
                                             <span className="font-medium text-foreground">Cancelamento:</span>{' '}

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from './cupons.module.css';
-import { formatDateBR } from '@/lib/date';
 
 type Coupon = {
     id: string;
@@ -139,12 +138,19 @@ const emptyForm = (): CouponForm => ({
     active: true,
 });
 
-function toDatetimeLocal(iso: string | null): string {
+function toDateInputValue(iso: string | null): string {
     if (!iso) return '';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
     const pad = (v: number) => String(v).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDateOnlyBR(value: string | null): string {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleDateString('pt-BR');
 }
 
 function parseJsonArray(raw: string | null): string[] {
@@ -263,8 +269,8 @@ export default function AdminCuponsPage() {
             value: String(payload.value),
             maxDiscountAmount: payload.maxDiscountAmount == null ? '' : String(payload.maxDiscountAmount),
             minBookingValue: payload.minBookingValue == null ? '' : String(payload.minBookingValue),
-            startsAt: toDatetimeLocal(payload.startsAt),
-            endsAt: toDatetimeLocal(payload.endsAt),
+            startsAt: toDateInputValue(payload.startsAt),
+            endsAt: toDateInputValue(payload.endsAt),
             maxGlobalUses: payload.maxGlobalUses == null ? '' : String(payload.maxGlobalUses),
             maxUsesPerGuest: payload.maxUsesPerGuest == null ? '' : String(payload.maxUsesPerGuest),
             bindEmail: payload.bindEmail || '',
@@ -289,8 +295,8 @@ export default function AdminCuponsPage() {
             value: String(coupon.value),
             maxDiscountAmount: coupon.maxDiscountAmount == null ? '' : String(coupon.maxDiscountAmount),
             minBookingValue: coupon.minBookingValue == null ? '' : String(coupon.minBookingValue),
-            startsAt: toDatetimeLocal(coupon.startsAt),
-            endsAt: toDatetimeLocal(coupon.endsAt),
+            startsAt: toDateInputValue(coupon.startsAt),
+            endsAt: toDateInputValue(coupon.endsAt),
             maxGlobalUses: coupon.maxGlobalUses == null ? '' : String(coupon.maxGlobalUses),
             maxUsesPerGuest: coupon.maxUsesPerGuest == null ? '' : String(coupon.maxUsesPerGuest),
             bindEmail: coupon.bindEmail || '',
@@ -460,8 +466,8 @@ export default function AdminCuponsPage() {
                                     </span>
                                 </td>
                                 <td>
-                                    <div>{coupon.startsAt ? formatDateBR(coupon.startsAt) : '-'}</div>
-                                    <div>{coupon.endsAt ? formatDateBR(coupon.endsAt) : '-'}</div>
+                                    <div>{formatDateOnlyBR(coupon.startsAt)}</div>
+                                    <div>{formatDateOnlyBR(coupon.endsAt)}</div>
                                 </td>
                                 <td>{coupon._count?.redemptions || 0}</td>
                                 <td>
@@ -635,7 +641,7 @@ export default function AdminCuponsPage() {
                             <div className={styles.field}>
                                 <label>Inicio</label>
                                 <input
-                                    type="datetime-local"
+                                    type="date"
                                     value={form.startsAt}
                                     onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
                                 />
@@ -643,7 +649,7 @@ export default function AdminCuponsPage() {
                             <div className={styles.field}>
                                 <label>Fim</label>
                                 <input
-                                    type="datetime-local"
+                                    type="date"
                                     value={form.endsAt}
                                     onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
                                 />
