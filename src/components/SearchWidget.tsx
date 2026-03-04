@@ -34,6 +34,7 @@ export default function SearchWidget({
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const promoLocked = searchParams.get('promoLock') === '1';
 
     // Definir datas padrão (hoje e amanhã)
     const today = new Date();
@@ -223,6 +224,9 @@ export default function SearchWidget({
         const normalizedCoupon = couponCode.trim().toUpperCase();
         if (normalizedCoupon) {
             params.set('promo', normalizedCoupon);
+            if (promoLocked) {
+                params.set('promoLock', '1');
+            }
         }
 
         try {
@@ -425,6 +429,7 @@ export default function SearchWidget({
                         placeholder="Código Promocional"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        disabled={promoLocked}
                     />
                 </div>
 
@@ -498,6 +503,11 @@ export default function SearchWidget({
                     ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                     : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>
                     {couponFeedback}
+                </div>
+            ) : null}
+            {promoLocked && couponCode ? (
+                <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
+                    Cupom promocional {couponCode} aplicado pela oferta especial.
                 </div>
             ) : null}
             {searchMessage ? (

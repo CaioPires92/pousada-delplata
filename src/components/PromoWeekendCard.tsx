@@ -33,7 +33,7 @@ export default function PromoWeekendCard({ className }: PromoWeekendCardProps) {
       <p className="text-sm font-medium text-muted-foreground">Desconto aplicado automaticamente</p>
 
       <Button asChild variant="default" className="h-11 w-full rounded-lg bg-primary hover:bg-primary/90">
-        <Link href="/reservar" aria-label="Ver disponibilidade com promoção de fim de semana">
+        <Link href="/reservar?promo=WEEKEND15&promoLock=1" aria-label="Ver disponibilidade com promoção de fim de semana">
           Ver disponibilidade
         </Link>
       </Button>
