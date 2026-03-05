@@ -923,13 +923,13 @@ function ReservarContent() {
                     checkIn={checkIn!}
                     checkOut={checkOut!}
                     adults={numAdults}
-                    children={numChildren}
+                    childrenCount={numChildren}
                     alterControl={
                         <GuestSelectorPopover
                             open={guestPopoverOpen}
                             onOpenChange={setGuestPopoverOpen}
                             adults={numAdults}
-                            children={numChildren}
+                            childrenCount={numChildren}
                             childrenAges={childrenAges}
                             onConfirm={handleGuestSelectorConfirm}
                             trigger={
@@ -962,7 +962,7 @@ function ReservarContent() {
                         {couponCode && !promoAppliedInResults && !promoAlertDismissed ? (
                             <div className="relative flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                 <p className="pr-8">
-                                    <strong>O código promocional "{couponCode}" não foi aplicado!</strong>{' '}
+                                    <strong>O código promocional &quot;{couponCode}&quot; não foi aplicado!</strong>{' '}
                                     Consulte os resultados ou{' '}
                                     <button
                                         type="button"

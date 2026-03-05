@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { motion } from "framer-motion";
 
@@ -9,7 +9,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SearchWidget from "@/components/SearchWidget";
-import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, Coffee, Users } from "lucide-react";
+import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, Coffee, Users, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   gaEvent,
@@ -19,7 +19,6 @@ import {
 } from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
 import SpecialDatesSection from "@/components/SpecialDatesSection";
-import PromoWeekendCard from "@/components/PromoWeekendCard";
 import {
   SPECIAL_DATES,
 } from "@/constants/specialDates";
@@ -56,6 +55,7 @@ const siteImages = {
 
 
 export default function HomeContent() {
+  const [showPromoCard, setShowPromoCard] = useState(true);
   /* Removed GSAP refs and effects to fix re-render flash */
   /* Using purely Framer Motion for stable SSR/Hydration */
 
@@ -158,16 +158,6 @@ export default function HomeContent() {
           animate="visible"
           variants={containerVariants}
         >
-          <motion.div
-            variants={itemVariants}
-            className="absolute top-3 right-0 md:top-6"
-          >
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-white/90 backdrop-blur-sm">
-              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              SITE OFICIAL
-            </span>
-          </motion.div>
-
           <motion.h1 variants={itemVariants} className="text-4xl md:text-6xl font-bold font-heading leading-tight text-white">
             Pousada familiar em <span className="text-secondary">Serra Negra</span>
           </motion.h1>
@@ -180,7 +170,7 @@ export default function HomeContent() {
             <SocialProofBadges className="mt-1" />
           </motion.div>
 
-          <motion.div variants={itemVariants} className="max-w-5xl mx-auto mt-8 mb-8 md:mb-0">
+          <motion.div variants={itemVariants} className="max-w-7xl mx-auto mt-8 mb-8 md:mb-0">
             <SearchWidget
               ctaMicrocopy={HERO_RESERVA_MICROCOPY}
               onPrimaryCtaClick={handleHeroPrimaryCtaClick}
@@ -201,16 +191,32 @@ export default function HomeContent() {
           </motion.div>
         </motion.div>
 
-        <div className="absolute right-8 top-1/2 z-20 hidden w-full max-w-[280px] -translate-y-1/2 md:block">
-          <PromoWeekendCard />
-        </div>
       </section>
 
-      <section className="bg-background py-4 md:hidden">
-        <div className="container">
-          <PromoWeekendCard className="w-full" />
+      {showPromoCard ? (
+        <div className="fixed left-1/2 top-20 z-40 w-[calc(100vw-2rem)] max-w-4xl -translate-x-1/2 rounded-xl border border-primary/20 bg-gradient-to-r from-primary to-primary/90 text-white shadow-2xl md:top-24">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <p className="text-sm font-medium md:text-base">
+              Oferta especial de fim de semana: <span className="font-bold">ATÉ 15% OFF</span> com cupom aplicado automaticamente.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm" className="h-9 bg-white text-primary hover:bg-white/90">
+                <Link href="/reservar?promo=WEEKEND15&promoLock=1">
+                  Ver disponibilidade
+                </Link>
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowPromoCard(false)}
+                className="rounded-md p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Fechar faixa promocional"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
-      </section>
+      ) : null}
 
       <SpecialDatesSection
         dates={enabledSpecialDates}

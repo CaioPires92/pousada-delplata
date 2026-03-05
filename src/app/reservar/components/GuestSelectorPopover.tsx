@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Stepper from './Stepper';
@@ -15,7 +15,7 @@ type GuestSelectorPopoverProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     adults: number;
-    children: number;
+    childrenCount: number;
     childrenAges: number[];
     onConfirm: (payload: GuestSelectorConfirmPayload) => void;
     trigger: ReactNode;
@@ -35,25 +35,17 @@ export default function GuestSelectorPopover({
     open,
     onOpenChange,
     adults,
-    children,
+    childrenCount,
     childrenAges,
     onConfirm,
     trigger,
 }: GuestSelectorPopoverProps) {
-    const [adultsDraft, setAdultsDraft] = useState(2);
-    const [childrenDraft, setChildrenDraft] = useState(0);
-    const [childrenAgesDraft, setChildrenAgesDraft] = useState<Array<number | null>>([]);
+    const [adultsDraft, setAdultsDraft] = useState(Math.min(10, Math.max(1, adults || 1)));
+    const [childrenDraft, setChildrenDraft] = useState(Math.min(10, Math.max(0, childrenCount || 0)));
+    const [childrenAgesDraft, setChildrenAgesDraft] = useState<Array<number | null>>(
+        normalizeAges(Math.min(10, Math.max(0, childrenCount || 0)), childrenAges)
+    );
     const [error, setError] = useState('');
-
-    useEffect(() => {
-        if (!open) return;
-        const normalizedAdults = Math.min(10, Math.max(1, adults || 1));
-        const normalizedChildren = Math.min(10, Math.max(0, children || 0));
-        setAdultsDraft(normalizedAdults);
-        setChildrenDraft(normalizedChildren);
-        setChildrenAgesDraft(normalizeAges(normalizedChildren, childrenAges));
-        setError('');
-    }, [adults, children, childrenAges, open]);
 
     const normalizedChildrenAgesDraft = useMemo(
         () => normalizeAges(childrenDraft, childrenAgesDraft),
@@ -85,8 +77,20 @@ export default function GuestSelectorPopover({
         onOpenChange(false);
     }, [adultsDraft, childrenDraft, normalizedChildrenAgesDraft, onConfirm, onOpenChange]);
 
+    const handlePopoverOpenChange = useCallback((nextOpen: boolean) => {
+        if (nextOpen) {
+            const normalizedAdults = Math.min(10, Math.max(1, adults || 1));
+            const normalizedChildren = Math.min(10, Math.max(0, childrenCount || 0));
+            setAdultsDraft(normalizedAdults);
+            setChildrenDraft(normalizedChildren);
+            setChildrenAgesDraft(normalizeAges(normalizedChildren, childrenAges));
+            setError('');
+        }
+        onOpenChange(nextOpen);
+    }, [adults, childrenAges, childrenCount, onOpenChange]);
+
     return (
-        <Popover open={open} onOpenChange={onOpenChange}>
+        <Popover open={open} onOpenChange={handlePopoverOpenChange}>
             <PopoverTrigger asChild>{trigger}</PopoverTrigger>
             <PopoverContent align="end" className="w-[320px] p-4">
                 <div className="space-y-4">

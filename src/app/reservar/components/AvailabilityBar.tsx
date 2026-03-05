@@ -6,7 +6,7 @@ type AvailabilityBarProps = {
     checkIn: string;
     checkOut: string;
     adults: number;
-    children: number;
+    childrenCount: number;
     alterControl: ReactNode;
 };
 
@@ -44,11 +44,11 @@ export default function AvailabilityBar({
     checkIn,
     checkOut,
     adults,
-    children,
+    childrenCount,
     alterControl,
 }: AvailabilityBarProps) {
     const adultsLabel = `${adults} adulto${adults === 1 ? '' : 's'}`;
-    const childrenLabel = `${children} criança${children === 1 ? '' : 's'}`;
+    const childrenLabel = `${childrenCount} criança${childrenCount === 1 ? '' : 's'}`;
     const formattedDates = formatCompactDateRange(checkIn, checkOut);
 
     return (

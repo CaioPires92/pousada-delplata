@@ -4,6 +4,7 @@ export type SpecialDateConfig = {
     description: string;
     dateFrom: string;
     dateTo?: string;
+    useBaseReservarPath?: boolean;
     image?: string;
     minNights?: number;
     enabled: boolean;
@@ -30,6 +31,17 @@ export const SPECIAL_DATE_BANNER_LEAD_DAYS = 30;
 
 export const SPECIAL_DATES: SpecialDateConfig[] = [
     {
+        id: 'baixa-temporada-marco-2026',
+        title: 'Março - Baixa Temporada',
+        description: 'Baixa temporada em março com valores promocionais e mais tranquilidade para descansar.',
+        dateFrom: '2026-03-01',
+        dateTo: '2026-03-31',
+        useBaseReservarPath: true,
+        image: '/fotos/piscina-aptos/DJI_0845.jpg',
+        bannerLabel: 'Março promocional: aproveite valores especiais na baixa temporada.',
+        enabled: true,
+    },
+    {
         id: 'paixao-de-cristo-2026',
         title: 'Paixão de Cristo',
         description: 'Feriado prolongado de sexta-feira com alta procura.',
@@ -42,10 +54,11 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
     {
         id: 'tiradentes-2026',
         title: 'Tiradentes',
-        description: 'Feriado de terça-feira para uma pausa durante a semana.',
-        dateFrom: '2026-04-21',
-        dateTo: '2026-04-22',
+        description: 'Feriado prolongado de Tiradentes com mínimo de 3 diárias.',
+        dateFrom: '2026-04-18',
+        dateTo: '2026-04-21',
         image: '/fotos/piscina-aptos/DJI_0863.jpg',
+        minNights: 3,
         enabled: true,
     },
     {
@@ -65,35 +78,38 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         dateFrom: '2026-06-04',
         dateTo: '2026-06-07',
         image: '/fotos/piscina-chale/DJI_0918.jpg',
-        minNights: 2,
+        minNights: 3,
         enabled: true,
         bannerLabel: 'Corpus Christi com alta procura. Consulte disponibilidade.',
     },
     {
         id: 'independencia-2026',
         title: 'Independência do Brasil',
-        description: 'Feriado nacional de segunda-feira para estender o descanso.',
-        dateFrom: '2026-09-07',
-        dateTo: '2026-09-08',
+        description: 'Feriado da Independência para aproveitar o descanso prolongado.',
+        dateFrom: '2026-09-04',
+        dateTo: '2026-09-07',
         image: '/fotos/piscina-chale/DJI_0917.jpg',
+        minNights: 3,
         enabled: true,
     },
     {
         id: 'nossa-senhora-aparecida-2026',
         title: 'Nossa Sr.a Aparecida - Padroeira do Brasil',
-        description: 'Feriado de segunda-feira com alta procura para viagem curta.',
-        dateFrom: '2026-10-12',
-        dateTo: '2026-10-13',
+        description: 'Feriado de Nossa Senhora Aparecida com alta procura.',
+        dateFrom: '2026-10-09',
+        dateTo: '2026-10-12',
         image: '/fotos/jardim-aptos/DJI_0904.jpg',
+        minNights: 3,
         enabled: true,
     },
     {
         id: 'finados-2026',
         title: 'Finados',
-        description: 'Feriado de segunda-feira com opções para estadia tranquila.',
-        dateFrom: '2026-11-02',
-        dateTo: '2026-11-03',
+        description: 'Feriado de Finados para estadia tranquila no início de novembro.',
+        dateFrom: '2026-10-30',
+        dateTo: '2026-11-02',
         image: '/fotos/jardim-aptos/DJI_0896.jpg',
+        minNights: 3,
         enabled: true,
     },
     {
@@ -103,11 +119,12 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         dateFrom: '2026-11-15',
         dateTo: '2026-11-16',
         image: '/fotos/churrasqueira-aptos/DJI_0902.jpg',
-        enabled: true,
+        // minNights: 1,
+        enabled: false,
     },
     {
         id: 'consciencia-negra-2026',
-        title: 'Dia Nacional de Zumbi e da Consciência Negra',
+        title: 'Dia da Consciência Negra',
         description: 'Sexta-feira de feriado com grande procura por finais de semana.',
         dateFrom: '2026-11-20',
         dateTo: '2026-11-22',
@@ -119,10 +136,10 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         id: 'natal-2026',
         title: 'Natal',
         description: 'Feriado de dezembro com alta procura para hospedagem em família.',
-        dateFrom: '2026-12-25',
+        dateFrom: '2026-12-24',
         dateTo: '2026-12-27',
         image: '/fotos/restaurante/DSC_0056.jpg',
-        minNights: 2,
+        minNights: 3,
         enabled: true,
     },
 ];

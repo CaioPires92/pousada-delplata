@@ -16,6 +16,7 @@ vi.mock('next/navigation', () => ({
     replace: vi.fn(),
     prefetch: vi.fn(),
   }),
+  usePathname: () => '/reservar',
   useSearchParams: () => ({
     get: vi.fn((key) => {
         if(key === 'checkIn') return '2026-01-01';

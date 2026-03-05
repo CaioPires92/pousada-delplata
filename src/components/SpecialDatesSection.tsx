@@ -14,7 +14,7 @@ type SpecialDatesSectionProps = {
     onDateClick?: (specialDate: SpecialDateConfig) => void;
 };
 
-const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
+const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'short', timeZone: 'UTC' });
 
 function formatYmdToDate(value: string) {
     const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -63,9 +63,11 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
     }, []);
 
     useEffect(() => {
-        updateScrollState();
         const container = sliderRef.current;
         if (!container) return;
+        const frame = window.requestAnimationFrame(() => {
+            updateScrollState();
+        });
 
         const onScroll = () => updateScrollState();
         const onResize = () => updateScrollState();
@@ -73,6 +75,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
         container.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', onResize);
         return () => {
+            window.cancelAnimationFrame(frame);
             container.removeEventListener('scroll', onScroll);
             window.removeEventListener('resize', onResize);
         };
@@ -125,12 +128,14 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                     className="flex items-stretch snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                 >
                     {enabledDates.map((specialDate) => {
-                        const href = buildReservarUrl({
-                            checkIn: specialDate.dateFrom,
-                            checkOut: specialDate.dateTo,
-                            adults: 2,
-                            children: 0,
-                        });
+                        const href = specialDate.useBaseReservarPath
+                            ? '/reservar'
+                            : buildReservarUrl({
+                                checkIn: specialDate.dateFrom,
+                                checkOut: specialDate.dateTo,
+                                adults: 2,
+                                children: 0,
+                            });
                         const minNightsLabel = specialDate.minNights
                             ? `Estadia mínima ${specialDate.minNights} noite${specialDate.minNights > 1 ? 's' : ''}`
                             : null;
