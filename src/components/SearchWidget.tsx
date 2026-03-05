@@ -18,18 +18,22 @@ import { trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
+    uiPreset?: 'default' | 'inline';
     ctaMicrocopy?: string;
     submitLabel?: string;
     submitLabelMobile?: string;
     onPrimaryCtaClick?: () => void;
+    prefillFromQuery?: boolean;
 }
 
 export default function SearchWidget({
     variant = 'default',
+    uiPreset = 'default',
     ctaMicrocopy,
     submitLabel = 'Buscar',
     submitLabelMobile,
     onPrimaryCtaClick,
+    prefillFromQuery = false,
 }: SearchWidgetProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -272,12 +276,17 @@ export default function SearchWidget({
         }
     };
 
-    const labelClass = `text-sm font-medium flex items-center gap-2 mb-2 ${variant === 'light' ? 'text-primary' : 'text-white'
-        }`;
+    const labelClass = uiPreset === 'inline'
+        ? 'text-sm font-medium flex items-center gap-2 mb-2 text-foreground'
+        : `text-sm font-medium flex items-center gap-2 mb-2 ${variant === 'light' ? 'text-primary' : 'text-white'}`;
 
-    const dateInputClass = "w-full px-4 py-4 rounded-xl border-2 border-muted-foreground/20 bg-background text-foreground font-medium flex items-center justify-between transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px]";
+    const dateInputClass = uiPreset === 'inline'
+        ? 'w-full h-11 rounded-md border border-input bg-white px-3 text-sm text-foreground flex items-center justify-between transition-colors cursor-pointer'
+        : 'w-full px-4 py-4 rounded-xl border-2 border-muted-foreground/20 bg-background text-foreground font-medium flex items-center justify-between transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px]';
 
-    const selectClass = "w-full px-4 rounded-xl border-2 border-muted-foreground/20 bg-background text-foreground font-medium transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px] appearance-none";
+    const selectClass = uiPreset === 'inline'
+        ? 'w-full h-11 rounded-md border border-input bg-white px-3 text-sm text-foreground appearance-none'
+        : 'w-full px-4 rounded-xl border-2 border-muted-foreground/20 bg-background text-foreground font-medium transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px] appearance-none';
 
     const adultOptions = [1, 2, 3];
     const childOptions = [0, 1, 2];
@@ -303,6 +312,52 @@ export default function SearchWidget({
         }
         setCouponCode('');
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!prefillFromQuery) return;
+
+        const checkInParam = searchParams.get('checkIn');
+        const checkOutParam = searchParams.get('checkOut');
+        const adultsParam = searchParams.get('adults');
+        const childrenParam = searchParams.get('children');
+        const childrenAgesParam = searchParams.get('childrenAges');
+
+        const parseYmd = (value: string | null) => {
+            if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+            const parsed = new Date(`${value}T00:00:00`);
+            return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+        };
+
+        const parsedCheckIn = parseYmd(checkInParam);
+        const parsedCheckOut = parseYmd(checkOutParam);
+        if (parsedCheckIn) setCheckIn(parsedCheckIn);
+        if (parsedCheckOut) {
+            setCheckOut(parsedCheckOut);
+            setCheckOutViewMonth(parsedCheckOut);
+        }
+
+        const parsedAdults = Number.parseInt(String(adultsParam || ''), 10);
+        if (Number.isFinite(parsedAdults)) {
+            setAdults(String(Math.min(Math.max(parsedAdults, 1), maxGuests)));
+        }
+
+        const parsedChildren = Number.parseInt(String(childrenParam || ''), 10);
+        if (Number.isFinite(parsedChildren)) {
+            const normalizedChildren = Math.min(Math.max(parsedChildren, 0), 10);
+            setChildren(String(normalizedChildren));
+
+            const parsedAges = String(childrenAgesParam || '')
+                .split(',')
+                .map((item) => Number.parseInt(item.trim(), 10))
+                .filter((age) => Number.isFinite(age))
+                .slice(0, normalizedChildren)
+                .map((age) => Math.min(Math.max(age, 0), 17));
+
+            const nextAges: Array<number | null> = [...parsedAges];
+            while (nextAges.length < normalizedChildren) nextAges.push(null);
+            setChildrenAges(nextAges);
+        }
+    }, [prefillFromQuery, searchParams, maxGuests]);
 
 
 
@@ -450,7 +505,9 @@ export default function SearchWidget({
                     <Button
                         type="submit"
                         size="lg"
-                        className="w-full min-w-[170px] h-[56px] px-5 text-sm md:text-base font-semibold flex items-center justify-center gap-2 bg-primary text-white border border-white/20 shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                        className={uiPreset === 'inline'
+                            ? 'w-full h-11 min-w-[170px] px-4 text-sm font-semibold flex items-center justify-center gap-2'
+                            : 'w-full min-w-[170px] h-[56px] px-5 text-sm md:text-base font-semibold flex items-center justify-center gap-2 bg-primary text-white border border-white/20 shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary'}
                         aria-label={submitLabel}
                         onClick={() => {
                             onPrimaryCtaClick?.();
