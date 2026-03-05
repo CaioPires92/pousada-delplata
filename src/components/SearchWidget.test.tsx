@@ -5,6 +5,9 @@ import SearchWidget from './SearchWidget';
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => '/home',
+  useSearchParams: () => ({
+    get: vi.fn(() => null),
+  }),
 }));
 
 describe('SearchWidget', () => {

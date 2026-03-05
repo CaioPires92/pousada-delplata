@@ -35,6 +35,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -72,6 +75,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -91,6 +97,9 @@ describe('ReservarPage', () => {
   it('shows error message on API failure', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -146,6 +155,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -169,7 +181,7 @@ describe('ReservarPage', () => {
     });
   });
 
-  it('mantém cupom colapsado por padrão e expande ao clicar em "Tenho um cupom"', async () => {
+  it('não exibe bloco de cupom aplicado quando não há código promocional', async () => {
     const mockRooms = [
       {
         id: 'room-1',
@@ -185,6 +197,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -197,14 +212,7 @@ describe('ReservarPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Tenho um cupom/i })).toBeInTheDocument();
-      expect(screen.queryByLabelText(/Cupom de desconto/i)).not.toBeInTheDocument();
-    });
-
-    screen.getByRole('button', { name: /Tenho um cupom/i }).click();
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Cupom de desconto/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Cupom aplicado/i)).not.toBeInTheDocument();
     });
   });
 
@@ -224,6 +232,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);

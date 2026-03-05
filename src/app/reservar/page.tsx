@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
+import AvailabilityBar from './components/AvailabilityBar';
+import GuestSelectorPopover, { type GuestSelectorConfirmPayload } from './components/GuestSelectorPopover';
 
-import { Check, AlertCircle, Calendar, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, AlertCircle, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
  
@@ -107,6 +109,7 @@ function ReservarContent() {
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
+    const [guestPopoverOpen, setGuestPopoverOpen] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const paymentContainerId = 'paymentBrick_container';
@@ -263,6 +266,29 @@ function ReservarContent() {
         const query = params.toString();
         router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
         setPromoAlertDismissed(true);
+    }, [pathname, router, searchParams]);
+
+    const handleGuestSelectorConfirm = useCallback((payload: GuestSelectorConfirmPayload) => {
+        const nextAdults = Math.min(10, Math.max(1, payload.adults || 1));
+        const nextChildren = Math.min(10, Math.max(0, payload.children || 0));
+        const normalizedChildrenAges = nextChildren > 0
+            ? payload.childrenAges
+                .slice(0, nextChildren)
+                .map((age) => Math.min(17, Math.max(0, Number.parseInt(String(age), 10))))
+                .filter((age) => Number.isFinite(age))
+            : [];
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('adults', String(nextAdults));
+        params.set('children', String(nextChildren));
+        if (normalizedChildrenAges.length > 0) {
+            params.set('childrenAges', normalizedChildrenAges.join(','));
+        } else {
+            params.delete('childrenAges');
+        }
+
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     }, [pathname, router, searchParams]);
 
     const getWhatsAppUrl = () => {
@@ -794,7 +820,7 @@ function ReservarContent() {
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
                 </div>
 
-                <div className="container relative z-10 max-w-4xl mx-auto px-4">
+                <div className="container relative z-10 max-w-7xl mx-auto px-4">
                     <div className="text-center mb-8 text-white">
                         <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4 drop-shadow-lg">
                             Planeje sua Estadia
@@ -804,7 +830,7 @@ function ReservarContent() {
                         </p>
                     </div>
 
-                    <div className="bg-white/95 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-2xl border border-white/20">
+                    <div className="w-full bg-white/95 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-2xl border border-white/20">
                         <SearchWidget variant="light" />
                     </div>
                 </div>
@@ -893,25 +919,27 @@ function ReservarContent() {
     return (
         <main className="min-h-screen pt-28 pb-12 bg-muted/30">
             <div className="container mx-auto px-4">
-                {/* Header da Busca */}
-                <div className="bg-white rounded-xl shadow-sm border border-border/50 p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 p-3 rounded-full text-primary">
-                            <Calendar className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold font-heading text-primary">Disponibilidade</h1>
-                            <p className="text-muted-foreground text-sm flex flex-col gap-1 leading-tight">
-                                <span>{formatDate(checkIn!)} - {formatDate(checkOut!)}</span>
-                                <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
-                                <span>{adults} Adultos, {children} Crianças</span>
-                            </p>
-                        </div>
-                    </div>
-                    <Button variant="outline" onClick={() => window.location.href = '/reservar'} className="gap-2">
-                        <ArrowLeft className="w-4 h-4" /> Alterar Busca
-                    </Button>
-                </div>
+                <AvailabilityBar
+                    checkIn={checkIn!}
+                    checkOut={checkOut!}
+                    adults={numAdults}
+                    children={numChildren}
+                    alterControl={
+                        <GuestSelectorPopover
+                            open={guestPopoverOpen}
+                            onOpenChange={setGuestPopoverOpen}
+                            adults={numAdults}
+                            children={numChildren}
+                            childrenAges={childrenAges}
+                            onConfirm={handleGuestSelectorConfirm}
+                            trigger={
+                                <button type="button" className="text-sm font-medium underline underline-offset-2">
+                                    Alterar
+                                </button>
+                            }
+                        />
+                    }
+                />
 
                 <div className="mb-6 rounded-lg border border-border/60 bg-white px-4 py-3">
                     <div className="flex items-center justify-between gap-4">
@@ -976,14 +1004,18 @@ function ReservarContent() {
                                 </Button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-6">
-                                {availableRooms.map((room) => {
-                                    const roomPhotos = getRoomDisplayPhotos(room);
-                                    const roomPrimaryImage = roomPhotos[0] ?? null;
-                                    const canOpenGallery = roomPhotos.length > 0;
+                            <div className="space-y-4">
+                                <h2 className="text-lg font-semibold text-foreground">
+                                    {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
+                                </h2>
+                                <div className="grid grid-cols-1 gap-6">
+                                    {availableRooms.map((room) => {
+                                        const roomPhotos = getRoomDisplayPhotos(room);
+                                        const roomPrimaryImage = roomPhotos[0] ?? null;
+                                        const canOpenGallery = roomPhotos.length > 0;
 
-                                    return (
-                                    <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
+                                        return (
+                                        <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
                                         <div className="grid md:grid-cols-12 gap-0">
                                             <div
                                                 className={`md:col-span-4 relative h-64 md:h-auto overflow-hidden ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
@@ -1022,11 +1054,12 @@ function ReservarContent() {
                                                     <div className="flex justify-between items-start mb-2">
                                                         <h3 className="text-2xl font-bold font-heading text-primary">{room.name}</h3>
                                                         <div className="text-right hidden md:block">
-                                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">Total da estadia</span>
+                                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">TOTAL DA ESTADIA</span>
                                                             {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
                                                                 <p className="text-sm text-muted-foreground line-through">R$ {Number(room.priceOriginal).toFixed(2)}</p>
                                                             ) : null}
                                                             <p className="text-2xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
+                                                            <p className="text-xs text-muted-foreground">Valores variam conforme ocupação.</p>
                                                             {room.promoApplied && Number(room.discountAmount || 0) > 0 ? (
                                                                 <p className="text-xs font-medium text-emerald-700">Você economiza R$ {Number(room.discountAmount).toFixed(2)}</p>
                                                             ) : null}
@@ -1048,11 +1081,12 @@ function ReservarContent() {
 
                                                 <div className="mt-4 border-t pt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                                     <div className="md:hidden">
-                                                        <span className="text-xs text-muted-foreground">Total</span>
+                                                        <span className="text-xs text-muted-foreground uppercase tracking-wider">TOTAL DA ESTADIA</span>
                                                         {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
                                                             <p className="text-xs text-muted-foreground line-through">R$ {Number(room.priceOriginal).toFixed(2)}</p>
                                                         ) : null}
                                                         <p className="text-xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
+                                                        <p className="text-xs text-muted-foreground">Valores variam conforme ocupação.</p>
                                                         {room.promoApplied && Number(room.discountAmount || 0) > 0 ? (
                                                             <p className="text-xs font-medium text-emerald-700">Economia de R$ {Number(room.discountAmount).toFixed(2)}</p>
                                                         ) : null}
@@ -1065,7 +1099,8 @@ function ReservarContent() {
                                             </div>
                                         </div>
                                     </Card>
-                                )})}
+                                    )})}
+                                </div>
                             </div>
                         )}
                     </div>
