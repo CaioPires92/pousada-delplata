@@ -35,6 +35,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -43,6 +46,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Apartamento Anexo')).toBeInTheDocument();
       const prices = screen.getAllByText('R$ 500.00');
       expect(prices.length).toBeGreaterThan(0);
+      expect(screen.getByText(/Passo 1 de 3/i)).toBeInTheDocument();
     });
   });
 
@@ -71,6 +75,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -90,6 +97,9 @@ describe('ReservarPage', () => {
   it('shows error message on API failure', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -145,6 +155,9 @@ describe('ReservarPage', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
     });
 
     render(<ReservarPage />);
@@ -160,10 +173,87 @@ describe('ReservarPage', () => {
 
     // Wait for breakdown to appear in summary
     await waitFor(() => {
-      expect(screen.getByText(/R\$ 760\.00/)).toBeInTheDocument();
+      const totals = screen.getAllByText(/R\$ 760\.00/);
+      expect(totals.length).toBeGreaterThan(0);
       expect(screen.getByText(/Base/i)).toBeInTheDocument();
       expect(screen.getByText(/Adulto extra/i)).toBeInTheDocument();
       expect(screen.getByText(/Crianças 6–11/i)).toBeInTheDocument();
+    });
+  });
+
+  it('não exibe bloco de cupom aplicado quando não há código promocional', async () => {
+    const mockRooms = [
+      {
+        id: 'room-1',
+        name: 'Test Room Cupom',
+        description: 'Nice room',
+        capacity: 2,
+        amenities: 'WiFi',
+        totalPrice: 600,
+        photos: [{ url: '/test.jpg' }],
+      }
+    ];
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
+    });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Room Cupom')).toBeInTheDocument();
+    });
+
+    screen.getByText(/Selecionar e Continuar/i).click();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Cupom aplicado/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('exibe resumo mobile com botão "Ver resumo" e expande detalhes', async () => {
+    const mockRooms = [
+      {
+        id: 'room-1',
+        name: 'Suite Mobile',
+        description: 'Room summary',
+        capacity: 2,
+        amenities: 'WiFi',
+        totalPrice: 650,
+        photos: [{ url: '/test.jpg' }],
+      }
+    ];
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockRooms,
+      headers: {
+        get: vi.fn(() => null),
+      },
+    });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Suite Mobile')).toBeInTheDocument();
+    });
+
+    screen.getByText(/Selecionar e Continuar/i).click();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Resumo da Reserva/i).length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: /Ver resumo/i })).toBeInTheDocument();
+    });
+
+    screen.getByRole('button', { name: /Ver resumo/i }).click();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Hóspedes/i).length).toBeGreaterThan(0);
     });
   });
 });

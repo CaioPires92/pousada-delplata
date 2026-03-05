@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
-import { trackClickReservar } from '@/lib/analytics';
+import { gaEvent, trackClickReservar } from '@/lib/analytics';
  
 
 interface RoomPhoto {
@@ -83,6 +83,14 @@ export function RoomCard({ room }: RoomCardProps) {
         setCurrentPhotoIndex((prev) => (prev - 1 + displayPhotos.length) % displayPhotos.length);
     };
 
+    const handleReservarClick = () => {
+        trackClickReservar(`room_card_${room.id}`);
+        gaEvent('acomodacoes_cta_reservar_click', {
+            source: 'room_card',
+            room_id: room.id,
+        });
+    };
+
     return (
         <Fragment key={pathname}>
             <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 flex flex-col h-full">
@@ -145,12 +153,12 @@ export function RoomCard({ room }: RoomCardProps) {
                 <CardFooter className="flex items-center justify-between border-t pt-4 bg-muted/20 mt-auto">
                     <div>
                         <span className="text-sm font-medium text-muted-foreground">
-                            Escolha as datas para ver o valor
+                            Valores variam conforme data e ocupação. Consulte disponibilidade.
                         </span>
                     </div>
                     <Button asChild>
-                        <Link href={`/reservar?roomTypeId=${room.id}`} onClick={() => trackClickReservar(`room_card_${room.id}`)}>
-                            Reservar Agora
+                        <Link href={`/reservar?roomTypeId=${room.id}`} onClick={handleReservarClick}>
+                            Ver disponibilidade e preços
                         </Link>
                     </Button>
                 </CardFooter>

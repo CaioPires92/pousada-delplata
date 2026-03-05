@@ -1,5 +1,7 @@
 'use client';
 
+import { isAnalyticsDebug } from './debugMode';
+
 type GaPrimitive = string | number | boolean | null | undefined;
 type GaParams = Record<string, GaPrimitive | GaItem[]>;
 
@@ -92,7 +94,9 @@ function buildItem(room: RoomAnalyticsInput, index?: number): GaItem {
 
 export function gaEvent(name: string, params: GaParams = {}) {
     if (!hasGtag()) return;
-    window.gtag?.('event', name, params);
+    const debugMode = isAnalyticsDebug();
+    const payload = debugMode ? { ...params, debug_mode: true } : params;
+    window.gtag?.('event', name, payload);
 }
 
 export function trackSearch(payload: TrackSearchPayload) {

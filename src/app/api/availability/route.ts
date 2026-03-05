@@ -2,8 +2,23 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { calculateBookingPrice } from '@/lib/booking-price';
 import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
+import { normalizeCouponCode } from '@/lib/coupons/hash';
+import { validateCoupon } from '@/lib/coupons/validate';
 
 export const dynamic = 'force-dynamic';
+
+function getPromoMessage(reason: string) {
+    if (reason === 'OK') return 'Cupom aplicado.';
+    if (reason === 'EXPIRED') return 'Cupom expirado.';
+    if (reason === 'NOT_STARTED') return 'Cupom ainda não está ativo.';
+    if (reason === 'MIN_BOOKING_NOT_REACHED') return 'Cupom indisponível para o valor atual da reserva.';
+    if (reason === 'ROOM_NOT_ELIGIBLE') return 'Cupom não aplicável para este quarto.';
+    if (reason === 'SOURCE_NOT_ELIGIBLE') return 'Cupom não disponível para este canal.';
+    if (reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED') return 'Limite de uso do cupom atingido.';
+    if (reason === 'INACTIVE') return 'Cupom inativo.';
+    if (reason === 'INVALID_CODE') return 'Cupom inválido.';
+    return 'Cupom indisponível no momento.';
+}
 
 type NormalizedRate = {
     dayStart: string;
@@ -20,6 +35,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const checkIn = searchParams.get('checkIn');
         const checkOut = searchParams.get('checkOut');
+        const promoCode = normalizeCouponCode(searchParams.get('promo') || searchParams.get('coupon') || '');
         const adultsCount = parseInt(searchParams.get('adults') || '2', 10);
         const childrenAges = searchParams.get('childrenAges')?.split(',').map(Number) || [];
 
@@ -47,6 +63,8 @@ export async function GET(request: Request) {
         const availableRooms = [];
         let minRequiredAcrossRooms = Infinity;
         let eligibleMinLosCount = 0;
+        let promoApplied = false;
+        let promoMessage: string | undefined;
         const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
         const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
 
@@ -162,10 +180,40 @@ export async function GET(request: Request) {
                 });
 
                 const remainingUnits = effectiveSellableUnits;
+                let discountAmount = 0;
+                let priceDiscounted: number | undefined;
+                let roomPromoApplied = false;
+                let roomPromoMessage: string | undefined;
+
+                if (promoCode) {
+                    const couponResult = await validateCoupon({
+                        code: promoCode,
+                        subtotal: breakdown.total,
+                        roomTypeId: room.id,
+                        source: 'direct',
+                    });
+
+                    if (couponResult.valid) {
+                        discountAmount = Number(couponResult.discountAmount || 0);
+                        priceDiscounted = Number(couponResult.total || breakdown.total);
+                        roomPromoApplied = priceDiscounted < breakdown.total;
+                        roomPromoMessage = getPromoMessage(couponResult.reason || 'OK');
+                        if (roomPromoApplied) promoApplied = true;
+                    } else {
+                        roomPromoMessage = getPromoMessage(couponResult.reason || 'INVALID_CODE');
+                        if (!promoMessage) promoMessage = roomPromoMessage;
+                    }
+                }
 
                 availableRooms.push({
                     ...room,
-                    totalPrice: breakdown.total,
+                    totalPrice: roomPromoApplied && Number.isFinite(priceDiscounted) ? Number(priceDiscounted) : breakdown.total,
+                    priceOriginal: breakdown.total,
+                    priceDiscounted: roomPromoApplied ? Number(priceDiscounted) : undefined,
+                    discountAmount: roomPromoApplied ? discountAmount : 0,
+                    promoApplied: roomPromoApplied,
+                    promoMessage: roomPromoMessage,
+                    promoCodeNormalized: promoCode || undefined,
                     priceBreakdown: breakdown,
                     isAvailable: true,
                     remainingUnits,
@@ -180,7 +228,19 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'min_stay_required', minLos: minRequiredAcrossRooms }, { status: 400 });
         }
 
-        return NextResponse.json(availableRooms);
+        const response = NextResponse.json(availableRooms);
+        if (promoCode) {
+            response.headers.set('x-promo-code', promoCode);
+            response.headers.set('x-promo-applied', promoApplied ? 'true' : 'false');
+            if (!promoMessage && !promoApplied) {
+                promoMessage = 'Cupom inválido ou indisponível.';
+            }
+            if (promoMessage) {
+                response.headers.set('x-promo-message', promoMessage);
+            }
+        }
+
+        return response;
     } catch {
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }

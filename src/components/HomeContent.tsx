@@ -1,20 +1,28 @@
 "use client";
 
+import { useMemo } from "react";
 
 import { motion } from "framer-motion";
 
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import SearchWidget from "@/components/SearchWidget";
-import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, CheckCircle2 } from "lucide-react";
+import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, Coffee, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
+  gaEvent,
   trackClickReservarHero,
   trackClickReservarFinal,
   trackClickWhatsAppFinal,
 } from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
+import SpecialDatesSection from "@/components/SpecialDatesSection";
+import PromoWeekendCard from "@/components/PromoWeekendCard";
+import {
+  SPECIAL_DATES,
+} from "@/constants/specialDates";
 
 const siteImages = {
   hero: {
@@ -102,14 +110,23 @@ export default function HomeContent() {
   const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   const HERO_RESERVA_MICROCOPY = "Consulte disponibilidade em tempo real e garanta a melhor tarifa.";
   const RESERVA_INTERACTION_EVENT = "reservar-cta-interaction";
+  const enabledSpecialDates = useMemo(
+    () => SPECIAL_DATES.filter((specialDate) => specialDate.enabled),
+    []
+  );
 
   const handleHeroPrimaryCtaClick = () => {
     trackClickReservarHero("hero");
     window.dispatchEvent(new CustomEvent(RESERVA_INTERACTION_EVENT));
   };
 
+  const handleSpecialDateClick = (specialDateId: string) => {
+    gaEvent("home_special_dates_click", { special_date_id: specialDateId });
+  };
+
   return (
     <main className="min-h-screen">
+
       {/* Hero Section with Background Image */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image */}
@@ -183,20 +200,46 @@ export default function HomeContent() {
             </div>
           </motion.div>
         </motion.div>
+
+        <div className="absolute right-8 top-1/2 z-20 hidden w-full max-w-[280px] -translate-y-1/2 md:block">
+          <PromoWeekendCard />
+        </div>
       </section>
+
+      <section className="bg-background py-4 md:hidden">
+        <div className="container">
+          <PromoWeekendCard className="w-full" />
+        </div>
+      </section>
+
+      <SpecialDatesSection
+        dates={enabledSpecialDates}
+        onDateClick={(specialDate) => handleSpecialDateClick(specialDate.id)}
+      />
 
       {/* Quick Benefits Section */}
       <section className="bg-background py-10 md:py-12 border-b border-border/60">
         <div className="container">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto">
             {quickBenefits.map((benefit) => (
-              <div
+              <Badge
+                variant="secondary"
                 key={benefit}
-                className="flex items-center gap-2 rounded-full border border-border/40 bg-card/60 px-3 py-2 text-sm font-medium text-foreground"
+                className="group flex h-auto w-full items-center justify-start gap-2.5 rounded-full border border-border/60 bg-card/80 px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-card hover:shadow-md"
               >
-                <CheckCircle2 className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                  {benefit === "Piscina adulto + infantil" ? (
+                    <Waves className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : benefit === "Café da manhã diário" ? (
+                    <Coffee className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : benefit === "Ambiente familiar" ? (
+                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                </span>
                 <span>{benefit}</span>
-              </div>
+              </Badge>
             ))}
           </div>
         </div>
@@ -231,20 +274,20 @@ export default function HomeContent() {
                 transition={{ duration: 0.6, delay: index * 0.2 }}
               >
                 <Link href={wing.link} className="block h-full group">
-                  <Card className="overflow-hidden h-full border-2 hover:border-primary/50 transition-all duration-300 hover:shadow-xl rounded-3xl">
-                    <div className="relative h-96 overflow-hidden">
+                  <Card className="h-full overflow-hidden rounded-2xl border border-border/60 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+                    <div className="relative w-full aspect-[16/9] overflow-hidden rounded-xl">
                       <Image
                         src={wing.image.src}
                         alt={wing.image.alt}
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
-                        className="object-cover group-hover:scale-110 transition-transform duration-700"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-30 group-hover:opacity-80 transition-opacity" />
-                      <div className="absolute bottom-0 left-0 p-8 text-white w-full">
-                        <h3 className="text-3xl md:text-4xl font-bold font-heading mb-3">{wing.title}</h3>
-                        <p className="text-white/90 text-lg mb-6 line-clamp-2">{wing.description}</p>
-                        <div className="flex items-center text-secondary font-bold group-hover:translate-x-2 transition-transform">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3 text-white">
+                        <h3 className="line-clamp-1 text-2xl md:text-3xl font-bold font-heading">{wing.title}</h3>
+                        <p className="mt-1 min-h-[2.75rem] line-clamp-2 text-sm md:text-base text-white/90">{wing.description}</p>
+                        <div className="mt-3 flex items-center text-secondary font-bold group-hover:translate-x-1 transition-transform">
                           Ver fotos e detalhes <ArrowRight className="ml-2 w-5 h-5" />
                         </div>
                       </div>

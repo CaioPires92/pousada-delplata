@@ -81,7 +81,7 @@
     gap: 2rem;
 }
 
-.priceCard {
+.availabilityCard {
     background-color: white;
     padding: 2rem;
     border-radius: 8px;
@@ -89,18 +89,26 @@
     border: 1px solid #eee;
 }
 
-.priceLabel {
-    display: block;
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.5rem;
+.availabilityCopy {
+    color: #475569;
+    font-size: 0.95rem;
+    line-height: 1.5;
 }
 
-.price {
+.availabilityButton {
     display: block;
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--color-primary);
+    margin-top: 1rem;
+    text-align: center;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    transition: filter 0.2s ease;
+}
+
+.availabilityButton:hover {
+    filter: brightness(0.95);
 }
 
 .description h3,
