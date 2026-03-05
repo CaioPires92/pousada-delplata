@@ -35,6 +35,12 @@ describe('SpecialDatesSection', () => {
         expect(screen.getAllByRole('link', { name: /Ver disponibilidade/i })).toHaveLength(1);
     });
 
+    it('usa dateFrom/dateTo no link dos cards normais', () => {
+        render(<SpecialDatesSection dates={[baseDate]} />);
+        const link = screen.getByRole('link', { name: /Ver disponibilidade/i });
+        expect(link).toHaveAttribute('href', '/reservar?checkIn=2026-06-04&checkOut=2026-06-07&adults=2&children=0');
+    });
+
     it('renderiza card sem imagem quando o campo image não existe', () => {
         render(<SpecialDatesSection dates={[{ ...baseDate, image: undefined }]} />);
         expect(screen.getByText('Corpus Christi')).toBeInTheDocument();
@@ -65,4 +71,33 @@ describe('SpecialDatesSection', () => {
         expect(screen.getByRole('button', { name: /Ver datas anteriores/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Ver próximas datas/i })).toBeInTheDocument();
     });
+
+    it('formata mês do período em UTC para evitar mudança de mês por fuso', () => {
+        const marchPromo: SpecialDateConfig = {
+            ...baseDate,
+            id: 'marco-promo',
+            title: 'Março - Baixa Temporada',
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-31',
+        };
+
+        render(<SpecialDatesSection dates={[marchPromo]} />);
+        expect(screen.getByText('01-31 mar')).toBeInTheDocument();
+    });
+
+    it('usa /reservar sem datas para o card de março configurado com useBaseReservarPath', () => {
+        const marchPromo: SpecialDateConfig = {
+            ...baseDate,
+            id: 'marco-promo',
+            title: 'Março - Baixa Temporada',
+            dateFrom: '2026-03-01',
+            dateTo: '2026-03-31',
+            useBaseReservarPath: true,
+        };
+
+        render(<SpecialDatesSection dates={[marchPromo]} />);
+        const link = screen.getByRole('link', { name: /Ver disponibilidade/i });
+        expect(link).toHaveAttribute('href', '/reservar');
+    });
+
 });

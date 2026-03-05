@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatDateBR } from '@/lib/date';
 import styles from './cupons.module.css';
 
 type Coupon = {
@@ -150,7 +151,7 @@ function formatDateOnlyBR(value: string | null): string {
     if (!value) return '-';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleDateString('pt-BR');
+    return formatDateBR(value);
 }
 
 function parseJsonArray(raw: string | null): string[] {

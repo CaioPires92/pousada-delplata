@@ -308,9 +308,9 @@ export default function SearchWidget({
 
     return (
         <div className="w-full">
-            <form onSubmit={handleSearch} className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-4 items-end">
                 {/* Check-in */}
-                <div className="flex flex-col lg:col-span-2">
+                <div className="flex flex-col md:col-span-1 xl:col-span-3">
                     <label className={labelClass}>
                         <CalendarIcon className="w-4 h-4" />
                         Check-in
@@ -326,7 +326,13 @@ export default function SearchWidget({
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </div>
                         </PopoverTrigger>
-                        <PopoverContent data-testid="checkin-popover" className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
+                        <PopoverContent
+                            data-testid="checkin-popover"
+                            className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60"
+                            align="start"
+                            collisionPadding={12}
+                            sideOffset={8}
+                        >
                             <Calendar
                                 mode="single"
                                 selected={checkIn}
@@ -340,7 +346,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Check-out */}
-                <div className="flex flex-col lg:col-span-2">
+                <div className="flex flex-col md:col-span-1 xl:col-span-3">
                     <label className={labelClass}>
                         <CalendarIcon className="w-4 h-4" />
                         Check-out
@@ -356,7 +362,13 @@ export default function SearchWidget({
                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </div>
                         </PopoverTrigger>
-                        <PopoverContent data-testid="checkout-popover" className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60" align="start">
+                        <PopoverContent
+                            data-testid="checkout-popover"
+                            className="w-auto p-0 max-w-[90vw] max-h-[80vh] overflow-auto rounded-xl shadow-xl border border-border/60"
+                            align="start"
+                            collisionPadding={12}
+                            sideOffset={8}
+                        >
                             <Calendar
                                 mode="single"
                                 selected={checkOut}
@@ -374,7 +386,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Adultos */}
-                <div className="flex flex-col lg:col-span-2">
+                <div className="flex flex-col md:col-span-1 xl:col-span-2">
                     <label htmlFor="adults" className={labelClass}>
                         <Users className="w-4 h-4" />
                         Adultos
@@ -395,7 +407,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Crianças */}
-                <div className="flex flex-col lg:col-span-2">
+                <div className="flex flex-col md:col-span-1 xl:col-span-2">
                     <label htmlFor="children" className={labelClass}>
                         <Baby className="w-4 h-4" />
                         Crianças
@@ -417,7 +429,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Cupom */}
-                <div className="flex flex-col lg:col-span-2">
+                <div className="flex flex-col md:col-span-2 xl:col-span-3">
                     <label htmlFor="coupon" className={labelClass}>
                         <Bookmark className="w-4 h-4" />
                         Cupom
@@ -434,11 +446,11 @@ export default function SearchWidget({
                 </div>
 
                 {/* Botão de busca */}
-                <div className="lg:col-span-2">
+                <div className="md:col-span-2 xl:col-span-3">
                     <Button
                         type="submit"
                         size="lg"
-                        className="w-full h-[56px] text-sm md:text-base font-semibold flex items-center justify-center gap-2 bg-primary text-white border border-white/20 shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
+                        className="w-full min-w-[170px] h-[56px] px-5 text-sm md:text-base font-semibold flex items-center justify-center gap-2 bg-primary text-white border border-white/20 shadow-[0_10px_24px_rgba(15,23,42,0.35)] hover:brightness-110 hover:scale-[1.02] hover:shadow-[0_14px_28px_rgba(15,23,42,0.42)] transition-all duration-300 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary"
                         aria-label={submitLabel}
                         onClick={() => {
                             onPrimaryCtaClick?.();
@@ -461,7 +473,7 @@ export default function SearchWidget({
                     </Button>
                 </div>
                 {numChildren > 0 ? (
-                    <div className="lg:col-span-12">
+                    <div className="md:col-span-2 xl:col-span-15">
                         <p className="text-xs text-white/90 mb-1">
                             Informe a idade das crianças
                         </p>
@@ -488,7 +500,13 @@ export default function SearchWidget({
                             ))}
                         </div>
                         {agesMissing ? (
-                            <p className="mt-1 text-xs text-destructive">Informe a idade para continuar</p>
+                            <p
+                                className={`mt-2 text-sm font-medium ${variant === 'light'
+                                    ? 'text-destructive'
+                                    : 'inline-flex w-fit rounded-md border border-red-300/40 bg-red-500/20 px-2 py-1 text-red-100'}`}
+                            >
+                                Informe a idade para continuar
+                            </p>
                         ) : null}
                     </div>
                 ) : null}

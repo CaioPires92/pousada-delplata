@@ -4,20 +4,33 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type PromoWeekendCardProps = {
   className?: string;
+  onClose?: () => void;
 };
 
-export default function PromoWeekendCard({ className }: PromoWeekendCardProps) {
+export default function PromoWeekendCard({ className, onClose }: PromoWeekendCardProps) {
   return (
     <Card
       className={cn(
-        "space-y-3 rounded-xl border border-primary/10 bg-white p-5 shadow-xl transition-all duration-300 hover:shadow-2xl",
+        "relative space-y-3 rounded-xl border border-primary/10 bg-white p-5 shadow-xl transition-all duration-300 hover:shadow-2xl",
         className
       )}
     >
+      {onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="Fechar oferta especial"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
+
       <Badge variant="secondary" className="bg-primary text-xs text-white hover:bg-primary">
         Oferta especial
       </Badge>
