@@ -26,4 +26,4 @@ export interface Booking {
     } | null;
 }
 
-export type BookingAction = 'test' | 'expire' | 'assist' | 'delete';
+export type BookingAction = 'confirm' | 'test' | 'expire' | 'assist' | 'delete';

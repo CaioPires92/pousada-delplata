@@ -46,10 +46,11 @@ function toYmd(date: Date) {
 
 function getActionLabel(action: BookingAction) {
     const labels: Record<BookingAction, string> = {
+        confirm: 'Confirmar reserva',
         expire: 'Expirar reserva',
         assist: 'Enviar ajuda',
         delete: 'Excluir reserva',
-        test: 'Aprovar teste',
+        test: 'Aprovar pagamento de teste',
     };
     return labels[action];
 }
@@ -61,6 +62,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
         }
         return 'A reserva será excluída permanentemente. Esta ação não pode ser desfeita.';
     }
+    if (action === 'confirm') return 'A reserva será marcada como confirmada.';
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
     return 'Pagamento de teste será aprovado para esta reserva.';
@@ -227,6 +229,16 @@ export default function AdminReservasPage() {
         });
     }, [runBookingAction, testPaymentsEnabled]);
 
+    const confirmBooking = useCallback(async (bookingId: string) => {
+        await runBookingAction({
+            bookingId,
+            action: 'confirm',
+            endpoint: '/api/admin/bookings/' + bookingId + '/confirm',
+            method: 'POST',
+            successMessage: 'Reserva ' + bookingId.slice(0, 8) + ' confirmada com sucesso.',
+        });
+    }, [runBookingAction]);
+
     const markBookingExpired = useCallback(async (bookingId: string) => {
         await runBookingAction({
             bookingId,
@@ -265,6 +277,11 @@ export default function AdminReservasPage() {
     }, [runBookingAction]);
 
     const executeAction = useCallback(async (booking: Booking, action: BookingAction) => {
+        if (action === 'confirm') {
+            await confirmBooking(booking.id);
+            return;
+        }
+
         if (action === 'expire') {
             await markBookingExpired(booking.id);
             return;
@@ -283,7 +300,7 @@ export default function AdminReservasPage() {
         if (action === 'test') {
             await approveTestPayment(booking.id);
         }
-    }, [approveTestPayment, deleteBooking, markBookingExpired, sendAssistEmail]);
+    }, [approveTestPayment, confirmBooking, deleteBooking, markBookingExpired, sendAssistEmail]);
 
     const confirmActionModal = useCallback(async () => {
         if (!actionModal) return;
@@ -435,20 +452,20 @@ export default function AdminReservasPage() {
                         </div>
 
                         <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Analytics</span>
+                            <span className={styles.controlLabel}>Analytics de teste</span>
                             <label className={styles.toggleLabel}>
                                 <input
                                     type="checkbox"
                                     checked={analyticsTestMode}
                                     onChange={(event) => onToggleAnalyticsTestMode(event.target.checked)}
                                 />
-                                <span>Modo teste (analytics)</span>
-                                <span className={analyticsTestMode ? styles.modeOnBadge : styles.modeOffBadge} title="Eventos serão marcados como teste">
-                                    {analyticsTestMode ? 'ON' : 'OFF'}
+                                <span>Marcar eventos GA4 como teste</span>
+                                <span className={analyticsTestMode ? styles.modeOnBadge : styles.modeOffBadge} title="Nao altera reservas ou pagamentos, apenas a marcacao dos eventos no analytics">
+                                    {analyticsTestMode ? 'ATIVO' : 'DESLIGADO'}
                                 </span>
                             </label>
                             {testPaymentsEnabled ? (
-                                <small className={styles.testPaymentsNote}>Test payments habilitado</small>
+                                <small className={styles.testPaymentsNote}>Ação "Aprovar pagamento de teste" habilitada nas reservas.</small>
                             ) : null}
                         </div>
                     </div>
