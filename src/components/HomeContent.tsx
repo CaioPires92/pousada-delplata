@@ -194,26 +194,26 @@ export default function HomeContent() {
       </section>
 
       {showPromoCard ? (
-        <div className="fixed left-1/2 top-20 z-40 w-[calc(100vw-2rem)] max-w-4xl -translate-x-1/2 rounded-xl border border-primary/20 bg-gradient-to-r from-primary to-primary/90 text-white shadow-2xl md:top-24">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <p className="text-sm font-medium md:text-base">
-              Oferta especial de fim de semana: <span className="font-bold">ATÉ 15% OFF</span> com cupom aplicado automaticamente.
+        <div className="fixed left-1/2 top-20 z-40 -translate-x-1/2 rounded-xl border border-primary/20 bg-gradient-to-r from-primary to-primary/90 text-white shadow-2xl md:top-24">
+          <div className="flex items-center justify-center gap-4 px-4 py-3">
+            <p className="text-sm font-medium md:text-base whitespace-nowrap">
+              <span className="font-bold">15% OFF neste fim de semana.</span> Clique e garanta seu desconto.
             </p>
-            <div className="flex items-center gap-2">
-              <Button asChild size="sm" className="h-9 bg-white text-primary hover:bg-white/90">
-                <Link href="/reservar?promo=WEEKEND15&promoLock=1">
-                  Ver disponibilidade
-                </Link>
-              </Button>
-              <button
-                type="button"
-                onClick={() => setShowPromoCard(false)}
-                className="rounded-md p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="Fechar faixa promocional"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+
+            <Button asChild size="sm" className="h-9 bg-white text-primary hover:bg-white/90">
+              <Link href="/reservar?promo=WEEKEND15&promoLock=1">
+                Garantir desconto
+              </Link>
+            </Button>
+
+            <button
+              type="button"
+              onClick={() => setShowPromoCard(false)}
+              className="rounded-md p-1 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Fechar faixa promocional"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       ) : null}

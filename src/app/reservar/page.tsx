@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
 import AvailabilityBar from './components/AvailabilityBar';
-import GuestSelectorPopover, { type GuestSelectorConfirmPayload } from './components/GuestSelectorPopover';
 
 import { Check, AlertCircle, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
@@ -109,13 +108,14 @@ function ReservarContent() {
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
-    const [guestPopoverOpen, setGuestPopoverOpen] = useState(false);
+    const [searchEditorOpen, setSearchEditorOpen] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const paymentContainerId = 'paymentBrick_container';
     const mountedRef = useRef(true);
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
+    const selectedRoomRef = useRef<Room | null>(null);
     const maxGuests = 3;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
@@ -244,6 +244,10 @@ function ReservarContent() {
     const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
     useEffect(() => {
+        selectedRoomRef.current = selectedRoom;
+    }, [selectedRoom]);
+
+    useEffect(() => {
         if (promoFromQuery) {
             setCouponCode(promoFromQuery);
             return;
@@ -259,6 +263,10 @@ function ReservarContent() {
         setPromoAlertDismissed(false);
     }, [promoFromQuery]);
 
+    useEffect(() => {
+        setSearchEditorOpen(false);
+    }, [checkIn, checkOut, adults, children, childrenAgesKey]);
+
     const handleTryAnotherPromo = useCallback(() => {
         const params = new URLSearchParams(searchParams.toString());
         params.delete('promo');
@@ -266,29 +274,6 @@ function ReservarContent() {
         const query = params.toString();
         router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
         setPromoAlertDismissed(true);
-    }, [pathname, router, searchParams]);
-
-    const handleGuestSelectorConfirm = useCallback((payload: GuestSelectorConfirmPayload) => {
-        const nextAdults = Math.min(10, Math.max(1, payload.adults || 1));
-        const nextChildren = Math.min(10, Math.max(0, payload.children || 0));
-        const normalizedChildrenAges = nextChildren > 0
-            ? payload.childrenAges
-                .slice(0, nextChildren)
-                .map((age) => Math.min(17, Math.max(0, Number.parseInt(String(age), 10))))
-                .filter((age) => Number.isFinite(age))
-            : [];
-
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('adults', String(nextAdults));
-        params.set('children', String(nextChildren));
-        if (normalizedChildrenAges.length > 0) {
-            params.set('childrenAges', normalizedChildrenAges.join(','));
-        } else {
-            params.delete('childrenAges');
-        }
-
-        const query = params.toString();
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     }, [pathname, router, searchParams]);
 
     const getWhatsAppUrl = () => {
@@ -386,6 +371,31 @@ function ReservarContent() {
                 setAvailableRooms(data);
                 setPromoAppliedInResults(responsePromoApplied);
                 setCouponMessage(responsePromoMessage);
+
+                const currentSelectedRoom = selectedRoomRef.current;
+                if (Array.isArray(data) && currentSelectedRoom) {
+                    const refreshedSelectedRoom = data.find((room: Room) => room.id === currentSelectedRoom.id);
+
+                    if (!refreshedSelectedRoom) {
+                        setAppliedCoupon(null);
+                        setSelectedRoom(null);
+                        setFormMessage('A acomodação selecionada não está disponível para a nova busca. Escolha outro quarto.');
+                    } else {
+                        const currentTotal = Number(currentSelectedRoom.totalPrice);
+                        const refreshedTotal = Number(refreshedSelectedRoom.totalPrice);
+                        const currentBase = Number(currentSelectedRoom.priceOriginal ?? currentSelectedRoom.totalPrice);
+                        const refreshedBase = Number(refreshedSelectedRoom.priceOriginal ?? refreshedSelectedRoom.totalPrice);
+                        const currentBreakdown = JSON.stringify(currentSelectedRoom.priceBreakdown ?? null);
+                        const refreshedBreakdown = JSON.stringify(refreshedSelectedRoom.priceBreakdown ?? null);
+                        const priceChanged = currentTotal !== refreshedTotal || currentBase !== refreshedBase || currentBreakdown !== refreshedBreakdown;
+
+                        if (priceChanged) {
+                            setAppliedCoupon(null);
+                            setSelectedRoom(refreshedSelectedRoom);
+                            setFormMessage('');
+                        }
+                    }
+                }
                 hasLoadedOnce.current = true;
             }
 
@@ -925,21 +935,27 @@ function ReservarContent() {
                     adults={numAdults}
                     childrenCount={numChildren}
                     alterControl={
-                        <GuestSelectorPopover
-                            open={guestPopoverOpen}
-                            onOpenChange={setGuestPopoverOpen}
-                            adults={numAdults}
-                            childrenCount={numChildren}
-                            childrenAges={childrenAges}
-                            onConfirm={handleGuestSelectorConfirm}
-                            trigger={
-                                <button type="button" className="text-sm font-medium underline underline-offset-2">
-                                    Alterar
-                                </button>
-                            }
-                        />
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-9 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => setSearchEditorOpen((prev) => !prev)}
+                        >
+                            {searchEditorOpen ? 'Fechar busca' : 'Alterar busca'}
+                        </Button>
                     }
                 />
+                {searchEditorOpen ? (
+                    <div className="mb-6 rounded-xl border border-primary/20 bg-white p-4 shadow-sm">
+                        <SearchWidget
+                            variant="light"
+                            uiPreset="inline"
+                            prefillFromQuery
+                            submitLabel="Atualizar busca"
+                            submitLabelMobile="Atualizar"
+                        />
+                    </div>
+                ) : null}
 
                 <div className="mb-6 rounded-lg border border-border/60 bg-white px-4 py-3">
                     <div className="flex items-center justify-between gap-4">

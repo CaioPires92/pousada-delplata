@@ -41,6 +41,7 @@ export default function BookingRowCard(props: BookingRowCardProps) {
 
     const childrenAges = normalizeChildrenAges(booking.childrenAges);
     const bookingApproved = isBookingApproved(booking);
+    const bookingConfirmed = String(booking.status || '').toUpperCase() === 'CONFIRMED';
     const checkIn = formatDateSafe(getBookingOperationalDate(booking));
     const checkOut = formatDateSafe(getBookingCheckOutDate(booking));
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -74,12 +75,15 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                             aria-label={`Ações da reserva ${booking.id.slice(0, 8)}`}
                         >
                             <option value="">Selecionar ação...</option>
+                            <option value="confirm" disabled={bookingConfirmed}>
+                                {bookingConfirmed ? 'Confirmar reserva (já confirmada)' : 'Confirmar reserva'}
+                            </option>
                             <option value="expire">Expirar reserva</option>
                             <option value="assist">Enviar ajuda</option>
                             <option value="delete">Excluir reserva</option>
                             {testPaymentsEnabled ? (
                                 <option value="test" disabled={bookingApproved}>
-                                    {bookingApproved ? 'Aprovar teste (já aprovada)' : 'Aprovar teste'}
+                                    {bookingApproved ? 'Aprovar pagamento de teste (já aprovada)' : 'Aprovar pagamento de teste'}
                                 </option>
                             ) : null}
                         </select>
@@ -96,6 +100,9 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                         </button>
                         {mobileMenuOpen ? (
                             <div className={styles.mobileActionMenu}>
+                                <button type="button" onClick={() => triggerAction('confirm')} disabled={actionBusy || bookingConfirmed}>
+                                    {bookingConfirmed ? 'Confirmar reserva (já confirmada)' : 'Confirmar reserva'}
+                                </button>
                                 <button type="button" onClick={() => triggerAction('expire')} disabled={actionBusy}>
                                     Expirar reserva
                                 </button>
@@ -107,7 +114,7 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                                 </button>
                                 {testPaymentsEnabled ? (
                                     <button type="button" onClick={() => triggerAction('test')} disabled={actionBusy || bookingApproved}>
-                                        {bookingApproved ? 'Aprovar teste (já aprovada)' : 'Aprovar teste'}
+                                        {bookingApproved ? 'Aprovar pagamento de teste (já aprovada)' : 'Aprovar pagamento de teste'}
                                     </button>
                                 ) : null}
                             </div>
