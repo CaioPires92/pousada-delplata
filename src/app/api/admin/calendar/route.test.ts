@@ -82,7 +82,7 @@ describe('Admin Calendar API', () => {
         expect(d1?.stopSell).toBe(true);
         expect(d2?.stopSell).toBe(false);
     });
-    it('caps manual inventory by existing bookings', async () => {
+    it('keeps adjusted inventory as available stock even with existing bookings', async () => {
         (prisma.roomType.findUnique as any).mockResolvedValue({
             id: 'room-1',
             totalUnits: 2,
@@ -113,12 +113,12 @@ describe('Admin Calendar API', () => {
         expect(res.status).toBe(200);
 
         const data = await res.json();
-        expect(data[0].available).toBe(1);
+        expect(data[0].available).toBe(2);
         expect(data[0].bookingsCount).toBe(1);
         expect(data[0].totalInventory).toBe(2);
     });
 
-    it('subtracts bookings from adjusted inventory even when physical capacity is larger', async () => {
+    it('does not subtract bookings twice from adjusted inventory when physical capacity is larger', async () => {
         (prisma.roomType.findUnique as any).mockResolvedValue({
             id: 'room-1',
             totalUnits: 8,
@@ -151,7 +151,7 @@ describe('Admin Calendar API', () => {
         const data = await res.json();
         expect(data[0].totalInventory).toBe(2);
         expect(data[0].bookingsCount).toBe(1);
-        expect(data[0].available).toBe(1);
+        expect(data[0].available).toBe(2);
     });
 });
 

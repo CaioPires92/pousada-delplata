@@ -73,6 +73,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
             expect(screen.getByText('Apartamento Teste')).toBeInTheDocument();
             expect(screen.getByText('HOJE')).toBeInTheDocument();
+            expect(screen.getByText('Disponíveis: 4')).toBeInTheDocument();
         });
 
         expect(screen.queryByText(/Tarifa base:/i)).not.toBeInTheDocument();

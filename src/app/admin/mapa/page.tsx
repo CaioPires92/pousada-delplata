@@ -843,7 +843,7 @@ export default function MapaReservas() {
                     return (
                         <td key={`${room.id}-inventory-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
                             <div className={`${styles.inventoryCellCard} ${occupancyBandClass}`}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', opacity: updatingInventory === inventoryKey ? 0.5 : 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: updatingInventory === inventoryKey ? 0.5 : 1 }}>
                                     <button
                                         className={styles.miniBtn}
                                         onClick={() => updateRateField(day, 'inventory', Math.max(0, total - 1), room.id)}
@@ -851,7 +851,9 @@ export default function MapaReservas() {
                                     >
                                         -
                                     </button>
-                                    <span style={{ fontWeight: 600 }}>{total}</span>
+                                    <span style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>
+                                        Disponíveis: {available}
+                                    </span>
                                     <button
                                         className={styles.miniBtn}
                                         onClick={() => updateRateField(day, 'inventory', total + 1, room.id)}
@@ -860,9 +862,6 @@ export default function MapaReservas() {
                                         +
                                     </button>
                                 </div>
-                                <span style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>
-                                    Disponíveis: {available}
-                                </span>
                                 <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
                                     Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
                                 </span>

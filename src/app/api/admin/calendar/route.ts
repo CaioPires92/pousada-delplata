@@ -118,7 +118,9 @@ export async function GET(request: Request) {
             const adjustedTotal = adjustment ? Math.max(0, Math.min(capacityTotal, Number(adjustment.totalUnits))) : null;
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
             const totalInventory = adjustedTotal !== null ? adjustedTotal : capacityTotal;
-            const available = Math.max(0, totalInventory - bookingsCount);
+            // Inventory adjustments are already capped by current bookings on write,
+            // so the value exposed to the admin UI is the sellable stock itself.
+            const available = totalInventory;
 
             return {
                 date: dateStr,
