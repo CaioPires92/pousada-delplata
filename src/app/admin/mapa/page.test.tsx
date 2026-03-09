@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import type { ReactNode } from 'react';
 import MapaPage from './page';
 import { getOccupancyMetrics } from './occupancy';
+import styles from './mapa.module.css';
 
 vi.mock('next/link', () => ({
     default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
@@ -134,5 +135,32 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         const metrics = getOccupancyMetrics({ capacityTotal: 3, bookingsCount: null, available: null });
         expect(metrics.occupancyPct).toBeNull();
         expect(metrics.band).toBeNull();
+    });
+
+    it('destaca o card inteiro em vermelho quando o quarto esta fechado', async () => {
+        const todayKey = format(new Date(), 'yyyy-MM-dd');
+        setupMapFetch({
+            date: todayKey,
+            price: 320,
+            stopSell: true,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            rateId: 'rate-4',
+            totalInventory: 8,
+            capacityTotal: 8,
+            bookingsCount: 0,
+            available: 8,
+            isAdjusted: false
+        });
+
+        const { container } = render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('FECHADO')).toBeInTheDocument();
+            expect(screen.getByText('Disponíveis: 8')).toBeInTheDocument();
+        });
+
+        expect(container.querySelector(`.${styles.inventoryClosed}`)).toBeTruthy();
     });
 });

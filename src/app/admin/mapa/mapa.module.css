@@ -374,6 +374,12 @@
     background: rgba(255, 255, 255, 0.7);
 }
 
+.inventoryClosed {
+    border-color: #fca5a5;
+    background: linear-gradient(180deg, rgba(254, 226, 226, 0.98), rgba(254, 202, 202, 0.98));
+    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.16);
+}
+
 .occupancyRow {
     margin-top: 0.12rem;
     display: inline-flex;
@@ -382,6 +388,10 @@
     gap: 0.35rem;
     font-size: 0.68rem;
     color: #334155;
+}
+
+.occupancyRowClosed {
+    color: #7f1d1d;
 }
 
 .occupancyBadge {
@@ -395,6 +405,12 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     border: 1px solid transparent;
+}
+
+.occupancyBadgeClosed {
+    border-color: #fca5a5;
+    background: rgba(255, 241, 242, 0.95);
+    color: #991b1b;
 }
 
 .occupancyLow {

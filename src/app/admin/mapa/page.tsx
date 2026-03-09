@@ -833,6 +833,7 @@ export default function MapaReservas() {
                     const available = data?.available ?? 0;
                     const bookingsCount = data?.bookingsCount ?? 0;
                     const capacityTotal = data?.capacityTotal ?? 0;
+                    const isClosed = data?.stopSell ?? false;
                     const occupancy = getOccupancyMetrics(data);
                     const occupancyBandClass = getOccupancyBandClass(occupancy.band);
                     const occupancyLabel = occupancy.band ? OCCUPANCY_BAND_LABEL[occupancy.band] : null;
@@ -842,7 +843,7 @@ export default function MapaReservas() {
                     const isTodayCol = dateStr === todayKey;
                     return (
                         <td key={`${room.id}-inventory-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
-                            <div className={`${styles.inventoryCellCard} ${occupancyBandClass}`}>
+                            <div className={`${styles.inventoryCellCard} ${isClosed ? styles.inventoryClosed : occupancyBandClass}`}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: updatingInventory === inventoryKey ? 0.5 : 1 }}>
                                     <button
                                         className={styles.miniBtn}
@@ -851,7 +852,7 @@ export default function MapaReservas() {
                                     >
                                         -
                                     </button>
-                                    <span style={{ fontSize: '0.72rem', color: '#0369a1', fontWeight: 600 }}>
+                                    <span style={{ fontSize: '0.72rem', color: isClosed ? '#991b1b' : '#0369a1', fontWeight: 600 }}>
                                         Disponíveis: {available}
                                     </span>
                                     <button
@@ -862,13 +863,13 @@ export default function MapaReservas() {
                                         +
                                     </button>
                                 </div>
-                                <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                <span style={{ fontSize: '0.68rem', color: isClosed ? '#7f1d1d' : '#64748b' }}>
                                     Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
                                 </span>
-                                <span className={styles.occupancyRow}>
+                                <span className={`${styles.occupancyRow} ${isClosed ? styles.occupancyRowClosed : ''}`}>
                                     Ocupação: <strong>{occupancyPctLabel}</strong>
                                     {occupancyLabel && (
-                                        <span className={`${styles.occupancyBadge} ${occupancyBandClass}`}>
+                                        <span className={`${styles.occupancyBadge} ${isClosed ? styles.occupancyBadgeClosed : occupancyBandClass}`}>
                                             {occupancyLabel}
                                         </span>
                                     )}
