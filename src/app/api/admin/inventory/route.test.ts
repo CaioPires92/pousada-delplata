@@ -19,6 +19,9 @@ vi.mock('@/lib/prisma', () => ({
         inventoryAdjustment: {
             upsert: vi.fn(),
         },
+        fourGuestInventoryAdjustment: {
+            upsert: vi.fn(),
+        },
         $transaction: vi.fn(),
     },
 }));
@@ -26,7 +29,8 @@ vi.mock('@/lib/prisma', () => ({
 describe('Admin Inventory API - day key safety', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        (prisma.roomType.findUnique as any).mockResolvedValue({ id: 'room-1', totalUnits: 8 });
+        (prisma.roomType.findUnique as any).mockResolvedValue({ id: 'room-1', totalUnits: 8, inventoryFor4Guests: 2 });
+        (prisma.booking.findMany as any).mockResolvedValue([]);
         (prisma.booking.count as any).mockResolvedValue(0);
         (prisma.inventoryAdjustment.upsert as any).mockResolvedValue({
             roomTypeId: 'room-1',
@@ -75,7 +79,12 @@ describe('Admin Inventory API - day key safety', () => {
         expect(upsertArgs.create.date.toISOString()).toBe('2026-02-10T12:00:00.000Z');
     });
     it('caps manual available by physical capacity minus existing bookings', async () => {
-        (prisma.booking.count as any).mockResolvedValue(1);
+        (prisma.booking.findMany as any).mockResolvedValue([
+            {
+                adults: 2,
+                childrenAges: null,
+            },
+        ]);
 
         const req = new Request('http://localhost/api/admin/inventory', {
             method: 'POST',
@@ -94,6 +103,6 @@ describe('Admin Inventory API - day key safety', () => {
         expect(payload.appliedLimit).toBe(true);
 
         const upsertArgs = (prisma.inventoryAdjustment.upsert as any).mock.calls[0][0];
-        expect(upsertArgs.create.totalUnits).toBe(7);
+        expect(upsertArgs.create.totalUnits).toBe(8);
     });
 });

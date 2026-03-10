@@ -18,6 +18,9 @@ vi.mock('@/lib/prisma', () => ({
     inventoryAdjustment: {
       findMany: vi.fn(),
     },
+    fourGuestInventoryAdjustment: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -28,6 +31,7 @@ describe('Availability API - Pricing Logic', () => {
     (prisma.booking.count as any).mockResolvedValue(0);
     (prisma.rate.findMany as any).mockResolvedValue([]);
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
   });
 
   it('should return 400 if dates are missing', async () => {
@@ -281,6 +285,7 @@ describe('Availability API - Pricing Logic', () => {
       basePrice: 100,
       capacity: 4,
       maxGuests: 4,
+      inventoryFor4Guests: 5,
       includedAdults: 2,
       extraAdultFee: 50,
       child6To11Fee: 30,
@@ -314,6 +319,7 @@ describe('Availability API - Pricing Logic', () => {
       basePrice: 200, // Per night - API loop will sum 200+200=400 for stays
       capacity: 5,
       maxGuests: 5,
+      inventoryFor4Guests: 5,
       includedAdults: 2,
       extraAdultFee: 100,
       child6To11Fee: 80,
@@ -373,6 +379,95 @@ describe('Availability API - Pricing Logic', () => {
     expect(data[0].priceBreakdown.extraAdults).toBe(1);
     expect(data[0].priceBreakdown.extraAdultTotal).toBe(100);
     expect(data[0].totalPrice).toBe(200); // 100 base + 100 extra adult
+  });
+
+  it('should exclude room for 4 guests when special 4-guest inventory is exhausted', async () => {
+    const checkIn = '2026-02-01';
+    const checkOut = '2026-02-02';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=4&children=0`);
+
+    const mockRoom = {
+      id: 'room-1',
+      name: 'Family Room',
+      basePrice: 100,
+      capacity: 3,
+      maxGuests: 4,
+      inventoryFor4Guests: 2,
+      includedAdults: 2,
+      extraAdultFee: 100,
+      child6To11Fee: 30,
+      totalUnits: 8,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: []
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      {
+        checkIn: new Date('2026-02-01T00:00:00.000Z'),
+        checkOut: new Date('2026-02-02T00:00:00.000Z'),
+        adults: 4,
+        childrenAges: null,
+      },
+      {
+        checkIn: new Date('2026-02-01T00:00:00.000Z'),
+        checkOut: new Date('2026-02-02T00:00:00.000Z'),
+        adults: 2,
+        childrenAges: JSON.stringify([5, 8]),
+      }
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual([]);
+  });
+
+  it('should subtract active 4-guest bookings from a manual quadruplo adjustment', async () => {
+    const checkIn = '2026-02-01';
+    const checkOut = '2026-02-02';
+    const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=4&children=0`);
+
+    const mockRoom = {
+      id: 'room-1',
+      name: 'Family Room',
+      basePrice: 100,
+      capacity: 3,
+      maxGuests: 4,
+      inventoryFor4Guests: 2,
+      includedAdults: 2,
+      extraAdultFee: 100,
+      child6To11Fee: 30,
+      totalUnits: 8,
+      amenities: '',
+      photos: [],
+      inventory: [],
+      rates: []
+    };
+
+    (prisma.roomType.findMany as any).mockResolvedValue([mockRoom]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([
+      { dateKey: '2026-02-01', totalUnits: 1 },
+    ]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      {
+        checkIn: new Date('2026-02-01T00:00:00.000Z'),
+        checkOut: new Date('2026-02-02T00:00:00.000Z'),
+        adults: 4,
+        childrenAges: null,
+      },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual([]);
   });
 
 

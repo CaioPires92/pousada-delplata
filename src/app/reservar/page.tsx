@@ -20,6 +20,8 @@ interface Room {
     name: string;
     description: string;
     capacity: number;
+    maxGuests?: number;
+    inventoryFor4Guests?: number;
     amenities: string;
     totalPrice: number;
     priceOriginal?: number;
@@ -116,7 +118,7 @@ function ReservarContent() {
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
     const selectedRoomRef = useRef<Room | null>(null);
-    const maxGuests = 3;
+    const maxGuests = 4;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
     const totalGuests = numAdults + numChildren;
@@ -281,7 +283,7 @@ function ReservarContent() {
         const checkOutStr = checkOut ? formatDate(checkOut) : 'DATA INDEFINIDA';
         const message = `Olá! Gostaria de cotar hospedagem para *${numAdults} adultos* e *${numChildren} crianças*.\n` +
             `Datas: ${checkInStr} a ${checkOutStr}.\n` +
-            `Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.`;
+            `Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.`;
         const whatsappPhone = '5519999654866';
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
@@ -610,6 +612,9 @@ function ReservarContent() {
 
             if (!bookingResponse.ok) {
                 const errorData = await bookingResponse.json().catch(() => ({}));
+                if (errorData?.error === 'room_unavailable') {
+                    throw new Error('Essa acomodação não está mais disponível para a ocupação selecionada. Faça uma nova busca.');
+                }
                 throw new Error(errorData.error || 'Erro ao criar reserva');
             }
 
@@ -867,7 +872,7 @@ function ReservarContent() {
                 <div className="bg-amber-50 text-amber-900 p-6 rounded-xl inline-flex flex-col items-center gap-4 max-w-md mx-auto border border-amber-200">
                     <AlertCircle className="w-12 h-12" />
                     <p className="text-lg font-medium">
-                        Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.
+                        Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
                     <Button asChild>
                         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">

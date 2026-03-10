@@ -10,6 +10,7 @@ interface RoomType {
     description: string;
     capacity: number;
     totalUnits: number;
+    inventoryFor4Guests: number;
     basePrice: number;
     amenities: string;
     photos: { url: string }[];
@@ -26,6 +27,7 @@ export default function AdminQuartosPage() {
         description: '',
         capacity: 3,
         totalUnits: 2,
+        inventoryFor4Guests: 0,
         basePrice: 499,
         amenities: '',
         photosText: '',
@@ -34,6 +36,7 @@ export default function AdminQuartosPage() {
     const [batchData, setBatchData] = useState({
         roomTypeId: 'all',
         totalUnits: '',
+        inventoryFor4Guests: '',
         basePrice: '',
         capacity: ''
     });
@@ -48,7 +51,12 @@ export default function AdminQuartosPage() {
             if (!response.ok) throw new Error('Erro ao carregar quartos');
 
             const data = await response.json();
-            setRooms(data);
+            setRooms(Array.isArray(data)
+                ? data.map((room) => ({
+                    ...room,
+                    inventoryFor4Guests: Number(room.inventoryFor4Guests ?? 0),
+                }))
+                : []);
         } catch (error) {
             console.error('Erro:', error);
         } finally {
@@ -61,11 +69,18 @@ export default function AdminQuartosPage() {
     }, [fetchRooms]);
 
     const handleEdit = (room: RoomType) => {
-        setEditingRoom(room);
+        setEditingRoom({
+            ...room,
+            inventoryFor4Guests: Number(room.inventoryFor4Guests ?? 0),
+        });
     };
 
     const handleSave = async () => {
         if (!editingRoom) return;
+        if (editingRoom.inventoryFor4Guests < 0 || editingRoom.inventoryFor4Guests > editingRoom.totalUnits) {
+            alert('O subinventário para 4 hóspedes deve ficar entre 0 e o total de unidades.');
+            return;
+        }
 
         try {
             const response = await fetch(`/api/admin/rooms/${editingRoom.id}`, {
@@ -86,6 +101,7 @@ export default function AdminQuartosPage() {
 
     const handleBatchSave = async () => {
         const totalUnitsValue = batchData.totalUnits === '' ? undefined : parseInt(batchData.totalUnits);
+        const inventoryFor4GuestsValue = batchData.inventoryFor4Guests === '' ? undefined : parseInt(batchData.inventoryFor4Guests);
         const basePriceValue = batchData.basePrice === '' ? undefined : Number(batchData.basePrice);
         const capacityValue = batchData.capacity === '' ? undefined : parseInt(batchData.capacity);
 
@@ -97,12 +113,16 @@ export default function AdminQuartosPage() {
             alert('Capacidade inválida.');
             return;
         }
+        if (inventoryFor4GuestsValue !== undefined && inventoryFor4GuestsValue < 0) {
+            alert('Subinventário de 4 hóspedes inválido.');
+            return;
+        }
         if (basePriceValue !== undefined && (Number.isNaN(basePriceValue) || basePriceValue < 0)) {
             alert('Preço base inválido.');
             return;
         }
 
-        if (totalUnitsValue === undefined && basePriceValue === undefined && capacityValue === undefined) {
+        if (totalUnitsValue === undefined && inventoryFor4GuestsValue === undefined && basePriceValue === undefined && capacityValue === undefined) {
             alert('Preencha pelo menos um campo para atualizar.');
             return;
         }
@@ -114,6 +134,7 @@ export default function AdminQuartosPage() {
                 body: JSON.stringify({
                     roomTypeId: batchData.roomTypeId,
                     ...(totalUnitsValue !== undefined ? { totalUnits: totalUnitsValue } : {}),
+                    ...(inventoryFor4GuestsValue !== undefined ? { inventoryFor4Guests: inventoryFor4GuestsValue } : {}),
                     ...(basePriceValue !== undefined ? { basePrice: basePriceValue } : {}),
                     ...(capacityValue !== undefined ? { capacity: capacityValue } : {})
                 })
@@ -126,6 +147,7 @@ export default function AdminQuartosPage() {
             setBatchData({
                 roomTypeId: 'all',
                 totalUnits: '',
+                inventoryFor4Guests: '',
                 basePrice: '',
                 capacity: ''
             });
@@ -149,6 +171,10 @@ export default function AdminQuartosPage() {
             alert('Unidades inválidas.');
             return;
         }
+        if (creatingRoom.inventoryFor4Guests < 0 || creatingRoom.inventoryFor4Guests > creatingRoom.totalUnits) {
+            alert('O subinventário para 4 hóspedes deve ficar entre 0 e o total de unidades.');
+            return;
+        }
         if (Number.isNaN(creatingRoom.basePrice) || creatingRoom.basePrice < 0) {
             alert('Preço base inválido.');
             return;
@@ -168,6 +194,7 @@ export default function AdminQuartosPage() {
                     description: creatingRoom.description,
                     capacity: creatingRoom.capacity,
                     totalUnits: creatingRoom.totalUnits,
+                    inventoryFor4Guests: creatingRoom.inventoryFor4Guests,
                     basePrice: creatingRoom.basePrice,
                     amenities: creatingRoom.amenities,
                     photos,
@@ -244,6 +271,10 @@ export default function AdminQuartosPage() {
                                     <span className={styles.specValue}>{room.totalUnits}</span>
                                 </div>
                                 <div className={styles.spec}>
+                                    <span className={styles.specLabel}>Até 4 hóspedes:</span>
+                                    <span className={styles.specValue}>{room.inventoryFor4Guests} unid.</span>
+                                </div>
+                                <div className={styles.spec}>
                                     <span className={styles.specLabel}>Preço Base:</span>
                                     <span className={styles.specValue}>
                                         R$ {Number(room.basePrice).toFixed(2)}
@@ -316,6 +347,20 @@ export default function AdminQuartosPage() {
                                     onChange={(e) => setEditingRoom({
                                         ...editingRoom,
                                         totalUnits: parseInt(e.target.value)
+                                    })}
+                                />
+                            </div>
+
+                            <div className={styles.formField}>
+                                <label>Unidades para 4 hóspedes:</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max={editingRoom.totalUnits}
+                                    value={editingRoom.inventoryFor4Guests}
+                                    onChange={(e) => setEditingRoom({
+                                        ...editingRoom,
+                                        inventoryFor4Guests: parseInt(e.target.value) || 0
                                     })}
                                 />
                             </div>
@@ -406,6 +451,22 @@ export default function AdminQuartosPage() {
                                         setCreatingRoom({
                                             ...creatingRoom,
                                             totalUnits: parseInt(e.target.value) || 0,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div className={styles.formField}>
+                                <label>Unidades para 4 hóspedes:</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max={creatingRoom.totalUnits}
+                                    value={creatingRoom.inventoryFor4Guests}
+                                    onChange={(e) =>
+                                        setCreatingRoom({
+                                            ...creatingRoom,
+                                            inventoryFor4Guests: parseInt(e.target.value) || 0,
                                         })
                                     }
                                 />
@@ -512,6 +573,19 @@ export default function AdminQuartosPage() {
                                 onChange={(e) => setBatchData({
                                     ...batchData,
                                     capacity: e.target.value
+                                })}
+                                />
+                        </div>
+
+                        <div className={styles.formField}>
+                            <label>Novo Subinventário para 4 hóspedes:</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={batchData.inventoryFor4Guests}
+                                onChange={(e) => setBatchData({
+                                    ...batchData,
+                                    inventoryFor4Guests: e.target.value
                                 })}
                             />
                         </div>

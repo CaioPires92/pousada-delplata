@@ -29,6 +29,7 @@ interface RoomType {
     id: string;
     name: string;
     basePrice: number;
+    inventoryFor4Guests?: number;
 }
 
     interface CalendarData {
@@ -43,6 +44,10 @@ interface RoomType {
         capacityTotal: number;
         bookingsCount: number;
         available: number;
+        fourGuestInventory?: number;
+        fourGuestCapacityTotal?: number;
+        bookingsFor4GuestsCount?: number;
+        isFourGuestAdjusted?: boolean;
         isAdjusted: boolean;
     }
 
@@ -63,6 +68,7 @@ type BulkUpdates = {
     cta?: boolean;
     ctd?: boolean;
     inventory?: number;
+    fourGuestInventory?: number;
 };
 
 const ALL_ROOMS_VALUE = 'all';
@@ -406,6 +412,7 @@ export default function MapaReservas() {
     };
 
     const [updatingInventory, setUpdatingInventory] = useState<string | null>(null);
+    const [updatingFourGuestInventory, setUpdatingFourGuestInventory] = useState<string | null>(null);
 
     const persistInventory = async (dateStr: string, newTotal: number, roomTypeId?: string) => {
         const effectiveRoomId = roomTypeId || selectedRoomId;
@@ -428,6 +435,31 @@ export default function MapaReservas() {
             }
         } finally {
             setUpdatingInventory(null);
+        }
+    };
+
+    const persistFourGuestInventory = async (dateStr: string, newTotal: number, roomTypeId?: string) => {
+        const effectiveRoomId = roomTypeId || selectedRoomId;
+        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return;
+        setUpdatingFourGuestInventory(`${effectiveRoomId}:${dateStr}`);
+        try {
+            const res = await fetch('/api/admin/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomTypeId: effectiveRoomId,
+                    date: dateStr,
+                    totalUnits: newTotal,
+                    inventoryType: 'fourGuests'
+                })
+            });
+            if (!res.ok) throw new Error('Falha ao atualizar disponibilidade do quadruplo');
+            const data = await res.json().catch(() => null);
+            if (data && typeof data === 'object' && (data as any).appliedLimit) {
+                showToast('info', `Ajuste do quadruplo limitado por reservas em ${dateStr}.`);
+            }
+        } finally {
+            setUpdatingFourGuestInventory(null);
         }
     };
 
@@ -556,7 +588,7 @@ export default function MapaReservas() {
 
     const updateRateField = async (
         day: Date,
-        field: 'price' | 'minLos' | 'stopSell' | 'cta' | 'ctd' | 'inventory',
+        field: 'price' | 'minLos' | 'stopSell' | 'cta' | 'ctd' | 'inventory' | 'fourGuestInventory',
         value: string | number | boolean,
         roomTypeId?: string
     ) => {
@@ -571,6 +603,14 @@ export default function MapaReservas() {
                 await persistInventory(dateStr, inv, effectiveRoomId);
                 await fetchRates();
                 showToast('success', `Inventário atualizado para ${dateStr}.`);
+                return;
+            }
+            if (field === 'fourGuestInventory') {
+                const inv = Number(value);
+                if (Number.isNaN(inv) || inv < 0) return;
+                await persistFourGuestInventory(dateStr, inv, effectiveRoomId);
+                await fetchRates();
+                showToast('success', `Disponibilidade do quadruplo atualizada em ${dateStr}.`);
                 return;
             }
             await saveSingleDayRate(day, { [field]: value }, true, effectiveRoomId);
@@ -826,11 +866,9 @@ export default function MapaReservas() {
             </tr>
 
             <tr>
-                <td className={styles.stickyCol}>Quartos para venda</td>
+                <td className={styles.stickyCol}>Ocupação</td>
                 {monthDays.map(day => {
                     const data = getDataForDay(day, room.id);
-                    const total = data?.totalInventory ?? 0;
-                    const available = data?.available ?? 0;
                     const bookingsCount = data?.bookingsCount ?? 0;
                     const capacityTotal = data?.capacityTotal ?? 0;
                     const isClosed = data?.stopSell ?? false;
@@ -839,31 +877,11 @@ export default function MapaReservas() {
                     const occupancyLabel = occupancy.band ? OCCUPANCY_BAND_LABEL[occupancy.band] : null;
                     const occupancyPctLabel = occupancy.occupancyPct === null ? '—' : `${Math.round(occupancy.occupancyPct)}%`;
                     const dateStr = format(day, 'yyyy-MM-dd');
-                    const inventoryKey = `${room.id}:${dateStr}`;
                     const isTodayCol = dateStr === todayKey;
                     return (
-                        <td key={`${room.id}-inventory-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
-                            <div className={`${styles.inventoryCellCard} ${isClosed ? styles.inventoryClosed : occupancyBandClass}`}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: updatingInventory === inventoryKey ? 0.5 : 1 }}>
-                                    <button
-                                        className={styles.miniBtn}
-                                        onClick={() => updateRateField(day, 'inventory', Math.max(0, total - 1), room.id)}
-                                        disabled={updatingInventory === inventoryKey}
-                                    >
-                                        -
-                                    </button>
-                                    <span style={{ fontSize: '0.72rem', color: isClosed ? '#991b1b' : '#0369a1', fontWeight: 600 }}>
-                                        Disponíveis: {available}
-                                    </span>
-                                    <button
-                                        className={styles.miniBtn}
-                                        onClick={() => updateRateField(day, 'inventory', total + 1, room.id)}
-                                        disabled={updatingInventory === inventoryKey}
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                                <span style={{ fontSize: '0.68rem', color: isClosed ? '#7f1d1d' : '#64748b' }}>
+                        <td key={`${room.id}-occupancy-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
+                            <div className={`${styles.occupancySummaryCard} ${isClosed ? styles.inventoryClosed : occupancyBandClass}`}>
+                                <span className={styles.occupancyMeta}>
                                     Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
                                 </span>
                                 <span className={`${styles.occupancyRow} ${isClosed ? styles.occupancyRowClosed : ''}`}>
@@ -874,6 +892,97 @@ export default function MapaReservas() {
                                         </span>
                                     )}
                                 </span>
+                            </div>
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Standard</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const total = data?.totalInventory ?? 0;
+                    const available = data?.available ?? 0;
+                    const isClosed = data?.stopSell ?? false;
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const inventoryKey = `${room.id}:${dateStr}`;
+                    const isTodayCol = dateStr === todayKey;
+                    return (
+                        <td key={`${room.id}-inventory-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
+                            <div className={`${styles.inventoryStepper} ${isClosed ? styles.inventoryStepperBlocked : styles.inventoryStepperAvailable}`}>
+                                <button
+                                    type="button"
+                                    className={styles.inventoryStepperButton}
+                                    onClick={() => updateRateField(day, 'inventory', Math.max(0, total - 1), room.id)}
+                                    disabled={updatingInventory === inventoryKey || total <= 0}
+                                    aria-label={`Diminuir standard de ${room.name} em ${dateStr}`}
+                                >
+                                    -
+                                </button>
+                                <span className={styles.inventoryStepperValue}>
+                                    {updatingInventory === inventoryKey ? '...' : available}
+                                </span>
+                                <button
+                                    type="button"
+                                    className={styles.inventoryStepperButton}
+                                    onClick={() => updateRateField(day, 'inventory', total + 1, room.id)}
+                                    disabled={updatingInventory === inventoryKey}
+                                    aria-label={`Aumentar standard de ${room.name} em ${dateStr}`}
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </td>
+                    );
+                })}
+            </tr>
+
+            <tr>
+                <td className={styles.stickyCol}>Quadruplo</td>
+                {monthDays.map(day => {
+                    const data = getDataForDay(day, room.id);
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isTodayCol = dateStr === todayKey;
+                    const maxInventory = Math.max(0, Number(room.inventoryFor4Guests ?? data?.fourGuestCapacityTotal ?? 0));
+                    const fourGuestInventory = Math.max(0, Math.min(maxInventory, Number(data?.fourGuestInventory ?? maxInventory)));
+                    const bookingsFor4GuestsCount = Math.max(0, Number(data?.bookingsFor4GuestsCount ?? 0));
+                    const isUpdating = updatingFourGuestInventory === `${room.id}:${dateStr}`;
+                    const canDecrease = !isUpdating && maxInventory > 0 && fourGuestInventory > 0;
+                    const canIncrease = !isUpdating && maxInventory > 0 && fourGuestInventory < maxInventory;
+
+                    return (
+                        <td
+                            key={`${room.id}-four-guest-${dateStr}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
+                        >
+                            <div
+                                className={`${styles.fourGuestStepper} ${maxInventory <= 0 ? styles.fourGuestStepperDisabled : fourGuestInventory <= 0 ? styles.fourGuestStepperBlocked : styles.fourGuestStepperAvailable}`}
+                                title={maxInventory <= 0
+                                    ? 'Esse quarto não possui unidades para quadruplo.'
+                                    : `Disponibilidade para reservas de quadruplo. Reservas ativas: ${bookingsFor4GuestsCount}. Máximo configurado: ${maxInventory}.`}
+                            >
+                                <button
+                                    type="button"
+                                    className={styles.fourGuestStepperButton}
+                                    onClick={() => updateRateField(day, 'fourGuestInventory', fourGuestInventory - 1, room.id)}
+                                    disabled={!canDecrease}
+                                    aria-label={`Diminuir quadruplo de ${room.name} em ${dateStr}`}
+                                >
+                                    -
+                                </button>
+                                <span className={styles.fourGuestStepperValue}>
+                                    {isUpdating ? '...' : maxInventory <= 0 ? 'N/A' : fourGuestInventory}
+                                </span>
+                                <button
+                                    type="button"
+                                    className={styles.fourGuestStepperButton}
+                                    onClick={() => updateRateField(day, 'fourGuestInventory', fourGuestInventory + 1, room.id)}
+                                    disabled={!canIncrease}
+                                    aria-label={`Aumentar quadruplo de ${room.name} em ${dateStr}`}
+                                >
+                                    +
+                                </button>
                             </div>
                         </td>
                     );

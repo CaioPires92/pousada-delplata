@@ -38,6 +38,7 @@ export async function POST(request: Request) {
             description,
             capacity,
             totalUnits,
+            inventoryFor4Guests,
             basePrice,
             amenities,
             photos,
@@ -47,12 +48,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
 
+        const inventoryTotal = Number.parseInt(String(totalUnits), 10);
+        const inventoryFor4 = Math.max(0, Number.parseInt(String(inventoryFor4Guests ?? 0), 10) || 0);
+        if (inventoryFor4 > inventoryTotal) {
+            return NextResponse.json({ error: 'Subinventário de 4 hóspedes não pode exceder o total de unidades' }, { status: 400 });
+        }
+
         const room = await prisma.roomType.create({
             data: {
                 name: String(name),
                 description: String(description),
                 capacity: Number.parseInt(String(capacity), 10),
-                totalUnits: Number.parseInt(String(totalUnits), 10),
+                totalUnits: inventoryTotal,
+                inventoryFor4Guests: inventoryFor4,
+                maxGuests: inventoryFor4 > 0 ? 4 : 3,
                 basePrice: Number(String(basePrice)),
                 amenities: String(amenities || ''),
                 photos: Array.isArray(photos)
@@ -82,7 +91,7 @@ export async function PATCH(request: Request) {
         if (auth instanceof Response) return auth;
 
         const body = await request.json();
-        const { roomTypeId, totalUnits, basePrice, capacity } = body;
+        const { roomTypeId, totalUnits, inventoryFor4Guests, basePrice, capacity } = body;
 
         if (totalUnits !== undefined && totalUnits < 0) {
             return NextResponse.json(
@@ -96,20 +105,41 @@ export async function PATCH(request: Request) {
                 { status: 400 }
             );
         }
+        if (inventoryFor4Guests !== undefined && inventoryFor4Guests < 0) {
+            return NextResponse.json(
+                { error: 'Subinventário de 4 hóspedes inválido' },
+                { status: 400 }
+            );
+        }
 
         if (roomTypeId === 'all') {
             const rooms = await prisma.roomType.findMany({
-                select: { id: true, basePrice: true }
+                select: { id: true, basePrice: true, totalUnits: true, inventoryFor4Guests: true }
             });
 
             await prisma.$transaction(async (tx) => {
-                await tx.roomType.updateMany({
-                    data: {
-                        ...(totalUnits !== undefined ? { totalUnits: Number(totalUnits) } : {}),
-                        ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
-                        ...(capacity !== undefined ? { capacity: Number(capacity) } : {})
-                    }
-                });
+                for (const room of rooms) {
+                    const nextTotalUnits = totalUnits !== undefined ? Number(totalUnits) : Number(room.totalUnits);
+                    const nextInventoryFor4GuestsRaw = inventoryFor4Guests !== undefined
+                        ? Number(inventoryFor4Guests)
+                        : Number(room.inventoryFor4Guests ?? 0);
+                    const nextInventoryFor4Guests = Math.max(0, Math.min(nextTotalUnits, nextInventoryFor4GuestsRaw));
+
+                    await tx.roomType.update({
+                        where: { id: room.id },
+                        data: {
+                            ...(totalUnits !== undefined ? { totalUnits: nextTotalUnits } : {}),
+                            ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
+                            ...(capacity !== undefined ? { capacity: Number(capacity) } : {}),
+                            ...(inventoryFor4Guests !== undefined || totalUnits !== undefined
+                                ? {
+                                    inventoryFor4Guests: nextInventoryFor4Guests,
+                                    maxGuests: nextInventoryFor4Guests > 0 ? 4 : 3,
+                                }
+                                : {}),
+                        }
+                    });
+                }
 
                 if (basePrice !== undefined) {
                     for (const room of rooms) {
@@ -132,15 +162,30 @@ export async function PATCH(request: Request) {
         } else {
             const existingRoom = await prisma.roomType.findUnique({
                 where: { id: roomTypeId },
-                select: { basePrice: true }
+                select: { basePrice: true, totalUnits: true, inventoryFor4Guests: true }
             });
+            if (!existingRoom) {
+                return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 });
+            }
+
+            const nextTotalUnits = totalUnits !== undefined ? Number(totalUnits) : Number(existingRoom.totalUnits);
+            const nextInventoryFor4GuestsRaw = inventoryFor4Guests !== undefined
+                ? Number(inventoryFor4Guests)
+                : Number(existingRoom.inventoryFor4Guests ?? 0);
+            const nextInventoryFor4Guests = Math.max(0, Math.min(nextTotalUnits, nextInventoryFor4GuestsRaw));
 
             await prisma.roomType.update({
                 where: { id: roomTypeId },
                 data: {
-                    ...(totalUnits !== undefined ? { totalUnits: Number(totalUnits) } : {}),
+                    ...(totalUnits !== undefined ? { totalUnits: nextTotalUnits } : {}),
                     ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
-                    ...(capacity !== undefined ? { capacity: Number(capacity) } : {})
+                    ...(capacity !== undefined ? { capacity: Number(capacity) } : {}),
+                    ...(inventoryFor4Guests !== undefined || totalUnits !== undefined
+                        ? {
+                            inventoryFor4Guests: nextInventoryFor4Guests,
+                            maxGuests: nextInventoryFor4Guests > 0 ? 4 : 3,
+                        }
+                        : {}),
                 }
             });
 

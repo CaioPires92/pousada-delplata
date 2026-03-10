@@ -55,7 +55,7 @@ export default function SearchWidget({
     const [couponFeedback, setCouponFeedback] = useState('');
     const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'warning' | ''>('');
 
-    const maxGuests = 3;
+    const maxGuests = 4;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
     const totalGuests = numAdults + numChildren;
@@ -119,7 +119,7 @@ export default function SearchWidget({
 
         const message = `Olá! Gostaria de cotar hospedagem para *${adults} adultos* e *${children} crianças*.\n` +
             `Datas: ${checkInStr} a ${checkOutStr}.\n` +
-            `(Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.)`;
+            `(Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.)`;
 
         const whatsappPhone = '5519999654866';
         const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
@@ -288,8 +288,8 @@ export default function SearchWidget({
         ? 'w-full h-11 rounded-md border border-input bg-white px-3 text-sm text-foreground appearance-none'
         : 'w-full px-4 rounded-xl border-2 border-muted-foreground/20 bg-background text-foreground font-medium transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px] appearance-none';
 
-    const adultOptions = [1, 2, 3];
-    const childOptions = [0, 1, 2];
+    const adultOptions = [1, 2, 3, 4];
+    const childOptions = [0, 1, 2, 3];
     const shouldShowCapacityFallback = showCapacityFallback || isOverCapacity;
     const agesMissing = numChildren > 0 && (childrenAges.length !== numChildren || childrenAges.some((age) => age === null));
     const searchDisabled = shouldShowCapacityFallback || numAdults < 1 || (numChildren > 0 && agesMissing) || !checkIn || !checkOut || loading;
@@ -592,8 +592,8 @@ export default function SearchWidget({
             ) : null}
             {shouldShowCapacityFallback ? (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                    <p className="text-sm font-medium">
-                        Nossas acomodações comportam até 3 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.
+                        <p className="text-sm font-medium">
+                        Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
                     <div className="mt-3">
                         <Button type="button" onClick={handleWhatsAppClick}>

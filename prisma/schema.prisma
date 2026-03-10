@@ -17,6 +17,7 @@ model RoomType {
   description    String
   capacity       Int
   maxGuests      Int                   @default(3)
+  inventoryFor4Guests Int              @default(0)
   includedAdults Int                   @default(2)
   totalUnits     Int                   @default(1)
   basePrice      Decimal
@@ -27,6 +28,7 @@ model RoomType {
   bookings       Booking[]
   rates          Rate[]
   inventory      InventoryAdjustment[]
+  fourGuestInventoryAdjustments FourGuestInventoryAdjustment[]
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 }
@@ -66,6 +68,20 @@ model InventoryAdjustment {
   totalUnits Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@unique([roomTypeId, dateKey])
+  @@index([dateKey])
+}
+
+model FourGuestInventoryAdjustment {
+  id              String   @id @default(uuid())
+  roomTypeId       String
+  roomType         RoomType @relation(fields: [roomTypeId], references: [id])
+  date             DateTime
+  dateKey          String
+  totalUnits       Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])

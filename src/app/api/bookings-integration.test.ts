@@ -18,6 +18,9 @@ vi.mock('@/lib/prisma', () => ({
         inventoryAdjustment: {
             findMany: vi.fn(),
         },
+        fourGuestInventoryAdjustment: {
+            findMany: vi.fn(),
+        },
         guest: {
         create: vi.fn(),
         findFirst: vi.fn(),
@@ -38,6 +41,7 @@ describe('Booking Integration Tests', () => {
         (prisma.booking.count as any).mockResolvedValue(0);
         (prisma.booking.findMany as any).mockResolvedValue([]);
         (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+        (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
     });
 
     it('should complete booking flow with extra adult fee', async () => {
@@ -99,6 +103,7 @@ describe('Booking Integration Tests', () => {
         const tx = {
             roomType: { findUnique: prisma.roomType.findUnique },
             inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
+            fourGuestInventoryAdjustment: { findMany: prisma.fourGuestInventoryAdjustment.findMany },
             booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
             guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
             $queryRaw: prisma.$queryRaw,
@@ -198,6 +203,7 @@ describe('Booking Integration Tests', () => {
         const tx = {
             roomType: { findUnique: prisma.roomType.findUnique },
             inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
+            fourGuestInventoryAdjustment: { findMany: prisma.fourGuestInventoryAdjustment.findMany },
             booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
             guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
             $queryRaw: prisma.$queryRaw,
@@ -299,6 +305,7 @@ describe('Booking Integration Tests', () => {
         const tx = {
             roomType: { findUnique: prisma.roomType.findUnique },
             inventoryAdjustment: { findMany: prisma.inventoryAdjustment.findMany },
+            fourGuestInventoryAdjustment: { findMany: prisma.fourGuestInventoryAdjustment.findMany },
             booking: { findMany: prisma.booking.findMany, create: prisma.booking.create },
             guest: { create: prisma.guest.create, findFirst: prisma.guest.findFirst, update: prisma.guest.update },
             $queryRaw: prisma.$queryRaw,

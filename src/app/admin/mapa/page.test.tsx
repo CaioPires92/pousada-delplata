@@ -24,7 +24,7 @@ const createJsonResponse = (data: unknown, ok = true, status = 200): Response =>
 } as Response);
 
 const setupMapFetch = (calendarEntry: Record<string, unknown>) => {
-    const rooms = [{ id: 'room-1', name: 'Apartamento Teste', basePrice: 100 }];
+    const rooms = [{ id: 'room-1', name: 'Apartamento Teste', basePrice: 100, inventoryFor4Guests: 2 }];
     mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
         const url =
             typeof input === 'string'
@@ -65,16 +65,19 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             capacityTotal: 10,
             bookingsCount: 6,
             available: 4,
+            fourGuestInventory: 2,
+            fourGuestCapacityTotal: 2,
             isAdjusted: false
         });
 
-        render(<MapaPage />);
+        const { container } = render(<MapaPage />);
 
         await waitFor(() => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
             expect(screen.getByText('Apartamento Teste')).toBeInTheDocument();
             expect(screen.getByText('HOJE')).toBeInTheDocument();
-            expect(screen.getByText('Disponíveis: 4')).toBeInTheDocument();
+            expect(container.textContent).toContain('Standard');
+            expect(container.textContent).toContain('Ocupação');
         });
 
         expect(screen.queryByText(/Tarifa base:/i)).not.toBeInTheDocument();
@@ -95,6 +98,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             capacityTotal: 0,
             bookingsCount: 0,
             available: 4,
+            fourGuestInventory: 0,
+            fourGuestCapacityTotal: 0,
             isAdjusted: false
         });
 
@@ -122,6 +127,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             capacityTotal: 3,
             bookingsCount: null,
             available: null,
+            fourGuestInventory: 0,
+            fourGuestCapacityTotal: 0,
             isAdjusted: false
         });
 
@@ -151,16 +158,50 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             capacityTotal: 8,
             bookingsCount: 0,
             available: 8,
+            fourGuestInventory: 2,
+            fourGuestCapacityTotal: 2,
             isAdjusted: false
         });
 
         const { container } = render(<MapaPage />);
 
         await waitFor(() => {
-            expect(screen.getByText('FECHADO')).toBeInTheDocument();
-            expect(screen.getByText('Disponíveis: 8')).toBeInTheDocument();
+            expect(container.textContent).toContain('FECHADO');
+            expect(screen.getAllByRole('button', { name: /Aumentar standard/i }).length).toBeGreaterThan(0);
         });
 
         expect(container.querySelector(`.${styles.inventoryClosed}`)).toBeTruthy();
+    });
+
+    it('exibe a linha compacta de quadruplo no mapa', async () => {
+        const todayKey = format(new Date(), 'yyyy-MM-dd');
+        setupMapFetch({
+            date: todayKey,
+            price: 350,
+            stopSell: false,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            rateId: 'rate-5',
+            totalInventory: 8,
+            capacityTotal: 8,
+            bookingsCount: 0,
+            available: 8,
+            fourGuestInventory: 2,
+            fourGuestCapacityTotal: 2,
+            bookingsFor4GuestsCount: 0,
+            isAdjusted: false,
+            isFourGuestAdjusted: false
+        });
+
+        render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Quadruplo')).toBeInTheDocument();
+            expect(screen.getByText('Standard')).toBeInTheDocument();
+            expect(screen.getAllByRole('button', { name: /Diminuir quadruplo/i }).length).toBeGreaterThan(0);
+            expect(screen.getAllByRole('button', { name: /Aumentar quadruplo/i }).length).toBeGreaterThan(0);
+            expect(screen.getAllByRole('button', { name: /Aumentar standard/i }).length).toBeGreaterThan(0);
+        });
     });
 });

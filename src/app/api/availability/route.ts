@@ -4,6 +4,7 @@ import { calculateBookingPrice } from '@/lib/booking-price';
 import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { normalizeCouponCode } from '@/lib/coupons/hash';
 import { validateCoupon } from '@/lib/coupons/validate';
+import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
         const promoCode = normalizeCouponCode(searchParams.get('promo') || searchParams.get('coupon') || '');
         const adultsCount = parseInt(searchParams.get('adults') || '2', 10);
         const childrenAges = searchParams.get('childrenAges')?.split(',').map(Number) || [];
+        const requestedGuestCounts = getEffectiveGuestCounts({ adults: adultsCount, childrenAges });
 
         if (!checkIn || !checkOut) {
             return NextResponse.json({ error: 'Check-in e check-out são obrigatórios' }, { status: 400 });
@@ -82,10 +84,13 @@ export async function GET(request: Request) {
                 select: {
                     checkIn: true,
                     checkOut: true,
+                    adults: true,
+                    childrenAges: true,
                 },
             });
 
             const bookingsCountByDay = new Map<string, number>();
+            const bookingsFor4GuestsByDay = new Map<string, number>();
             const firstNight = nightStrings[0];
             const lastNight = nightStrings[nightStrings.length - 1];
 
@@ -93,6 +98,11 @@ export async function GET(request: Request) {
                 const bookingStart = booking.checkIn.toISOString().split('T')[0];
                 const bookingEndExclusive = booking.checkOut.toISOString().split('T')[0];
                 const bookingEndInclusive = prevDayKey(bookingEndExclusive);
+                const bookingGuestCounts = getEffectiveGuestCounts({
+                    adults: booking.adults,
+                    childrenAges: booking.childrenAges,
+                });
+                const usesFourGuestInventory = requiresFourGuestInventory(bookingGuestCounts.effectiveGuests);
 
                 const rangeStart = compareDayKey(bookingStart, firstNight) < 0 ? firstNight : bookingStart;
                 const rangeEnd = compareDayKey(bookingEndInclusive, lastNight) > 0 ? lastNight : bookingEndInclusive;
@@ -100,6 +110,9 @@ export async function GET(request: Request) {
 
                 for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
                     bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
+                    if (usesFourGuestInventory) {
+                        bookingsFor4GuestsByDay.set(dayKey, (bookingsFor4GuestsByDay.get(dayKey) || 0) + 1);
+                    }
                 }
             }
 
@@ -133,10 +146,18 @@ export async function GET(request: Request) {
             const adjustments = await prisma.inventoryAdjustment.findMany({
                 where: { roomTypeId: room.id, dateKey: { in: nightStrings } },
             });
+            const fourGuestAdjustments = await prisma.fourGuestInventoryAdjustment.findMany({
+                where: { roomTypeId: room.id, dateKey: { in: nightStrings } },
+            });
 
             const adjustmentByDay = new Map(adjustments.map((adj) => [adj.dateKey, adj.totalUnits]));
+            const fourGuestAdjustmentByDay = new Map(fourGuestAdjustments.map((adj) => [adj.dateKey, adj.totalUnits]));
 
             const capacityTotal = Number(room.totalUnits || 1);
+            const inventoryFor4Guests = Math.max(
+                0,
+                Math.min(capacityTotal, Number((room as { inventoryFor4Guests?: number | null }).inventoryFor4Guests || 0))
+            );
             const effectiveSellableUnits = nightStrings.reduce((min, dayKey) => {
                 const adjustedValue = adjustmentByDay.has(dayKey)
                     ? Number(adjustmentByDay.get(dayKey))
@@ -151,6 +172,20 @@ export async function GET(request: Request) {
             }, Number.POSITIVE_INFINITY);
 
             if (!Number.isFinite(effectiveSellableUnits) || effectiveSellableUnits <= 0) continue;
+            if (requiresFourGuestInventory(requestedGuestCounts.effectiveGuests)) {
+                const effectiveSellableUnitsFor4Guests = nightStrings.reduce((min, dayKey) => {
+                const bookedFor4Guests = bookingsFor4GuestsByDay.get(dayKey) || 0;
+                const adjustedFor4Guests = fourGuestAdjustmentByDay.has(dayKey)
+                    ? Number(fourGuestAdjustmentByDay.get(dayKey))
+                    : null;
+                const remainingUnitsFor4Guests = adjustedFor4Guests !== null
+                        ? Math.max(0, Math.min(inventoryFor4Guests, adjustedFor4Guests) - bookedFor4Guests)
+                        : Math.max(0, inventoryFor4Guests - bookedFor4Guests);
+                return Math.min(min, remainingUnitsFor4Guests);
+            }, Number.POSITIVE_INFINITY);
+
+                if (!Number.isFinite(effectiveSellableUnitsFor4Guests) || effectiveSellableUnitsFor4Guests <= 0) continue;
+            }
 
             let baseTotalForStay = 0;
             let requiredMinLos = 1;

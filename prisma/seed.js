@@ -37,7 +37,8 @@ async function seed() {
             name: 'Apartamento Térreo',
             description: 'TV Smart 32, Frigobar e Ar-condicionado.',
             capacity: 3,
-            maxGuests: 3, // Adicionado explicitamente
+            maxGuests: 4,
+            inventoryFor4Guests: 2,
             includedAdults: 2,
             extraAdultFee: 100,
             child6To11Fee: 50,
@@ -50,7 +51,8 @@ async function seed() {
             name: 'Apartamento Superior',
             description: 'Televisão LCD 39, Frigobar, Ar condicionado.',
             capacity: 3,
-            maxGuests: 3, // Adicionado explicitamente
+            maxGuests: 4,
+            inventoryFor4Guests: 2,
             includedAdults: 2,
             extraAdultFee: 100,
             child6To11Fee: 50,
@@ -63,7 +65,8 @@ async function seed() {
             name: 'Chalé',
             description: 'Privacidade e contato com a natureza.',
             capacity: 3,
-            maxGuests: 3, // Adicionado explicitamente
+            maxGuests: 4,
+            inventoryFor4Guests: 2,
             includedAdults: 2,
             extraAdultFee: 100,
             child6To11Fee: 50,
@@ -75,7 +78,8 @@ async function seed() {
             name: 'Apartamento Anexo',
             description: 'Privacidade e contato com a natureza.',
             capacity: 3,
-            maxGuests: 3, // Adicionado explicitamente
+            maxGuests: 3,
+            inventoryFor4Guests: 0,
             includedAdults: 2,
             extraAdultFee: 100,
             child6To11Fee: 50,

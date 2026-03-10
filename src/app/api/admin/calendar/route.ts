@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { getEffectiveGuestCounts, normalizeChildrenAgesInput, requiresFourGuestInventory } from '@/lib/guest-capacity';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -61,10 +62,22 @@ export async function GET(request: Request) {
                 date: { gte: rangeStart, lte: rangeEnd }
             }
         });
+        const fourGuestInventoryAdjustments = await prisma.fourGuestInventoryAdjustment.findMany({
+            where: {
+                roomTypeId,
+                date: { gte: rangeStart, lte: rangeEnd }
+            }
+        });
 
         // Mapeia usando a chave string YYYY-MM-DD para o frontend encontrar fácil
         const inventoryByDay = new Map(
             inventoryAdjustments.map((row) => [
+                row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date).slice(0, 10),
+                row
+            ])
+        );
+        const fourGuestInventoryByDay = new Map(
+            fourGuestInventoryAdjustments.map((row) => [
                 row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date).slice(0, 10),
                 row
             ])
@@ -93,9 +106,16 @@ export async function GET(request: Request) {
         });
 
         const bookingsCountByDay = new Map<string, number>();
+        const bookingsFor4GuestsByDay = new Map<string, number>();
         for (const b of activeBookings) {
             const bIn = b.checkIn.toISOString().split('T')[0];
             const bOut = b.checkOut.toISOString().split('T')[0];
+            const usesFourGuestInventory = requiresFourGuestInventory(
+                getEffectiveGuestCounts({
+                    adults: b.adults,
+                    childrenAges: normalizeChildrenAgesInput(b.childrenAges),
+                }).effectiveGuests
+            );
 
             const rangeStartDay = compareDayKey(bIn, startDateParam) < 0 ? startDateParam : bIn;
             const endInclusive = prevDayKey(bOut);
@@ -104,6 +124,9 @@ export async function GET(request: Request) {
             if (compareDayKey(rangeStartDay, rangeEndDay) <= 0) {
                 for (const dayKey of eachDayKeyInclusive(rangeStartDay, rangeEndDay)) {
                     bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
+                    if (usesFourGuestInventory) {
+                        bookingsFor4GuestsByDay.set(dayKey, (bookingsFor4GuestsByDay.get(dayKey) || 0) + 1);
+                    }
                 }
             }
         }
@@ -114,12 +137,21 @@ export async function GET(request: Request) {
         const calendarData = dayKeys.map((dateStr) => {
             const rate = normalizedRates.find((r) => dateStr >= r.dayStart && dateStr <= r.dayEnd);
             const adjustment = inventoryByDay.get(dateStr);
+            const fourGuestAdjustment = fourGuestInventoryByDay.get(dateStr);
             const capacityTotal = Number(roomType.totalUnits);
+            const fourGuestCapacityTotal = Math.max(0, Math.min(capacityTotal, Number(roomType.inventoryFor4Guests ?? 0)));
             const adjustedTotal = adjustment ? Math.max(0, Math.min(capacityTotal, Number(adjustment.totalUnits))) : null;
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
-            const totalInventory = adjustedTotal !== null ? adjustedTotal : capacityTotal;
-            // Inventory adjustments are already capped by current bookings on write,
-            // so the value exposed to the admin UI is the sellable stock itself.
+            const totalInventory = adjustedTotal !== null
+                ? Math.max(0, adjustedTotal - bookingsCount)
+                : Math.max(0, capacityTotal - bookingsCount);
+            const fourGuestAdjustedTotal = fourGuestAdjustment
+                ? Math.max(0, Math.min(fourGuestCapacityTotal, Number(fourGuestAdjustment.totalUnits)))
+                : null;
+            const bookingsFor4GuestsCount = bookingsFor4GuestsByDay.get(dateStr) || 0;
+            const fourGuestInventory = fourGuestAdjustedTotal !== null
+                ? Math.max(0, fourGuestAdjustedTotal - bookingsFor4GuestsCount)
+                : Math.max(0, fourGuestCapacityTotal - bookingsFor4GuestsCount);
             const available = totalInventory;
 
             return {
@@ -134,7 +166,11 @@ export async function GET(request: Request) {
                 capacityTotal,
                 bookingsCount,
                 available,
-                isAdjusted: !!adjustment
+                isAdjusted: !!adjustment,
+                fourGuestInventory,
+                fourGuestCapacityTotal,
+                bookingsFor4GuestsCount,
+                isFourGuestAdjusted: !!fourGuestAdjustment,
             };
         });
 

@@ -12,8 +12,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
         const existingRoom = await prisma.roomType.findUnique({
             where: { id },
-            select: { basePrice: true }
+            select: { basePrice: true, totalUnits: true }
         })
+        if (!existingRoom) {
+            return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 })
+        }
+
+        const nextTotalUnits = Number(data.totalUnits)
+        const nextInventoryFor4Guests = Math.max(0, Math.min(nextTotalUnits, Number(data.inventoryFor4Guests ?? 0)))
 
         const updatedRoom = await prisma.roomType.update({
             where: { id },
@@ -21,7 +27,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 name: data.name,
                 description: data.description,
                 capacity: Number(data.capacity),
-                totalUnits: Number(data.totalUnits),
+                totalUnits: nextTotalUnits,
+                inventoryFor4Guests: nextInventoryFor4Guests,
+                maxGuests: nextInventoryFor4Guests > 0 ? 4 : 3,
                 basePrice: Number(data.basePrice),
                 amenities: data.amenities
             }

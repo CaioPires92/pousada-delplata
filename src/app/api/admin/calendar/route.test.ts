@@ -17,6 +17,9 @@ vi.mock('@/lib/prisma', () => ({
         inventoryAdjustment: {
             findMany: vi.fn(),
         },
+        fourGuestInventoryAdjustment: {
+            findMany: vi.fn(),
+        },
         booking: {
             findMany: vi.fn(),
         },
@@ -29,10 +32,12 @@ describe('Admin Calendar API', () => {
         (prisma.roomType.findUnique as any).mockResolvedValue({
             id: 'room-1',
             totalUnits: 3,
+            inventoryFor4Guests: 2,
             basePrice: 500,
         });
         (prisma.rate.findMany as any).mockResolvedValue([]);
         (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+        (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
         (prisma.booking.findMany as any).mockResolvedValue([]);
     });
 
@@ -82,46 +87,51 @@ describe('Admin Calendar API', () => {
         expect(d1?.stopSell).toBe(true);
         expect(d2?.stopSell).toBe(false);
     });
-    it('keeps adjusted inventory as available stock even with existing bookings', async () => {
-        (prisma.roomType.findUnique as any).mockResolvedValue({
-            id: 'room-1',
-            totalUnits: 2,
-            basePrice: 500,
-        });
 
-        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
-            {
-                roomTypeId: 'room-1',
-                date: new Date('2026-02-11T12:00:00.000Z'),
-                totalUnits: 2,
-            },
-        ]);
-
-        (prisma.booking.findMany as any).mockResolvedValue([
-            {
-                checkIn: new Date('2026-02-11T00:00:00.000Z'),
-                checkOut: new Date('2026-02-12T00:00:00.000Z'),
-                status: 'CONFIRMED',
-            },
-        ]);
-
-        const req = new Request(
-            'http://localhost/api/admin/calendar?roomTypeId=room-1&startDate=2026-02-11&endDate=2026-02-11'
-        );
-
-        const res = await GET(req);
-        expect(res.status).toBe(200);
-
-        const data = await res.json();
-        expect(data[0].available).toBe(2);
-        expect(data[0].bookingsCount).toBe(1);
-        expect(data[0].totalInventory).toBe(2);
-    });
-
-    it('does not subtract bookings twice from adjusted inventory when physical capacity is larger', async () => {
+    it('subtracts bookings from physical capacity when there is no manual inventory adjustment', async () => {
         (prisma.roomType.findUnique as any).mockResolvedValue({
             id: 'room-1',
             totalUnits: 8,
+            inventoryFor4Guests: 2,
+            basePrice: 500,
+        });
+
+        (prisma.booking.findMany as any).mockResolvedValue([
+            {
+                checkIn: new Date('2026-02-11T00:00:00.000Z'),
+                checkOut: new Date('2026-02-12T00:00:00.000Z'),
+                status: 'CONFIRMED',
+                adults: 2,
+                childrenAges: null,
+            },
+            {
+                checkIn: new Date('2026-02-11T00:00:00.000Z'),
+                checkOut: new Date('2026-02-12T00:00:00.000Z'),
+                status: 'CONFIRMED',
+                adults: 2,
+                childrenAges: null,
+            },
+        ]);
+
+        const req = new Request(
+            'http://localhost/api/admin/calendar?roomTypeId=room-1&startDate=2026-02-11&endDate=2026-02-11'
+        );
+
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+
+        const data = await res.json();
+        expect(data[0].capacityTotal).toBe(8);
+        expect(data[0].bookingsCount).toBe(2);
+        expect(data[0].available).toBe(6);
+        expect(data[0].totalInventory).toBe(6);
+    });
+
+    it('subtracts existing bookings from adjusted inventory in the calendar', async () => {
+        (prisma.roomType.findUnique as any).mockResolvedValue({
+            id: 'room-1',
+            totalUnits: 2,
+            inventoryFor4Guests: 1,
             basePrice: 500,
         });
 
@@ -149,9 +159,85 @@ describe('Admin Calendar API', () => {
         expect(res.status).toBe(200);
 
         const data = await res.json();
-        expect(data[0].totalInventory).toBe(2);
+        expect(data[0].available).toBe(1);
         expect(data[0].bookingsCount).toBe(1);
-        expect(data[0].available).toBe(2);
+        expect(data[0].totalInventory).toBe(1);
+    });
+
+    it('keeps the adjusted cap without subtracting bookings twice when physical capacity is larger', async () => {
+        (prisma.roomType.findUnique as any).mockResolvedValue({
+            id: 'room-1',
+            totalUnits: 8,
+            inventoryFor4Guests: 2,
+            basePrice: 500,
+        });
+
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
+            {
+                roomTypeId: 'room-1',
+                date: new Date('2026-02-11T12:00:00.000Z'),
+                totalUnits: 2,
+            },
+        ]);
+
+        (prisma.booking.findMany as any).mockResolvedValue([
+            {
+                checkIn: new Date('2026-02-11T00:00:00.000Z'),
+                checkOut: new Date('2026-02-12T00:00:00.000Z'),
+                status: 'CONFIRMED',
+            },
+        ]);
+
+        const req = new Request(
+            'http://localhost/api/admin/calendar?roomTypeId=room-1&startDate=2026-02-11&endDate=2026-02-11'
+        );
+
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+
+        const data = await res.json();
+        expect(data[0].totalInventory).toBe(1);
+        expect(data[0].bookingsCount).toBe(1);
+        expect(data[0].available).toBe(1);
+    });
+
+    it('subtracts 4-guest bookings from the adjusted quadruplo inventory for the day', async () => {
+        (prisma.roomType.findUnique as any).mockResolvedValue({
+            id: 'room-1',
+            totalUnits: 8,
+            inventoryFor4Guests: 2,
+            basePrice: 500,
+        });
+
+        (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([
+            {
+                roomTypeId: 'room-1',
+                date: new Date('2026-02-11T12:00:00.000Z'),
+                totalUnits: 1,
+            },
+        ]);
+        (prisma.booking.findMany as any).mockResolvedValue([
+            {
+                checkIn: new Date('2026-02-11T00:00:00.000Z'),
+                checkOut: new Date('2026-02-12T00:00:00.000Z'),
+                status: 'CONFIRMED',
+                adults: 4,
+                childrenAges: null,
+            },
+        ]);
+
+        const req = new Request(
+            'http://localhost/api/admin/calendar?roomTypeId=room-1&startDate=2026-02-11&endDate=2026-02-11'
+        );
+
+        const res = await GET(req);
+        expect(res.status).toBe(200);
+
+        const data = await res.json();
+        expect(data[0].fourGuestInventory).toBe(0);
+        expect(data[0].fourGuestCapacityTotal).toBe(2);
+        expect(data[0].bookingsFor4GuestsCount).toBe(1);
+        expect(data[0].isFourGuestAdjusted).toBe(true);
     });
 });
 
