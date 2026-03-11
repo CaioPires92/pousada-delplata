@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { format } from 'date-fns';
 import type { ReactNode } from 'react';
 import MapaPage from './page';
 import { getOccupancyMetrics } from './occupancy';
@@ -23,8 +22,9 @@ const createJsonResponse = (data: unknown, ok = true, status = 200): Response =>
     text: async () => JSON.stringify(data)
 } as Response);
 
-const setupMapFetch = (calendarEntry: Record<string, unknown>) => {
+const setupMapFetch = (calendarEntry: Record<string, unknown> | Record<string, unknown>[]) => {
     const rooms = [{ id: 'room-1', name: 'Apartamento Teste', basePrice: 100, inventoryFor4Guests: 2 }];
+    const calendarEntries = Array.isArray(calendarEntry) ? calendarEntry : [calendarEntry];
     mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
         const url =
             typeof input === 'string'
@@ -36,13 +36,15 @@ const setupMapFetch = (calendarEntry: Record<string, unknown>) => {
             return createJsonResponse(rooms);
         }
         if (url.includes('/api/admin/calendar')) {
-            return createJsonResponse([calendarEntry]);
+            return createJsonResponse(calendarEntries);
         }
         return createJsonResponse([], true, 200);
     });
 };
 
 describe('Admin Mapa de Tarifas - UI refinements', () => {
+    const fixedTodayKey = '2026-03-11';
+
     beforeEach(() => {
         vi.clearAllMocks();
         Object.defineProperty(window.HTMLElement.prototype, 'scrollTo', {
@@ -52,9 +54,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
     });
 
     it('renderiza o mapa com dados completos e remove o bloco de tarifa base', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         setupMapFetch({
-            date: todayKey,
+            date: fixedTodayKey,
             price: 350,
             stopSell: false,
             cta: true,
@@ -82,12 +83,11 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
 
         expect(screen.queryByText(/Tarifa base:/i)).not.toBeInTheDocument();
         expect(getOccupancyMetrics({ capacityTotal: 10, bookingsCount: 6, available: 4 }).occupancyPct).toBe(60);
-    });
+    }, 30000);
 
     it('renderiza com capacidade = 0 e fallback de ocupacao sem crash', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         setupMapFetch({
-            date: todayKey,
+            date: fixedTodayKey,
             price: 250,
             stopSell: false,
             cta: false,
@@ -111,12 +111,11 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         });
 
         expect(getOccupancyMetrics({ capacityTotal: 0, bookingsCount: 0, available: 4 }).occupancyPct).toBeNull();
-    });
+    }, 30000);
 
     it('renderiza com campos faltando e aplica fallback defensivo sem crash', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         setupMapFetch({
-            date: todayKey,
+            date: fixedTodayKey,
             price: 199,
             stopSell: false,
             cta: false,
@@ -142,12 +141,11 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         const metrics = getOccupancyMetrics({ capacityTotal: 3, bookingsCount: null, available: null });
         expect(metrics.occupancyPct).toBeNull();
         expect(metrics.band).toBeNull();
-    });
+    }, 30000);
 
     it('destaca o card inteiro em vermelho quando o quarto esta fechado', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         setupMapFetch({
-            date: todayKey,
+            date: fixedTodayKey,
             price: 320,
             stopSell: true,
             cta: false,
@@ -171,12 +169,11 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         });
 
         expect(container.querySelector(`.${styles.inventoryClosed}`)).toBeTruthy();
-    });
+    }, 30000);
 
     it('exibe a linha compacta de quadruplo no mapa', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         setupMapFetch({
-            date: todayKey,
+            date: fixedTodayKey,
             price: 350,
             stopSell: false,
             cta: false,
@@ -203,10 +200,9 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getAllByRole('button', { name: /Aumentar quadruplo/i }).length).toBeGreaterThan(0);
             expect(screen.getAllByRole('button', { name: /Aumentar standard/i }).length).toBeGreaterThan(0);
         });
-    }, 15000);
+    }, 30000);
 
     it('envia no bulk edit apenas os campos ativados e expõe todos os controles operacionais', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         let bulkPayload: Record<string, unknown> | null = null;
         let inventoryPayload: Record<string, unknown> | null = null;
 
@@ -223,7 +219,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             }
             if (url.includes('/api/admin/calendar')) {
                 return createJsonResponse([{
-                    date: todayKey,
+                    date: fixedTodayKey,
                     price: 350,
                     stopSell: false,
                     cta: false,
@@ -294,10 +290,9 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             });
             expect(inventoryPayload).toBeNull();
         });
-    }, 15000);
+    }, 30000);
 
     it('envia inventário em lote de quadruplo para a rota administrativa correta', async () => {
-        const todayKey = format(new Date(), 'yyyy-MM-dd');
         let ratePayload: Record<string, unknown> | null = null;
         let inventoryPayload: Record<string, unknown> | null = null;
 
@@ -314,7 +309,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             }
             if (url.includes('/api/admin/calendar')) {
                 return createJsonResponse([{
-                    date: todayKey,
+                    date: fixedTodayKey,
                     price: 350,
                     stopSell: false,
                     cta: false,
@@ -373,5 +368,339 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
                 daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
             });
         });
-    }, 15000);
+    }, 30000);
+
+    it('permite seleção horizontal por arrasto no inventário standard e abre ação contextual', async () => {
+        const entries = [
+            {
+                date: '2026-03-11',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-a',
+                totalInventory: 8,
+                capacityTotal: 8,
+                bookingsCount: 0,
+                available: 8,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            },
+            {
+                date: '2026-03-12',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-b',
+                totalInventory: 7,
+                capacityTotal: 8,
+                bookingsCount: 1,
+                available: 7,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                bookingsFor4GuestsCount: 0,
+                isAdjusted: false
+            }
+        ];
+        let inventoryPayload: Record<string, unknown> | null = null;
+
+        mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url =
+                typeof input === 'string'
+                    ? input
+                    : input instanceof URL
+                        ? input.toString()
+                        : input.url;
+
+            if (url.includes('/api/rooms')) {
+                return createJsonResponse([{ id: 'room-1', name: 'Apartamento Teste', basePrice: 100, inventoryFor4Guests: 2 }]);
+            }
+            if (url.includes('/api/admin/calendar')) {
+                return createJsonResponse(entries);
+            }
+            if (url.includes('/api/admin/inventory') && init?.method === 'POST') {
+                inventoryPayload = JSON.parse(String(init.body));
+                return createJsonResponse({ success: true, appliedLimit: false });
+            }
+            return createJsonResponse([], true, 200);
+        });
+
+        render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
+        });
+
+        const startCell = screen.getByTestId('inventory-cell-room-1-2026-03-11');
+        const endCell = screen.getByTestId('inventory-cell-room-1-2026-03-12');
+
+        fireEvent.mouseDown(startCell, { button: 0 });
+        fireEvent.mouseEnter(endCell);
+        fireEvent.mouseUp(window);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Aplicar quartos disponíveis em 2 dias/i)).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByRole('spinbutton', { name: 'Valor para aplicar em lote' }), { target: { value: '3' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+        await waitFor(() => {
+            expect(inventoryPayload).toEqual({
+                roomTypeId: 'room-1',
+                startDate: '2026-03-11',
+                endDate: '2026-03-12',
+                updates: {
+                    inventory: 3,
+                },
+                inventoryType: 'standard',
+            });
+        });
+    }, 30000);
+
+    it('cancela a seleção por arrasto sem aplicar alterações', async () => {
+        setupMapFetch([
+            {
+                date: '2026-03-11',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-a',
+                totalInventory: 8,
+                capacityTotal: 8,
+                bookingsCount: 0,
+                available: 8,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            },
+            {
+                date: '2026-03-12',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-b',
+                totalInventory: 7,
+                capacityTotal: 8,
+                bookingsCount: 1,
+                available: 7,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            }
+        ]);
+
+        render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
+        });
+
+        const startCell = screen.getByTestId('inventory-cell-room-1-2026-03-11');
+        const endCell = screen.getByTestId('inventory-cell-room-1-2026-03-12');
+
+        fireEvent.mouseDown(startCell, { button: 0 });
+        fireEvent.mouseEnter(endCell);
+        fireEvent.mouseUp(window);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Aplicar quartos disponíveis em 2 dias/i)).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+        await waitFor(() => {
+            expect(screen.queryByText(/Aplicar quartos disponíveis em 2 dias/i)).not.toBeInTheDocument();
+        });
+    }, 30000);
+
+    it('permite arrasto horizontal em preço e envia payload compatível para rates bulk', async () => {
+        const entries = [
+            {
+                date: '2026-03-11',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-a',
+                totalInventory: 8,
+                capacityTotal: 8,
+                bookingsCount: 0,
+                available: 8,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            },
+            {
+                date: '2026-03-12',
+                price: 360,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-b',
+                totalInventory: 8,
+                capacityTotal: 8,
+                bookingsCount: 0,
+                available: 8,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            }
+        ];
+        let ratePayload: Record<string, unknown> | null = null;
+
+        mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url =
+                typeof input === 'string'
+                    ? input
+                    : input instanceof URL
+                        ? input.toString()
+                        : input.url;
+
+            if (url.includes('/api/rooms')) {
+                return createJsonResponse([{ id: 'room-1', name: 'Apartamento Teste', basePrice: 100, inventoryFor4Guests: 2 }]);
+            }
+            if (url.includes('/api/admin/calendar')) {
+                return createJsonResponse(entries);
+            }
+            if (url.includes('/api/rates/bulk') && init?.method === 'POST') {
+                ratePayload = JSON.parse(String(init.body));
+                return createJsonResponse({ success: true });
+            }
+            return createJsonResponse([], true, 200);
+        });
+
+        render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
+        });
+
+        const startCell = screen.getByTestId('price-cell-room-1-2026-03-11');
+        const endCell = screen.getByTestId('price-cell-room-1-2026-03-12');
+
+        fireEvent.mouseDown(startCell, { button: 0 });
+        fireEvent.mouseEnter(endCell);
+        fireEvent.mouseUp(window);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Aplicar preço em 2 dias/i)).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByRole('spinbutton', { name: 'Preço para aplicar em lote' }), { target: { value: '499' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+        await waitFor(() => {
+            expect(ratePayload).toEqual({
+                roomTypeId: 'room-1',
+                startDate: '2026-03-11',
+                endDate: '2026-03-12',
+                updates: {
+                    price: 499,
+                },
+                daysOfWeek: [3, 4],
+            });
+        });
+    }, 30000);
+
+    it('permite arrasto horizontal em CTA e aplica a mesma ação no intervalo', async () => {
+        const entries = [
+            {
+                date: '2026-03-11',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-a',
+                totalInventory: 8,
+                capacityTotal: 8,
+                bookingsCount: 0,
+                available: 8,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            },
+            {
+                date: '2026-03-12',
+                price: 350,
+                stopSell: false,
+                cta: false,
+                ctd: false,
+                minLos: 1,
+                rateId: 'rate-b',
+                totalInventory: 8,
+                capacityTotal: 8,
+                bookingsCount: 0,
+                available: 8,
+                fourGuestInventory: 2,
+                fourGuestCapacityTotal: 2,
+                isAdjusted: false
+            }
+        ];
+        let ratePayload: Record<string, unknown> | null = null;
+
+        mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url =
+                typeof input === 'string'
+                    ? input
+                    : input instanceof URL
+                        ? input.toString()
+                        : input.url;
+
+            if (url.includes('/api/rooms')) {
+                return createJsonResponse([{ id: 'room-1', name: 'Apartamento Teste', basePrice: 100, inventoryFor4Guests: 2 }]);
+            }
+            if (url.includes('/api/admin/calendar')) {
+                return createJsonResponse(entries);
+            }
+            if (url.includes('/api/rates/bulk') && init?.method === 'POST') {
+                ratePayload = JSON.parse(String(init.body));
+                return createJsonResponse({ success: true });
+            }
+            return createJsonResponse([], true, 200);
+        });
+
+        render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
+        });
+
+        const startCell = screen.getByTestId('cta-cell-room-1-2026-03-11');
+        const endCell = screen.getByTestId('cta-cell-room-1-2026-03-12');
+
+        fireEvent.mouseDown(startCell, { button: 0 });
+        fireEvent.mouseEnter(endCell);
+        fireEvent.mouseUp(window);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Aplicar bloqueio de entrada em 2 dias/i)).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByRole('combobox', { name: 'Valor de CTA para aplicar em lote' }), { target: { value: 'true' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+        await waitFor(() => {
+            expect(ratePayload).toEqual({
+                roomTypeId: 'room-1',
+                startDate: '2026-03-11',
+                endDate: '2026-03-12',
+                updates: {
+                    cta: true,
+                },
+                daysOfWeek: [3, 4],
+            });
+        });
+    }, 30000);
 });

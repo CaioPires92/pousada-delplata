@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { OCCUPANCY_BAND_LABEL, getOccupancyMetrics, type OccupancyBand } from './occupancy';
+import InventoryStepper from './inventory-stepper';
 import {
     WEEKDAYS,
     applyWeekdayPreset,
@@ -40,6 +41,11 @@ import {
     type BulkFieldToggles,
     type BulkFieldValues,
 } from './bulk-edit';
+import {
+    getHorizontalSelection,
+    getInventoryMaxAllowed,
+    type InventoryField,
+} from './inventory-grid';
 
 interface RoomType {
     id: string;
@@ -77,6 +83,23 @@ interface EditableCellProps {
 }
 
 type RateUpdatePayload = Record<string, string | number | boolean>;
+type DragSelectionField = InventoryField | 'price' | 'minLos' | 'cta' | 'ctd';
+
+type InventoryDragState = {
+    roomId: string;
+    field: DragSelectionField;
+    startDate: string;
+    currentDate: string;
+    moved: boolean;
+    anchorRect: { left: number; top: number; bottom: number };
+};
+
+type InventorySelectionState = {
+    roomId: string;
+    field: DragSelectionField;
+    dates: string[];
+    anchorRect: { left: number; top: number; bottom: number };
+};
 
 const ALL_ROOMS_VALUE = 'all';
 const ROOM_ORDER_KEYWORDS = ['terreo', 'superior', 'chale', 'anexo'];
@@ -91,6 +114,51 @@ const getRoomSortPriority = (name: string) => {
     const normalized = normalizeRoomName(name);
     const idx = ROOM_ORDER_KEYWORDS.findIndex(keyword => normalized.includes(keyword));
     return idx >= 0 ? idx : ROOM_ORDER_KEYWORDS.length;
+};
+
+const isInventorySelectionField = (field: DragSelectionField): field is InventoryField =>
+    field === 'inventory' || field === 'fourGuestInventory';
+
+const isNumericSelectionField = (field: DragSelectionField) =>
+    field === 'inventory' || field === 'fourGuestInventory' || field === 'price' || field === 'minLos';
+
+const getSelectionTitle = (field: DragSelectionField, daysCount: number) => {
+    const suffix = `${daysCount} ${daysCount === 1 ? 'dia' : 'dias'}`;
+    switch (field) {
+        case 'inventory':
+            return `Aplicar quartos disponíveis em ${suffix}`;
+        case 'fourGuestInventory':
+            return `Aplicar quadruplo em ${suffix}`;
+        case 'price':
+            return `Aplicar preço em ${suffix}`;
+        case 'minLos':
+            return `Aplicar mínimo de noites em ${suffix}`;
+        case 'cta':
+            return `Aplicar bloqueio de entrada em ${suffix}`;
+        case 'ctd':
+            return `Aplicar bloqueio de saída em ${suffix}`;
+        default:
+            return `Aplicar alteração em ${suffix}`;
+    }
+};
+
+const getSelectionInputLabel = (field: DragSelectionField) => {
+    switch (field) {
+        case 'inventory':
+            return 'Valor para aplicar em lote';
+        case 'fourGuestInventory':
+            return 'Valor de quadruplo para aplicar em lote';
+        case 'price':
+            return 'Preço para aplicar em lote';
+        case 'minLos':
+            return 'Mínimo de noites para aplicar em lote';
+        case 'cta':
+            return 'Valor de CTA para aplicar em lote';
+        case 'ctd':
+            return 'Valor de CTD para aplicar em lote';
+        default:
+            return 'Valor para aplicar em lote';
+    }
 };
 
 const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) => {
@@ -172,6 +240,10 @@ export default function MapaReservas() {
     const [bulkFieldToggles, setBulkFieldToggles] = useState<BulkFieldToggles>(defaultBulkFieldToggles);
     const [bulkInventoryTarget, setBulkInventoryTarget] = useState<BulkInventoryTarget>('standard');
     const [bulkWeekdays, setBulkWeekdays] = useState<Record<number, boolean>>(defaultWeekdays);
+    const [inventoryDragState, setInventoryDragState] = useState<InventoryDragState | null>(null);
+    const [inventorySelection, setInventorySelection] = useState<InventorySelectionState | null>(null);
+    const [inventoryBatchValue, setInventoryBatchValue] = useState('');
+    const [inventoryBatchSaving, setInventoryBatchSaving] = useState(false);
     const toggleWeekday = (day: number) => {
         setBulkWeekdays(prev => ({ ...prev, [day]: !prev[day] }));
     };
@@ -735,6 +807,7 @@ export default function MapaReservas() {
         start: listVisibleStart,
         end: listQueryInterval.end
     });
+    const monthDayKeys = useMemo(() => monthDays.map(day => format(day, 'yyyy-MM-dd')), [monthDays]);
     const todayKey = format(today, 'yyyy-MM-dd');
     const todayLabel = format(today, 'dd/MM/yyyy');
     const listStartLabel = format(listVisibleStart, 'dd/MM/yyyy');
@@ -781,6 +854,10 @@ export default function MapaReservas() {
         if (bulkRoomTypeId === 'all') return 'Todos os tipos de quarto';
         return roomTypes.find(room => room.id === bulkRoomTypeId)?.name || 'Tipo de quarto selecionado';
     }, [bulkRoomTypeId, roomTypes]);
+    const selectedInventoryDates = useMemo(() => {
+        if (!inventorySelection) return [];
+        return inventorySelection.dates;
+    }, [inventorySelection]);
 
     const toggleRoomCollapsed = (roomId: string) => {
         setCollapsedRooms(prev => ({ ...prev, [roomId]: !prev[roomId] }));
@@ -836,6 +913,260 @@ export default function MapaReservas() {
             window.removeEventListener('blur', onWindowMouseUp);
         };
     }, [stopListDragging]);
+
+    const clearInventorySelection = useCallback(() => {
+        setInventoryDragState(null);
+        setInventorySelection(null);
+        setInventoryBatchValue('');
+        setInventoryBatchSaving(false);
+    }, []);
+
+    const beginInventoryDrag = useCallback((
+        event: ReactMouseEvent<HTMLTableCellElement>,
+        roomId: string,
+        field: DragSelectionField,
+        dateKey: string
+    ) => {
+        if (event.button !== 0) return;
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('[data-no-drag="true"]')) return;
+        event.stopPropagation();
+
+        if (!(field === 'price' || field === 'minLos')) {
+            event.preventDefault();
+        }
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        setInventoryBatchValue('');
+        setInventorySelection(null);
+        setInventoryDragState({
+            roomId,
+            field,
+            startDate: dateKey,
+            currentDate: dateKey,
+            moved: false,
+            anchorRect: {
+                left: rect.left,
+                top: rect.top,
+                bottom: rect.bottom,
+            },
+        });
+    }, []);
+
+    const extendInventoryDrag = useCallback((
+        event: ReactMouseEvent<HTMLTableCellElement>,
+        roomId: string,
+        field: DragSelectionField,
+        dateKey: string
+    ) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setInventoryDragState((prev) => {
+            if (!prev) return prev;
+            if (prev.roomId !== roomId || prev.field !== field) return prev;
+            if (prev.currentDate === dateKey) return prev;
+            return {
+                ...prev,
+                currentDate: dateKey,
+                moved: true,
+                anchorRect: {
+                    left: rect.left,
+                    top: rect.top,
+                    bottom: rect.bottom,
+                },
+            };
+        });
+    }, []);
+
+    const applyInventorySelectionValue = useCallback(async () => {
+        if (!inventorySelection) return;
+
+        const room = roomTypes.find((entry) => entry.id === inventorySelection.roomId);
+        if (!room) {
+            showToast('error', 'Quarto não encontrado para aplicar a seleção.');
+            return;
+        }
+
+        let rateUpdates: RateUpdatePayload | null = null;
+        let inventoryPayload:
+            | {
+                roomTypeId: string;
+                startDate: string;
+                endDate: string;
+                updates: { inventory: number } | { fourGuestInventory: number };
+                inventoryType: 'standard' | 'fourGuests';
+            }
+            | null = null;
+
+        if (isInventorySelectionField(inventorySelection.field)) {
+            const inventoryField = inventorySelection.field;
+            const requestedValue = Number.parseInt(inventoryBatchValue, 10);
+            if (!Number.isFinite(requestedValue)) {
+                showToast('error', 'Informe um valor numérico válido para aplicar.');
+                return;
+            }
+
+            const invalidDate = inventorySelection.dates.find((dateKey) => {
+                const dayDate = parseISO(`${dateKey}T00:00:00`);
+                const data = getDataForDay(dayDate, inventorySelection.roomId);
+                const maxAllowed = getInventoryMaxAllowed({
+                    field: inventoryField,
+                    capacityTotal: data?.capacityTotal,
+                    bookingsCount: data?.bookingsCount,
+                    fourGuestCapacityTotal: data?.fourGuestCapacityTotal,
+                    bookingsFor4GuestsCount: data?.bookingsFor4GuestsCount,
+                });
+
+                return requestedValue < 0 || requestedValue > maxAllowed;
+            });
+
+            if (invalidDate) {
+                const data = getDataForDay(parseISO(`${invalidDate}T00:00:00`), inventorySelection.roomId);
+                const maxAllowed = getInventoryMaxAllowed({
+                    field: inventoryField,
+                    capacityTotal: data?.capacityTotal,
+                    bookingsCount: data?.bookingsCount,
+                    fourGuestCapacityTotal: data?.fourGuestCapacityTotal,
+                    bookingsFor4GuestsCount: data?.bookingsFor4GuestsCount,
+                });
+                showToast('error', `Não foi possível aplicar ${requestedValue} em ${invalidDate}. Limite permitido para essa data: ${maxAllowed}.`);
+                return;
+            }
+
+            const sortedDates = [...inventorySelection.dates].sort();
+            inventoryPayload = {
+                roomTypeId: room.id,
+                startDate: sortedDates[0],
+                endDate: sortedDates[sortedDates.length - 1],
+                updates: inventoryField === 'fourGuestInventory'
+                    ? { fourGuestInventory: requestedValue }
+                    : { inventory: requestedValue },
+                inventoryType: inventoryField === 'fourGuestInventory' ? 'fourGuests' : 'standard',
+            };
+        } else if (inventorySelection.field === 'price') {
+            const requestedValue = Number.parseFloat(inventoryBatchValue);
+            if (!Number.isFinite(requestedValue)) {
+                showToast('error', 'Informe um preço válido para aplicar.');
+                return;
+            }
+            rateUpdates = { price: requestedValue };
+        } else if (inventorySelection.field === 'minLos') {
+            const requestedValue = Number.parseInt(inventoryBatchValue, 10);
+            if (!Number.isFinite(requestedValue) || requestedValue < 1) {
+                showToast('error', 'Informe um mínimo de noites válido para aplicar.');
+                return;
+            }
+            rateUpdates = { minLos: requestedValue };
+        } else if (inventorySelection.field === 'cta' || inventorySelection.field === 'ctd') {
+            if (inventoryBatchValue !== 'true' && inventoryBatchValue !== 'false') {
+                showToast('error', `Selecione um valor válido para ${inventorySelection.field.toUpperCase()}.`);
+                return;
+            }
+            rateUpdates = { [inventorySelection.field]: inventoryBatchValue === 'true' };
+        }
+
+        const sortedDates = [...inventorySelection.dates].sort();
+        const selectedWeekdays = Array.from(new Set(
+            sortedDates.map((dateKey) => parseISO(`${dateKey}T00:00:00`).getDay())
+        )).sort((a, b) => a - b);
+
+        setInventoryBatchSaving(true);
+        try {
+            const res = await fetch(
+                inventoryPayload ? '/api/admin/inventory' : '/api/rates/bulk',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(
+                        inventoryPayload ?? {
+                            roomTypeId: room.id,
+                            startDate: sortedDates[0],
+                            endDate: sortedDates[sortedDates.length - 1],
+                            updates: rateUpdates,
+                            daysOfWeek: selectedWeekdays,
+                        }
+                    )
+                }
+            );
+
+            if (!res.ok) {
+                throw new Error(
+                    isInventorySelectionField(inventorySelection.field)
+                        ? 'Falha ao aplicar inventário em lote.'
+                        : 'Falha ao aplicar atualização em lote.'
+                );
+            }
+
+            const data = await res.json().catch(() => null);
+            if (inventoryPayload && data && typeof data === 'object' && (data as any).appliedLimit) {
+                showToast('error', 'A aplicação em lote foi limitada por reservas existentes. Revise as datas selecionadas.');
+                await fetchRates();
+                clearInventorySelection();
+                return;
+            }
+
+            await fetchRates();
+            showToast(
+                'success',
+                `${isInventorySelectionField(inventorySelection.field) ? 'Inventário' : 'Alteração'} aplicado em ${sortedDates.length} ${sortedDates.length === 1 ? 'dia' : 'dias'}.`
+            );
+            clearInventorySelection();
+        } catch (error) {
+            console.error('Error applying inventory selection:', error);
+            showToast(
+                'error',
+                error instanceof Error
+                    ? error.message
+                    : isInventorySelectionField(inventorySelection.field)
+                        ? 'Erro ao aplicar inventário em lote.'
+                        : 'Erro ao aplicar atualização em lote.'
+            );
+        } finally {
+            setInventoryBatchSaving(false);
+        }
+    }, [clearInventorySelection, fetchRates, getDataForDay, inventoryBatchValue, inventorySelection, roomTypes, showToast]);
+
+    useEffect(() => {
+        if (!inventoryDragState) return;
+
+        const finalizeSelection = () => {
+            setInventoryDragState((current) => {
+                if (!current) return current;
+                if (!current.moved) return null;
+
+                const dates = getHorizontalSelection(monthDayKeys, current.startDate, current.currentDate);
+                if (dates.length <= 1) return null;
+
+                setInventorySelection({
+                    roomId: current.roomId,
+                    field: current.field,
+                    dates,
+                    anchorRect: current.anchorRect,
+                });
+                return null;
+            });
+        };
+
+        window.addEventListener('mouseup', finalizeSelection);
+        window.addEventListener('blur', finalizeSelection);
+        return () => {
+            window.removeEventListener('mouseup', finalizeSelection);
+            window.removeEventListener('blur', finalizeSelection);
+        };
+    }, [inventoryDragState, monthDayKeys]);
+
+    useEffect(() => {
+        if (!inventorySelection) return;
+
+        const handlePointerDown = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest('[data-inventory-batch-popover="true"]')) return;
+            if (target?.closest('[data-inventory-selection-cell="true"]')) return;
+            clearInventorySelection();
+        };
+
+        window.addEventListener('mousedown', handlePointerDown);
+        return () => window.removeEventListener('mousedown', handlePointerDown);
+    }, [clearInventorySelection, inventorySelection]);
 
     const renderListRowsForRoom = (room: RoomType) => (
         <Fragment key={room.id}>
@@ -927,37 +1258,43 @@ export default function MapaReservas() {
                 <td className={styles.stickyCol}>Standard</td>
                 {monthDays.map(day => {
                     const data = getDataForDay(day, room.id);
-                    const total = data?.totalInventory ?? 0;
                     const available = data?.available ?? 0;
                     const isClosed = data?.stopSell ?? false;
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const inventoryKey = `${room.id}:${dateStr}`;
                     const isTodayCol = dateStr === todayKey;
+                    const maxAllowed = getInventoryMaxAllowed({
+                        field: 'inventory',
+                        capacityTotal: data?.capacityTotal,
+                        bookingsCount: data?.bookingsCount,
+                    });
+                    const isSelected = inventorySelection?.roomId === room.id
+                        && inventorySelection.field === 'inventory'
+                        && selectedInventoryDates.includes(dateStr);
                     return (
-                        <td key={`${room.id}-inventory-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
-                            <div className={`${styles.inventoryStepper} ${isClosed ? styles.inventoryStepperBlocked : styles.inventoryStepperAvailable}`}>
-                                <button
-                                    type="button"
-                                    className={styles.inventoryStepperButton}
-                                    onClick={() => updateRateField(day, 'inventory', Math.max(0, total - 1), room.id)}
-                                    disabled={updatingInventory === inventoryKey || total <= 0}
-                                    aria-label={`Diminuir standard de ${room.name} em ${dateStr}`}
-                                >
-                                    -
-                                </button>
-                                <span className={styles.inventoryStepperValue}>
-                                    {updatingInventory === inventoryKey ? '...' : available}
-                                </span>
-                                <button
-                                    type="button"
-                                    className={styles.inventoryStepperButton}
-                                    onClick={() => updateRateField(day, 'inventory', total + 1, room.id)}
-                                    disabled={updatingInventory === inventoryKey}
-                                    aria-label={`Aumentar standard de ${room.name} em ${dateStr}`}
-                                >
-                                    +
-                                </button>
-                            </div>
+                        <td
+                            key={`${room.id}-inventory-${dateStr}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
+                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'inventory', dateStr)}
+                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'inventory', dateStr)}
+                            data-inventory-selection-cell="true"
+                            data-testid={`inventory-cell-${room.id}-${dateStr}`}
+                        >
+                            <InventoryStepper
+                                className={`${styles.inventoryStepper} ${isClosed || available <= 0 ? styles.inventoryStepperBlocked : styles.inventoryStepperAvailable}`}
+                                value={available}
+                                displayValue={updatingInventory === inventoryKey ? '...' : String(available)}
+                                isLoading={updatingInventory === inventoryKey}
+                                maxValue={maxAllowed}
+                                decrementDisabled={available <= 0}
+                                incrementDisabled={available >= maxAllowed}
+                                decrementLabel={`Diminuir standard de ${room.name} em ${dateStr}`}
+                                incrementLabel={`Aumentar standard de ${room.name} em ${dateStr}`}
+                                onDecrement={() => updateRateField(day, 'inventory', Math.max(0, available - 1), room.id)}
+                                onIncrement={() => updateRateField(day, 'inventory', Math.min(maxAllowed, available + 1), room.id)}
+                                onCommit={(nextValue) => updateRateField(day, 'inventory', nextValue, room.id)}
+                                onInvalid={(message) => showToast('error', `${message} (${dateStr})`)}
+                            />
                         </td>
                     );
                 })}
@@ -975,40 +1312,40 @@ export default function MapaReservas() {
                     const isUpdating = updatingFourGuestInventory === `${room.id}:${dateStr}`;
                     const canDecrease = !isUpdating && maxInventory > 0 && fourGuestInventory > 0;
                     const canIncrease = !isUpdating && maxInventory > 0 && fourGuestInventory < maxInventory;
+                    const maxAllowed = getInventoryMaxAllowed({
+                        field: 'fourGuestInventory',
+                        fourGuestCapacityTotal: data?.fourGuestCapacityTotal ?? maxInventory,
+                        bookingsFor4GuestsCount,
+                    });
+                    const isSelected = inventorySelection?.roomId === room.id
+                        && inventorySelection.field === 'fourGuestInventory'
+                        && selectedInventoryDates.includes(dateStr);
 
                     return (
                         <td
                             key={`${room.id}-four-guest-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
+                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'fourGuestInventory', dateStr)}
+                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'fourGuestInventory', dateStr)}
+                            data-inventory-selection-cell="true"
+                            data-testid={`four-guest-cell-${room.id}-${dateStr}`}
                         >
-                            <div
+                            <InventoryStepper
                                 className={`${styles.fourGuestStepper} ${maxInventory <= 0 ? styles.fourGuestStepperDisabled : fourGuestInventory <= 0 ? styles.fourGuestStepperBlocked : styles.fourGuestStepperAvailable}`}
-                                title={maxInventory <= 0
-                                    ? 'Esse quarto não possui unidades para quadruplo.'
-                                    : `Disponibilidade para reservas de quadruplo. Reservas ativas: ${bookingsFor4GuestsCount}. Máximo configurado: ${maxInventory}.`}
-                            >
-                                <button
-                                    type="button"
-                                    className={styles.fourGuestStepperButton}
-                                    onClick={() => updateRateField(day, 'fourGuestInventory', fourGuestInventory - 1, room.id)}
-                                    disabled={!canDecrease}
-                                    aria-label={`Diminuir quadruplo de ${room.name} em ${dateStr}`}
-                                >
-                                    -
-                                </button>
-                                <span className={styles.fourGuestStepperValue}>
-                                    {isUpdating ? '...' : maxInventory <= 0 ? 'N/A' : fourGuestInventory}
-                                </span>
-                                <button
-                                    type="button"
-                                    className={styles.fourGuestStepperButton}
-                                    onClick={() => updateRateField(day, 'fourGuestInventory', fourGuestInventory + 1, room.id)}
-                                    disabled={!canIncrease}
-                                    aria-label={`Aumentar quadruplo de ${room.name} em ${dateStr}`}
-                                >
-                                    +
-                                </button>
-                            </div>
+                                displayValue={isUpdating ? '...' : maxInventory <= 0 ? 'N/A' : String(fourGuestInventory)}
+                                value={maxInventory <= 0 ? 0 : fourGuestInventory}
+                                isLoading={isUpdating}
+                                editingDisabled={maxInventory <= 0}
+                                maxValue={maxAllowed}
+                                decrementDisabled={!canDecrease}
+                                incrementDisabled={!canIncrease}
+                                decrementLabel={`Diminuir quadruplo de ${room.name} em ${dateStr}`}
+                                incrementLabel={`Aumentar quadruplo de ${room.name} em ${dateStr}`}
+                                onDecrement={() => updateRateField(day, 'fourGuestInventory', Math.max(0, fourGuestInventory - 1), room.id)}
+                                onIncrement={() => updateRateField(day, 'fourGuestInventory', Math.min(maxAllowed, fourGuestInventory + 1), room.id)}
+                                onCommit={(nextValue) => updateRateField(day, 'fourGuestInventory', nextValue, room.id)}
+                                onInvalid={(message) => showToast('error', `${message} (${dateStr})`)}
+                            />
                         </td>
                     );
                 })}
@@ -1021,8 +1358,18 @@ export default function MapaReservas() {
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const price = data ? data.price : Number(room.basePrice || 0);
                     const isTodayCol = dateStr === todayKey;
+                    const isSelected = inventorySelection?.roomId === room.id
+                        && inventorySelection.field === 'price'
+                        && selectedInventoryDates.includes(dateStr);
                     return (
-                        <td key={`${room.id}-price-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
+                        <td
+                            key={`${room.id}-price-${dateStr}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
+                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'price', dateStr)}
+                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'price', dateStr)}
+                            data-inventory-selection-cell="true"
+                            data-testid={`price-cell-${room.id}-${dateStr}`}
+                        >
                             <EditableCell
                                 type="number"
                                 value={price}
@@ -1040,8 +1387,18 @@ export default function MapaReservas() {
                     const minLos = data ? data.minLos : 1;
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const isTodayCol = dateStr === todayKey;
+                    const isSelected = inventorySelection?.roomId === room.id
+                        && inventorySelection.field === 'minLos'
+                        && selectedInventoryDates.includes(dateStr);
                     return (
-                        <td key={`${room.id}-minlos-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
+                        <td
+                            key={`${room.id}-minlos-${dateStr}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
+                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'minLos', dateStr)}
+                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'minLos', dateStr)}
+                            data-inventory-selection-cell="true"
+                            data-testid={`minlos-cell-${room.id}-${dateStr}`}
+                        >
                             <EditableCell
                                 type="number"
                                 min="1"
@@ -1060,11 +1417,18 @@ export default function MapaReservas() {
                     const cta = data?.cta;
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const isTodayCol = dateStr === todayKey;
+                    const isSelected = inventorySelection?.roomId === room.id
+                        && inventorySelection.field === 'cta'
+                        && selectedInventoryDates.includes(dateStr);
                     return (
                         <td
                             key={`${room.id}-cta-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
+                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'cta', dateStr)}
+                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'cta', dateStr)}
                             onClick={() => updateRateField(day, 'cta', !cta, room.id)}
+                            data-inventory-selection-cell="true"
+                            data-testid={`cta-cell-${room.id}-${dateStr}`}
                         >
                             <div className={`${styles.restrictionCell} ${cta ? styles.restrictionActive : styles.restrictionInactive}`}>
                                 {cta ? (
@@ -1087,11 +1451,18 @@ export default function MapaReservas() {
                     const ctd = data?.ctd;
                     const dateStr = format(day, 'yyyy-MM-dd');
                     const isTodayCol = dateStr === todayKey;
+                    const isSelected = inventorySelection?.roomId === room.id
+                        && inventorySelection.field === 'ctd'
+                        && selectedInventoryDates.includes(dateStr);
                     return (
                         <td
                             key={`${room.id}-ctd-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
+                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
+                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'ctd', dateStr)}
+                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'ctd', dateStr)}
                             onClick={() => updateRateField(day, 'ctd', !ctd, room.id)}
+                            data-inventory-selection-cell="true"
+                            data-testid={`ctd-cell-${room.id}-${dateStr}`}
                         >
                             <div className={`${styles.restrictionCell} ${ctd ? styles.restrictionActive : styles.restrictionInactive}`}>
                                 {ctd ? (
@@ -1872,6 +2243,76 @@ export default function MapaReservas() {
                                 Aplicar alterações em lote
                             </Button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {inventorySelection && (
+                <div
+                    className={styles.inventoryBatchPopover}
+                    style={{
+                        left: `${Math.min(inventorySelection.anchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 1280) - 280)}px`,
+                        top: `${inventorySelection.anchorRect.bottom + 10}px`,
+                    }}
+                    data-inventory-batch-popover="true"
+                >
+                    <strong className={styles.inventoryBatchTitle}>
+                        {getSelectionTitle(inventorySelection.field, inventorySelection.dates.length)}
+                    </strong>
+                    <label className={styles.inventoryBatchLabel}>
+                        {isNumericSelectionField(inventorySelection.field) ? 'Valor' : 'Ação'}
+                        {isNumericSelectionField(inventorySelection.field) ? (
+                            <input
+                                type="number"
+                                min={inventorySelection.field === 'minLos' ? '1' : '0'}
+                                value={inventoryBatchValue}
+                                onChange={(event) => setInventoryBatchValue(event.target.value)}
+                                className={styles.inventoryBatchInput}
+                                aria-label={getSelectionInputLabel(inventorySelection.field)}
+                            />
+                        ) : (
+                            <select
+                                value={inventoryBatchValue}
+                                onChange={(event) => setInventoryBatchValue(event.target.value)}
+                                className={styles.inventoryBatchInput}
+                                aria-label={getSelectionInputLabel(inventorySelection.field)}
+                            >
+                                <option value="">Selecionar ação</option>
+                                <option value="true">
+                                    {inventorySelection.field === 'cta'
+                                        ? 'Bloquear entrada'
+                                        : inventorySelection.field === 'ctd'
+                                            ? 'Bloquear saída'
+                                            : 'Ativar'}
+                                </option>
+                                <option value="false">
+                                    {inventorySelection.field === 'cta'
+                                        ? 'Liberar entrada'
+                                        : inventorySelection.field === 'ctd'
+                                            ? 'Liberar saída'
+                                            : 'Desativar'}
+                                </option>
+                            </select>
+                        )}
+                    </label>
+                    <div className={styles.inventoryBatchActions}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={clearInventorySelection}
+                            disabled={inventoryBatchSaving}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={applyInventorySelectionValue}
+                            disabled={inventoryBatchSaving || !inventoryBatchValue.trim()}
+                        >
+                            Aplicar
+                        </Button>
                     </div>
                 </div>
             )}
