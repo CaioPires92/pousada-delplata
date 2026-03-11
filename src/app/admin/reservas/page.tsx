@@ -465,7 +465,7 @@ export default function AdminReservasPage() {
                                 </span>
                             </label>
                             {testPaymentsEnabled ? (
-                                <small className={styles.testPaymentsNote}>Ação "Aprovar pagamento de teste" habilitada nas reservas.</small>
+                                <small className={styles.testPaymentsNote}>Ação &quot;Aprovar pagamento de teste&quot; habilitada nas reservas.</small>
                             ) : null}
                         </div>
                     </div>

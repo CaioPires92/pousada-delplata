@@ -739,6 +739,311 @@
     margin-bottom: 0.5rem;
 }
 
+.bulkEditModal {
+    width: min(1080px, 96vw);
+    padding: 0;
+    overflow: hidden;
+    max-height: min(88vh, 920px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+}
+
+.bulkEditHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.6rem 1.75rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    background:
+        radial-gradient(circle at top right, rgba(186, 230, 253, 0.85), transparent 30%),
+        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.bulkEditSubtitle {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.bulkEditClose {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 10px;
+    padding: 0.2rem 0.45rem;
+}
+
+.bulkEditClose:focus-visible,
+.bulkPresetButton:focus-visible,
+.bulkToggleRow input:focus-visible,
+.weekdayCheckbox input:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.bulkEditBody {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.5rem 1.75rem;
+    overflow-y: auto;
+    background: linear-gradient(180deg, #f8fafc 0%, #f8fafc 32%, #f1f5f9 100%);
+}
+
+.bulkSection {
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 22px;
+    padding: 1.35rem;
+    background: #ffffff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.bulkSectionHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.1rem;
+}
+
+.bulkSectionEyebrow {
+    display: none;
+}
+
+.bulkSectionBadge {
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bulkSectionTitle {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+}
+
+.bulkScopeGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.1rem;
+}
+
+.bulkScopeGrid > :first-child {
+    grid-column: 1 / -1;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.formGroup .input {
+    width: 100%;
+    min-height: 2.75rem;
+    padding-inline: 0.85rem;
+    font-size: 0.92rem;
+}
+
+.bulkLabel {
+    display: inline-flex;
+    margin-bottom: 0;
+    color: #334155;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.bulkHelperText {
+    color: #64748b;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+.bulkWeekdaySection {
+    margin-top: 1.15rem;
+    padding: 1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.9) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.bulkWeekdayHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.bulkPresetRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.bulkPresetButton {
+    border-radius: 999px !important;
+    border-color: #dbe3ee !important;
+    background: #fff !important;
+    color: #334155 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.bulkFieldGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.bulkFieldCard {
+    border: 1px solid #dbe3ee;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    padding: 1rem 1rem 1.05rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-height: 100%;
+    transition: border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.bulkFieldMeta {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 0.1rem;
+}
+
+.bulkFieldPill {
+    border-radius: 999px;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.bulkInventoryModeGroup {
+    display: inline-flex;
+    width: fit-content;
+    gap: 0.35rem;
+    padding: 0.3rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.bulkInventoryModeButton {
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bulkInventoryModeButtonActive {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.bulkFieldCard:has(.bulkToggleRow input:checked) {
+    border-color: #93c5fd;
+    background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
+}
+
+.bulkFieldCardDisabled {
+    opacity: 0.78;
+    background: linear-gradient(180deg, #f8fafc 0%, #f8fafc 100%);
+    border-style: dashed;
+}
+
+.bulkFieldDescription {
+    margin: -0.05rem 0 0;
+    min-height: 2.5rem;
+    color: #64748b;
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.bulkFieldFootnote {
+    color: #64748b;
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.bulkToggleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-bottom: 0.1rem;
+    color: #0f172a;
+    font-size: 0.94rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bulkToggleRow input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #2563eb;
+    margin-top: 0.15rem;
+}
+
+.bulkImpactSummary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 1rem 1.75rem 1.1rem;
+    color: #0f172a;
+    border-top: 1px solid #e2e8f0;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.bulkImpactLabel {
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bulkImpactHint {
+    color: #64748b;
+    font-size: 0.84rem;
+    line-height: 1.45;
+}
+
+.bulkEditActions {
+    padding: 1rem 1.75rem 1.35rem;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+    justify-content: flex-end;
+    position: sticky;
+    bottom: 0;
+}
+
 .modalActions {
     display: flex;
     flex-wrap: wrap;
@@ -746,10 +1051,58 @@
 }
 
 .modalActions button {
-    flex: 1 1 160px;
+    flex: 0 1 auto;
+    min-width: 160px;
+}
+
+.bulkActionGhost {
+    color: #475569;
+}
+
+.bulkActionSecondary {
+    border-color: #cbd5e1;
+}
+
+.bulkActionPrimary {
+    min-width: 240px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+}
+
+.bulkActionPrimary:hover {
+    background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+}
+
+.bulkEditActions button:first-child {
+    margin-right: auto;
+}
+
+.buttonPrimary:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+    transform: none;
+    box-shadow: none;
 }
 
 @media (max-width: 640px) {
+    .bulkEditHeader,
+    .bulkEditBody,
+    .bulkImpactSummary,
+    .bulkEditActions {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .bulkScopeGrid,
+    .bulkFieldGrid,
+    .weekdayGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .bulkWeekdayHeader {
+        flex-direction: column;
+    }
+
     .modalActions {
         flex-direction: column;
     }

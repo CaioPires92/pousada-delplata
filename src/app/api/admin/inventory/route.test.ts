@@ -105,4 +105,34 @@ describe('Admin Inventory API - day key safety', () => {
         const upsertArgs = (prisma.inventoryAdjustment.upsert as any).mock.calls[0][0];
         expect(upsertArgs.create.totalUnits).toBe(8);
     });
+
+    it('supports bulk quadruplo inventory with weekday filter', async () => {
+        (prisma.fourGuestInventoryAdjustment.upsert as any).mockResolvedValue({
+            roomTypeId: 'room-1',
+            dateKey: '2026-02-11',
+            totalUnits: 2,
+        });
+
+        const req = new Request('http://localhost/api/admin/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                startDate: '2026-02-10',
+                endDate: '2026-02-12',
+                inventoryType: 'fourGuests',
+                daysOfWeek: [3],
+                updates: {
+                    fourGuestInventory: 1,
+                },
+            }),
+        });
+
+        const res = await POST(req);
+        expect(res.status).toBe(200);
+
+        expect(prisma.fourGuestInventoryAdjustment.upsert).toHaveBeenCalledTimes(1);
+        const upsertArgs = (prisma.fourGuestInventoryAdjustment.upsert as any).mock.calls[0][0];
+        expect(upsertArgs.where.roomTypeId_dateKey.dateKey).toBe('2026-02-11');
+    });
 });

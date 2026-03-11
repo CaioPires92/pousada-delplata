@@ -11,7 +11,7 @@ export async function POST(request: Request) {
         if (auth instanceof Response) return auth;
 
         const body = await request.json();
-        const { roomTypeId, startDate, endDate, updates, date, totalUnits, inventoryType } = body;
+        const { roomTypeId, startDate, endDate, updates, date, totalUnits, inventoryType, daysOfWeek } = body;
         const targetInventoryType = inventoryType === 'fourGuests' ? 'fourGuests' : 'standard';
         const coerceToYmd = (input: unknown, label: string): string => {
             if (typeof input !== 'string' || !input.trim()) {
@@ -95,11 +95,26 @@ export async function POST(request: Request) {
                     }
                 }
 
+                const selectedWeekdays = Array.isArray(daysOfWeek)
+                    ? new Set(
+                        daysOfWeek
+                            .map((value: unknown) => Number(value))
+                            .filter((value: number) => Number.isInteger(value) && value >= 0 && value <= 6)
+                    )
+                    : null;
+                const targetDayKeys = selectedWeekdays && selectedWeekdays.size > 0
+                    ? eachDayKeyInclusive(startStr, endStr).filter((dayKey) => selectedWeekdays.has(new Date(`${dayKey}T00:00:00Z`).getUTCDay()))
+                    : eachDayKeyInclusive(startStr, endStr);
+
                 const current = new Date(`${startStr}T12:00:00Z`);
                 const last = new Date(`${endStr}T12:00:00Z`);
 
                 while (current <= last) {
                     const dKey = current.toISOString().split('T')[0];
+                    if (!targetDayKeys.includes(dKey)) {
+                        current.setUTCDate(current.getUTCDate() + 1);
+                        continue;
+                    }
                     const bookingsCount = bookingsCountByDay.get(dKey) || 0;
                     const bookingsFor4Guests = bookingsFor4GuestsByDay.get(dKey) || 0;
                     const maxAvailable = targetInventoryType === 'fourGuests'

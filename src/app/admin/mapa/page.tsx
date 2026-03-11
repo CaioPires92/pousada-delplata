@@ -23,7 +23,23 @@ import {
 import { ptBR } from 'date-fns/locale';
 import styles from './mapa.module.css';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { OCCUPANCY_BAND_LABEL, getOccupancyMetrics, type OccupancyBand } from './occupancy';
+import {
+    WEEKDAYS,
+    applyWeekdayPreset,
+    buildBulkUpdates,
+    countAffectedDays,
+    defaultBulkFieldToggles,
+    defaultBulkFieldValues,
+    defaultWeekdays,
+    getSelectedWeekdays,
+    hasActiveBulkChanges,
+    type BulkInventoryTarget,
+    type BulkFieldToggles,
+    type BulkFieldValues,
+} from './bulk-edit';
 
 interface RoomType {
     id: string;
@@ -61,15 +77,6 @@ interface EditableCellProps {
 }
 
 type RateUpdatePayload = Record<string, string | number | boolean>;
-type BulkUpdates = {
-    price?: number;
-    minLos?: number;
-    stopSell?: boolean;
-    cta?: boolean;
-    ctd?: boolean;
-    inventory?: number;
-    fourGuestInventory?: number;
-};
 
 const ALL_ROOMS_VALUE = 'all';
 const ROOM_ORDER_KEYWORDS = ['terreo', 'superior', 'chale', 'anexo'];
@@ -161,30 +168,20 @@ export default function MapaReservas() {
     const [bulkRoomTypeId, setBulkRoomTypeId] = useState('all');
     const [bulkStart, setBulkStart] = useState('');
     const [bulkEnd, setBulkEnd] = useState('');
-    const [bulkPrice, setBulkPrice] = useState('');
-    const [bulkMinLos, setBulkMinLos] = useState('');
-    const [bulkStopSell, setBulkStopSell] = useState<'true'|'false'|''>('');
-    const [bulkCta, setBulkCta] = useState<'true'|'false'|''>('');
-    const [bulkCtd, setBulkCtd] = useState<'true'|'false'|''>('');
-    const [bulkInventory, setBulkInventory] = useState('');
-    const WEEKDAYS = [
-        { label: 'dom', day: 0 },
-        { label: 'seg', day: 1 },
-        { label: 'ter', day: 2 },
-        { label: 'qua', day: 3 },
-        { label: 'qui', day: 4 },
-        { label: 'sex', day: 5 },
-        { label: 'sáb', day: 6 },
-    ];
-    const defaultWeekdays = () => WEEKDAYS.reduce<Record<number, boolean>>((acc, weekday) => {
-        acc[weekday.day] = true;
-        return acc;
-    }, {});
+    const [bulkFieldValues, setBulkFieldValues] = useState<BulkFieldValues>(defaultBulkFieldValues);
+    const [bulkFieldToggles, setBulkFieldToggles] = useState<BulkFieldToggles>(defaultBulkFieldToggles);
+    const [bulkInventoryTarget, setBulkInventoryTarget] = useState<BulkInventoryTarget>('standard');
     const [bulkWeekdays, setBulkWeekdays] = useState<Record<number, boolean>>(defaultWeekdays);
     const toggleWeekday = (day: number) => {
         setBulkWeekdays(prev => ({ ...prev, [day]: !prev[day] }));
     };
     const resetBulkWeekdays = () => setBulkWeekdays(defaultWeekdays());
+    const setBulkFieldValue = <K extends keyof BulkFieldValues>(field: K, value: BulkFieldValues[K]) => {
+        setBulkFieldValues(prev => ({ ...prev, [field]: value }));
+    };
+    const toggleBulkField = (field: keyof BulkFieldToggles) => {
+        setBulkFieldToggles(prev => ({ ...prev, [field]: !prev[field] }));
+    };
 
     useEffect(() => {
         fetchRoomTypes();
@@ -627,51 +624,72 @@ export default function MapaReservas() {
             return;
         }
 
-        const updates: BulkUpdates = {};
-        if (bulkPrice) updates.price = parseFloat(bulkPrice);
-        if (bulkMinLos) updates.minLos = parseInt(bulkMinLos);
-        if (bulkStopSell) updates.stopSell = bulkStopSell === 'true';
-        if (bulkCta) updates.cta = bulkCta === 'true';
-        if (bulkCtd) updates.ctd = bulkCtd === 'true';
-        if (bulkInventory) {
-            const inv = parseInt(bulkInventory);
-            if (isNaN(inv) || inv < 0) {
-                showToast('error', 'Quantidade de quartos inválida.');
-                return;
-            }
-            updates.inventory = inv;
-        }
-
-        if (Object.keys(updates).length === 0) {
-            showToast('error', 'Preencha pelo menos um campo para atualizar.');
+        if (bulkEnd < bulkStart) {
+            showToast('error', 'A data final não pode ser menor que a inicial.');
             return;
         }
 
-        const selectedDays = Object.entries(bulkWeekdays)
-            .filter(([, value]) => value)
-            .map(([day]) => Number(day));
-        if (selectedDays.length === 0) {
+        const { updates, errors } = buildBulkUpdates(bulkFieldToggles, bulkFieldValues);
+        if (errors.length > 0) {
+            showToast('error', errors[0]);
+            return;
+        }
+        if (Object.keys(updates).length === 0) {
+            showToast('error', 'Ative pelo menos um campo para atualizar.');
+            return;
+        }
+
+        if (bulkSelectedDays.length === 0) {
             showToast('error', 'Selecione ao menos um dia da semana.');
             return;
         }
 
-        const payload = {
-            roomTypeId: bulkRoomTypeId,
-            startDate: bulkStart,
-            endDate: bulkEnd,
-            updates,
-            daysOfWeek: selectedDays
-        };
-        console.log('[Frontend] Bulk Payload:', JSON.stringify(payload, null, 2));
-
         try {
-            const res = await fetch('/api/rates/bulk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const rateUpdates = { ...updates };
+            delete rateUpdates.inventory;
+            const requests: Promise<Response>[] = [];
 
-            if (!res.ok) {
+            if (Object.keys(rateUpdates).length > 0) {
+                const payload = {
+                    roomTypeId: bulkRoomTypeId,
+                    startDate: bulkStart,
+                    endDate: bulkEnd,
+                    updates: rateUpdates,
+                    daysOfWeek: bulkSelectedDays
+                };
+                console.log('[Frontend] Bulk Rate Payload:', JSON.stringify(payload, null, 2));
+
+                requests.push(fetch('/api/rates/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }));
+            }
+
+            if (updates.inventory !== undefined) {
+                const inventoryPayload = {
+                    roomTypeId: bulkRoomTypeId,
+                    startDate: bulkStart,
+                    endDate: bulkEnd,
+                    updates: bulkInventoryTarget === 'fourGuests'
+                        ? { fourGuestInventory: updates.inventory }
+                        : { inventory: updates.inventory },
+                    inventoryType: bulkInventoryTarget,
+                    daysOfWeek: bulkSelectedDays
+                };
+                console.log('[Frontend] Bulk Inventory Payload:', JSON.stringify(inventoryPayload, null, 2));
+
+                requests.push(fetch('/api/admin/inventory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(inventoryPayload)
+                }));
+            }
+
+            const responses = await Promise.all(requests);
+            for (const res of responses) {
+                if (res.ok) continue;
+
                 const contentType = res.headers.get('content-type') || '';
                 let message = 'Erro ao atualizar em lote.';
                 if (contentType.includes('application/json')) {
@@ -701,12 +719,9 @@ export default function MapaReservas() {
         setBulkRoomTypeId('all');
         setBulkStart('');
         setBulkEnd('');
-        setBulkPrice('');
-        setBulkMinLos('');
-        setBulkStopSell('');
-        setBulkCta('');
-        setBulkCtd('');
-        setBulkInventory('');
+        setBulkFieldValues(defaultBulkFieldValues());
+        setBulkFieldToggles(defaultBulkFieldToggles());
+        setBulkInventoryTarget('standard');
         resetBulkWeekdays();
     };
 
@@ -756,6 +771,16 @@ export default function MapaReservas() {
             ? roomTypes
             : roomTypes.filter(room => room.id === selectedRoomId)
     ), [selectedRoomId, roomTypes]);
+    const bulkAffectedDaysCount = useMemo(
+        () => countAffectedDays(bulkStart, bulkEnd, bulkWeekdays),
+        [bulkStart, bulkEnd, bulkWeekdays]
+    );
+    const bulkSelectedDays = useMemo(() => getSelectedWeekdays(bulkWeekdays), [bulkWeekdays]);
+    const bulkHasActiveFields = useMemo(() => hasActiveBulkChanges(bulkFieldToggles), [bulkFieldToggles]);
+    const bulkScopeLabel = useMemo(() => {
+        if (bulkRoomTypeId === 'all') return 'Todos os tipos de quarto';
+        return roomTypes.find(room => room.id === bulkRoomTypeId)?.name || 'Tipo de quarto selecionado';
+    }, [bulkRoomTypeId, roomTypes]);
 
     const toggleRoomCollapsed = (roomId: string) => {
         setCollapsedRooms(prev => ({ ...prev, [roomId]: !prev[roomId] }));
@@ -1524,186 +1549,328 @@ export default function MapaReservas() {
 
             {bulkModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setBulkModalOpen(false)}>
-                    <div data-testid="bulk-modal" className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '95%' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div data-testid="bulk-modal" className={`${styles.modal} ${styles.bulkEditModal}`} onClick={e => e.stopPropagation()}>
+                        <div className={styles.bulkEditHeader}>
                             <div>
-                                <h2 className={styles.modalTitle} style={{ marginBottom: '0.5rem' }}>⚡ Edição em Lote</h2>
-                                <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
-                                    Atualize múltiplos dias de uma vez.
+                                <h2 className={styles.modalTitle}>Edição em Lote</h2>
+                                <p className={styles.bulkEditSubtitle}>
+                                    Atualize tarifas, inventário e restrições de vários dias de uma vez.
                                 </p>
                             </div>
-                            <button onClick={() => setBulkModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' }}>&times;</button>
-                        </div>
-
-                        <div style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', border: '1px solid #e2e8f0' }}>
-                            <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '1.5rem', fontWeight: 700 }}>1. Configuração</h3>
-                            
-                            {/* Room Type Selection */}
-                            <div className={styles.formGroup} style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-                                <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Tipo de Quarto</label>
-                                <select 
-                                    value={bulkRoomTypeId}
-                                    onChange={e => setBulkRoomTypeId(e.target.value)}
-                                    className={styles.input}
-                                    style={{ padding: '0.875rem', width: '100%' }}
-                                >
-                                    <option value="all">Todos os tipos</option>
-                                    {roomTypes.map(room => (
-                                        <option key={room.id} value={room.id}>{room.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2.5rem' }}>
-                                <div className={styles.formGroup} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Data Inicial</label>
-                                    <input 
-                                        type="date" 
-                                        value={bulkStart}
-                                        onChange={e => setBulkStart(e.target.value)}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    />
-                                </div>
-                                <div className={styles.formGroup} style={{ marginBottom: 0, display: 'flex', flexDirection: 'column' }}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Data Final</label>
-                                    <input 
-                                        type="date" 
-                                        value={bulkEnd}
-                                        onChange={e => setBulkEnd(e.target.value)}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    />
-                                </div>
-                            </div>
-                            <div style={{ marginTop: '1.5rem', padding: '1rem 1rem 0', borderTop: '1px solid #e2e8f0' }}>
-                                <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Só aplicar para</p>
-                                <div className={styles.weekdayGrid}>
-                                    {WEEKDAYS.map(weekday => (
-                                        <label key={weekday.day} className={styles.weekdayCheckbox}>
-                                            <input 
-                                                type="checkbox"
-                                                checked={bulkWeekdays[weekday.day]}
-                                                onChange={() => toggleWeekday(weekday.day)}
-                                            />
-                                            <span>{weekday.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                            {/* Preços e Estadia */}
-                            <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '1.5rem', fontWeight: 700 }}>2. Valores</h3>
-                                <div className={styles.formGroup} style={{marginBottom: '1.5rem'}}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Preço da Diária (R$)</label>
-                                    <input 
-                                        type="number" 
-                                        placeholder="Manter atual"
-                                        value={bulkPrice}
-                                        onChange={e => setBulkPrice(e.target.value)}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    />
-                                </div>
-                                <div className={styles.formGroup} style={{marginBottom: '1.5rem'}}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Mínimo de Noites</label>
-                                    <input 
-                                        type="number" 
-                                        min="1"
-                                        placeholder="Manter atual"
-                                        value={bulkMinLos}
-                                        onChange={e => setBulkMinLos(e.target.value)}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    />
-                                </div>
-                                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Quantidade de quartos disponíveis</label>
-                                    <input 
-                                        type="number" 
-                                        min="0"
-                                        placeholder="Manter atual"
-                                        value={bulkInventory}
-                                        onChange={e => setBulkInventory(e.target.value)}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Restrições */}
-                            <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                                <h3 style={{ fontSize: '0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase', color: '#64748b', marginBottom: '1.5rem', fontWeight: 700 }}>3. Restrições</h3>
-                                <div className={styles.formGroup} style={{marginBottom: '1.5rem'}}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>Stop Sell (Fechar Venda)</label>
-                                    <select 
-                                        value={bulkStopSell}
-                                        onChange={(e) => setBulkStopSell(e.target.value as 'true' | 'false' | '')}
-                                        className={styles.input}
-                                        style={{ 
-                                            background: bulkStopSell === 'true' ? '#fee2e2' : bulkStopSell === 'false' ? '#dcfce7' : 'white',
-                                            padding: '0.875rem',
-                                            width: '100%'
-                                        }}
-                                    >
-                                        <option value="">Manter atual</option>
-                                        <option value="true">🚫 FECHADO</option>
-                                        <option value="false">✅ ABERTO</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{marginBottom: '1.5rem'}}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>CTA (Bloquear Entrada)</label>
-                                    <select 
-                                        value={bulkCta}
-                                        onChange={(e) => setBulkCta(e.target.value as 'true' | 'false' | '')}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    >
-                                        <option value="">Manter atual</option>
-                                        <option value="true">Bloqueado</option>
-                                        <option value="false">Liberado</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
-                                    <label style={{marginBottom: '0.75rem', fontSize: '0.95rem', color: '#334155'}}>CTD (Bloquear Saída)</label>
-                                    <select 
-                                        value={bulkCtd}
-                                        onChange={(e) => setBulkCtd(e.target.value as 'true' | 'false' | '')}
-                                        className={styles.input}
-                                        style={{ padding: '0.875rem', width: '100%' }}
-                                    >
-                                        <option value="">Manter atual</option>
-                                        <option value="true">Bloqueado</option>
-                                        <option value="false">Liberado</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={styles.modalActions} style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
-                            <button 
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => setBulkModalOpen(false)}
-                                className={styles.buttonSecondary}
+                                className={styles.bulkEditClose}
+                                aria-label="Fechar edição em lote"
+                            >
+                                &times;
+                            </Button>
+                        </div>
+
+                        <div className={styles.bulkEditBody}>
+                            <section className={styles.bulkSection}>
+                                <div className={styles.bulkSectionHeader}>
+                                    <Badge variant="secondary" className={styles.bulkSectionBadge}>Bloco 1</Badge>
+                                    <h3 className={styles.bulkSectionTitle}>Escopo</h3>
+                                </div>
+                                <div className={styles.bulkScopeGrid}>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.bulkLabel} htmlFor="bulk-room-type">Tipo de quarto</label>
+                                        <select
+                                            id="bulk-room-type"
+                                            value={bulkRoomTypeId}
+                                            onChange={e => setBulkRoomTypeId(e.target.value)}
+                                            className={styles.input}
+                                        >
+                                            <option value="all">Todos os tipos</option>
+                                            {roomTypes.map(room => (
+                                                <option key={room.id} value={room.id}>{room.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.bulkLabel} htmlFor="bulk-start-date">Data inicial</label>
+                                        <input
+                                            id="bulk-start-date"
+                                            type="date"
+                                            value={bulkStart}
+                                            onChange={e => setBulkStart(e.target.value)}
+                                            className={styles.input}
+                                        />
+                                    </div>
+                                    <div className={styles.formGroup}>
+                                        <label className={styles.bulkLabel} htmlFor="bulk-end-date">Data final</label>
+                                        <input
+                                            id="bulk-end-date"
+                                            type="date"
+                                            value={bulkEnd}
+                                            onChange={e => setBulkEnd(e.target.value)}
+                                            className={styles.input}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className={styles.bulkWeekdaySection}>
+                                    <div className={styles.bulkWeekdayHeader}>
+                                        <div>
+                                            <p className={styles.bulkLabel}>Dias da semana</p>
+                                            <span className={styles.bulkHelperText}>Selecione manualmente ou use um preset rápido.</span>
+                                        </div>
+                                        <div className={styles.bulkPresetRow}>
+                                            <Button type="button" variant="outline" size="sm" className={styles.bulkPresetButton} onClick={() => setBulkWeekdays(applyWeekdayPreset('all'))}>
+                                                Todos
+                                            </Button>
+                                            <Button type="button" variant="outline" size="sm" className={styles.bulkPresetButton} onClick={() => setBulkWeekdays(applyWeekdayPreset('weekdays'))}>
+                                                Dias da Semana
+                                            </Button>
+                                            <Button type="button" variant="outline" size="sm" className={styles.bulkPresetButton} onClick={() => setBulkWeekdays(applyWeekdayPreset('weekend'))}>
+                                                Fim de Semana
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className={styles.weekdayGrid}>
+                                        {WEEKDAYS.map(weekday => (
+                                            <label key={weekday.day} className={styles.weekdayCheckbox}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={bulkWeekdays[weekday.day]}
+                                                    onChange={() => toggleWeekday(weekday.day)}
+                                                />
+                                                <span>{weekday.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className={styles.bulkSection}>
+                                <div className={styles.bulkSectionHeader}>
+                                    <Badge variant="secondary" className={styles.bulkSectionBadge}>Bloco 2</Badge>
+                                    <h3 className={styles.bulkSectionTitle}>Tarifas e permanência</h3>
+                                </div>
+                                <div className={styles.bulkFieldGrid}>
+                                    <div
+                                        className={`${styles.bulkFieldCard} ${!bulkFieldToggles.price ? styles.bulkFieldCardDisabled : ''}`}
+                                        aria-disabled={!bulkFieldToggles.price}
+                                    >
+                                        <label className={styles.bulkToggleRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkFieldToggles.price}
+                                                onChange={() => toggleBulkField('price')}
+                                            />
+                                            <span>Alterar preço da diária</span>
+                                        </label>
+                                        <p className={styles.bulkFieldDescription}>Aplica um novo valor de diária ao período e aos dias selecionados.</p>
+                                        <input
+                                            type="number"
+                                            placeholder="Ex.: 299"
+                                            value={bulkFieldValues.price}
+                                            onChange={e => setBulkFieldValue('price', e.target.value)}
+                                            className={styles.input}
+                                            disabled={!bulkFieldToggles.price}
+                                        />
+                                    </div>
+                                    <div
+                                        className={`${styles.bulkFieldCard} ${!bulkFieldToggles.minLos ? styles.bulkFieldCardDisabled : ''}`}
+                                        aria-disabled={!bulkFieldToggles.minLos}
+                                    >
+                                        <label className={styles.bulkToggleRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkFieldToggles.minLos}
+                                                onChange={() => toggleBulkField('minLos')}
+                                            />
+                                            <span>Alterar mínimo de noites</span>
+                                        </label>
+                                        <p className={styles.bulkFieldDescription}>Define a permanência mínima exigida para os dias afetados.</p>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            placeholder="Ex.: 2"
+                                            value={bulkFieldValues.minLos}
+                                            onChange={e => setBulkFieldValue('minLos', e.target.value)}
+                                            className={styles.input}
+                                            disabled={!bulkFieldToggles.minLos}
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className={styles.bulkSection}>
+                                <div className={styles.bulkSectionHeader}>
+                                    <Badge variant="secondary" className={styles.bulkSectionBadge}>Bloco 3</Badge>
+                                    <h3 className={styles.bulkSectionTitle}>Inventário e restrições</h3>
+                                </div>
+                                <div className={styles.bulkFieldGrid}>
+                                    <div
+                                        className={`${styles.bulkFieldCard} ${!bulkFieldToggles.inventory ? styles.bulkFieldCardDisabled : ''}`}
+                                        aria-disabled={!bulkFieldToggles.inventory}
+                                    >
+                                        <div className={styles.bulkFieldMeta}>
+                                            <div className={styles.bulkInventoryModeGroup} role="radiogroup" aria-label="Tipo de inventário">
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.bulkInventoryModeButton} ${bulkInventoryTarget === 'standard' ? styles.bulkInventoryModeButtonActive : ''}`}
+                                                    onClick={() => setBulkInventoryTarget('standard')}
+                                                    aria-pressed={bulkInventoryTarget === 'standard'}
+                                                >
+                                                    Standard
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.bulkInventoryModeButton} ${bulkInventoryTarget === 'fourGuests' ? styles.bulkInventoryModeButtonActive : ''}`}
+                                                    onClick={() => setBulkInventoryTarget('fourGuests')}
+                                                    aria-pressed={bulkInventoryTarget === 'fourGuests'}
+                                                >
+                                                    Quadruplo
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <label className={styles.bulkToggleRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkFieldToggles.inventory}
+                                                onChange={() => toggleBulkField('inventory')}
+                                            />
+                                            <span>Alterar quantidade de quartos disponíveis</span>
+                                        </label>
+                                        <p className={styles.bulkFieldDescription}>
+                                            {bulkInventoryTarget === 'fourGuests'
+                                                ? 'Atualiza o inventário diário do quadruplo, respeitando a capacidade especial de 4 hóspedes.'
+                                                : 'Atualiza o inventário diário do standard, sem mudar a regra atual do backend.'}
+                                        </p>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            placeholder="Ex.: 4"
+                                            value={bulkFieldValues.inventory}
+                                            onChange={e => setBulkFieldValue('inventory', e.target.value)}
+                                            className={styles.input}
+                                            disabled={!bulkFieldToggles.inventory}
+                                        />
+                                        <span className={styles.bulkFieldFootnote}>
+                                            {bulkInventoryTarget === 'fourGuests'
+                                                ? 'Bulk edit deste campo afeta apenas a disponibilidade do quadruplo.'
+                                                : 'Bulk edit deste campo afeta apenas a disponibilidade padrão.'}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className={`${styles.bulkFieldCard} ${!bulkFieldToggles.stopSell ? styles.bulkFieldCardDisabled : ''}`}
+                                        aria-disabled={!bulkFieldToggles.stopSell}
+                                    >
+                                        <label className={styles.bulkToggleRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkFieldToggles.stopSell}
+                                                onChange={() => toggleBulkField('stopSell')}
+                                            />
+                                            <span>Alterar Stop Sell</span>
+                                        </label>
+                                        <p className={styles.bulkFieldDescription}>Fecha ou reabre a venda para os dias selecionados.</p>
+                                        <select
+                                            aria-label="Valor de Stop Sell"
+                                            value={bulkFieldValues.stopSell}
+                                            onChange={(e) => setBulkFieldValue('stopSell', e.target.value as '' | 'true' | 'false')}
+                                            className={styles.input}
+                                            disabled={!bulkFieldToggles.stopSell}
+                                        >
+                                            <option value="">Selecionar ação</option>
+                                            <option value="true">Fechar venda</option>
+                                            <option value="false">Abrir venda</option>
+                                        </select>
+                                    </div>
+                                    <div
+                                        className={`${styles.bulkFieldCard} ${!bulkFieldToggles.cta ? styles.bulkFieldCardDisabled : ''}`}
+                                        aria-disabled={!bulkFieldToggles.cta}
+                                    >
+                                        <label className={styles.bulkToggleRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkFieldToggles.cta}
+                                                onChange={() => toggleBulkField('cta')}
+                                            />
+                                            <span>Alterar CTA</span>
+                                        </label>
+                                        <p className={styles.bulkFieldDescription}>Bloqueia ou libera entrada nos dias afetados.</p>
+                                        <select
+                                            aria-label="Valor de CTA"
+                                            value={bulkFieldValues.cta}
+                                            onChange={(e) => setBulkFieldValue('cta', e.target.value as '' | 'true' | 'false')}
+                                            className={styles.input}
+                                            disabled={!bulkFieldToggles.cta}
+                                        >
+                                            <option value="">Selecionar ação</option>
+                                            <option value="true">Bloquear entrada</option>
+                                            <option value="false">Liberar entrada</option>
+                                        </select>
+                                    </div>
+                                    <div
+                                        className={`${styles.bulkFieldCard} ${!bulkFieldToggles.ctd ? styles.bulkFieldCardDisabled : ''}`}
+                                        aria-disabled={!bulkFieldToggles.ctd}
+                                    >
+                                        <label className={styles.bulkToggleRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkFieldToggles.ctd}
+                                                onChange={() => toggleBulkField('ctd')}
+                                            />
+                                            <span>Alterar CTD</span>
+                                        </label>
+                                        <p className={styles.bulkFieldDescription}>Bloqueia ou libera saída nos dias afetados.</p>
+                                        <select
+                                            aria-label="Valor de CTD"
+                                            value={bulkFieldValues.ctd}
+                                            onChange={(e) => setBulkFieldValue('ctd', e.target.value as '' | 'true' | 'false')}
+                                            className={styles.input}
+                                            disabled={!bulkFieldToggles.ctd}
+                                        >
+                                            <option value="">Selecionar ação</option>
+                                            <option value="true">Bloquear saída</option>
+                                            <option value="false">Liberar saída</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div className={styles.bulkImpactSummary}>
+                            <span className={styles.bulkImpactLabel}>Resumo de impacto</span>
+                            <strong>
+                                Serão atualizados: {bulkAffectedDaysCount} {bulkAffectedDaysCount === 1 ? 'dia' : 'dias'} • {bulkScopeLabel}
+                            </strong>
+                            <span className={styles.bulkImpactHint}>
+                                {bulkHasActiveFields
+                                    ? 'Somente os campos ativados serão enviados no submit.'
+                                    : 'Ative ao menos um campo para aplicar alterações em lote.'}
+                            </span>
+                        </div>
+
+                        <div className={`${styles.modalActions} ${styles.bulkEditActions}`}>
+                            <Button
+                                onClick={() => setBulkModalOpen(false)}
+                                variant="ghost"
+                                className={styles.bulkActionGhost}
                             >
                                 Cancelar
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
                                 onClick={clearBulkFields}
-                                className={styles.buttonSecondary}
+                                variant="outline"
+                                className={styles.bulkActionSecondary}
                             >
                                 Limpar campos
-                            </button>
-                            <button 
+                            </Button>
+                            <Button
                                 onClick={handleBulkSave}
-                                className={styles.buttonPrimary}
-                                style={{ padding: '0.75rem 2rem', fontSize: '1rem' }}
+                                className={styles.bulkActionPrimary}
+                                disabled={!bulkHasActiveFields}
                             >
-                                Aplicar Alterações em Lote
-                            </button>
+                                Aplicar alterações em lote
+                            </Button>
                         </div>
                     </div>
                 </div>
