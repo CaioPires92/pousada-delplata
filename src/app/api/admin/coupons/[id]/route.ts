@@ -59,6 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         }
 
         const codeInput = normalizeCouponCode(String(body?.code || ''));
+        const updatedCode = codeInput || undefined;
         let codeHash: string | undefined;
         let codePrefix: string | undefined;
 
@@ -113,7 +114,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             },
         });
 
-        return NextResponse.json({ coupon: updated }, { status: 200 });
+        return NextResponse.json({ coupon: updated, updatedCode }, { status: 200 });
     } catch (error) {
         console.error('[Admin Coupons] PUT error:', error);
         return NextResponse.json({ error: 'Erro ao atualizar cupom' }, { status: 500 });

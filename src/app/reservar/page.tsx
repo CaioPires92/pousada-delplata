@@ -458,16 +458,16 @@ function ReservarContent() {
         setFormMessage('');
     }, [appliedCoupon?.reservationId, releaseCouponReservation]);
 
-    const applyCoupon = async (room: Room): Promise<boolean> => {
+    const applyCoupon = async (room: Room): Promise<AppliedCoupon | null> => {
         const normalizedCode = couponCode.trim().toUpperCase();
         if (!normalizedCode) {
             setAppliedCoupon(null);
             setCouponMessage('');
-            return false;
+            return null;
         }
         if (!room.promoApplied) {
             setAppliedCoupon(null);
-            return false;
+            return null;
         }
 
         setFormMessage('');
@@ -508,7 +508,7 @@ function ReservarContent() {
 
                 setAppliedCoupon(null);
                 setCouponMessage(reasonMessage);
-                return false;
+                return null;
             }
 
             if (appliedCoupon?.reservationId && appliedCoupon.reservationId !== data.reservationId) {
@@ -519,21 +519,23 @@ function ReservarContent() {
             const subtotal = Number(data?.subtotal || Number(room.priceOriginal ?? room.totalPrice));
             const total = Number(data?.total || Math.max(0, subtotal - discountAmount));
 
-            setAppliedCoupon({
+            const nextAppliedCoupon = {
                 reservationId: String(data.reservationId),
                 code: normalizedCode.toUpperCase(),
                 discountAmount,
                 subtotal,
                 total,
                 expiresAt: data?.reservationExpiresAt ? String(data.reservationExpiresAt) : undefined,
-            });
+            };
+
+            setAppliedCoupon(nextAppliedCoupon);
             setCouponCode(normalizedCode.toUpperCase());
             setCouponMessage('Cupom aplicado com sucesso.');
             setFormMessage('');
-            return true;
+            return nextAppliedCoupon;
         } catch {
             setCouponMessage('Não foi possível validar o cupom. Tente novamente.');
-            return false;
+            return null;
         }
     };
 
@@ -553,8 +555,8 @@ function ReservarContent() {
 
         let nextRoom = room;
         if (couponCode.trim()) {
-            const couponReserved = await applyCoupon(room);
-            if (!couponReserved) {
+            const reservedCoupon = await applyCoupon(room);
+            if (!reservedCoupon) {
                 nextRoom = {
                     ...room,
                     totalPrice: Number(room.priceOriginal ?? room.totalPrice),
@@ -591,6 +593,24 @@ function ReservarContent() {
             setProcessing(true);
             setFormMessage('');
 
+            let couponPayload = appliedCoupon ? {
+                reservationId: appliedCoupon.reservationId,
+                code: appliedCoupon.code,
+            } : undefined;
+
+            if (couponCode.trim()) {
+                const refreshedCoupon = await applyCoupon(selectedRoom);
+                if (!refreshedCoupon) {
+                    setFormMessage('Revise o cupom antes de continuar.');
+                    return;
+                }
+
+                couponPayload = {
+                    reservationId: refreshedCoupon.reservationId,
+                    code: refreshedCoupon.code,
+                };
+            }
+
             const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -603,10 +623,7 @@ function ReservarContent() {
                     childrenAges,
                     totalPrice: bookingTotal,
                     guest,
-                    coupon: appliedCoupon ? {
-                        reservationId: appliedCoupon.reservationId,
-                        code: appliedCoupon.code,
-                    } : undefined,
+                    coupon: couponPayload,
                 }),
             });
 

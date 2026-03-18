@@ -1,6 +1,35 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ReservarPage from './page';
+
+const searchParamState = {
+  checkIn: '2026-01-01',
+  checkOut: '2026-01-05',
+  adults: '2',
+  children: null as string | null,
+  childrenAges: null as string | null,
+  promo: null as string | null,
+  coupon: null as string | null,
+};
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  usePathname: () => '/reservar',
+  useSearchParams: () => ({
+    get: vi.fn((key: keyof typeof searchParamState) => searchParamState[key] ?? null),
+    toString: vi.fn(() => {
+      const params = new URLSearchParams();
+      Object.entries(searchParamState).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+      });
+      return params.toString();
+    }),
+  }),
+}));
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -9,6 +38,13 @@ global.fetch = mockFetch;
 describe('ReservarPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchParamState.checkIn = '2026-01-01';
+    searchParamState.checkOut = '2026-01-05';
+    searchParamState.adults = '2';
+    searchParamState.children = null;
+    searchParamState.childrenAges = null;
+    searchParamState.promo = null;
+    searchParamState.coupon = null;
     // Mock scrollIntoView to avoid errors in tests
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -254,6 +290,122 @@ describe('ReservarPage', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText(/Hóspedes/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('renova a reserva do cupom no submit antes de criar a booking', async () => {
+    searchParamState.promo = 'VIP10';
+
+    const mockRooms = [
+      {
+        id: 'room-1',
+        name: 'Suite Cupom',
+        description: 'Quarto com desconto',
+        capacity: 2,
+        amenities: 'WiFi',
+        totalPrice: 540,
+        priceOriginal: 600,
+        discountAmount: 60,
+        promoApplied: true,
+        photos: [{ url: '/test.jpg' }],
+      },
+    ];
+
+    let reserveCount = 0;
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.startsWith('/api/availability')) {
+        return {
+          ok: true,
+          json: async () => mockRooms,
+          headers: {
+            get: vi.fn((key: string) => {
+              if (key === 'x-promo-applied') return 'true';
+              return null;
+            }),
+          },
+        };
+      }
+
+      if (url === '/api/coupons/release') {
+        return {
+          ok: true,
+          json: async () => ({ released: true }),
+          headers: { get: vi.fn(() => null) },
+        };
+      }
+
+      if (url === '/api/coupons/reserve') {
+        reserveCount += 1;
+        return {
+          ok: true,
+          json: async () => ({
+            valid: true,
+            reservationId: reserveCount === 1 ? 'res-1' : 'res-2',
+            discountAmount: 60,
+            subtotal: 600,
+            total: 540,
+            reservationExpiresAt: '2099-01-01T00:00:00.000Z',
+          }),
+          headers: { get: vi.fn(() => null) },
+        };
+      }
+
+      if (url === '/api/bookings') {
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'booking-1',
+            totalPrice: 540,
+          }),
+          headers: { get: vi.fn(() => null) },
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({}),
+        headers: { get: vi.fn(() => null) },
+      };
+    });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Suite Cupom')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Selecionar e Continuar/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
+      expect(screen.getByText(/Cupom aplicado/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText(/Nome Completo/i), { target: { value: 'Maria Silva' } });
+    fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'maria@example.com' } });
+    fireEvent.change(screen.getByLabelText(/Telefone\/WhatsApp/i), { target: { value: '(11) 99999-0000' } });
+    fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
+    fireEvent.submit(screen.getByRole('button', { name: /Ir para Pagamento Seguro/i }).closest('form')!);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/bookings',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.any(String),
+        })
+      );
+    });
+
+    const bookingCall = mockFetch.mock.calls.find((call) => call[0] === '/api/bookings');
+    expect(bookingCall).toBeTruthy();
+
+    const bookingPayload = JSON.parse(String(bookingCall?.[1]?.body));
+    expect(bookingPayload.coupon).toEqual({
+      reservationId: 'res-2',
+      code: 'VIP10',
     });
   });
 });

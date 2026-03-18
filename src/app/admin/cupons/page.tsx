@@ -257,6 +257,7 @@ export default function AdminCuponsPage() {
 
     const openCreate = () => {
         setForm(emptyForm());
+        setCreatedCode('');
         setFormOpen(true);
     };
     const openCreateFromTemplate = (template: CouponTemplate) => {
@@ -287,6 +288,7 @@ export default function AdminCuponsPage() {
     };
 
     const openEdit = (coupon: Coupon) => {
+        setCreatedCode('');
         setForm({
             id: coupon.id,
             name: coupon.name,
@@ -357,11 +359,8 @@ export default function AdminCuponsPage() {
                 return;
             }
 
-            if (!isEdit && (data as any).createdCode) {
-                setCreatedCode(String((data as any).createdCode));
-            } else {
-                setCreatedCode('');
-            }
+            const savedCode = String((data as any).createdCode || (data as any).updatedCode || '');
+            setCreatedCode(savedCode);
 
             setFormOpen(false);
             await Promise.all([loadData(), loadAttempts()]);
@@ -395,7 +394,7 @@ export default function AdminCuponsPage() {
             </div>
 
             {createdCode ? (
-                <div className={styles.alert}>Cupom criado com sucesso. Codigo: <strong>{createdCode}</strong></div>
+                <div className={styles.alert}>Codigo salvo com sucesso: <strong>{createdCode}</strong></div>
             ) : null}
             {templates.length > 0 ? (
                 <div className={styles.templateSection}>
@@ -603,7 +602,7 @@ export default function AdminCuponsPage() {
                                 <input
                                     value={form.code}
                                     onChange={(e) => setForm({ ...form, code: e.target.value, generateCode: false })}
-                                    placeholder={isEdit ? 'Preencher so para trocar codigo' : 'Ex: VIP10'}
+                                    placeholder={isEdit ? 'Codigo atual protegido. Preencha so para trocar' : 'Ex: VIP10'}
                                 />
                             </div>
                             {!isEdit ? (
