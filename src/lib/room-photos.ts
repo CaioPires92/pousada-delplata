@@ -15,15 +15,10 @@ export const ROOM_PHOTO_MAPPING: Record<string, string> = {
  * @returns Array de URLs de fotos locais ou null se não houver mapeamento
  */
 export function getLocalRoomPhotos(roomName: string): string[] | null {
-    console.log(`[getLocalRoomPhotos] Buscando fotos para: ${roomName}`);
-
     const basePath = ROOM_PHOTO_MAPPING[roomName];
     if (!basePath) {
-        console.log(`[getLocalRoomPhotos] Nenhum mapeamento encontrado para: ${roomName}`);
         return null;
     }
-
-    console.log(`[getLocalRoomPhotos] Mapeamento encontrado: ${basePath}`);
 
     // Mapeamento específico de fotos para cada tipo de quarto
     const roomPhotoMap: Record<string, string[]> = {
@@ -112,7 +107,5 @@ export function getLocalRoomPhotos(roomName: string): string[] | null {
         ],
     };
 
-    const photos = roomPhotoMap[roomName] || [`${basePath}/DSC_0001-1200.webp`]; // Fallback para primeira foto
-    console.log(`[getLocalRoomPhotos] Retornando ${photos.length} fotos para ${roomName}`);
-    return photos;
+    return roomPhotoMap[roomName] || [`${basePath}/DSC_0001-1200.webp`];
 }

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ReservarPage from './page';
+import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 
 const searchParamState = {
   checkIn: '2026-01-01',
@@ -406,6 +407,38 @@ describe('ReservarPage', () => {
     expect(bookingPayload.coupon).toEqual({
       reservationId: 'res-2',
       code: 'VIP10',
+    });
+  });
+
+  it('inicializa o Brick apenas com email no payer', () => {
+    expect(buildPaymentBrickInitializationPayer('maria@example.com')).toEqual({
+      email: 'maria@example.com',
+    });
+  });
+
+  it('remove entityType inválido ao normalizar payer do Brick', () => {
+    expect(
+      normalizePaymentBrickPayer({
+        payerFromBrick: {
+          email: 'maria@example.com',
+          entityType: 'company',
+          identification: {
+            type: 'CPF',
+            number: '12345678909',
+          },
+        },
+        guestName: 'Maria Silva',
+        guestEmail: 'maria@example.com',
+      })
+    ).toEqual({
+      email: 'maria@example.com',
+      first_name: 'Maria',
+      last_name: 'Silva',
+      identification: {
+        type: 'CPF',
+        number: '12345678909',
+      },
+      entity_type: undefined,
     });
   });
 });

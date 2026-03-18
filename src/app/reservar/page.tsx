@@ -13,6 +13,7 @@ import AvailabilityBar from './components/AvailabilityBar';
 import { Check, AlertCircle, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
+import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
  
 
 interface Room {
@@ -288,20 +289,10 @@ function ReservarContent() {
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
 
-    const buildPayerData = useCallback(() => {
-        const normalizedName = String(guest.name || '').trim().replace(/\s+/g, ' ');
-        const nameParts = normalizedName.length > 0 ? normalizedName.split(' ').filter(Boolean) : [];
-        const firstName = nameParts[0] || undefined;
-        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
-
-        return {
-            email: guest.email || undefined,
-            firstName,
-            lastName,
-            first_name: firstName,
-            last_name: lastName,
-        };
-    }, [guest.email, guest.name]);
+    const buildPayerData = useCallback(
+        () => buildPaymentBrickInitializationPayer(guest.email),
+        [guest.email]
+    );
 
 
     const fetchAvailability = useCallback(async (signal?: AbortSignal) => {
@@ -320,7 +311,6 @@ function ReservarContent() {
 
         // Deduplicate: if same request already in flight or just completed, skip
         if (requestKey === lastKeyRef.current) {
-            console.log('availability:skip-duplicate', { requestKey });
             // Still mark as loaded even if skipping
             if (mountedRef.current && !hasLoadedOnce.current) {
                 setLoading(false);
@@ -330,8 +320,6 @@ function ReservarContent() {
         }
 
         try {
-            console.log('availability:start', { checkIn, checkOut, adults, children, childrenAges });
-
             // Clear previous results and start loading
             if (mountedRef.current) {
                 setAvailableRooms(null);
@@ -357,17 +345,6 @@ function ReservarContent() {
             const data = await response.json();
             const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
             const responsePromoMessage = response.headers.get('x-promo-message') || '';
-
-            // PRICING DIAGNOSTICS: Log price breakdown to verify children >= 12 are counted as adults
-            // and extraAdultFee/child6To11Fee are applied (if configured in DB)
-            console.log('availability:pricing-check', {
-                rooms: data.map((room: Room) => ({
-                    name: room.name,
-                    totalPrice: room.totalPrice,
-                    breakdown: room.priceBreakdown,
-                    // If extraAdultFee/child6To11Fee are 0 in DB, totals will be same as base (expected)
-                }))
-            });
 
             if (mountedRef.current) {
                 setAvailableRooms(data);
@@ -405,12 +382,9 @@ function ReservarContent() {
             // This prevents Strict Mode double-run from seeing it as duplicate before first completes
             lastKeyRef.current = requestKey;
 
-            console.log('availability:finish ok', { count: Array.isArray(data) ? data.length : 0 });
         } catch (err: any) {
             if (err && err.name === 'AbortError') {
-                console.log('availability:abort');
             } else {
-                console.log('availability:error', err);
                 if (mountedRef.current) {
                     setError(err instanceof Error ? err.message : 'Erro ao carregar quartos disponíveis. Tente novamente.');
                     hasLoadedOnce.current = true;
@@ -418,19 +392,16 @@ function ReservarContent() {
             }
         } finally {
             if (mountedRef.current) setLoading(false);
-            console.log('availability:finish', { loading: false });
         }
     }, [adults, checkIn, checkOut, children, childrenAgesKey, childrenAges, promoFromQuery, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
         const controller = new AbortController();
         mountedRef.current = true;
-        console.log('availability:effect-run');
         fetchAvailability(controller.signal);
         return () => {
             mountedRef.current = false;
             controller.abort();
-            console.log('availability:effect-cleanup');
         };
     }, [fetchAvailability]);
 
@@ -735,14 +706,11 @@ function ReservarContent() {
                             // Brick pronto
                         },
                         onSubmit: ({ formData }: any) => {
-                            const payerFromBrick = formData?.payer || {};
-                            const fallbackPayer = buildPayerData();
-                            const normalizedPayer = {
-                                ...payerFromBrick,
-                                email: payerFromBrick.email || fallbackPayer.email,
-                                first_name: payerFromBrick.first_name || payerFromBrick.firstName || fallbackPayer.first_name,
-                                last_name: payerFromBrick.last_name || payerFromBrick.lastName || fallbackPayer.last_name,
-                            };
+                            const normalizedPayer = normalizePaymentBrickPayer({
+                                payerFromBrick: formData?.payer,
+                                guestName: guest.name,
+                                guestEmail: guest.email,
+                            });
 
                             return fetch('/api/mercadopago/payment', {
                                 method: 'POST',
@@ -810,7 +778,7 @@ function ReservarContent() {
             cancelled = true;
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [buildPayerData, paymentAmount, paymentBookingId]);
+    }, [buildPayerData, guest.email, guest.name, paymentAmount, paymentBookingId]);
 
     useEffect(() => {
         if (!paymentBookingId) return;
