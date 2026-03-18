@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDateBR } from '@/lib/date';
 import styles from './cupons.module.css';
@@ -118,6 +118,14 @@ type CouponForm = {
     active: boolean;
 };
 
+type CouponFormDraft = {
+    formOpen: boolean;
+    form: CouponForm;
+    createdCode: string;
+};
+
+const COUPON_FORM_DRAFT_KEY = 'admin-coupons-form-draft-v1';
+
 const emptyForm = (): CouponForm => ({
     name: '',
     code: '',
@@ -167,6 +175,7 @@ function parseJsonArray(raw: string | null): string[] {
 
 export default function AdminCuponsPage() {
     const router = useRouter();
+    const hasHydratedDraftRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -183,6 +192,48 @@ export default function AdminCuponsPage() {
     const [attemptDaysFilter, setAttemptDaysFilter] = useState('7');
 
     const isEdit = useMemo(() => Boolean(form.id), [form.id]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            const rawDraft = window.localStorage.getItem(COUPON_FORM_DRAFT_KEY);
+            if (!rawDraft) return;
+
+            const parsed = JSON.parse(rawDraft) as Partial<CouponFormDraft>;
+            if (!parsed || typeof parsed !== 'object' || !parsed.form || typeof parsed.form !== 'object') return;
+
+            setForm({
+                ...emptyForm(),
+                ...parsed.form,
+                allowedRoomTypeIds: Array.isArray(parsed.form.allowedRoomTypeIds) ? parsed.form.allowedRoomTypeIds : [],
+            });
+            setCreatedCode(typeof parsed.createdCode === 'string' ? parsed.createdCode : '');
+            setFormOpen(Boolean(parsed.formOpen));
+        } catch {
+            window.localStorage.removeItem(COUPON_FORM_DRAFT_KEY);
+        } finally {
+            hasHydratedDraftRef.current = true;
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !hasHydratedDraftRef.current) return;
+
+        if (!formOpen) {
+            window.localStorage.removeItem(COUPON_FORM_DRAFT_KEY);
+            return;
+        }
+
+        const draft: CouponFormDraft = {
+            formOpen,
+            form,
+            createdCode,
+        };
+
+        window.localStorage.setItem(COUPON_FORM_DRAFT_KEY, JSON.stringify(draft));
+    }, [createdCode, form, formOpen]);
+
     const loadAttempts = useCallback(async () => {
         try {
             setAttemptsLoading(true);
