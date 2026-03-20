@@ -83,19 +83,6 @@ export function getCategoryPostCount(category: BlogCategory) {
   return blogPosts.filter((post) => post.category === category.slug).length;
 }
 
-export function getFunnelStageLabel(stage: BlogPost["funnelStage"]) {
-  switch (stage) {
-    case "topo":
-      return "Topo do funil";
-    case "meio":
-      return "Meio do funil";
-    case "fundo":
-      return "Fundo do funil";
-    default:
-      return "Conteúdo";
-  }
-}
-
 function buildBaseOpenGraph({
   title,
   description,
@@ -130,8 +117,8 @@ export function buildBlogIndexMetadata(category?: BlogCategory) {
     ? `${category.shortLabel} em Serra Negra | Blog Delplata`
     : "Blog da Pousada Delplata | Serra Negra";
   const description = category
-    ? `${category.description} Conteúdo pensado para atrair tráfego qualificado e apoiar a reserva direta da Pousada Delplata.`
-    : "Guias, comparativos e conteúdos úteis sobre Serra Negra para ajudar na escolha da hospedagem e apoiar a reserva direta na Pousada Delplata.";
+    ? `${category.description} Veja orientações claras para planejar melhor a estadia em Serra Negra.`
+    : "Guias, comparativos e conteúdos úteis para planejar a viagem, escolher a hospedagem e aproveitar melhor Serra Negra.";
   const canonicalPath = category ? `/blog?category=${category.slug}` : "/blog";
 
   return {

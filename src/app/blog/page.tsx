@@ -38,7 +38,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   const featuredPost = getFeaturedBlogPost(filteredPosts);
   const remainingPosts = filteredPosts.filter((post) => post.slug !== featuredPost?.slug);
   const postCountLabel =
-    filteredPosts.length === 1 ? "1 conteúdo preparado" : `${filteredPosts.length} conteúdos preparados`;
+    filteredPosts.length === 1 ? "1 artigo" : `${filteredPosts.length} artigos`;
   const listSchema = buildBlogListSchema(filteredPosts);
   const breadcrumbSchema = buildBreadcrumbSchema([
     { name: "Início", path: "/" },
@@ -80,16 +80,12 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 Blog Delplata
               </p>
             </div>
-            <p className="max-w-xl text-sm font-medium uppercase tracking-[0.24em] text-primary/50">
-              Editorial hospitality
-            </p>
             <div className="space-y-4 border-l-2 border-secondary pl-5">
               <h1 className="max-w-4xl text-4xl font-bold font-heading leading-tight text-primary md:text-5xl">
-                Conteúdo útil para planejar Serra Negra e avançar com mais segurança para a reserva
+                Conteúdo útil para planejar sua viagem para Serra Negra com mais segurança
               </h1>
               <p className="max-w-3xl text-lg leading-relaxed text-muted-foreground">
-                O blog foi estruturado para responder buscas reais sobre Serra Negra, apoiar a decisão
-                de hospedagem e conduzir o visitante para a reserva direta sem perder clareza.
+                Descubra o que fazer, onde ficar e como aproveitar melhor a estadia em Serra Negra.
               </p>
             </div>
           </div>
@@ -97,18 +93,18 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           <div className="relative rounded-[28px] border border-primary/10 bg-white p-6 shadow-[0_16px_45px_rgba(40,50,35,0.08)]">
             <div className="absolute left-0 top-6 h-16 w-1 rounded-r-full bg-secondary" aria-hidden="true" />
             <p className="pl-3 text-sm font-semibold uppercase tracking-[0.12em] text-primary/80">
-              Blog Delplata
+              Planeje melhor a viagem
             </p>
             <p className="mt-4 pl-3 text-sm leading-7 text-muted-foreground">
               {selectedCategory
                 ? selectedCategory.description
-                : "Topo, meio e fundo de funil organizados em uma mesma arquitetura, com seed content explícito e pronta para migração futura para CMS."}
+                : "Guias práticos para montar o roteiro, escolher a hospedagem e chegar com mais clareza à viagem."}
             </p>
             <Link
               href="/reservar"
               className="mt-5 inline-flex pl-3 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
             >
-              Ir direto para reserva
+              Consultar datas
             </Link>
           </div>
         </div>
@@ -124,14 +120,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/50">
-                Biblioteca comercial
-              </p>
               <h2 className="text-2xl font-bold font-heading text-primary md:text-3xl">
                 {selectedCategory ? selectedCategory.label : "Todos os artigos"}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {postCountLabel} para SEO local, usabilidade e conversão.
+                {postCountLabel} sobre roteiro, hospedagem e planejamento da viagem.
               </p>
             </div>
           </div>
@@ -144,26 +137,13 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             </div>
           ) : (
             <div className="rounded-[28px] border border-dashed border-primary/20 bg-white p-6 text-sm leading-7 text-muted-foreground">
-              Esta categoria já está representada pelo conteúdo em destaque. A estrutura está pronta
-              para receber novos artigos sem alterar o layout.
+              No momento, esta seleção reúne apenas o artigo em destaque.
             </div>
           )}
         </div>
 
-        <div className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+        <div className="lg:sticky lg:top-28 lg:self-start">
           <BlogCta compact />
-
-          <div className="rounded-[28px] border border-primary/10 bg-white p-6 shadow-[0_16px_45px_rgba(40,50,35,0.08)]">
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary/55">
-              Governança editorial
-            </p>
-            <h2 className="mt-2 text-xl font-bold font-heading text-primary">Observação editorial</h2>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              Os conteúdos atuais estão marcados como <strong>seed/demo</strong>. A arquitetura está
-              pronta para evoluir com CMS, mas os dados locais que exigem precisão ainda devem ser
-              validados antes da publicação final.
-            </p>
-          </div>
         </div>
       </section>
     </main>

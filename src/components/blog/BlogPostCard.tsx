@@ -3,11 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  formatBlogDate,
-  getBlogCategoryBySlug,
-  getFunnelStageLabel,
-} from "@/lib/blog";
+import { formatBlogDate, getBlogCategoryBySlug } from "@/lib/blog";
 import { BlogPost } from "@/types/blog";
 
 interface BlogPostCardProps {
@@ -40,14 +36,6 @@ export function BlogPostCard({ post }: BlogPostCardProps) {
               {category.shortLabel}
             </Badge>
           ) : null}
-          {post.seedDemo ? (
-            <Badge variant="outline" className="rounded-full px-3 py-1 text-muted-foreground">
-              Seed/demo
-            </Badge>
-          ) : null}
-          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/55">
-            {getFunnelStageLabel(post.funnelStage)}
-          </span>
         </div>
 
         <div className="space-y-3">

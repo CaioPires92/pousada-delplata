@@ -14,10 +14,14 @@ const WHATSAPP_URL =
   "https://wa.me/5519999654866?text=Ol%C3%A1!%20Vi%20o%20blog%20da%20Pousada%20Delplata%20e%20quero%20tirar%20uma%20d%C3%BAvida%20sobre%20a%20hospedagem.";
 
 export function BlogCta({
-  title = "Quer transformar a pesquisa em uma reserva direta?",
-  description = "Se a Delplata fizer sentido para a sua viagem, consulte disponibilidade ou fale com a equipe pelo WhatsApp.",
+  title,
+  description,
   compact = false,
 }: BlogCtaProps) {
+  const resolvedTitle = title ?? (compact ? "Consultar datas" : "Consulte as datas da sua viagem");
+  const resolvedDescription =
+    description ?? (compact ? "Ou fale com a equipe pelo WhatsApp." : "Veja a disponibilidade ou fale com a equipe pelo WhatsApp.");
+
   return (
     <section
       className={cn(
@@ -41,7 +45,7 @@ export function BlogCta({
               compact ? "max-w-[10ch] text-3xl leading-[1.02]" : "text-2xl md:text-3xl",
             )}
           >
-            {title}
+            {resolvedTitle}
           </h2>
           <p
             className={cn(
@@ -49,7 +53,7 @@ export function BlogCta({
               compact ? "max-w-[22ch] text-base" : "text-base",
             )}
           >
-            {description}
+            {resolvedDescription}
           </p>
         </div>
 
@@ -64,7 +68,7 @@ export function BlogCta({
             size="lg"
             className={cn("h-11", compact ? "w-full" : "md:min-w-52")}
           >
-            <Link href="/reservar">Ver disponibilidade</Link>
+            <Link href="/reservar">{compact ? "Consultar datas" : "Ver disponibilidade"}</Link>
           </Button>
           <Button
             asChild
@@ -74,7 +78,7 @@ export function BlogCta({
           >
             <Link href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="h-4 w-4" />
-              Tirar dúvidas no WhatsApp
+              Falar no WhatsApp
             </Link>
           </Button>
         </div>

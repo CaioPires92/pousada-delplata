@@ -109,12 +109,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           />
 
           <header className="mt-6 space-y-6">
-            <div className="flex items-center gap-4">
-              <span className="h-px w-14 bg-secondary" aria-hidden="true" />
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/55">
-                Guia editorial Delplata
-              </p>
-            </div>
             <div className="flex flex-wrap items-center gap-3">
               <Badge variant="secondary" className="rounded-full px-3 py-1">
                 {category.shortLabel}
@@ -125,11 +119,6 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <Badge variant="outline" className="rounded-full px-3 py-1">
                 {post.readingTime}
               </Badge>
-              {post.seedDemo ? (
-                <Badge variant="outline" className="rounded-full px-3 py-1 text-muted-foreground">
-                  Seed/demo
-                </Badge>
-              ) : null}
             </div>
 
             <div className="space-y-4">
@@ -173,19 +162,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
                 <div className="rounded-[28px] border border-primary/10 bg-stone-50 p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.12em] text-primary/80">
-                    Resumo do artigo
+                    Resumo rápido
                   </p>
                   <p className="mt-3 text-sm leading-7 text-muted-foreground">{post.summary}</p>
-                </div>
-
-                <div className="rounded-[28px] border border-primary/10 bg-white p-6">
-                  <p className="text-sm font-semibold uppercase tracking-[0.12em] text-primary/55">
-                    Foco do conteúdo
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                    Este artigo foi desenhado para responder uma etapa específica da decisão de
-                    viagem, sem competir com o objetivo principal do site: a reserva direta.
-                  </p>
                 </div>
 
                 <BlogCta compact />

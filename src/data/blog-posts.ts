@@ -6,35 +6,35 @@ export const blogCategories: BlogCategory[] = [
     label: "O que fazer em Serra Negra",
     shortLabel: "O que fazer",
     description:
-      "Conteúdos para quem ainda está planejando o roteiro e quer entender como aproveitar a cidade.",
+      "Roteiros e sugestões práticas para aproveitar melhor o tempo em Serra Negra.",
   },
   {
     slug: "onde-ficar",
     label: "Onde ficar em Serra Negra",
     shortLabel: "Onde ficar",
     description:
-      "Guias comparativos para ajudar a escolher a hospedagem certa de acordo com o perfil da viagem.",
+      "Critérios objetivos para escolher a hospedagem de acordo com o tipo de viagem.",
   },
   {
     slug: "dicas-de-viagem",
     label: "Dicas de viagem e hospedagem",
     shortLabel: "Dicas de viagem",
     description:
-      "Conteúdo prático para organizar a viagem com mais clareza e menos atrito na decisão.",
+      "Dicas diretas para organizar a viagem, evitar erros comuns e chegar melhor preparado.",
   },
   {
     slug: "delplata",
-    label: "Conteúdos sobre a Delplata",
-    shortLabel: "Delplata",
+    label: "Pousada Delplata",
+    shortLabel: "A pousada",
     description:
-      "Páginas de intenção comercial ligadas diretamente à pousada e à reserva direta.",
+      "Informações práticas sobre a pousada para quem quer conhecer melhor a hospedagem.",
   },
   {
     slug: "guias-sazonais",
     label: "Guias sazonais e feriados",
     shortLabel: "Sazonais",
     description:
-      "Estrutura pronta para temas sazonais, feriados e momentos de alta intenção de viagem.",
+      "Conteúdos para decidir a melhor época da viagem, incluindo feriados e períodos mais procurados.",
   },
 ];
 
@@ -43,9 +43,9 @@ export const blogPosts: BlogPost[] = [
     slug: "o-que-fazer-em-serra-negra-em-um-fim-de-semana",
     title: "O que fazer em Serra Negra em um fim de semana",
     excerpt:
-      "Um guia enxuto para organizar a viagem em Serra Negra sem exageros, com foco em ritmo, conforto e boa hospedagem.",
+      "Um roteiro simples para aproveitar Serra Negra em dois dias, com centro, teleférico, compras e tempo para descansar.",
     summary:
-      "Estrutura editorial pronta para um conteúdo de topo de funil sobre Serra Negra, com orientações úteis e pontos que ainda precisam de validação local antes da publicação final.",
+      "Um resumo prático para quem quer montar o fim de semana sem perder tempo com deslocamentos e escolhas vagas.",
     publishedAt: "2026-03-12",
     updatedAt: "2026-03-19",
     readingTime: "6 min",
@@ -58,72 +58,61 @@ export const blogPosts: BlogPost[] = [
     seo: {
       title: "O que fazer em Serra Negra em um fim de semana | Blog Delplata",
       description:
-        "Veja como estruturar um fim de semana em Serra Negra com mais clareza, sem correria e com hospedagem alinhada ao seu ritmo de viagem.",
+        "Veja um roteiro prático para passar um fim de semana em Serra Negra com passeios centrais, compras, teleférico e tempo para descansar.",
     },
     featured: true,
     seedDemo: true,
     funnelStage: "topo",
     content: [
       {
-        type: "callout",
-        title: "Conteúdo seed/demo",
-        content:
-          "Esta peça foi criada para estruturar o blog e demonstrar a futura linha editorial. Antes de publicar como conteúdo definitivo, valide atrações, horários, eventos e distâncias com fontes internas ou oficiais.",
-      },
-      {
         type: "paragraph",
         content:
-          "Quem pesquisa Serra Negra para um fim de semana geralmente quer uma resposta prática: o que priorizar, como dividir o tempo e onde vale a pena se hospedar para reduzir deslocamentos desnecessários. O melhor conteúdo para essa busca precisa ser objetivo e útil, sem virar uma lista genérica de atrações.",
+          "Se a viagem for curta, o melhor roteiro em Serra Negra é o que combina passeio pelo centro, uma ou duas paradas clássicas da cidade e tempo livre para descansar. Tentar encaixar tudo no mesmo fim de semana costuma deixar a experiência mais corrida do que agradável.",
       },
       {
         type: "heading",
-        content: "Comece pela lógica da viagem, não pela lista de lugares",
+        content: "O que vale priorizar em dois dias",
       },
       {
         type: "paragraph",
         content:
-          "Antes de montar o roteiro, vale definir qual é a intenção principal da viagem. Para algumas pessoas, a prioridade é descansar. Para outras, é circular pela cidade, conhecer o comércio local, sair para comer ou aproveitar a região em casal. Essa definição muda completamente a melhor escolha de hospedagem e o formato ideal do fim de semana.",
+          "Para um fim de semana, faz sentido concentrar o roteiro no que Serra Negra tem de mais fácil de encaixar no tempo curto: passeio pelo centro, compras de malhas, teleférico, uma passada pelo fontanário e uma refeição sem pressa. Se houver mais tempo, dá para incluir um café ou visita em fazendas da região.",
       },
       {
         type: "list",
         items: [
-          "Se a prioridade for descanso, a hospedagem precisa entregar conforto e ambiente tranquilo.",
-          "Se a prioridade for mobilidade, vale olhar com atenção o ponto de apoio da viagem.",
-          "Se a viagem for curta, concentrar decisões evita perder tempo com deslocamentos e remarcações.",
+          "Centro e comércio de malhas para caminhar, ver vitrines e sentir o ritmo da cidade.",
+          "Teleférico para ter uma vista melhor da região e encaixar um passeio clássico da viagem.",
+          "Fontanário e arredores para um trecho mais tranquilo entre uma atividade e outra.",
+          "Tempo livre na hospedagem para piscina, café e descanso sem transformar a viagem em maratona.",
         ],
       },
       {
         type: "heading",
-        content: "Uma estrutura simples para organizar o fim de semana",
+        content: "Uma sugestão simples de roteiro",
       },
       {
         type: "paragraph",
         content:
-          "Um bom guia de Serra Negra pode sugerir uma divisão simples entre chegada, exploração leve e momentos de descanso. Não é preciso prometer um roteiro fechado. O que ajuda de verdade é orientar o visitante sobre como distribuir a energia da viagem entre manhã, tarde e noite.",
+          "No sábado, a melhor lógica costuma ser começar pelo centro e deixar o teleférico ou outro passeio principal para o mesmo dia. No domingo, vale desacelerar: café da manhã com calma, uma última volta pela cidade e saída sem correria. Esse formato funciona melhor para quem quer conhecer Serra Negra sem voltar para casa cansado.",
       },
       {
         type: "list",
         ordered: true,
         items: [
-          "Chegada: priorize check-in tranquilo e reserve o restante do dia para adaptação.",
-          "Dia principal: concentre a maior parte do roteiro quando já estiver descansado.",
-          "Saída: deixe a manhã final mais leve para evitar sensação de correria.",
+          "Chegue, faça o check-in e use o restante do primeiro dia para uma volta leve pelo centro.",
+          "Concentre o passeio principal no segundo período da viagem, quando o ritmo já estiver ajustado.",
+          "Deixe a manhã de saída livre para café, malas e uma última parada sem pressa.",
         ],
       },
       {
         type: "heading",
-        content: "A hospedagem influencia o aproveitamento do roteiro",
+        content: "Onde a hospedagem entra nessa decisão",
       },
       {
         type: "paragraph",
         content:
-          "Mesmo em um conteúdo de topo de funil, a hospedagem precisa aparecer como parte da solução. Quem pretende viajar por pouco tempo costuma valorizar praticidade, café da manhã resolvido, ambiente agradável e uma base que permita alternar passeio com descanso sem fricção.",
-      },
-      {
-        type: "callout",
-        title: "Ponto editorial para versão final",
-        content:
-          "Na etapa de conteúdo definitivo, este post pode ganhar uma seção validada com atrações reais, agenda sazonal, roteiro por perfil de viagem e links internos para páginas comerciais do site.",
+          "Em uma viagem curta, a hospedagem precisa facilitar o fim de semana. Café da manhã resolvido, quarto confortável e uma base tranquila fazem diferença, principalmente quando a ideia é alternar passeio com descanso. Antes de reservar, vale checar o tipo de acomodação, a proposta da pousada e se o ritmo do lugar combina com o tipo de viagem que você quer fazer.",
       },
     ],
   },
@@ -131,9 +120,9 @@ export const blogPosts: BlogPost[] = [
     slug: "onde-ficar-em-serra-negra",
     title: "Onde ficar em Serra Negra",
     excerpt:
-      "O que realmente comparar na hora de escolher hospedagem em Serra Negra: perfil da viagem, localização funcional e experiência desejada.",
+      "O ponto principal não é só preço: veja o que comparar entre centro, áreas mais tranquilas e tipo de hospedagem.",
     summary:
-      "Conteúdo de meio de funil pensado para transformar uma busca ampla em critérios claros de decisão.",
+      "Um guia direto para escolher melhor a hospedagem e evitar reserva desalinhada com o estilo da viagem.",
     publishedAt: "2026-03-10",
     updatedAt: "2026-03-19",
     readingTime: "5 min",
@@ -146,52 +135,46 @@ export const blogPosts: BlogPost[] = [
     seo: {
       title: "Onde ficar em Serra Negra | Como escolher a hospedagem",
       description:
-        "Entenda quais critérios realmente importam para escolher onde ficar em Serra Negra sem cair em comparações superficiais.",
+        "Veja o que realmente importa na hora de escolher onde ficar em Serra Negra: localização, tipo de hospedagem e perfil da viagem.",
     },
     seedDemo: true,
     funnelStage: "meio",
     content: [
       {
-        type: "callout",
-        title: "Conteúdo seed/demo",
-        content:
-          "Estrutura criada para o novo blog. Pode ser publicada depois de completar detalhes locais e exemplos validados sobre bairros, deslocamentos e sazonalidade.",
-      },
-      {
         type: "paragraph",
         content:
-          "A busca por onde ficar em Serra Negra raramente é apenas sobre preço. Em geral, ela envolve contexto: quem vai viajar, quanto tempo a pessoa terá na cidade, se a prioridade é descanso ou circulação e qual nível de praticidade faz diferença na experiência.",
+          "Escolher onde ficar em Serra Negra passa por uma pergunta simples: você quer fazer a maior parte das coisas a pé no centro ou prefere uma hospedagem mais tranquila para descansar? Essa resposta costuma definir melhor a reserva do que qualquer lista genérica de vantagens.",
       },
       {
         type: "heading",
-        content: "Os critérios que mais pesam na decisão",
+        content: "O que comparar antes de reservar",
       },
       {
         type: "list",
         items: [
-          "Perfil da viagem: casal, família, viagem curta ou estadia mais tranquila.",
-          "Conforto da hospedagem: quarto, estrutura, café da manhã e sensação geral de cuidado.",
-          "Localização funcional: facilidade para entrar, sair e montar o roteiro sem excesso de deslocamento.",
-          "Canal de reserva: facilidade para reservar direto e tirar dúvidas sem ruído.",
+          "Distância prática do que você pretende fazer: centro, compras, passeio curto ou descanso.",
+          "Tipo de viagem: casal, família, viagem rápida ou dias mais tranquilos.",
+          "Estrutura da hospedagem: café da manhã, área de lazer, estacionamento e perfil dos quartos.",
+          "Facilidade para tirar dúvidas antes de fechar a reserva, principalmente em datas disputadas.",
         ],
       },
       {
         type: "heading",
-        content: "Quando a pousada faz mais sentido",
+        content: "Ficar perto do centro ou em uma área mais calma?",
       },
       {
         type: "paragraph",
         content:
-          "Para muitos perfis de viagem, a pousada entrega o equilíbrio mais interessante entre acolhimento, ritmo mais tranquilo e experiência menos impessoal. Isso pesa bastante em viagens de lazer, em casal ou em família, especialmente quando a ideia é desacelerar.",
+          "Quem quer circular pelo comércio, passear no centro e sair para comer sem depender tanto do carro costuma procurar hospedagem mais próxima da área central. Já quem prioriza silêncio, descanso e tempo na própria pousada tende a aproveitar melhor uma hospedagem em área mais tranquila, desde que o acesso para a cidade siga simples.",
       },
       {
         type: "heading",
-        content: "O que um bom conteúdo deve responder",
+        content: "Quando a pousada costuma valer mais a pena",
       },
       {
         type: "paragraph",
         content:
-          "Além de ajudar a decisão, esse tema precisa preparar o terreno para a conversão. Por isso, o post ideal conecta comparação, critérios objetivos e um próximo passo simples: conhecer a hospedagem, tirar dúvidas ou verificar disponibilidade.",
+          "Para viagens de lazer, casal ou família, a pousada costuma funcionar bem quando o atendimento mais próximo, o ambiente tranquilo e o ritmo menos impessoal pesam na escolha. Antes de decidir, vale olhar fotos reais, entender a diferença entre categorias de quarto e confirmar se a proposta do lugar combina com o que você espera da viagem.",
       },
     ],
   },
@@ -201,7 +184,7 @@ export const blogPosts: BlogPost[] = [
     excerpt:
       "Uma comparação direta para quem quer escolher a hospedagem certa sem depender de argumentos genéricos.",
     summary:
-      "Peça comparativa de meio de funil voltada para intenção de hospedagem, com foco em clareza de escolha.",
+      "Comparação direta para entender qual tipo de hospedagem combina mais com o seu ritmo de viagem.",
     publishedAt: "2026-03-08",
     updatedAt: "2026-03-19",
     readingTime: "6 min",
@@ -250,9 +233,9 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "callout",
-        title: "Ângulo comercial correto",
+        title: "Dica prática",
         content:
-          "Esse conteúdo funciona melhor quando não tenta empurrar a venda. Ele deve ajudar a pessoa a decidir com segurança e, só então, apresentar a Delplata como uma opção coerente para esse perfil.",
+          "Antes de reservar, compare menos promessas e mais contexto: localização, tipo de quarto, café da manhã, rotina da viagem e perfil de atendimento.",
       },
     ],
   },
@@ -262,7 +245,7 @@ export const blogPosts: BlogPost[] = [
     excerpt:
       "Como pensar a melhor época para viajar considerando clima, ritmo de viagem e perfil de hospedagem.",
     summary:
-      "Estrutura editorial para um guia sazonal que pode evoluir depois com dados locais e calendário de eventos validado.",
+      "Um ponto de partida para decidir a época da viagem com base no ritmo que você procura.",
     publishedAt: "2026-03-06",
     updatedAt: "2026-03-19",
     readingTime: "4 min",
@@ -281,12 +264,6 @@ export const blogPosts: BlogPost[] = [
     funnelStage: "topo",
     content: [
       {
-        type: "callout",
-        title: "Conteúdo seed/demo",
-        content:
-          "A versão final deste guia deve incluir clima médio, feriados, agenda local e períodos de maior procura, sempre com validação de dados reais.",
-      },
-      {
         type: "paragraph",
         content:
           "A melhor época para visitar Serra Negra depende menos de uma resposta universal e mais do perfil da viagem. Algumas pessoas preferem períodos mais movimentados, com cidade mais ativa. Outras valorizam uma estadia mais calma, com foco maior em descanso.",
@@ -300,7 +277,7 @@ export const blogPosts: BlogPost[] = [
         items: [
           "Se a prioridade é descanso ou uma agenda mais cheia.",
           "Se a viagem será em casal, em família ou em um feriado curto.",
-          "Se o objetivo é encontrar mais disponibilidade para reserva direta.",
+          "Se a ideia é pegar a cidade mais movimentada ou um período mais tranquilo.",
         ],
       },
       {
@@ -316,12 +293,12 @@ export const blogPosts: BlogPost[] = [
     excerpt:
       "Um resumo objetivo da proposta de hospedagem da Delplata para quem já está perto da decisão de reservar.",
     summary:
-      "Peça de fundo de funil baseada apenas em informações já presentes no site atual da pousada.",
+      "Um resumo direto da hospedagem para quem quer entender melhor a proposta da Delplata.",
     publishedAt: "2026-03-05",
     updatedAt: "2026-03-19",
     readingTime: "4 min",
     category: "delplata",
-    tags: ["Delplata", "reserva direta", "pousada", "Serra Negra"],
+    tags: ["Delplata", "hospedagem", "pousada", "Serra Negra"],
     coverImage: {
       src: "/fotos/piscina-aptos/DJI_0845.jpg",
       alt: "Piscina da Pousada Delplata em Serra Negra",
@@ -329,7 +306,7 @@ export const blogPosts: BlogPost[] = [
     seo: {
       title: "Pousada Delplata em Serra Negra | Conheça a hospedagem",
       description:
-        "Veja um resumo claro da proposta da Pousada Delplata em Serra Negra e avance para a reserva direta com mais segurança.",
+        "Veja um resumo claro da proposta da Pousada Delplata em Serra Negra e entenda se a hospedagem combina com a sua viagem.",
     },
     seedDemo: true,
     funnelStage: "fundo",
@@ -350,7 +327,7 @@ export const blogPosts: BlogPost[] = [
           "Área de lazer com piscina adulto e infantil.",
           "Café da manhã diário em ambiente agradável.",
           "Acomodações em diferentes alas, com foco em conforto e descanso.",
-          "Canal de reserva direta e contato por WhatsApp.",
+          "Atendimento por WhatsApp para tirar dúvidas sobre a hospedagem.",
         ],
       },
       {
@@ -360,13 +337,7 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         content:
-          "Esse tipo de página conversa com quem já passou pela fase de descoberta e está validando se a Delplata combina com a viagem. Por isso, a função do conteúdo não é exagerar diferenciais. É reduzir insegurança, mostrar coerência e facilitar o próximo passo da reserva.",
-      },
-      {
-        type: "callout",
-        title: "Evolução futura",
-        content:
-          "Quando houver um CMS, esta página pode receber depoimentos, perguntas frequentes, diferenciais confirmados pela operação e atualizações sazonais sem mudar a arquitetura do blog.",
+          "Essa página faz mais sentido para quem já decidiu viajar para Serra Negra e quer entender se a Delplata combina com o estilo da estadia. A função dela é mostrar a proposta da pousada com clareza, sem exagero e sem promessa vaga.",
       },
     ],
   },

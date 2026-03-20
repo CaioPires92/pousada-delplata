@@ -3,11 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  formatBlogDate,
-  getBlogCategoryBySlug,
-  getFunnelStageLabel,
-} from "@/lib/blog";
+import { formatBlogDate, getBlogCategoryBySlug } from "@/lib/blog";
 import { BlogPost } from "@/types/blog";
 
 interface BlogFeaturedPostProps {
@@ -34,7 +30,7 @@ export function BlogFeaturedPost({ post }: BlogFeaturedPostProps) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70">
               Caderno de Serra Negra
             </p>
-            <p className="mt-1 text-sm font-medium">Guia com intenção real de viagem</p>
+            <p className="mt-1 text-sm font-medium">Ideias práticas para organizar a viagem</p>
           </div>
         </Link>
 
@@ -48,14 +44,6 @@ export function BlogFeaturedPost({ post }: BlogFeaturedPostProps) {
                 {category ? (
                   <Badge variant="outline" className="rounded-full px-3 py-1">
                     {category.shortLabel}
-                  </Badge>
-                ) : null}
-                <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/65">
-                  {getFunnelStageLabel(post.funnelStage)}
-                </span>
-                {post.seedDemo ? (
-                  <Badge variant="outline" className="rounded-full px-3 py-1 text-muted-foreground">
-                    Seed/demo
                   </Badge>
                 ) : null}
               </div>
@@ -77,7 +65,7 @@ export function BlogFeaturedPost({ post }: BlogFeaturedPostProps) {
           <div className="mt-8 space-y-4">
             <div className="rounded-[24px] bg-stone-50 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/60">
-                Por que este artigo importa
+                Resumo rápido
               </p>
               <p className="mt-2 max-w-md text-sm leading-7 text-muted-foreground">{post.summary}</p>
             </div>
