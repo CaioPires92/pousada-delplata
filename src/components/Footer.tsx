@@ -57,6 +57,7 @@ export default function Footer() {
                         <h4 className="text-xl font-semibold font-heading">Links Rápidos</h4>
                         <ul className="space-y-3">
                             {[
+                                { href: "/blog", label: "Blog" },
                                 { href: "/acomodacoes", label: "Acomodações" },
                                 { href: "/lazer", label: "Lazer" },
                                 { href: "/contato", label: "Contato" },

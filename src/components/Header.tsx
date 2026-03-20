@@ -28,6 +28,7 @@ export default function Header() {
     }, []);
 
     const navLinks = [
+        { href: "/blog", label: "Blog" },
         { href: "/acomodacoes", label: "Acomodações" },
         { href: "/lazer", label: "Lazer" },
         { href: "/restaurante", label: "Restaurante" },
