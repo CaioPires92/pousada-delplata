@@ -43,7 +43,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
     },
     {
         id: 'paixao-de-cristo-2026',
-        title: 'Paixão de Cristo',
+        title: 'Paixão de Cristo - Páscoa',
         description: 'Feriado prolongado de sexta-feira com alta procura.',
         dateFrom: '2026-04-03',
         dateTo: '2026-04-05',
