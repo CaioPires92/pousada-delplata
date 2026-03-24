@@ -76,6 +76,7 @@ export function RestaurantGallery({ images }: RestaurantGalleryProps) {
                             fill
                             className="object-cover transition-transform duration-700 group-hover:scale-110"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                            quality={74}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
                             <div className="opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-300">
@@ -121,8 +122,8 @@ export function RestaurantGallery({ images }: RestaurantGalleryProps) {
                                 alt={`Restaurante - Foto ${selectedImageIndex + 1}`}
                                 fill
                                 className="object-contain"
-                                quality={100}
-                                priority
+                                sizes="100vw"
+                                quality={84}
                             />
                         </div>
 

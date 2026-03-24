@@ -286,7 +286,8 @@ export default function HomeContent() {
                         src={wing.image.src}
                         alt={wing.image.alt}
                         fill
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 560px"
+                        quality={76}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
@@ -328,7 +329,8 @@ export default function HomeContent() {
                   src={siteImages.leisure.src}
                   alt={siteImages.leisure.alt}
                   fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 560px"
+                  quality={74}
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
@@ -357,7 +359,8 @@ export default function HomeContent() {
                   src={siteImages.breakfast.src}
                   alt={siteImages.breakfast.alt}
                   fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 560px"
+                  quality={74}
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
@@ -385,6 +388,7 @@ export default function HomeContent() {
             alt={siteImages.cta.alt}
             fill
             sizes="100vw"
+            quality={72}
             className="object-cover"
           />
           <div className="absolute inset-0 bg-primary/90" />

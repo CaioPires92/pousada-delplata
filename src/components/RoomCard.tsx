@@ -103,6 +103,8 @@ export function RoomCard({ room }: RoomCardProps) {
                             src={primaryDisplayUrl!}
                             alt={room.name}
                             fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 420px"
+                            quality={76}
                             className="object-cover group-hover:scale-110 transition-transform duration-500"
                         />
                     ) : (
@@ -189,8 +191,8 @@ export function RoomCard({ room }: RoomCardProps) {
                                         alt={`${room.name} photo ${currentPhotoIndex + 1}`}
                                         fill
                                         className="object-contain"
-                                        priority
-                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                                        sizes="100vw"
+                                        quality={84}
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center">

@@ -68,6 +68,8 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                                 src={images[currentImageIndex]}
                                 alt={`${title} - Imagem ${currentImageIndex + 1}`}
                                 fill
+                                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 420px"
+                                quality={74}
                                 className="object-cover transition-transform duration-700 group-hover:scale-105"
                             />
                         </motion.div>
@@ -161,8 +163,8 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                                     alt={`${title} - Fullscreen ${currentImageIndex + 1}`}
                                     fill
                                     className="object-contain"
-                                    priority
-                                    quality={100}
+                                    sizes="100vw"
+                                    quality={84}
                                 />
                             </motion.div>
 
