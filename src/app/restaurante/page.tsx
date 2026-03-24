@@ -1,11 +1,14 @@
 import Image from "next/image";
-import { Metadata } from 'next';
 import { RestaurantGallery } from '@/components/RestaurantGallery';
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-    title: 'Restaurante e Café da Manhã | Pousada Delplata',
-    description: 'Comece seu dia com nosso delicioso café da manhã servido em um ambiente aconchegante e acolhedor.',
-};
+export const metadata = buildPageMetadata({
+    title: "Restaurante e café da manhã em Serra Negra | Pousada Delplata",
+    description:
+        "Conheça o restaurante e o café da manhã da Pousada Delplata em Serra Negra. Ambiente acolhedor para começar o dia com tranquilidade.",
+    path: "/restaurante",
+    image: "/fotos/restaurante/DSC_0002.jpg",
+});
 
 const restaurantImages = [
     '/fotos/restaurante/DSC_0002.jpg',

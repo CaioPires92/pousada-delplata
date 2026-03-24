@@ -1,10 +1,12 @@
-import type { Metadata } from 'next';
 import Link from 'next/link';
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-    title: 'Termos e Condições | Pousada Delplata',
-    description: 'Termos e condições de uso e reserva da Pousada Delplata.',
-};
+export const metadata = buildPageMetadata({
+    title: "Termos e condições de reserva | Pousada Delplata",
+    description:
+        "Leia os termos e condições de uso do site e as regras aplicáveis às reservas realizadas na Pousada Delplata.",
+    path: "/termos-e-condicoes",
+});
 
 export default function TermosECondicoesPage() {
     return (

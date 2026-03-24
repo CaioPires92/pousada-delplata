@@ -1,12 +1,15 @@
 import Image from "next/image";
-import { Metadata } from 'next';
 import { ContactForm } from "@/components/ContactForm";
 import { MapPin, Phone, Mail, MessageCircle, Clock } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-    title: 'Contato | Pousada Delplata',
-    description: 'Entre em contato conosco para reservas, dúvidas ou eventos. Estamos prontos para atender você.',
-};
+export const metadata = buildPageMetadata({
+    title: "Contato da Pousada Delplata | Serra Negra",
+    description:
+        "Fale com a Pousada Delplata para tirar dúvidas, solicitar informações sobre hospedagem e receber suporte para sua reserva em Serra Negra.",
+    path: "/contato",
+    image: "/fotos/jardim-aptos/DSC_0258.jpg",
+});
 
 export default function ContactPage() {
     return (

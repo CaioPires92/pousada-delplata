@@ -1,9 +1,11 @@
-import type { Metadata } from 'next';
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-    title: 'Política de Privacidade | Pousada Delplata',
-    description: 'Política de privacidade da Pousada Delplata.',
-};
+export const metadata = buildPageMetadata({
+    title: "Política de privacidade | Pousada Delplata",
+    description:
+        "Entenda como a Pousada Delplata coleta, utiliza e protege dados pessoais em reservas, atendimento e navegação no site.",
+    path: "/politica-de-privacidade",
+});
 
 export default function PoliticaDePrivacidadePage() {
     return (

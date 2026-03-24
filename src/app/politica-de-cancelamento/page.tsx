@@ -1,9 +1,11 @@
-import type { Metadata } from 'next';
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-    title: 'Política de Cancelamento | Pousada Delplata',
-    description: 'Política de cancelamento e alteração de reservas da Pousada Delplata.',
-};
+export const metadata = buildPageMetadata({
+    title: "Política de cancelamento | Pousada Delplata",
+    description:
+        "Consulte as regras de cancelamento, alteração de datas e no-show aplicáveis às reservas da Pousada Delplata.",
+    path: "/politica-de-cancelamento",
+});
 
 export default function PoliticaDeCancelamentoPage() {
     return (

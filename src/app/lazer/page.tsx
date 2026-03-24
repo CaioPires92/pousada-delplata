@@ -1,10 +1,14 @@
 import Image from "next/image";
 import { LeisureCard } from "@/components/LeisureCard";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-    title: 'Lazer | Pousada Delplata',
-    description: 'Aproveite nossa área de lazer com piscinas, churrasqueiras, sala de jogos e muito mais.',
-}
+export const metadata = buildPageMetadata({
+    title: "Lazer com piscina e área de descanso | Pousada Delplata",
+    description:
+        "Veja a estrutura de lazer da Pousada Delplata em Serra Negra, com piscinas, churrasqueiras, jardim, sala de jogos e espaços para famílias.",
+    path: "/lazer",
+    image: "/fotos/piscina-aptos/DJI_0845.jpg",
+});
 
 interface LeisureItem {
     id: string;

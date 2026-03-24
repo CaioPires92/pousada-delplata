@@ -1,12 +1,29 @@
 import Image from "next/image";
+import type { Metadata } from "next";
+
 import prisma from "@/lib/prisma";
 import { RoomCard } from "@/components/RoomCard";
 import { serializePrismaArray } from "@/lib/serialize-prisma";
+import { buildPageMetadata } from "@/lib/seo";
 
 
 // Revalidate data every 60 seconds (ISR)
 export const revalidate = 60;
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = buildPageMetadata({
+    title: "Acomodações em Serra Negra | Pousada Delplata",
+    description:
+        "Conheça as acomodações da Pousada Delplata em Serra Negra. Compare alas, quartos, capacidade e consulte disponibilidade online.",
+    path: "/acomodacoes",
+    image: "/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp",
+    keywords: [
+        "acomodações em Serra Negra",
+        "quartos em Serra Negra",
+        "chalé em Serra Negra",
+        "onde ficar em Serra Negra",
+    ],
+});
 
 async function getRooms() {
     const rooms = await prisma.roomType.findMany({

@@ -1,15 +1,18 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { cache } from "react";
+
 import prisma from "@/lib/prisma";
- 
 import { serializePrismaEntity } from "@/lib/serialize-prisma";
 import { notFound } from "next/navigation";
 import styles from "./room-details.module.css";
+import { buildPageMetadata, stripHtml } from "@/lib/seo";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
-async function getRoom(id: string) {
+const getRoom = cache(async (id: string) => {
     const room = await prisma.roomType.findUnique({
         where: { id },
         include: {
@@ -19,6 +22,41 @@ async function getRoom(id: string) {
 
     // Serialize Prisma data (Decimal → number, Date → ISO string)
     return room ? serializePrismaEntity(room) : null;
+});
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+    const { id } = await params;
+    const room = await getRoom(id);
+
+    if (!room) {
+        return buildPageMetadata({
+            title: "Acomodação não encontrada | Pousada Delplata",
+            description: "A acomodação procurada não foi encontrada.",
+            path: `/acomodacoes/${id}`,
+            noIndex: true,
+        });
+    }
+
+    const summary = stripHtml(room.description ?? "").slice(0, 155);
+
+    return buildPageMetadata({
+        title: `${room.name} em Serra Negra | Pousada Delplata`,
+        description:
+            summary.length > 0
+                ? summary
+                : `Veja detalhes da acomodação ${room.name}, capacidade, comodidades e disponibilidade na Pousada Delplata.`,
+        path: `/acomodacoes/${room.id}`,
+        image: room.photos[0]?.url,
+        keywords: [
+            room.name,
+            "acomodação em Serra Negra",
+            "quarto na Pousada Delplata",
+        ],
+    });
 }
 
 export default async function RoomDetailsPage({
@@ -60,11 +98,11 @@ export default async function RoomDetailsPage({
                         <div className={styles.placeholderImage}>Sem Foto</div>
                     )}
                     <div className={styles.thumbnails}>
-                        {room.photos.slice(1).map((photo) => (
+                        {room.photos.slice(1).map((photo, index) => (
                             <Image
                                 key={photo.id}
                                 src={photo.url}
-                                alt=""
+                                alt={`${room.name} - foto ${index + 2}`}
                                 className={styles.thumbnail}
                                 width={240}
                                 height={160}

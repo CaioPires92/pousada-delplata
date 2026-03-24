@@ -1,6 +1,18 @@
 import type { Metadata } from "next";
 import { Open_Sans, Raleway, Poppins } from "next/font/google";
 import Script from "next/script";
+
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
+import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
+import {
+  buildLodgingBusinessSchema,
+  buildPageMetadata,
+  buildWebSiteSchema,
+  getSiteUrl,
+} from "@/lib/seo";
+
 import "./globals.css";
 
 const openSans = Open_Sans({
@@ -22,20 +34,33 @@ const poppins = Poppins({
   display: "swap",
 });
 
+const structuredData = [buildWebSiteSchema(), buildLodgingBusinessSchema()];
+
 export const metadata: Metadata = {
-  title: "Hotel Pousada Delplata",
-  description: "Reserve sua estadia no Hotel Pousada Delplata. Conforto e tranquilidade.",
+  ...buildPageMetadata({
+    title: "Pousada em Serra Negra com piscina e café da manhã | Pousada Delplata",
+    description:
+      "Reserve sua hospedagem em Serra Negra no site oficial da Pousada Delplata. Quartos para famílias, lazer, café da manhã e disponibilidade online.",
+    path: "/",
+    keywords: [
+      "pousada em Serra Negra",
+      "hotel em Serra Negra",
+      "reserva de pousada em Serra Negra",
+      "pousada com piscina em Serra Negra",
+      "pousada com café da manhã em Serra Negra",
+    ],
+  }),
+  metadataBase: new URL(getSiteUrl()),
   icons: {
     icon: "/fotos/logo.png",
     shortcut: "/fotos/logo.png",
     apple: "/fotos/logo.png",
   },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
-
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
-import ScrollToTopButton from "@/components/ScrollToTopButton";
 
 const GA_MEASUREMENT_ID = "G-5YN158R31V";
 const GOOGLE_ADS_ID = "AW-871445112";
@@ -61,6 +86,12 @@ export default function RootLayout({
       <body
         className={`${openSans.variable} ${raleway.variable} ${poppins.variable} font-sans antialiased`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData),
+          }}
+        />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
           strategy="afterInteractive"
