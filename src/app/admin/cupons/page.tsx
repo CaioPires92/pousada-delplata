@@ -100,6 +100,7 @@ type CouponForm = {
     id?: string;
     name: string;
     code: string;
+    currentCodePrefix: string;
     generateCode: boolean;
     type: 'PERCENT' | 'FIXED';
     value: string;
@@ -129,6 +130,7 @@ const COUPON_FORM_DRAFT_KEY = 'admin-coupons-form-draft-v1';
 const emptyForm = (): CouponForm => ({
     name: '',
     code: '',
+    currentCodePrefix: '',
     generateCode: true,
     type: 'PERCENT',
     value: '10',
@@ -203,11 +205,12 @@ export default function AdminCuponsPage() {
             const parsed = JSON.parse(rawDraft) as Partial<CouponFormDraft>;
             if (!parsed || typeof parsed !== 'object' || !parsed.form || typeof parsed.form !== 'object') return;
 
-            setForm({
-                ...emptyForm(),
-                ...parsed.form,
-                allowedRoomTypeIds: Array.isArray(parsed.form.allowedRoomTypeIds) ? parsed.form.allowedRoomTypeIds : [],
-            });
+        setForm({
+            ...emptyForm(),
+            ...parsed.form,
+            currentCodePrefix: typeof parsed.form.currentCodePrefix === 'string' ? parsed.form.currentCodePrefix : '',
+            allowedRoomTypeIds: Array.isArray(parsed.form.allowedRoomTypeIds) ? parsed.form.allowedRoomTypeIds : [],
+        });
             setCreatedCode(typeof parsed.createdCode === 'string' ? parsed.createdCode : '');
             setFormOpen(Boolean(parsed.formOpen));
         } catch {
@@ -317,6 +320,7 @@ export default function AdminCuponsPage() {
             ...emptyForm(),
             name: payload.name,
             code: '',
+            currentCodePrefix: '',
             generateCode: payload.generateCode,
             type: payload.type,
             value: String(payload.value),
@@ -344,6 +348,7 @@ export default function AdminCuponsPage() {
             id: coupon.id,
             name: coupon.name,
             code: '',
+            currentCodePrefix: coupon.codePrefix,
             generateCode: false,
             type: coupon.type,
             value: String(coupon.value),
@@ -653,8 +658,19 @@ export default function AdminCuponsPage() {
                                 <input
                                     value={form.code}
                                     onChange={(e) => setForm({ ...form, code: e.target.value, generateCode: false })}
-                                    placeholder={isEdit ? 'Codigo atual protegido. Preencha so para trocar' : 'Ex: VIP10'}
+                                    placeholder={
+                                        isEdit
+                                            ? form.currentCodePrefix
+                                                ? `Atual salvo: ${form.currentCodePrefix}******. Preencha so para trocar`
+                                                : 'Codigo atual protegido. Preencha so para trocar'
+                                            : 'Ex: VIP10'
+                                    }
                                 />
+                                {isEdit && form.currentCodePrefix ? (
+                                    <small className={styles.fieldHint}>
+                                        Codigo atual salvo: <strong>{form.currentCodePrefix}******</strong>
+                                    </small>
+                                ) : null}
                             </div>
                             {!isEdit ? (
                                 <div className={styles.field}>

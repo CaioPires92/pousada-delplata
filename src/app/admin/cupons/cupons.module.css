@@ -149,6 +149,12 @@
     font-size: 0.9rem;
 }
 
+.fieldHint {
+    color: #64748b;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
 .checkboxRow {
     display: flex;
     align-items: center;
