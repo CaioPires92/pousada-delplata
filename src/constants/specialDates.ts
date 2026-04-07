@@ -31,27 +31,6 @@ export const SPECIAL_DATE_BANNER_LEAD_DAYS = 30;
 
 export const SPECIAL_DATES: SpecialDateConfig[] = [
     {
-        id: 'baixa-temporada-marco-2026',
-        title: 'Março - Baixa Temporada',
-        description: 'Baixa temporada em março com valores promocionais e mais tranquilidade para descansar.',
-        dateFrom: '2026-03-01',
-        dateTo: '2026-03-31',
-        useBaseReservarPath: true,
-        image: '/fotos/piscina-aptos/DJI_0845.jpg',
-        bannerLabel: 'Março promocional: aproveite valores especiais na baixa temporada.',
-        enabled: true,
-    },
-    {
-        id: 'paixao-de-cristo-2026',
-        title: 'Paixão de Cristo - Páscoa',
-        description: 'Feriado prolongado de sexta-feira com alta procura.',
-        dateFrom: '2026-04-03',
-        dateTo: '2026-04-05',
-        image: '/fotos/piscina-aptos/DJI_0845.jpg',
-        minNights: 2,
-        enabled: true,
-    },
-    {
         id: 'tiradentes-2026',
         title: 'Tiradentes',
         description: 'Feriado prolongado de Tiradentes com mínimo de 3 diárias.',
