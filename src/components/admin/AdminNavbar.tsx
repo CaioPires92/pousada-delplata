@@ -18,6 +18,7 @@ export default function AdminNavbar() {
     const navItems: NavItem[] = [
         { href: '/admin/dashboard', label: '📊 Dashboard' },
         { href: '/admin/reservas', label: '📋 Reservas' },
+        { href: '/admin/reserva-manual', label: '📝 Reserva Manual' },
         { href: '/admin/quartos', label: '🏠 Quartos' },
         { href: '/admin/mapa', label: '📅 Mapa de Tarifas' },
         { href: '/admin/cupons', label: '🎟️ Cupons' },
