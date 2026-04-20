@@ -15,6 +15,7 @@ export async function POST(request: Request) {
             guestName,
             guestEmail,
             guestPhone,
+            guestCpf,
             checkIn,
             checkOut,
             roomTypeId,
@@ -81,15 +82,16 @@ export async function POST(request: Request) {
         // 4. Criar Preferência no Mercado Pago
         const accessToken = process.env.MP_ACCESS_TOKEN;
         
-        // Detectar a URL base para os redirecionamentos (back_urls)
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+        // Detectar a URL base dinâmica para os redirecionamentos (back_urls)
+        // Isso garante que no localhost ele volte para o localhost, e em produção para o domínio correto.
+        const host = request.headers.get('host') || 'localhost:3000';
+        const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+        const dynamicBaseUrl = `${protocol}://${host}`;
+        
+        // URL base pública configurada para o Webhook (Mercado Pago exige HTTPS e URL pública)
+        const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
             process.env.NEXT_PUBLIC_APP_URL ||
             `https://${process.env.VERCEL_URL}`;
-        
-        // URL base pública específica para o Webhook (caso baseUrl local seja http:// localhost)
-        const webhookBaseUrl = (baseUrl.startsWith('http://localhost') || baseUrl.startsWith('http://127.0.0.1'))
-            ? (process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}`)
-            : baseUrl;
 
         const phoneNumber = booking.guest.phone.replace(/\D/g, '');
 
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
                     title: `Reserva Manual - ${booking.roomType.name}`,
                     description: `Hóspede: ${booking.guest.name} | Período: ${checkIn} a ${checkOut}`,
                     quantity: 1,
-                    unit_price: Number(booking.totalPrice),
+                    unit_price: Number(Number(booking.totalPrice).toFixed(2)),
                     currency_id: 'BRL',
                 },
             ],
@@ -111,16 +113,24 @@ export async function POST(request: Request) {
                     area_code: phoneNumber.substring(0, 2) || '11',
                     number: phoneNumber.substring(2) || '999999999',
                 },
+                identification: guestCpf ? {
+                    type: 'CPF',
+                    number: guestCpf.replace(/\D/g, '')
+                } : undefined,
             },
             back_urls: {
-                success: `${baseUrl}/admin/reservas`,
-                failure: `${baseUrl}/admin/reserva-manual?error=payment_failed&bookingId=${booking.id}`,
-                pending: `${baseUrl}/admin/reservas`,
+                success: `${dynamicBaseUrl}/admin/reservas`,
+                failure: `${dynamicBaseUrl}/admin/reserva-manual?error=payment_failed&bookingId=${booking.id}`,
+                pending: `${dynamicBaseUrl}/admin/reservas`,
             },
             auto_return: 'approved',
             external_reference: booking.id,
-            notification_url: webhookBaseUrl.startsWith('https') ? `${webhookBaseUrl}/api/webhooks/mercadopago` : undefined,
+            notification_url: publicBaseUrl.startsWith('https') ? `${publicBaseUrl}/api/webhooks/mercadopago` : undefined,
         };
+
+        // Diagnóstico de Credenciais
+        const isTestMode = accessToken?.startsWith('TEST-');
+        console.log(`[MP Manual Booking] Modo: ${isTestMode ? 'TESTE (SandBox)' : 'PRODUÇÃO'} | BaseUrl: ${dynamicBaseUrl}`);
 
         const apiResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
             method: 'POST',
@@ -133,8 +143,17 @@ export async function POST(request: Request) {
 
         if (!apiResponse.ok) {
             const errorData = await apiResponse.json().catch(() => ({ message: 'Erro ao criar preferência' }));
+            console.error('MERCADO PAGO PREFERENCE ERROR:', {
+                status: apiResponse.status,
+                data: errorData,
+                sentData: preferenceData
+            });
             return NextResponse.json(
-                { error: 'Falha ao criar link de pagamento', details: errorData.message },
+                { 
+                    error: 'Falha ao criar link de pagamento', 
+                    details: errorData.message || 'Erro na API do Mercado Pago',
+                    mp_details: errorData
+                },
                 { status: apiResponse.status }
             );
         }

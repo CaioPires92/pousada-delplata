@@ -20,7 +20,7 @@ export default function ReservaManualPage() {
     const [formData, setFormData] = useState({
         guestName: '',
         guestEmail: '',
-        guestPhone: '',
+        guestCpf: '',
         checkIn: '',
         checkOut: '',
         roomTypeId: '',
@@ -110,6 +110,15 @@ export default function ReservaManualPage() {
             <header className={styles.stickyHeader}>
                 <div className={styles.headerTitleRow}>
                     <h2 className={styles.pageTitle}>Nova Reserva Manual</h2>
+                    {process.env.NEXT_PUBLIC_MP_PUBLIC_KEY?.startsWith('TEST-') ? (
+                        <span className="ml-4 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded border border-amber-200">
+                            MODO TESTE (SANDBOX)
+                        </span>
+                    ) : (
+                        <span className="ml-4 px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded border border-green-200">
+                            MODO PRODUÇÃO
+                        </span>
+                    )}
                 </div>
             </header>
 
@@ -149,6 +158,19 @@ export default function ReservaManualPage() {
                                         className="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
                                         placeholder="email@exemplo.com"
                                     />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-sm font-medium text-slate-700">CPF/CNPJ (Pagador)</label>
+                                    <input
+                                        required
+                                        type="text"
+                                        name="guestCpf"
+                                        value={formData.guestCpf}
+                                        onChange={handleChange}
+                                        className="w-full p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="000.000.000-00"
+                                    />
+                                    <p className="text-[10px] text-slate-400 leading-tight">Necessário para aprovação do Mercado Pago.</p>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-slate-700">Telefone</label>

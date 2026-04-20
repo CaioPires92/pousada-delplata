@@ -14,8 +14,14 @@ export async function POST(request: Request) {
         if (!booking) return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
 
         const accessToken = process.env.MP_ACCESS_TOKEN;
-        // Tenta usar a variável que você já tem configurada na Vercel
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+        
+        // Detectar a URL base dinâmica para os redirecionamentos (back_urls)
+        const host = request.headers.get('host') || 'localhost:3000';
+        const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+        const dynamicBaseUrl = `${protocol}://${host}`;
+        
+        // URL base pública configurada para o Webhook (Mercado Pago exige HTTPS e URL pública)
+        const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
             process.env.NEXT_PUBLIC_APP_URL ||
             `https://${process.env.VERCEL_URL}`;
 
@@ -27,7 +33,7 @@ export async function POST(request: Request) {
                     id: booking.roomType.id,
                     title: `Pousada Delplata - ${booking.roomType.name}`,
                     quantity: 1,
-                    unit_price: Number(booking.totalPrice),
+                    unit_price: Number(Number(booking.totalPrice).toFixed(2)),
                     currency_id: 'BRL',
                 },
             ],
@@ -40,13 +46,13 @@ export async function POST(request: Request) {
                 },
             },
             back_urls: {
-                success: `${baseUrl}/reservar/confirmacao/${booking.id}`,
-                failure: `${baseUrl}/reservar/confirmacao/${booking.id}`,
-                pending: `${baseUrl}/reservar/confirmacao/${booking.id}`,
+                success: `${dynamicBaseUrl}/reservar/confirmacao/${booking.id}`,
+                failure: `${dynamicBaseUrl}/reservar/confirmacao/${booking.id}`,
+                pending: `${dynamicBaseUrl}/reservar/confirmacao/${booking.id}`,
             },
             auto_return: 'approved',
             external_reference: booking.id,
-            notification_url: baseUrl.startsWith('https') ? `${baseUrl}/api/webhooks/mercadopago` : undefined,
+            notification_url: publicBaseUrl.startsWith('https') ? `${publicBaseUrl}/api/webhooks/mercadopago` : undefined,
         };
 
         const apiResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
