@@ -24,9 +24,16 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: cspHeader,
-          },
-        ],
+            value: [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://www.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms https://*.sentry.io",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "img-src 'self' data: https: blob:",
+                "font-src 'self' https://fonts.gstatic.com",
+                "frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com",
+                "connect-src 'self' https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://www.google-analytics.com https://*.clarity.ms https://*.sentry.io"
+            ].join('; ')
+        },
       },
     ];
   },
