@@ -1,21 +1,5 @@
 import type { NextConfig } from "next";
 
-const cspHeader = `
-    default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://www.googletagmanager.com https://www.google-analytics.com https://*.clarity.ms https://*.mercadopago.com https://*.mercadolibre.com;
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://*.mercadopago.com https://*.mercadolibre.com https://images.unsplash.com https://picsum.photos;
-    font-src 'self' data:;
-    object-src 'none';
-    base-uri 'self';
-    form-action 'self';
-    frame-ancestors 'none';
-    frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com;
-    connect-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://www.google-analytics.com https://*.clarity.ms https://*.sentry.io;
-    block-all-mixed-content;
-    upgrade-insecure-requests;
-`.replace(/\n/g, "").replace(/\s{2,}/g, " ").trim();
-
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -33,7 +17,8 @@ const nextConfig: NextConfig = {
                 "frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com",
                 "connect-src 'self' https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://www.google-analytics.com https://*.clarity.ms https://*.sentry.io"
             ].join('; ')
-        },
+          },
+        ],
       },
     ];
   },
