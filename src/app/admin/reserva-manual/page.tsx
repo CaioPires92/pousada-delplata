@@ -21,6 +21,7 @@ export default function ReservaManualPage() {
         guestName: '',
         guestEmail: '',
         guestCpf: '',
+        guestPhone: '',
         checkIn: '',
         checkOut: '',
         roomTypeId: '',
