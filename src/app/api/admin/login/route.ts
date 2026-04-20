@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
             value: token,
             httpOnly: true,
             secure: isProd,
-            sameSite: 'strict',
+            sameSite: 'lax',
             path: '/',
             maxAge: maxAgeSeconds,
         });

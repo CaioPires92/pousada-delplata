@@ -81,15 +81,15 @@ export async function POST(request: Request) {
         // 4. Criar Preferência no Mercado Pago
         const accessToken = process.env.MP_ACCESS_TOKEN;
         
-        // Detectar a URL base dinamicamente para os redirecionamentos (back_urls)
-        const host = request.headers.get('host');
-        const protocol = request.headers.get('x-forwarded-proto') || 'http';
-        const dynamicBaseUrl = `${protocol}://${host}`;
-        
-        // URL base estática para o Webhook (precisa ser pública)
-        const publicBaseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+        // Detectar a URL base para os redirecionamentos (back_urls)
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
             process.env.NEXT_PUBLIC_APP_URL ||
             `https://${process.env.VERCEL_URL}`;
+        
+        // URL base pública específica para o Webhook (caso baseUrl local seja http:// localhost)
+        const webhookBaseUrl = (baseUrl.startsWith('http://localhost') || baseUrl.startsWith('http://127.0.0.1'))
+            ? (process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}`)
+            : baseUrl;
 
         const phoneNumber = booking.guest.phone.replace(/\D/g, '');
 
@@ -113,13 +113,13 @@ export async function POST(request: Request) {
                 },
             },
             back_urls: {
-                success: `${dynamicBaseUrl}/admin/reservas`,
-                failure: `${dynamicBaseUrl}/admin/reserva-manual?error=payment_failed&bookingId=${booking.id}`,
-                pending: `${dynamicBaseUrl}/admin/reservas`,
+                success: `${baseUrl}/admin/reservas`,
+                failure: `${baseUrl}/admin/reserva-manual?error=payment_failed&bookingId=${booking.id}`,
+                pending: `${baseUrl}/admin/reservas`,
             },
             auto_return: 'approved',
             external_reference: booking.id,
-            notification_url: publicBaseUrl.startsWith('https') ? `${publicBaseUrl}/api/webhooks/mercadopago` : undefined,
+            notification_url: webhookBaseUrl.startsWith('https') ? `${webhookBaseUrl}/api/webhooks/mercadopago` : undefined,
         };
 
         const apiResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
