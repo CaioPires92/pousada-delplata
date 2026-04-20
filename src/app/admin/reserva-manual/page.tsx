@@ -23,6 +23,7 @@ export default function ReservaManualPage() {
     const [paymentStatusMessage, setPaymentStatusMessage] = useState('');
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const paymentBrickRef = useRef<any>(null);
+    const pollRef = useRef<number | null>(null);
     const paymentSectionId = 'manualPaymentSection';
     const paymentContainerId = 'manualPaymentBrick_container';
 
@@ -130,6 +131,7 @@ export default function ReservaManualPage() {
             setPaymentStatus('idle');
             setPaymentStatusMessage('');
             setPixData(null);
+            setLoading(false);
 
             setTimeout(() => {
                 document.getElementById(paymentSectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -179,11 +181,14 @@ export default function ReservaManualPage() {
                     await paymentBrickRef.current.unmount();
                 }
 
-                paymentBrickRef.current = await bricksBuilder.create('payment', paymentContainerId, {
-                    initialization: {
-                        amount: paymentAmount,
-                        payer: buildPayerData(),
-                    },
+                    paymentBrickRef.current = await bricksBuilder.create('payment', paymentContainerId, {
+                        initialization: {
+                            amount: paymentAmount,
+                            payer: {
+                                ...buildPayerData(),
+                                entityType: 'individual',
+                            },
+                        },
                     customization: {
                         paymentMethods: {
                             creditCard: 'all',
@@ -267,8 +272,54 @@ export default function ReservaManualPage() {
         initBrick();
         return () => {
             cancelled = true;
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
         };
     }, [buildPayerData, paymentAmount, paymentBookingId]);
+
+    useEffect(() => {
+        if (!paymentBookingId) return;
+        if (pollRef.current) return;
+
+        pollRef.current = window.setInterval(async () => {
+            try {
+                const res = await fetch(`/api/bookings/${paymentBookingId}`);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                if (data?.status === 'CONFIRMED') {
+                    setPaymentStatus('approved');
+                    setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
+                    if (pollRef.current) {
+                        window.clearInterval(pollRef.current);
+                        pollRef.current = null;
+                    }
+                    window.location.href = '/admin/reservas';
+                    return;
+                }
+
+                if (data?.status === 'CANCELLED') {
+                    setPaymentStatus('rejected');
+                    setPaymentStatusMessage('Pagamento recusado. Tente outro método.');
+                    if (pollRef.current) {
+                        window.clearInterval(pollRef.current);
+                        pollRef.current = null;
+                    }
+                }
+            } catch {
+                // ignore transient network errors
+            }
+        }, 10000);
+
+        return () => {
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current);
+                pollRef.current = null;
+            }
+        };
+    }, [paymentBookingId]);
 
     if (roomsLoading) {
         return <div className={styles.loading}>Carregando formulário...</div>;
