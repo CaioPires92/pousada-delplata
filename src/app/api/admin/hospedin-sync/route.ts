@@ -17,9 +17,9 @@ export async function POST(request: Request) {
         const roomTypes = await prisma.roomType.findMany({
             where: { 
                 externalId: { 
-                    not: null,
-                    not: '' 
+                    not: null
                 },
+                NOT: { externalId: '' },
                 ...(roomTypeId && { id: roomTypeId })
             }
         });

@@ -854,7 +854,7 @@ export default function MapaReservas() {
                 if (d.date === date) {
                     if (field === 'inventory') {
                         const newTotal = Number(value);
-                        return { ...d, totalInventory: newTotal, available: newTotal - (d.reservations || 0) };
+                        return { ...d, totalInventory: newTotal, available: newTotal - (d.bookingsCount || 0) };
                     }
                     if (field === 'fourGuestInventory') {
                         return { ...d, fourGuestInventory: Number(value) };

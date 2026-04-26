@@ -9,7 +9,13 @@ if (!url || !authToken) {
     process.exit(1);
 }
 
-const client = createClient({ url, authToken });
+if (!url.startsWith('libsql:') && !url.startsWith('wss:')) {
+    console.error('DATABASE_URL must point to Turso (libsql:// or wss://) for this migration script');
+    process.exit(1);
+}
+
+const libsqlUrl = url.split('?')[0];
+const client = createClient({ url: libsqlUrl, authToken });
 
 async function getColumns(table) {
     const res = await client.execute(`PRAGMA table_info("${table}")`);
@@ -37,15 +43,64 @@ async function ensureColumns(table, defs) {
     return added;
 }
 
+async function getIndexes(table) {
+    const res = await client.execute({
+        sql: `
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'index'
+              AND tbl_name = ?
+        `,
+        args: [table],
+    });
+    const indexes = new Set();
+    for (const row of res.rows || []) {
+        const name = (row && (row.name ?? row[0])) ?? null;
+        if (name) indexes.add(String(name));
+    }
+    return indexes;
+}
+
+async function ensureRateUniqueIndex() {
+    const indexName = 'Rate_roomTypeId_startDate_endDate_key';
+    const indexes = await getIndexes('Rate');
+    if (indexes.has(indexName)) {
+        console.log(`OK: ${indexName}`);
+        return 0;
+    }
+
+    const duplicates = await client.execute(`
+        SELECT roomTypeId, startDate, endDate, COUNT(*) AS count
+        FROM Rate
+        GROUP BY roomTypeId, startDate, endDate
+        HAVING COUNT(*) > 1
+        LIMIT 5
+    `);
+
+    if ((duplicates.rows || []).length > 0) {
+        console.error('Duplicate Rate rows found. Resolve these before creating the unique index:');
+        console.error(duplicates.rows);
+        throw new Error(`Cannot create ${indexName} while duplicate Rate rows exist`);
+    }
+
+    await client.execute(
+        'CREATE UNIQUE INDEX "Rate_roomTypeId_startDate_endDate_key" ON "Rate"("roomTypeId", "startDate", "endDate")'
+    );
+    console.log(`ADDED: ${indexName}`);
+    return 1;
+}
+
 async function migrate() {
     console.log('Turso migration: checking schema drift...');
 
     const roomTypeDefs = [
         { name: 'maxGuests', ddl: 'ALTER TABLE RoomType ADD COLUMN maxGuests INTEGER NOT NULL DEFAULT 3' },
+        { name: 'inventoryFor4Guests', ddl: 'ALTER TABLE RoomType ADD COLUMN inventoryFor4Guests INTEGER NOT NULL DEFAULT 0' },
         { name: 'includedAdults', ddl: 'ALTER TABLE RoomType ADD COLUMN includedAdults INTEGER NOT NULL DEFAULT 2' },
         { name: 'totalUnits', ddl: 'ALTER TABLE RoomType ADD COLUMN totalUnits INTEGER NOT NULL DEFAULT 1' },
         { name: 'extraAdultFee', ddl: 'ALTER TABLE RoomType ADD COLUMN extraAdultFee NUMERIC NOT NULL DEFAULT 0' },
         { name: 'child6To11Fee', ddl: 'ALTER TABLE RoomType ADD COLUMN child6To11Fee NUMERIC NOT NULL DEFAULT 0' },
+        { name: 'externalId', ddl: 'ALTER TABLE RoomType ADD COLUMN externalId TEXT' },
     ];
 
     const rateDefs = [
@@ -57,8 +112,9 @@ async function migrate() {
 
     const addedRoomType = await ensureColumns('RoomType', roomTypeDefs);
     const addedRate = await ensureColumns('Rate', rateDefs);
+    const addedRateIndexes = await ensureRateUniqueIndex();
 
-    const totalAdded = addedRoomType + addedRate;
+    const totalAdded = addedRoomType + addedRate + addedRateIndexes;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');

@@ -19,7 +19,7 @@ function ensureTursoEnv() {
   if (!token) {
     throw new Error('DATABASE_AUTH_TOKEN ausente');
   }
-  return { url, token };
+  return { url: url.split('?')[0], token };
 }
 
 function listMigrationFiles() {

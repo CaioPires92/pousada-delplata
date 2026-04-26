@@ -52,3 +52,5 @@ deploy-hostinger-lean
 # local sqlite artifacts
 *.db
 *.db-journal
+/db
+/db-wal

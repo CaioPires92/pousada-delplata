@@ -14,11 +14,12 @@ const authToken = process.env.DATABASE_AUTH_TOKEN || '';
 
 // Verifica se a ligação é para o Turso (protocolo libsql:// ou sxtlo://)
 const isTurso = databaseUrl.startsWith('libsql:') || databaseUrl.startsWith('wss:');
+const libsqlUrl = isTurso ? databaseUrl.split('?')[0] : databaseUrl;
 
 if (isTurso) {
   // Configuração para o Turso usando o Driver Adapter
   const libsql = createClient({
-    url: databaseUrl,
+    url: libsqlUrl,
     authToken: authToken,
   });
 
