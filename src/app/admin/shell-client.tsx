@@ -9,9 +9,9 @@ export default function AdminShellClient({ children }: { children: React.ReactNo
     if (pathname === '/admin/login') return <>{children}</>;
 
     return (
-        <div style={{ minHeight: '100vh', background: '#f5f7fa' }}>
+        <div className="flex min-h-screen bg-[#F8FAFC]">
             <AdminNavbar />
-            <main className="p-6 max-w-[1400px] mx-auto">{children}</main>
+            <main className="flex-1 p-10 overflow-y-auto">{children}</main>
         </div>
     );
 }

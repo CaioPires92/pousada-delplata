@@ -26,6 +26,15 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { OCCUPANCY_BAND_LABEL, getOccupancyMetrics, type OccupancyBand } from './occupancy';
+import { RoomRow } from './components/RoomRow';
+import { 
+    Calendar, 
+    Filter, 
+    Zap, 
+    ChevronLeft, 
+    ChevronRight,
+    Settings2
+} from 'lucide-react';
 import InventoryStepper from './inventory-stepper';
 import {
     WEEKDAYS,
@@ -807,6 +816,66 @@ export default function MapaReservas() {
         start: listVisibleStart,
         end: listQueryInterval.end
     });
+    const roomDataMap = useMemo(() => {
+        const map: Record<string, Record<string, CalendarData>> = {};
+        Object.entries(calendarDataByRoom).forEach(([roomId, dataArray]) => {
+            map[roomId] = {};
+            dataArray.forEach(d => {
+                map[roomId][d.date] = d;
+            });
+        });
+        return map;
+    }, [calendarDataByRoom]);
+
+    const handleRateUpdate = useCallback(async (roomId: string, date: string, field: string, value: any) => {
+        const dateObj = parseISO(date);
+        
+        // Update local state immediately for snappy feel (Optimistic UI)
+        setCalendarDataByRoom(prev => {
+            const roomData = prev[roomId] || [];
+            const newData = roomData.map(d => {
+                if (d.date === date) {
+                    if (field === 'inventory') {
+                        const newTotal = Number(value);
+                        return { ...d, totalInventory: newTotal, available: newTotal - (d.reservations || 0) };
+                    }
+                    if (field === 'fourGuestInventory') {
+                        return { ...d, fourGuestInventory: Number(value) };
+                    }
+                    if (field === 'status') {
+                        return { ...d, stopSell: value === 'FECHADO' };
+                    }
+                    return { ...d, [field]: value };
+                }
+                return d;
+            });
+            return { ...prev, [roomId]: newData };
+        });
+
+        try {
+            if (field === 'inventory') {
+                await persistInventory(date, Number(value), roomId);
+            } else if (field === 'fourGuestInventory') {
+                await persistFourGuestInventory(date, Number(value), roomId);
+            } else {
+                const apiFieldMap: Record<string, string> = {
+                    'status': 'stopSell',
+                    'price': 'price',
+                    'cta': 'cta',
+                    'ctd': 'ctd'
+                };
+                const apiField = apiFieldMap[field] || field;
+                let apiValue = value;
+                if (apiField === 'stopSell') apiValue = (value === 'FECHADO');
+                
+                await saveSingleDayRate(dateObj, { [apiField]: apiValue }, false, roomId);
+            }
+        } catch (error) {
+            console.error('Update failed:', error);
+            // The existing handlers already show toasts for errors
+        }
+    }, [saveSingleDayRate, persistInventory, persistFourGuestInventory]);
+
     const monthDayKeys = useMemo(() => monthDays.map(day => format(day, 'yyyy-MM-dd')), [monthDays]);
     const todayKey = format(today, 'yyyy-MM-dd');
     const todayLabel = format(today, 'dd/MM/yyyy');
@@ -1168,545 +1237,178 @@ export default function MapaReservas() {
         return () => window.removeEventListener('mousedown', handlePointerDown);
     }, [clearInventorySelection, inventorySelection]);
 
-    const renderListRowsForRoom = (room: RoomType) => (
-        <Fragment key={room.id}>
-            <tr>
-                <td className={styles.stickyCol} style={{ background: '#eef2ff', fontWeight: 800 }}>
-                    <button
-                        type="button"
-                        onClick={() => toggleRoomCollapsed(room.id)}
-                        aria-label={collapsedRooms[room.id] ? `Expandir ${room.name}` : `Recolher ${room.name}`}
-                        style={{
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: 'pointer',
-                            color: '#1e3a8a',
-                            fontWeight: 800,
-                            fontSize: '1rem',
-                            marginRight: '0.5rem',
-                            width: '1.1rem',
-                            textAlign: 'center'
-                        }}
-                    >
-                        {collapsedRooms[room.id] ? '>' : 'v'}
-                    </button>
-                    <span>🏨 {room.name}</span>
-                </td>
-                <td colSpan={monthDays.length} style={{ textAlign: 'left', paddingLeft: '1rem', background: '#f8fafc', color: '#475569', fontWeight: 600 }}>
-                    <span>Visualização diária de disponibilidade, ocupação e restrições.</span>
-                </td>
-            </tr>
-
-            {!collapsedRooms[room.id] && (
-                <>
-            <tr>
-                <td className={styles.stickyCol}>Status</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isTodayCol = dateStr === todayKey;
-                    const isClosed = data?.stopSell;
-                    const isZero = (data?.available ?? 1) <= 0;
-                    return (
-                        <td
-                            key={`${room.id}-status-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}
-                            onClick={() => updateRateField(day, 'stopSell', !isClosed, room.id)}
-                        >
-                            <div className={`${styles.statusPill} ${(isClosed || isZero) ? styles.closed : styles.open}`}>
-                                {isClosed ? 'FECHADO' : (isZero ? 'ESGOTADO' : 'ABERTO')}
-                            </div>
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Ocupação</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const bookingsCount = data?.bookingsCount ?? 0;
-                    const capacityTotal = data?.capacityTotal ?? 0;
-                    const isClosed = data?.stopSell ?? false;
-                    const occupancy = getOccupancyMetrics(data);
-                    const occupancyBandClass = getOccupancyBandClass(occupancy.band);
-                    const occupancyLabel = occupancy.band ? OCCUPANCY_BAND_LABEL[occupancy.band] : null;
-                    const occupancyPctLabel = occupancy.occupancyPct === null ? '—' : `${Math.round(occupancy.occupancyPct)}%`;
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isTodayCol = dateStr === todayKey;
-                    return (
-                        <td key={`${room.id}-occupancy-${dateStr}`} className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''}`}>
-                            <div className={`${styles.occupancySummaryCard} ${isClosed ? styles.inventoryClosed : occupancyBandClass}`}>
-                                <span className={styles.occupancyMeta}>
-                                    Reservados: {bookingsCount} | Capacidade física: {capacityTotal}
-                                </span>
-                                <span className={`${styles.occupancyRow} ${isClosed ? styles.occupancyRowClosed : ''}`}>
-                                    Ocupação: <strong>{occupancyPctLabel}</strong>
-                                    {occupancyLabel && (
-                                        <span className={`${styles.occupancyBadge} ${isClosed ? styles.occupancyBadgeClosed : occupancyBandClass}`}>
-                                            {occupancyLabel}
-                                        </span>
-                                    )}
-                                </span>
-                            </div>
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Standard</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const available = data?.available ?? 0;
-                    const isClosed = data?.stopSell ?? false;
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const inventoryKey = `${room.id}:${dateStr}`;
-                    const isTodayCol = dateStr === todayKey;
-                    const maxAllowed = getInventoryMaxAllowed({
-                        field: 'inventory',
-                        capacityTotal: data?.capacityTotal,
-                        bookingsCount: data?.bookingsCount,
-                    });
-                    const isSelected = inventorySelection?.roomId === room.id
-                        && inventorySelection.field === 'inventory'
-                        && selectedInventoryDates.includes(dateStr);
-                    return (
-                        <td
-                            key={`${room.id}-inventory-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
-                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'inventory', dateStr)}
-                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'inventory', dateStr)}
-                            data-inventory-selection-cell="true"
-                            data-testid={`inventory-cell-${room.id}-${dateStr}`}
-                        >
-                            <InventoryStepper
-                                className={`${styles.inventoryStepper} ${isClosed || available <= 0 ? styles.inventoryStepperBlocked : styles.inventoryStepperAvailable}`}
-                                value={available}
-                                displayValue={updatingInventory === inventoryKey ? '...' : String(available)}
-                                isLoading={updatingInventory === inventoryKey}
-                                maxValue={maxAllowed}
-                                decrementDisabled={available <= 0}
-                                incrementDisabled={available >= maxAllowed}
-                                decrementLabel={`Diminuir standard de ${room.name} em ${dateStr}`}
-                                incrementLabel={`Aumentar standard de ${room.name} em ${dateStr}`}
-                                onDecrement={() => updateRateField(day, 'inventory', Math.max(0, available - 1), room.id)}
-                                onIncrement={() => updateRateField(day, 'inventory', Math.min(maxAllowed, available + 1), room.id)}
-                                onCommit={(nextValue) => updateRateField(day, 'inventory', nextValue, room.id)}
-                                onInvalid={(message) => showToast('error', `${message} (${dateStr})`)}
-                            />
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Quadruplo</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isTodayCol = dateStr === todayKey;
-                    const maxInventory = Math.max(0, Number(room.inventoryFor4Guests ?? data?.fourGuestCapacityTotal ?? 0));
-                    const fourGuestInventory = Math.max(0, Math.min(maxInventory, Number(data?.fourGuestInventory ?? maxInventory)));
-                    const bookingsFor4GuestsCount = Math.max(0, Number(data?.bookingsFor4GuestsCount ?? 0));
-                    const isUpdating = updatingFourGuestInventory === `${room.id}:${dateStr}`;
-                    const canDecrease = !isUpdating && maxInventory > 0 && fourGuestInventory > 0;
-                    const canIncrease = !isUpdating && maxInventory > 0 && fourGuestInventory < maxInventory;
-                    const maxAllowed = getInventoryMaxAllowed({
-                        field: 'fourGuestInventory',
-                        fourGuestCapacityTotal: data?.fourGuestCapacityTotal ?? maxInventory,
-                        bookingsFor4GuestsCount,
-                    });
-                    const isSelected = inventorySelection?.roomId === room.id
-                        && inventorySelection.field === 'fourGuestInventory'
-                        && selectedInventoryDates.includes(dateStr);
-
-                    return (
-                        <td
-                            key={`${room.id}-four-guest-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
-                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'fourGuestInventory', dateStr)}
-                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'fourGuestInventory', dateStr)}
-                            data-inventory-selection-cell="true"
-                            data-testid={`four-guest-cell-${room.id}-${dateStr}`}
-                        >
-                            <InventoryStepper
-                                className={`${styles.fourGuestStepper} ${maxInventory <= 0 ? styles.fourGuestStepperDisabled : fourGuestInventory <= 0 ? styles.fourGuestStepperBlocked : styles.fourGuestStepperAvailable}`}
-                                displayValue={isUpdating ? '...' : maxInventory <= 0 ? 'N/A' : String(fourGuestInventory)}
-                                value={maxInventory <= 0 ? 0 : fourGuestInventory}
-                                isLoading={isUpdating}
-                                editingDisabled={maxInventory <= 0}
-                                maxValue={maxAllowed}
-                                decrementDisabled={!canDecrease}
-                                incrementDisabled={!canIncrease}
-                                decrementLabel={`Diminuir quadruplo de ${room.name} em ${dateStr}`}
-                                incrementLabel={`Aumentar quadruplo de ${room.name} em ${dateStr}`}
-                                onDecrement={() => updateRateField(day, 'fourGuestInventory', Math.max(0, fourGuestInventory - 1), room.id)}
-                                onIncrement={() => updateRateField(day, 'fourGuestInventory', Math.min(maxAllowed, fourGuestInventory + 1), room.id)}
-                                onCommit={(nextValue) => updateRateField(day, 'fourGuestInventory', nextValue, room.id)}
-                                onInvalid={(message) => showToast('error', `${message} (${dateStr})`)}
-                            />
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Preço (R$)</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const price = data ? data.price : Number(room.basePrice || 0);
-                    const isTodayCol = dateStr === todayKey;
-                    const isSelected = inventorySelection?.roomId === room.id
-                        && inventorySelection.field === 'price'
-                        && selectedInventoryDates.includes(dateStr);
-                    return (
-                        <td
-                            key={`${room.id}-price-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
-                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'price', dateStr)}
-                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'price', dateStr)}
-                            data-inventory-selection-cell="true"
-                            data-testid={`price-cell-${room.id}-${dateStr}`}
-                        >
-                            <EditableCell
-                                type="number"
-                                value={price}
-                                onSave={(val) => updateRateField(day, 'price', val, room.id)}
-                            />
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Min. Noites</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const minLos = data ? data.minLos : 1;
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isTodayCol = dateStr === todayKey;
-                    const isSelected = inventorySelection?.roomId === room.id
-                        && inventorySelection.field === 'minLos'
-                        && selectedInventoryDates.includes(dateStr);
-                    return (
-                        <td
-                            key={`${room.id}-minlos-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
-                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'minLos', dateStr)}
-                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'minLos', dateStr)}
-                            data-inventory-selection-cell="true"
-                            data-testid={`minlos-cell-${room.id}-${dateStr}`}
-                        >
-                            <EditableCell
-                                type="number"
-                                min="1"
-                                value={minLos}
-                                onSave={(val) => updateRateField(day, 'minLos', val, room.id)}
-                            />
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Entrada (CTA)</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const cta = data?.cta;
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isTodayCol = dateStr === todayKey;
-                    const isSelected = inventorySelection?.roomId === room.id
-                        && inventorySelection.field === 'cta'
-                        && selectedInventoryDates.includes(dateStr);
-                    return (
-                        <td
-                            key={`${room.id}-cta-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
-                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'cta', dateStr)}
-                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'cta', dateStr)}
-                            onClick={() => updateRateField(day, 'cta', !cta, room.id)}
-                            data-inventory-selection-cell="true"
-                            data-testid={`cta-cell-${room.id}-${dateStr}`}
-                        >
-                            <div className={`${styles.restrictionCell} ${cta ? styles.restrictionActive : styles.restrictionInactive}`}>
-                                {cta ? (
-                                    <span className={`${styles.restrictionBadge} ${styles.restrictionClosedIn}`}>
-                                        FECHADO PARA ENTRADA
-                                    </span>
-                                ) : (
-                                    <span className={styles.restrictionPlaceholder}>—</span>
-                                )}
-                            </div>
-                        </td>
-                    );
-                })}
-            </tr>
-
-            <tr>
-                <td className={styles.stickyCol}>Saída (CTD)</td>
-                {monthDays.map(day => {
-                    const data = getDataForDay(day, room.id);
-                    const ctd = data?.ctd;
-                    const dateStr = format(day, 'yyyy-MM-dd');
-                    const isTodayCol = dateStr === todayKey;
-                    const isSelected = inventorySelection?.roomId === room.id
-                        && inventorySelection.field === 'ctd'
-                        && selectedInventoryDates.includes(dateStr);
-                    return (
-                        <td
-                            key={`${room.id}-ctd-${dateStr}`}
-                            className={`${styles.cell} ${isTodayCol ? styles.todayColumnCell : ''} ${isSelected ? styles.inventorySelectionCell : ''}`}
-                            onMouseDown={(event) => beginInventoryDrag(event, room.id, 'ctd', dateStr)}
-                            onMouseEnter={(event) => extendInventoryDrag(event, room.id, 'ctd', dateStr)}
-                            onClick={() => updateRateField(day, 'ctd', !ctd, room.id)}
-                            data-inventory-selection-cell="true"
-                            data-testid={`ctd-cell-${room.id}-${dateStr}`}
-                        >
-                            <div className={`${styles.restrictionCell} ${ctd ? styles.restrictionActive : styles.restrictionInactive}`}>
-                                {ctd ? (
-                                    <span className={`${styles.restrictionBadge} ${styles.restrictionClosedOut}`}>
-                                        FECHADO PARA SAÍDA
-                                    </span>
-                                ) : (
-                                    <span className={styles.restrictionPlaceholder}>—</span>
-                                )}
-                            </div>
-                        </td>
-                    );
-                })}
-            </tr>
-                </>
-            )}
-        </Fragment>
-    );
+    const renderListRowsForRoom = (room: RoomType) => null;
 
     return (
         <>
-            <div className={styles.header}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Mapa de Tarifas</h1>
-                <Link href="/admin/dashboard" style={{ color: '#3b82f6', textDecoration: 'underline' }}>
-                    Voltar ao Dashboard
-                </Link>
-            </div>
-
-            <div className={styles.controls}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'nowrap' }}>
-                    <div className={styles.viewToggle}>
-                        <button
-                            className={`${styles.toggleButton} ${periodMode === 'month' ? styles.active : ''}`}
-                            onClick={() => setPeriodMode('month')}
-                        >
-                            Mês
-                        </button>
-                        <button
-                            className={`${styles.toggleButton} ${periodMode === 'custom' ? styles.active : ''}`}
-                            onClick={() => setPeriodMode('custom')}
-                        >
-                            Intervalo
-                        </button>
-                    </div>
-
-                    {periodMode === 'month' ? (
-                        <div className={styles.navGroup}>
-                            <button
-                                onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-                                className={styles.navButton}
-                                title="Mês anterior"
-                            >
-                                &lt;
-                            </button>
-                            <span className={styles.currentMonth}>
-                                {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
-                            </span>
-                            <button
-                                onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-                                className={styles.navButton}
-                                title="Próximo mês"
-                            >
-                                &gt;
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'nowrap' }}>
-                            <input
-                                type="date"
-                                value={customStart}
-                                onChange={(e) => {
-                                    const nextStart = e.target.value;
-                                    setCustomStart(nextStart);
-                                    if (customEnd && nextStart > customEnd) {
-                                        setCustomEnd(nextStart);
-                                    }
-                                }}
-                                className={styles.input}
-                                style={{ minWidth: '132px', padding: '0.45rem 0.55rem' }}
-                            />
-                            <span style={{ color: '#64748b', fontWeight: 700, fontSize: '0.78rem' }}>até</span>
-                            <input
-                                type="date"
-                                value={customEnd}
-                                onChange={(e) => {
-                                    const nextEnd = e.target.value;
-                                    setCustomEnd(nextEnd);
-                                    if (customStart && nextEnd < customStart) {
-                                        setCustomStart(nextEnd);
-                                    }
-                                }}
-                                className={styles.input}
-                                style={{ minWidth: '132px', padding: '0.45rem 0.55rem' }}
-                            />
-                        </div>
-                    )}
+        <div className="flex flex-col gap-8 max-w-[1600px] mx-auto">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-4xl font-black text-slate-800 tracking-tight">Mapa de Tarifas</h1>
+                    <p className="text-slate-500 font-medium">Gerencie disponibilidade, preços e restrições com facilidade.</p>
                 </div>
 
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'nowrap' }}>
-                    <div className={styles.selectWrapper} style={{ gap: '0.3rem' }}>
-                        <label style={{ fontWeight: 600, color: '#64748b', fontSize: '0.78rem' }}>Acomodação:</label>
-                        <select
-                            value={selectedRoomId}
-                            onChange={(e) => setSelectedRoomId(e.target.value)}
-                            className={styles.input}
-                            style={{ minWidth: '170px', padding: '0.45rem 0.55rem' }}
-                        >
-                            <option value={ALL_ROOMS_VALUE}>Todos os quartos (Lista)</option>
-                            {roomTypes.map(room => (
-                                <option key={room.id} value={room.id}>{room.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <button
-                        className={styles.buttonPrimary}
+                <div className="flex items-center gap-3">
+                    <Button 
                         onClick={() => setBulkModalOpen(true)}
-                        title="Editar múltiplos dias de uma vez (preço, restrições e quartos disponíveis)"
-                        style={{ padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
+                        className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-6 rounded-2xl shadow-lg shadow-slate-200 transition-all gap-2"
                     >
-                        ⚡ Edição em Lote
-                    </button>
+                        <Zap className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                        Edição em Lote
+                    </Button>
+                    <Button 
+                        variant="outline"
+                        className="border-slate-200 hover:bg-slate-50 text-slate-600 font-bold px-6 py-6 rounded-2xl transition-all gap-2"
+                    >
+                        <Settings2 className="h-5 w-5" />
+                        Configurações
+                    </Button>
                 </div>
             </div>
 
-            {toast && (
-                <div
-                    style={{
-                        marginTop: '0.75rem',
-                        padding: '0.7rem 1rem',
-                        borderRadius: '10px',
-                        fontSize: '0.9rem',
-                        fontWeight: 600,
-                        border: toast.type === 'success' ? '1px solid #bbf7d0' : toast.type === 'error' ? '1px solid #fecaca' : '1px solid #bfdbfe',
-                        background: toast.type === 'success' ? '#f0fdf4' : toast.type === 'error' ? '#fef2f2' : '#eff6ff',
-                        color: toast.type === 'success' ? '#166534' : toast.type === 'error' ? '#991b1b' : '#1d4ed8',
-                    }}
-                >
-                    {toast.message}
-                </div>
-            )}
-
-            {calendarError && (
-                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', borderRadius: '12px' }}>
-                    {calendarError}
-                </div>
-            )}
-            {calendarLoading && (
-                <div style={{ marginTop: calendarError ? '0.5rem' : '0.75rem', padding: '0.5rem 1rem', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', borderRadius: '12px' }}>
-                    Carregando calendário...
-                </div>
-            )}
-
-            {loading ? (
-                <div className={styles.loading}>Carregando...</div>
-            ) : (
-                <>
-                    {false ? (
-                        <div className={styles.calendarGrid}>
-                            {weekDays.map(day => (
-                                <div key={day} className={styles.weekDay}>{day}</div>
-                            ))}
-                            
-                            {days.map((day, idx) => {
-                                const rate = getRateForDay(day);
-                                const data = getDataForDay(day);
-                                const isCurrentMonth = isSameMonth(day, currentDate);
-                                const isToday = isSameDay(day, new Date());
-                                
-                                return (
-                                    <div 
-                                        key={idx} 
-                                        className={`${styles.dayCell} ${!isCurrentMonth ? styles.empty : ''} ${rate ? styles.hasRate : ''} ${rate?.stopSell ? styles.blocked : ''}`}
-                                        onClick={() => isCurrentMonth && handleDateClick(day)}
-                                        style={{ opacity: isCurrentMonth ? 1 : 0.3 }}
-                                    >
-                                        <div className={styles.dayNumber} style={{ color: isToday ? '#2563eb' : 'inherit' }}>
-                                            {getDate(day)}
-                                        </div>
-                                        {isCurrentMonth && (
-                                            <>
-                                                <div className={styles.priceTag}>
-                                                    {data?.stopSell || (data?.available === 0) ? (
-                                                        <span style={{color: 'red'}}>FECHADO</span>
-                                                    ) : (
-                                                        `R$ ${Number(data?.price || 0).toFixed(2)}`
-                                                    )}
-                                                </div>
-                                                <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px' }}>
-                                                    Disp: {data?.available ?? '-'}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className={styles.listViewContainer}>
-                            <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: '0.8rem', fontWeight: 600 }}>
-                                Exibindo período: {listStartLabel} a {listEndLabel} | Hoje: {todayLabel} | {selectedRoomId === ALL_ROOMS_VALUE ? `Visualização: ${listRoomTypes.length} acomodações` : 'Visualização: 1 acomodação'} | {periodMode === 'custom' ? `Intervalo selecionado: ${listQueryStartLabel} a ${listEndLabel}` : 'Modo mensal (a partir de hoje)'} | Role horizontalmente para ver todos os dias
-                            </div>
-                            <div
-                                className={`${styles.listViewWrapper} ${isListDragging ? styles.listViewWrapperDragging : ''}`}
-                                ref={listScrollRef}
-                                onMouseDown={handleListMouseDown}
-                                onMouseMove={handleListMouseMove}
-                                onMouseUp={stopListDragging}
-                                onMouseLeave={stopListDragging}
+            {/* Filters & Navigation Card */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex flex-wrap items-center gap-6">
+                    {/* Period Selector */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Período</span>
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                            <button
+                                onClick={() => setPeriodMode('month')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                                    periodMode === 'month' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                )}
                             >
-                                <table className={styles.listViewTable}>
-                                    <thead>
-                                        <tr>
-                                            <th className={styles.stickyCol}>Data</th>
-                                            {monthDays.map(day => {
-                                                 const dateKey = format(day, 'yyyy-MM-dd');
-                                                 const isTodayCol = dateKey === todayKey;
-                                                  const isWeekend = day.getDay() === 5 || day.getDay() === 6;
-                                                  return (
-                                                    <th
-                                                        key={dateKey}
-                                                        data-date={dateKey}
-                                                        className={isTodayCol ? styles.todayColumnHeader : ''}
-                                                        style={{ background: isTodayCol ? '#dbeafe' : (isWeekend ? '#f1f5f9' : 'white') }}
-                                                    >
-                                                        <div style={{fontSize: '0.78rem', color: '#64748b'}}>{format(day, 'EEE', { locale: ptBR })}</div>
-                                                        <div style={{fontSize: '1rem'}}>{format(day, 'dd')}</div>
-                                                        {isTodayCol && (
-                                                            <div className={styles.todayLabel}>HOJE</div>
-                                                        )}
-                                                    </th>
-                                                  );
-                                            })}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {listRoomTypes.map(renderListRowsForRoom)}
-                                    </tbody>
-                                </table>
+                                Mensal
+                            </button>
+                            <button
+                                onClick={() => setPeriodMode('custom')}
+                                className={cn(
+                                    "px-4 py-2 rounded-lg text-xs font-bold transition-all",
+                                    periodMode === 'custom' ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                Personalizado
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Date Navigation */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Navegação</span>
+                        {periodMode === 'month' ? (
+                            <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+                                <button
+                                    onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+                                    className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
+                                >
+                                    <ChevronLeft className="h-5 w-5 text-slate-600" />
+                                </button>
+                                <span className="text-sm font-black text-slate-700 min-w-[140px] text-center capitalize">
+                                    {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+                                </span>
+                                <button
+                                    onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+                                    className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
+                                >
+                                    <ChevronRight className="h-5 w-5 text-slate-600" />
+                                </button>
                             </div>
+                        ) : (
+                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+                                <input
+                                    type="date"
+                                    value={customStart}
+                                    onChange={(e) => setCustomStart(e.target.value)}
+                                    className="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 px-2"
+                                />
+                                <span className="text-[10px] font-black text-slate-300">ATÉ</span>
+                                <input
+                                    type="date"
+                                    value={customEnd}
+                                    onChange={(e) => setCustomEnd(e.target.value)}
+                                    className="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 px-2"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Room Selector */}
+                    <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Filtrar Acomodação</span>
+                        <div className="relative">
+                            <select
+                                value={selectedRoomId}
+                                onChange={(e) => setSelectedRoomId(e.target.value)}
+                                className="appearance-none bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 pr-10 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-slate-800 outline-none transition-all w-[240px]"
+                            >
+                                <option value={ALL_ROOMS_VALUE}>Todas as acomodações</option>
+                                {roomTypes.map(room => (
+                                    <option key={room.id} value={room.id}>{room.name}</option>
+                                ))}
+                            </select>
+                            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Status Messages */}
+            {(calendarLoading || calendarError || toast) && (
+                <div className="flex flex-col gap-3">
+                    {calendarLoading && (
+                        <div className="flex items-center gap-3 px-6 py-4 bg-blue-50 border border-blue-100 rounded-2xl text-blue-700 font-bold animate-pulse">
+                             <div className="h-2 w-2 bg-blue-400 rounded-full animate-bounce" />
+                             Atualizando dados do calendário...
                         </div>
                     )}
-                </>
+                    {calendarError && (
+                        <div className="px-6 py-4 bg-red-50 border border-red-100 rounded-2xl text-red-700 font-bold flex items-center gap-2">
+                             <span className="text-xl">⚠️</span> {calendarError}
+                        </div>
+                    )}
+                    {toast && (
+                        <div className={cn(
+                            "px-6 py-4 border rounded-2xl font-bold transition-all shadow-sm",
+                            toast.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-700" : 
+                            toast.type === 'error' ? "bg-red-50 border-red-100 text-red-700" : 
+                            "bg-blue-50 border-blue-100 text-blue-700"
+                        )}>
+                            {toast.message}
+                        </div>
+                    )}
+                </div>
             )}
+
+            {/* Main Content Grid */}
+            <div className="flex flex-col gap-2">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <div className="h-12 w-12 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+                        <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Carregando ambiente...</span>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {listRoomTypes.map(room => (
+                            <RoomRow
+                                key={room.id}
+                                roomType={{
+                                    id: room.id,
+                                    name: room.name,
+                                    capacity: 4, // Default or fetch from roomType
+                                }}
+                                dates={monthDayKeys}
+                                calendarData={roomDataMap[room.id] || {}}
+                                onRateUpdate={(date, field, value) => handleRateUpdate(room.id, date, field, value)}
+                                is4PNA={room.id === 'anexo'} // Example rule from user
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+      </div>
 
             {modalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setModalOpen(false)}>
