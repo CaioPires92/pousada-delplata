@@ -20,14 +20,19 @@ if (process.env.DATABASE_AUTH_TOKEN && process.env.DATABASE_URL?.startsWith('lib
 async function seed() {
     console.log('🌱 Seeding database with sample data...');
 
-    // 1. Limpeza de dados existentes
+    // 1. Limpeza de dados existentes (Ordem correta para evitar erros de Foreign Key)
+    console.log('Cleaning existing data...');
     await prisma.payment.deleteMany();
+    await prisma.couponRedemption.deleteMany();
+    await prisma.couponAttemptLog.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.rate.deleteMany();
     await prisma.inventoryAdjustment.deleteMany();
+    await prisma.fourGuestInventoryAdjustment.deleteMany();
     await prisma.photo.deleteMany();
     await prisma.roomType.deleteMany();
     await prisma.guest.deleteMany();
+    await prisma.coupon.deleteMany();
 
     // 2. Criação dos Tipos de Quarto
     console.log('Creating room types...');

@@ -47,6 +47,11 @@ const nextConfig: NextConfig = {
     '@libsql/client',
     'libsql',
     '@prisma/adapter-libsql',
+    '@prisma/client',
+    '@prisma/instrumentation',
+    '@opentelemetry/api',
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/instrumentation',
   ],
 
   // Turbopack configuration for Next.js 16+
@@ -65,8 +70,26 @@ const nextConfig: NextConfig = {
     if (isServer) {
       // Mark libsql and related packages as external to avoid bundling issues
       config.externals = config.externals || [];
-      config.externals.push('@libsql/client', 'libsql', '@prisma/adapter-libsql');
+      config.externals.push(
+        '@libsql/client', 
+        'libsql', 
+        '@prisma/adapter-libsql',
+        '@prisma/client',
+        '@prisma/instrumentation',
+        '@opentelemetry/api',
+        '@opentelemetry/sdk-node',
+        '@opentelemetry/instrumentation'
+      );
     }
+
+    // Suppress the "Critical dependency: the request of a dependency is an expression" warning
+    // from OpenTelemetry and Prisma instrumentation
+    config.ignoreWarnings = config.ignoreWarnings || [];
+    config.ignoreWarnings.push(
+      { module: /node_modules\/@opentelemetry\/instrumentation/ },
+      { module: /node_modules\/@prisma\/instrumentation/ }
+    );
+
     return config;
   },
 };

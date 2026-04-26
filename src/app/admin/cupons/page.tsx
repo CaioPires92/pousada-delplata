@@ -4,6 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDateBR } from '@/lib/date';
 import styles from './cupons.module.css';
+import { 
+    Tag, 
+    Plus, 
+    ShieldCheck, 
+    BarChart3, 
+    History, 
+    Search, 
+    Filter, 
+    Trash2, 
+    Edit3, 
+    X, 
+    Check, 
+    AlertCircle, 
+    ChevronRight,
+    Users,
+    Calendar,
+    DollarSign,
+    Lock
+} from 'lucide-react';
 
 type Coupon = {
     id: string;
@@ -81,6 +100,7 @@ type CouponMetrics = {
         };
     };
 };
+
 type CouponAttempt = {
     id: string;
     codePrefix: string | null;
@@ -125,7 +145,7 @@ type CouponFormDraft = {
     createdCode: string;
 };
 
-const COUPON_FORM_DRAFT_KEY = 'admin-coupons-form-draft-v1';
+const COUPON_FORM_DRAFT_KEY = 'admin-coupons-form-draft-v2';
 
 const emptyForm = (): CouponForm => ({
     name: '',
@@ -180,6 +200,7 @@ export default function AdminCuponsPage() {
     const hasHydratedDraftRef = useRef(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState<'gestao' | 'auditoria'>('gestao');
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [rooms, setRooms] = useState<Room[]>([]);
     const [templates, setTemplates] = useState<CouponTemplate[]>([]);
@@ -197,20 +218,18 @@ export default function AdminCuponsPage() {
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-
         try {
             const rawDraft = window.localStorage.getItem(COUPON_FORM_DRAFT_KEY);
             if (!rawDraft) return;
-
             const parsed = JSON.parse(rawDraft) as Partial<CouponFormDraft>;
             if (!parsed || typeof parsed !== 'object' || !parsed.form || typeof parsed.form !== 'object') return;
 
-        setForm({
-            ...emptyForm(),
-            ...parsed.form,
-            currentCodePrefix: typeof parsed.form.currentCodePrefix === 'string' ? parsed.form.currentCodePrefix : '',
-            allowedRoomTypeIds: Array.isArray(parsed.form.allowedRoomTypeIds) ? parsed.form.allowedRoomTypeIds : [],
-        });
+            setForm({
+                ...emptyForm(),
+                ...parsed.form,
+                currentCodePrefix: typeof parsed.form.currentCodePrefix === 'string' ? parsed.form.currentCodePrefix : '',
+                allowedRoomTypeIds: Array.isArray(parsed.form.allowedRoomTypeIds) ? parsed.form.allowedRoomTypeIds : [],
+            });
             setCreatedCode(typeof parsed.createdCode === 'string' ? parsed.createdCode : '');
             setFormOpen(Boolean(parsed.formOpen));
         } catch {
@@ -222,25 +241,17 @@ export default function AdminCuponsPage() {
 
     useEffect(() => {
         if (typeof window === 'undefined' || !hasHydratedDraftRef.current) return;
-
         if (!formOpen) {
             window.localStorage.removeItem(COUPON_FORM_DRAFT_KEY);
             return;
         }
-
-        const draft: CouponFormDraft = {
-            formOpen,
-            form,
-            createdCode,
-        };
-
+        const draft: CouponFormDraft = { formOpen, form, createdCode };
         window.localStorage.setItem(COUPON_FORM_DRAFT_KEY, JSON.stringify(draft));
     }, [createdCode, form, formOpen]);
 
     const loadAttempts = useCallback(async () => {
         try {
             setAttemptsLoading(true);
-
             const params = new URLSearchParams();
             params.set('limit', '80');
             if (attemptResultFilter) params.set('result', attemptResultFilter);
@@ -248,17 +259,12 @@ export default function AdminCuponsPage() {
             if (attemptDaysFilter) params.set('days', attemptDaysFilter);
 
             const res = await fetch('/api/admin/coupons/attempts?' + params.toString());
-            if (res.status === 401) {
-                router.push('/admin/login');
-                return;
-            }
+            if (res.status === 401) { router.push('/admin/login'); return; }
             if (!res.ok) throw new Error('Erro ao carregar tentativas de cupom');
-
             const data = await res.json();
             setAttempts(Array.isArray(data?.attempts) ? data.attempts : []);
         } catch (error) {
             console.error(error);
-            alert('Falha ao carregar auditoria de cupons.');
         } finally {
             setAttemptsLoading(false);
         }
@@ -275,14 +281,8 @@ export default function AdminCuponsPage() {
             ]);
 
             if (couponRes.status === 401 || roomRes.status === 401 || templateRes.status === 401 || metricsRes.status === 401) {
-                router.push('/admin/login');
-                return;
+                router.push('/admin/login'); return;
             }
-
-            if (!couponRes.ok) throw new Error('Erro ao carregar cupons');
-            if (!roomRes.ok) throw new Error('Erro ao carregar quartos');
-            if (!templateRes.ok) throw new Error('Erro ao carregar modelos de cupons');
-            if (!metricsRes.ok) throw new Error('Erro ao carregar metricas de cupons');
 
             const couponData = await couponRes.json();
             const roomData = await roomRes.json();
@@ -295,25 +295,20 @@ export default function AdminCuponsPage() {
             setMetrics(metricsData || null);
         } catch (error) {
             console.error(error);
-            alert('Falha ao carregar cupons.');
         } finally {
             setLoading(false);
         }
     }, [router]);
 
-    useEffect(() => {
-        void loadData();
-    }, [loadData]);
-
-    useEffect(() => {
-        void loadAttempts();
-    }, [loadAttempts]);
+    useEffect(() => { void loadData(); }, [loadData]);
+    useEffect(() => { if (activeTab === 'auditoria') void loadAttempts(); }, [activeTab, loadAttempts]);
 
     const openCreate = () => {
         setForm(emptyForm());
         setCreatedCode('');
         setFormOpen(true);
     };
+
     const openCreateFromTemplate = (template: CouponTemplate) => {
         const payload = template.payload;
         setForm({
@@ -370,11 +365,7 @@ export default function AdminCuponsPage() {
     };
 
     const submitForm = async () => {
-        if (!form.name.trim()) {
-            alert('Nome obrigatorio.');
-            return;
-        }
-
+        if (!form.name.trim()) return alert('Nome obrigatorio.');
         const payload = {
             name: form.name.trim(),
             code: form.code.trim() || undefined,
@@ -389,10 +380,7 @@ export default function AdminCuponsPage() {
             maxUsesPerGuest: form.maxUsesPerGuest === '' ? null : Number(form.maxUsesPerGuest),
             bindEmail: form.bindEmail || null,
             bindPhone: form.bindPhone || null,
-            allowedSources: form.allowedSources
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean),
+            allowedSources: form.allowedSources.split(',').map((s) => s.trim()).filter(Boolean),
             allowedRoomTypeIds: form.allowedRoomTypeIds,
             singleUse: form.singleUse,
             stackable: form.stackable,
@@ -408,16 +396,11 @@ export default function AdminCuponsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-
             const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                alert((data as any)?.error || 'Erro ao salvar cupom');
-                return;
-            }
+            if (!res.ok) return alert((data as any)?.error || 'Erro ao salvar cupom');
 
             const savedCode = String((data as any).createdCode || (data as any).updatedCode || '');
             setCreatedCode(savedCode);
-
             setFormOpen(false);
             await Promise.all([loadData(), loadAttempts()]);
         } catch (error) {
@@ -440,397 +423,543 @@ export default function AdminCuponsPage() {
         }
     };
 
-    if (loading) return <div>Carregando cupons...</div>;
+    if (loading) return <div className="flex items-center justify-center min-h-[400px] text-slate-500">Carregando painel de cupons...</div>;
 
     return (
-        <>
+        <div className="pb-10">
+            {/* Header */}
             <div className={styles.pageHeader}>
-                <h2>Cupons de Desconto ({coupons.length})</h2>
-                <button onClick={openCreate} className={styles.primaryButton}>+ Novo cupom</button>
+                <div className={styles.headerInfo}>
+                    <h2>Gestão de Cupons</h2>
+                    <p>Controle descontos, campanhas e auditoria de tentativas maliciosas.</p>
+                </div>
+                <button onClick={openCreate} className={styles.primaryButton}>
+                    <Plus size={20} />
+                    Novo Cupom
+                </button>
             </div>
 
-            {createdCode ? (
-                <div className={styles.alert}>Codigo salvo com sucesso: <strong>{createdCode}</strong></div>
-            ) : null}
-            {templates.length > 0 ? (
-                <div className={styles.templateSection}>
-                    <h3>Modelos antifraude</h3>
-                    <div className={styles.templateGrid}>
-                        {templates.map((template) => (
-                            <div key={template.id} className={styles.templateCard}>
-                                <div className={styles.templateHead}>
-                                    <strong>{template.name}</strong>
-                                    <span className={template.antifraudLevel === 'HIGH' ? styles.badgeOn : styles.badgeOff}>
-                                        {template.antifraudLevel}
-                                    </span>
-                                </div>
-                                <p>{template.description}</p>
-                                <button className={styles.secondaryButton} onClick={() => openCreateFromTemplate(template)}>
-                                    Usar modelo
-                                </button>
-                            </div>
-                        ))}
+            {/* Alert code */}
+            {createdCode && (
+                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 animate-in fade-in slide-in-from-top-4">
+                    <Check className="bg-emerald-500 text-white rounded-full p-1" size={24} />
+                    <div>
+                        <p className="font-bold">Cupom salvo com sucesso!</p>
+                        <p className="text-sm opacity-90">Código gerado: <span className="font-mono bg-emerald-100 px-2 py-0.5 rounded">{createdCode}</span></p>
                     </div>
-                </div>
-            ) : null}
-
-
-            {metrics ? (
-                <div className={styles.metricsGrid}>
-                    <div className={styles.metricCard}>
-                        <span>Cupons ativos</span>
-                        <strong>{metrics.inventory.activeCoupons}/{metrics.inventory.totalCoupons}</strong>
-                    </div>
-                    <div className={styles.metricCard}>
-                        <span>Usos confirmados</span>
-                        <strong>{metrics.redemptions.confirmed}</strong>
-                    </div>
-                    <div className={styles.metricCard}>
-                        <span>Tentativas invalidas (7d)</span>
-                        <strong>{metrics.attempts.last7d.invalid}</strong>
-                    </div>
-                    <div className={styles.metricCard}>
-                        <span>Bloqueios antifraude (7d)</span>
-                        <strong>{metrics.attempts.last7d.blocked}</strong>
-                    </div>
-                </div>
-            ) : null}
-            <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Codigo</th>
-                            <th>Desconto</th>
-                            <th>Status</th>
-                            <th>Periodo</th>
-                            <th>Usos</th>
-                            <th>Acoes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {coupons.map((coupon) => (
-                            <tr key={coupon.id}>
-                                <td>{coupon.name}</td>
-                                <td>{coupon.codePrefix}******</td>
-                                <td>
-                                    {coupon.type === 'PERCENT' ? `${coupon.value}%` : `R$ ${coupon.value}`}
-                                </td>
-                                <td>
-                                    <span className={coupon.active ? styles.badgeOn : styles.badgeOff}>
-                                        {coupon.active ? 'ATIVO' : 'INATIVO'}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div>{formatDateOnlyBR(coupon.startsAt)}</div>
-                                    <div>{formatDateOnlyBR(coupon.endsAt)}</div>
-                                </td>
-                                <td>{coupon._count?.redemptions || 0}</td>
-                                <td>
-                                    <div className={styles.actions}>
-                                        <button className={styles.secondaryButton} onClick={() => openEdit(coupon)}>
-                                            Editar
-                                        </button>
-                                        {coupon.active ? (
-                                            <button className={styles.dangerButton} onClick={() => deactivateCoupon(coupon.id)}>
-                                                Desativar
-                                            </button>
-                                        ) : null}
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className={styles.auditHeader}>
-                <h3>Auditoria de Tentativas</h3>
-                <div className={styles.auditFilters}>
-                    <select value={attemptResultFilter} onChange={(e) => setAttemptResultFilter(e.target.value)}>
-                        <option value="">Todos resultados</option>
-                        <option value="VALID">VALID</option>
-                        <option value="INVALID">INVALID</option>
-                    </select>
-                    <select value={attemptReasonFilter} onChange={(e) => setAttemptReasonFilter(e.target.value)}>
-                        <option value="">Todos motivos</option>
-                        <option value="TOO_MANY_ATTEMPTS">TOO_MANY_ATTEMPTS</option>
-                        <option value="INVALID_CODE">INVALID_CODE</option>
-                        <option value="EXPIRED">EXPIRED</option>
-                        <option value="NOT_STARTED">NOT_STARTED</option>
-                        <option value="MIN_BOOKING_NOT_REACHED">MIN_BOOKING_NOT_REACHED</option>
-                        <option value="USAGE_LIMIT_REACHED">USAGE_LIMIT_REACHED</option>
-                    </select>
-                    <select value={attemptDaysFilter} onChange={(e) => setAttemptDaysFilter(e.target.value)}>
-                        <option value="1">Ultimo 1 dia</option>
-                        <option value="7">Ultimos 7 dias</option>
-                        <option value="30">Ultimos 30 dias</option>
-                    </select>
-                    <button className={styles.secondaryButton} onClick={() => void loadAttempts()} disabled={attemptsLoading}>
-                        {attemptsLoading ? 'Atualizando...' : 'Atualizar'}
+                    <button onClick={() => setCreatedCode('')} className="ml-auto hover:bg-emerald-100 p-1 rounded">
+                        <X size={18} />
                     </button>
                 </div>
+            )}
+
+            {/* Tabs */}
+            <div className={styles.tabs}>
+                <button 
+                    className={`${styles.tab} ${activeTab === 'gestao' ? styles.tabActive : ''}`}
+                    onClick={() => setActiveTab('gestao')}
+                >
+                    <Tag size={18} className="inline mr-2" />
+                    Gestão de Cupons
+                </button>
+                <button 
+                    className={`${styles.tab} ${activeTab === 'auditoria' ? styles.tabActive : ''}`}
+                    onClick={() => setActiveTab('auditoria')}
+                >
+                    <ShieldCheck size={18} className="inline mr-2" />
+                    Auditoria de Segurança
+                </button>
             </div>
 
-
-            {metrics ? (
-                <div className={styles.metricsGrid}>
-                    <div className={styles.metricCard}>
-                        <span>Cupons ativos</span>
-                        <strong>{metrics.inventory.activeCoupons}/{metrics.inventory.totalCoupons}</strong>
+            {/* Metrics Grid */}
+            <div className={styles.metricsGrid}>
+                <div className={styles.metricCard}>
+                    <div className={styles.metricIcon} style={{ color: 'var(--primary)' }}>
+                        <Tag size={22} />
                     </div>
-                    <div className={styles.metricCard}>
-                        <span>Usos confirmados</span>
-                        <strong>{metrics.redemptions.confirmed}</strong>
-                    </div>
-                    <div className={styles.metricCard}>
-                        <span>Tentativas invalidas (7d)</span>
-                        <strong>{metrics.attempts.last7d.invalid}</strong>
-                    </div>
-                    <div className={styles.metricCard}>
-                        <span>Bloqueios antifraude (7d)</span>
-                        <strong>{metrics.attempts.last7d.blocked}</strong>
+                    <div className={styles.metricInfo}>
+                        <span className={styles.metricLabel}>Cupons Ativos</span>
+                        <strong className={styles.metricValue}>{metrics?.inventory.activeCoupons}/{metrics?.inventory.totalCoupons}</strong>
                     </div>
                 </div>
-            ) : null}
-            <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Cupom</th>
-                            <th>Prefixo</th>
-                            <th>Resultado</th>
-                            <th>Motivo</th>
-                            <th>Email</th>
-                            <th>IP Hash</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {attempts.length === 0 ? (
-                            <tr>
-                                <td colSpan={7}>Nenhuma tentativa encontrada para os filtros atuais.</td>
-                            </tr>
-                        ) : attempts.map((attempt) => (
-                            <tr key={attempt.id}>
-                                <td>{new Date(attempt.createdAt).toLocaleString('pt-BR')}</td>
-                                <td>{attempt.coupon?.name || '-'}</td>
-                                <td>{attempt.codePrefix || '-'}</td>
-                                <td>{attempt.result}</td>
-                                <td>{attempt.reason || '-'}</td>
-                                <td>{attempt.guestEmail || '-'}</td>
-                                <td>{attempt.ipHash ? `${attempt.ipHash.slice(0, 12)}...` : '-'}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className={styles.metricCard}>
+                    <div className={styles.metricIcon} style={{ color: 'var(--success)' }}>
+                        <Check size={22} />
+                    </div>
+                    <div className={styles.metricInfo}>
+                        <span className={styles.metricLabel}>Usos Confirmados</span>
+                        <strong className={styles.metricValue}>{metrics?.redemptions.confirmed || 0}</strong>
+                    </div>
+                </div>
+                <div className={styles.metricCard}>
+                    <div className={styles.metricIcon} style={{ color: 'var(--warning)' }}>
+                        <AlertCircle size={22} />
+                    </div>
+                    <div className={styles.metricInfo}>
+                        <span className={styles.metricLabel}>Tentativas Inválidas (7d)</span>
+                        <strong className={styles.metricValue}>{metrics?.attempts.last7d.invalid || 0}</strong>
+                    </div>
+                </div>
+                <div className={styles.metricCard}>
+                    <div className={styles.metricIcon} style={{ color: 'var(--danger)' }}>
+                        <Lock size={22} />
+                    </div>
+                    <div className={styles.metricInfo}>
+                        <span className={styles.metricLabel}>Bloqueios (7d)</span>
+                        <strong className={styles.metricValue}>{metrics?.attempts.last7d.blocked || 0}</strong>
+                    </div>
+                </div>
             </div>
-            {formOpen ? (
-                <div className={styles.modal}>
+
+            {activeTab === 'gestao' ? (
+                <>
+                    {/* Templates Section */}
+                    {templates.length > 0 && (
+                        <div className={styles.templateSection}>
+                            <h3>
+                                <BarChart3 size={20} />
+                                Modelos Antifraude
+                            </h3>
+                            <div className={styles.templateGrid}>
+                                {templates.map((template) => (
+                                    <div key={template.id} className={styles.templateCard}>
+                                        <div className={styles.templateHead}>
+                                            <strong>{template.name}</strong>
+                                            <span className={`${styles.badge} ${template.antifraudLevel === 'HIGH' ? styles.badgeDanger : styles.badgeWarning}`}>
+                                                {template.antifraudLevel}
+                                            </span>
+                                        </div>
+                                        <p>{template.description}</p>
+                                        <button 
+                                            className={styles.secondaryButton} 
+                                            onClick={() => openCreateFromTemplate(template)}
+                                            style={{ padding: '0.5rem', width: '100%', fontSize: '0.85rem' }}
+                                        >
+                                            Usar modelo
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Main Table */}
+                    <div className={styles.tableContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Código</th>
+                                    <th>Desconto</th>
+                                    <th>Status</th>
+                                    <th>Período</th>
+                                    <th>Usos</th>
+                                    <th className="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {coupons.map((coupon) => (
+                                    <tr key={coupon.id}>
+                                        <td className="font-bold">{coupon.name}</td>
+                                        <td>
+                                            <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">
+                                                {coupon.codePrefix}******
+                                            </code>
+                                        </td>
+                                        <td>
+                                            <span className="font-medium text-slate-900">
+                                                {coupon.type === 'PERCENT' ? `${coupon.value}%` : `R$ ${coupon.value}`}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className={`${styles.badge} ${coupon.active ? styles.badgeSuccess : styles.badgeInfo}`}>
+                                                {coupon.active ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                        </td>
+                                        <td className="text-xs text-slate-500">
+                                            <div className="flex items-center gap-1"><Calendar size={12} /> {formatDateOnlyBR(coupon.startsAt)}</div>
+                                            <div className="flex items-center gap-1 mt-1 opacity-60"><ChevronRight size={12} /> {formatDateOnlyBR(coupon.endsAt)}</div>
+                                        </td>
+                                        <td>
+                                            <div className="flex items-center gap-1.5">
+                                                <Users size={14} className="text-slate-400" />
+                                                {coupon._count?.redemptions || 0}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="flex justify-end gap-2">
+                                                <button className={styles.secondaryButton} style={{ padding: '0.4rem' }} onClick={() => openEdit(coupon)}>
+                                                    <Edit3 size={16} />
+                                                </button>
+                                                {coupon.active && (
+                                                    <button className={styles.dangerButton} style={{ padding: '0.4rem' }} onClick={() => deactivateCoupon(coupon.id)}>
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
+            ) : (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {/* Audit Filters */}
+                    <div className={styles.auditFilters}>
+                        <div className={styles.filterGroup}>
+                            <label>Resultado</label>
+                            <select className={styles.input} value={attemptResultFilter} onChange={(e) => setAttemptResultFilter(e.target.value)}>
+                                <option value="">Todos os resultados</option>
+                                <option value="VALID">Válidos</option>
+                                <option value="INVALID">Inválidos</option>
+                            </select>
+                        </div>
+                        <div className={styles.filterGroup}>
+                            <label>Motivo do Bloqueio</label>
+                            <select className={styles.input} value={attemptReasonFilter} onChange={(e) => setAttemptReasonFilter(e.target.value)}>
+                                <option value="">Todos os motivos</option>
+                                <option value="TOO_MANY_ATTEMPTS">Muitas tentativas</option>
+                                <option value="INVALID_CODE">Código inválido</option>
+                                <option value="EXPIRED">Expirado</option>
+                                <option value="NOT_STARTED">Não iniciado</option>
+                                <option value="MIN_BOOKING_NOT_REACHED">Valor mínimo</option>
+                                <option value="USAGE_LIMIT_REACHED">Limite atingido</option>
+                            </select>
+                        </div>
+                        <div className={styles.filterGroup}>
+                            <label>Período</label>
+                            <select className={styles.input} value={attemptDaysFilter} onChange={(e) => setAttemptDaysFilter(e.target.value)}>
+                                <option value="1">Últimas 24h</option>
+                                <option value="7">Últimos 7 dias</option>
+                                <option value="30">Últimos 30 dias</option>
+                            </select>
+                        </div>
+                        <div className="flex items-end">
+                            <button className={styles.primaryButton} onClick={() => void loadAttempts()} disabled={attemptsLoading}>
+                                <Filter size={18} />
+                                {attemptsLoading ? 'Filtrando...' : 'Filtrar'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Audit Table */}
+                    <div className={styles.tableContainer}>
+                        <table className={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th>Data / Hora</th>
+                                    <th>Cupom Tentado</th>
+                                    <th>Prefixo</th>
+                                    <th>Resultado</th>
+                                    <th>Motivo</th>
+                                    <th>Email / IP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {attempts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={6} className="text-center py-10 text-slate-400">Nenhuma tentativa encontrada para os filtros atuais.</td>
+                                    </tr>
+                                ) : attempts.map((attempt) => (
+                                    <tr key={attempt.id}>
+                                        <td className="text-xs text-slate-500 whitespace-nowrap">
+                                            {new Date(attempt.createdAt).toLocaleString('pt-BR')}
+                                        </td>
+                                        <td className="font-bold">{attempt.coupon?.name || '-'}</td>
+                                        <td><code className="text-xs">{attempt.codePrefix || '-'}</code></td>
+                                        <td>
+                                            <span className={`${styles.badge} ${attempt.result === 'VALID' ? styles.badgeSuccess : styles.badgeDanger}`}>
+                                                {attempt.result}
+                                            </span>
+                                        </td>
+                                        <td className="text-xs text-slate-600">{attempt.reason || '-'}</td>
+                                        <td className="text-xs">
+                                            <div className="text-slate-700">{attempt.guestEmail || '-'}</div>
+                                            <div className="text-slate-400 font-mono mt-0.5">{attempt.ipHash ? `${attempt.ipHash.slice(0, 12)}...` : '-'}</div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal */}
+            {formOpen && (
+                <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
-                        <h3>{isEdit ? 'Editar cupom' : 'Novo cupom'}</h3>
-                        <div className={styles.grid}>
-                            <div className={styles.field}>
-                                <label>Nome</label>
-                                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Tipo</label>
-                                <select
-                                    value={form.type}
-                                    onChange={(e) => setForm({ ...form, type: e.target.value as 'PERCENT' | 'FIXED' })}
-                                >
-                                    <option value="PERCENT">Percentual</option>
-                                    <option value="FIXED">Valor fixo</option>
-                                </select>
-                            </div>
-                            <div className={styles.field}>
-                                <label>Valor</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={form.value}
-                                    onChange={(e) => setForm({ ...form, value: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Codigo (opcional)</label>
-                                <input
-                                    value={form.code}
-                                    onChange={(e) => setForm({ ...form, code: e.target.value, generateCode: false })}
-                                    placeholder={
-                                        isEdit
-                                            ? form.currentCodePrefix
-                                                ? `Atual salvo: ${form.currentCodePrefix}******. Preencha so para trocar`
-                                                : 'Codigo atual protegido. Preencha so para trocar'
-                                            : 'Ex: VIP10'
-                                    }
-                                />
-                                {isEdit && form.currentCodePrefix ? (
-                                    <small className={styles.fieldHint}>
-                                        Codigo atual salvo: <strong>{form.currentCodePrefix}******</strong>
-                                    </small>
-                                ) : null}
-                            </div>
-                            {!isEdit ? (
-                                <div className={styles.field}>
-                                    <label>Gerar codigo automatico</label>
-                                    <label className={styles.checkboxRow}>
-                                        <input
-                                            type="checkbox"
-                                            checked={form.generateCode}
-                                            onChange={(e) => setForm({ ...form, generateCode: e.target.checked })}
-                                        />
-                                        <span>Sim</span>
-                                    </label>
+                        <div className={styles.modalHeader}>
+                            <h3>{isEdit ? 'Editar Cupom' : 'Criar Novo Cupom'}</h3>
+                            <button onClick={() => setFormOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        
+                        <div className={styles.modalBody}>
+                            <div className={styles.formGrid}>
+                                {/* Básico */}
+                                <div className={styles.formSection}>
+                                    <h4><Tag size={14} className="inline mr-1" /> Informações Básicas</h4>
                                 </div>
-                            ) : null}
-                            <div className={styles.field}>
-                                <label>Min. valor reserva</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={form.minBookingValue}
-                                    onChange={(e) => setForm({ ...form, minBookingValue: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Max. desconto</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={form.maxDiscountAmount}
-                                    onChange={(e) => setForm({ ...form, maxDiscountAmount: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Inicio</label>
-                                <input
-                                    type="date"
-                                    value={form.startsAt}
-                                    onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Fim</label>
-                                <input
-                                    type="date"
-                                    value={form.endsAt}
-                                    onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Max. usos globais</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={form.maxGlobalUses}
-                                    onChange={(e) => setForm({ ...form, maxGlobalUses: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Max. usos por hospede</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={form.maxUsesPerGuest}
-                                    onChange={(e) => setForm({ ...form, maxUsesPerGuest: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Vincular email</label>
-                                <input
-                                    value={form.bindEmail}
-                                    onChange={(e) => setForm({ ...form, bindEmail: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Vincular telefone</label>
-                                <input
-                                    value={form.bindPhone}
-                                    onChange={(e) => setForm({ ...form, bindPhone: e.target.value })}
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Fontes permitidas (virgula)</label>
-                                <input
-                                    value={form.allowedSources}
-                                    onChange={(e) => setForm({ ...form, allowedSources: e.target.value })}
-                                    placeholder="direct, instagram"
-                                />
-                            </div>
-                            <div className={styles.field}>
-                                <label>Quartos permitidos</label>
-                                <select
-                                    multiple
-                                    value={form.allowedRoomTypeIds}
-                                    onChange={(e) => {
-                                        const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-                                        setForm({ ...form, allowedRoomTypeIds: values });
-                                    }}
-                                >
-                                    {rooms.map((room) => (
-                                        <option key={room.id} value={room.id}>
-                                            {room.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className={styles.field}>
-                                <label>Regras</label>
-                                <label className={styles.checkboxRow}>
-                                    <input
-                                        type="checkbox"
-                                        checked={form.active}
-                                        onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                                
+                                <div className={styles.field + " col-span-2"}>
+                                    <label>Nome da Campanha</label>
+                                    <input 
+                                        className={styles.input} 
+                                        placeholder="Ex: Natal Delplata 2026"
+                                        value={form.name} 
+                                        onChange={(e) => setForm({ ...form, name: e.target.value })} 
                                     />
-                                    <span>Ativo</span>
-                                </label>
-                                <label className={styles.checkboxRow}>
+                                </div>
+                                
+                                <div className={styles.field}>
+                                    <label>Tipo de Desconto</label>
+                                    <select
+                                        className={styles.input}
+                                        value={form.type}
+                                        onChange={(e) => setForm({ ...form, type: e.target.value as 'PERCENT' | 'FIXED' })}
+                                    >
+                                        <option value="PERCENT">Percentual (%)</option>
+                                        <option value="FIXED">Valor Fixo (R$)</option>
+                                    </select>
+                                </div>
+                                
+                                <div className={styles.field}>
+                                    <label>Valor do Desconto</label>
+                                    <div className="relative">
+                                        <input
+                                            className={styles.input + " w-full"}
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={form.value}
+                                            onChange={(e) => setForm({ ...form, value: e.target.value })}
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                                            {form.type === 'PERCENT' ? '%' : 'R$'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Código do Cupom</label>
                                     <input
-                                        type="checkbox"
-                                        checked={form.singleUse}
-                                        onChange={(e) => setForm({ ...form, singleUse: e.target.checked })}
+                                        className={styles.input}
+                                        value={form.code}
+                                        onChange={(e) => setForm({ ...form, code: e.target.value, generateCode: false })}
+                                        placeholder={isEdit ? "Manter atual" : "Ex: VERAO20"}
                                     />
-                                    <span>Uso unico</span>
-                                </label>
-                                <label className={styles.checkboxRow}>
+                                    {isEdit && form.currentCodePrefix && (
+                                        <p className="text-[10px] text-slate-400 mt-1">Prefixo atual: {form.currentCodePrefix}</p>
+                                    )}
+                                </div>
+
+                                {!isEdit && (
+                                    <div className={styles.field}>
+                                        <label>Geração de Código</label>
+                                        <label className={styles.checkboxItem}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.generateCode}
+                                                onChange={(e) => setForm({ ...form, generateCode: e.target.checked })}
+                                            />
+                                            <span className="text-sm font-medium">Gerar código aleatório</span>
+                                        </label>
+                                    </div>
+                                )}
+
+                                {/* Limites */}
+                                <div className={styles.formSection}>
+                                    <h4><Calendar size={14} className="inline mr-1" /> Prazos e Limites</h4>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Início da Validade</label>
                                     <input
-                                        type="checkbox"
-                                        checked={form.stackable}
-                                        onChange={(e) => setForm({ ...form, stackable: e.target.checked })}
+                                        className={styles.input}
+                                        type="date"
+                                        value={form.startsAt}
+                                        onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
                                     />
-                                    <span>Pode combinar com outro cupom</span>
-                                </label>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Fim da Validade</label>
+                                    <input
+                                        className={styles.input}
+                                        type="date"
+                                        value={form.endsAt}
+                                        onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Máx. Usos Globais</label>
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min="0"
+                                        placeholder="Ilimitado"
+                                        value={form.maxGlobalUses}
+                                        onChange={(e) => setForm({ ...form, maxGlobalUses: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Máx. Usos por Hóspede</label>
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min="0"
+                                        placeholder="1"
+                                        value={form.maxUsesPerGuest}
+                                        onChange={(e) => setForm({ ...form, maxUsesPerGuest: e.target.value })}
+                                    />
+                                </div>
+
+                                {/* Restrições */}
+                                <div className={styles.formSection}>
+                                    <h4><DollarSign size={14} className="inline mr-1" /> Regras Financeiras</h4>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Valor Mín. da Reserva</label>
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={form.minBookingValue}
+                                        onChange={(e) => setForm({ ...form, minBookingValue: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Desconto Máximo</label>
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={form.maxDiscountAmount}
+                                        onChange={(e) => setForm({ ...form, maxDiscountAmount: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className={styles.formSection}>
+                                    <h4><Users size={14} className="inline mr-1" /> Restrições e Segurança</h4>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Email Específico</label>
+                                    <input
+                                        className={styles.input}
+                                        placeholder="ex@email.com"
+                                        value={form.bindEmail}
+                                        onChange={(e) => setForm({ ...form, bindEmail: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Telefone Específico</label>
+                                    <input
+                                        className={styles.input}
+                                        placeholder="(00) 00000-0000"
+                                        value={form.bindPhone}
+                                        onChange={(e) => setForm({ ...form, bindPhone: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Canais Permitidos</label>
+                                    <input
+                                        className={styles.input}
+                                        value={form.allowedSources}
+                                        onChange={(e) => setForm({ ...form, allowedSources: e.target.value })}
+                                        placeholder="direct, instagram, facebook"
+                                    />
+                                </div>
+
+                                <div className={styles.field}>
+                                    <label>Acomodações Permitidas</label>
+                                    <select
+                                        multiple
+                                        className={styles.input + " h-24"}
+                                        value={form.allowedRoomTypeIds}
+                                        onChange={(e) => {
+                                            const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+                                            setForm({ ...form, allowedRoomTypeIds: values });
+                                        }}
+                                    >
+                                        {rooms.map((room) => (
+                                            <option key={room.id} value={room.id}>
+                                                {room.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <span className="text-[10px] text-slate-400">Pressione Ctrl/Cmd para selecionar múltiplos</span>
+                                </div>
+
+                                <div className={styles.formSection}>
+                                    <h4><ShieldCheck size={14} className="inline mr-1" /> Comportamento</h4>
+                                </div>
+
+                                <div className="col-span-2">
+                                    <div className={styles.checkboxGroup}>
+                                        <label className={styles.checkboxItem}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.active}
+                                                onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold">Ativo</span>
+                                                <span className="text-[10px] text-slate-500">Pode ser usado no motor</span>
+                                            </div>
+                                        </label>
+                                        <label className={styles.checkboxItem}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.singleUse}
+                                                onChange={(e) => setForm({ ...form, singleUse: e.target.checked })}
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold">Uso Único</span>
+                                                <span className="text-[10px] text-slate-500">Inativa após primeiro uso</span>
+                                            </div>
+                                        </label>
+                                        <label className={styles.checkboxItem}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.stackable}
+                                                onChange={(e) => setForm({ ...form, stackable: e.target.checked })}
+                                            />
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold">Acumulável</span>
+                                                <span className="text-[10px] text-slate-500">Usa com outros cupons</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className={styles.modalActions}>
-                            <button className={styles.secondaryButton} onClick={() => setFormOpen(false)} disabled={saving}>
-                                Cancelar
-                            </button>
-                            <button className={styles.primaryButton} onClick={submitForm} disabled={saving}>
-                                {saving ? 'Salvando...' : 'Salvar'}
+                        <div className={styles.modalFooter}>
+                            <button className={styles.secondaryButton} onClick={() => setFormOpen(false)}>Cancelar</button>
+                            <button 
+                                className={styles.primaryButton} 
+                                onClick={submitForm} 
+                                disabled={saving}
+                            >
+                                {saving ? 'Salvando...' : isEdit ? 'Salvar Alterações' : 'Criar Cupom'}
                             </button>
                         </div>
                     </div>
                 </div>
-            ) : null}
-        </>
+            )}
+        </div>
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

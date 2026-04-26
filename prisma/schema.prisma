@@ -1,36 +1,34 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "sqlite" // O Turso usa o motor SQLite
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model RoomType {
-  id             String                @id @default(uuid())
-  name           String
-  description    String
-  capacity       Int
-  maxGuests      Int                   @default(3)
-  inventoryFor4Guests Int              @default(0)
-  includedAdults Int                   @default(2)
-  totalUnits     Int                   @default(1)
-  basePrice      Decimal
-  extraAdultFee  Decimal               @default(0)
-  child6To11Fee  Decimal               @default(0)
-  amenities      String                // JSON string or comma separated
-  photos         Photo[]
-  bookings       Booking[]
-  rates          Rate[]
-  inventory      InventoryAdjustment[]
+  id                            String                         @id @default(uuid())
+  name                          String
+  description                   String
+  capacity                      Int
+  maxGuests                     Int                            @default(3)
+  inventoryFor4Guests           Int                            @default(0)
+  includedAdults                Int                            @default(2)
+  totalUnits                    Int                            @default(1)
+  basePrice                     Decimal
+  extraAdultFee                 Decimal                        @default(0)
+  child6To11Fee                 Decimal                        @default(0)
+  amenities                     String
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  externalId                    String?
+  bookings                      Booking[]
   fourGuestInventoryAdjustments FourGuestInventoryAdjustment[]
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  inventory                     InventoryAdjustment[]
+  photos                        Photo[]
+  rates                         Rate[]
 }
 
 model Photo {
@@ -44,44 +42,43 @@ model Photo {
 model Rate {
   id         String   @id @default(uuid())
   roomTypeId String
-  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
   startDate  DateTime
   endDate    DateTime
   price      Decimal
+  cta        Boolean  @default(false)
+  ctd        Boolean  @default(false)
+  stopSell   Boolean  @default(false)
+  minLos     Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
 
-  // Booking-style calendar rules
-  cta      Boolean  @default(false) // Closed to Arrival
-  ctd      Boolean  @default(false) // Closed to Departure
-  stopSell Boolean  @default(false) // Closed / Blocked
-  minLos   Int      @default(1)     // Minimum Length of Stay
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@unique([roomTypeId, startDate, endDate])
 }
 
 model InventoryAdjustment {
   id         String   @id @default(uuid())
   roomTypeId String
-  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
   date       DateTime
-  dateKey    String   // Ex: "2026-02-06"
+  dateKey    String
   totalUnits Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
 
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])
 }
 
 model FourGuestInventoryAdjustment {
-  id              String   @id @default(uuid())
-  roomTypeId       String
-  roomType         RoomType @relation(fields: [roomTypeId], references: [id])
-  date             DateTime
-  dateKey          String
-  totalUnits       Int
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id         String   @id @default(uuid())
+  roomTypeId String
+  date       DateTime
+  dateKey    String
+  totalUnits Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
 
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])
@@ -92,48 +89,48 @@ model Guest {
   name      String
   email     String
   phone     String
-  bookings  Booking[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  bookings  Booking[]
 }
 
 model Booking {
-  id                 String             @id @default(uuid())
+  id                 String            @id @default(uuid())
   guestId            String
-  guest              Guest              @relation(fields: [guestId], references: [id])
   roomTypeId         String
-  roomType           RoomType           @relation(fields: [roomTypeId], references: [id])
-  adults             Int                @default(1)
-  children           Int                @default(0)
-  childrenAges       String?            // JSON array com as idades das criancas
+  adults             Int               @default(1)
+  children           Int               @default(0)
+  childrenAges       String?
   checkIn            DateTime
   checkOut           DateTime
   totalPrice         Decimal
   subtotalPrice      Decimal?
   discountAmount     Decimal?
   appliedCouponCode  String?
-  status             String             // PENDING, CONFIRMED, CANCELLED, COMPLETED
+  status             String
   pendingEmailSentAt DateTime?
   expiredEmailSentAt DateTime?
-  payment            Payment?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
+  guest              Guest             @relation(fields: [guestId], references: [id])
   couponRedemption   CouponRedemption?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  payment            Payment?
 }
 
 model Payment {
-  id         String   @id @default(uuid())
-  bookingId  String   @unique
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  amount     Decimal
-  provider   String   // MERCADOPAGO
-  providerId String?  // Mercado Pago Payment ID
-  method     String?  // PIX, CREDIT_CARD, DEBIT_CARD, etc.
-  cardBrand  String?  // VISA, MASTER, ELO, AMEX, etc.
-  installments Int?   // Parcelas quando aplicavel (cartao de credito)
-  status     String   // PENDING, APPROVED, REJECTED
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(uuid())
+  bookingId    String   @unique
+  amount       Decimal
+  provider     String
+  providerId   String?
+  method       String?
+  cardBrand    String?
+  installments Int?
+  status       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  booking      Booking  @relation(fields: [bookingId], references: [id])
 }
 
 model AdminUser {
@@ -147,29 +144,29 @@ model AdminUser {
 }
 
 model Coupon {
-  id                String            @id @default(uuid())
-  name              String
-  codeHash          String            @unique
-  codePrefix        String
-  type String   // PERCENT | FIXED
-  value             Decimal
-  maxDiscountAmount Decimal?
-  minBookingValue   Decimal?
-  active            Boolean           @default(true)
-  startsAt          DateTime?
-  endsAt            DateTime?
-  maxGlobalUses     Int?
-  maxUsesPerGuest   Int?
-  bindEmail         String?
-  bindPhone         String?
-  allowedRoomTypeIds String? // JSON string array
-  allowedSources    String? // JSON string array
-  singleUse         Boolean           @default(true)
-  stackable         Boolean           @default(false)
-  redemptions       CouponRedemption[]
-  attemptLogs       CouponAttemptLog[]
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                 String             @id @default(uuid())
+  name               String
+  codeHash           String             @unique
+  codePrefix         String
+  type               String
+  value              Decimal
+  maxDiscountAmount  Decimal?
+  minBookingValue    Decimal?
+  active             Boolean            @default(true)
+  startsAt           DateTime?
+  endsAt             DateTime?
+  maxGlobalUses      Int?
+  maxUsesPerGuest    Int?
+  bindEmail          String?
+  bindPhone          String?
+  allowedRoomTypeIds String?
+  allowedSources     String?
+  singleUse          Boolean            @default(true)
+  stackable          Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  attemptLogs        CouponAttemptLog[]
+  redemptions        CouponRedemption[]
 
   @@index([codePrefix])
   @@index([active])
@@ -177,21 +174,21 @@ model Coupon {
 }
 
 model CouponRedemption {
-  id             String                 @id @default(uuid())
+  id             String    @id @default(uuid())
   couponId       String
-  coupon         Coupon                 @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  status         String                 @default("RESERVED") // RESERVED | CONFIRMED | RELEASED
-  bookingId      String?                @unique
-  booking        Booking?               @relation(fields: [bookingId], references: [id])
+  status         String    @default("RESERVED")
+  bookingId      String?   @unique
   guestEmail     String?
   guestPhone     String?
-  discountAmount Decimal                @default(0)
-  reservedAt     DateTime               @default(now())
+  discountAmount Decimal   @default(0)
+  reservedAt     DateTime  @default(now())
   expiresAt      DateTime?
   confirmedAt    DateTime?
   releasedAt     DateTime?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  booking        Booking?  @relation(fields: [bookingId], references: [id])
+  coupon         Coupon    @relation(fields: [couponId], references: [id], onDelete: Cascade)
 
   @@index([couponId, status])
   @@index([guestEmail, couponId])
@@ -200,7 +197,6 @@ model CouponRedemption {
 model CouponAttemptLog {
   id            String   @id @default(uuid())
   couponId      String?
-  coupon        Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
   codePrefix    String?
   guestEmail    String?
   ipHash        String?
@@ -208,8 +204,8 @@ model CouponAttemptLog {
   result        String
   reason        String?
   createdAt     DateTime @default(now())
+  coupon        Coupon?  @relation(fields: [couponId], references: [id])
 
   @@index([createdAt])
   @@index([codePrefix])
 }
-
