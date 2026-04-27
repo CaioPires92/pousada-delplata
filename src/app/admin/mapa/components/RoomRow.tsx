@@ -77,7 +77,7 @@ export const RoomRow: React.FC<RoomRowProps> = ({
         {/* Fixed Labels Column */}
         <div className="w-[100px] min-w-[100px] bg-slate-50/50 border-r border-slate-200 flex flex-col">
           {/* Header Placeholder (Matches the date header height) */}
-          <div className="h-10 border-b border-slate-100 bg-slate-100/30" />
+          <div className="h-12 border-b border-slate-100 bg-slate-100/30" />
           
           <div className="h-10 border-b border-slate-100 flex items-center px-4">
             <span className="text-[9px] font-black text-slate-400 uppercase">Status</span>
@@ -147,11 +147,11 @@ export const RoomRow: React.FC<RoomRowProps> = ({
               <div key={`${roomType.id}-${date}`} className="flex flex-col">
                 {/* Date Header Sub-row */}
                 <div className={cn(
-                  "h-10 border-b border-slate-100 flex flex-col items-center justify-center px-4 border-r border-slate-50 gap-0.5",
+                  "h-12 border-b border-slate-100 flex flex-col items-center justify-center px-4 border-r border-slate-50 gap-1",
                   isWeekend ? "bg-slate-50/80" : "bg-white"
                 )}>
-                  <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">
-                    {dateObj.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em]">
+                    {dateObj.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                   </span>
                   <span className="text-[10px] font-black text-slate-700 leading-none">
                     {dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}

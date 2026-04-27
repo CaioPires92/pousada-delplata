@@ -103,17 +103,21 @@ export const RateCard: React.FC<RateCardProps> = ({
            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">R$</span>
             <input
                type="number"
-               value={price || ''}
-               onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (isNaN(val)) {
-                      onPriceChange(0);
-                  } else {
-                      onPriceChange(val);
-                      // Force display normalization to prevent leading zeros (e.g. 0299 -> 299)
-                      e.target.value = val.toString();
-                  }
-               }}
+                defaultValue={price || ''}
+                onChange={(e) => {
+                   const val = parseFloat(e.target.value);
+                   if (isNaN(val)) {
+                       onPriceChange(0);
+                   } else {
+                       onPriceChange(val);
+                   }
+                }}
+                onBlur={(e) => {
+                   const val = parseFloat(e.target.value);
+                   if (!isNaN(val)) {
+                       e.target.value = val.toString();
+                   }
+                }}
                onFocus={(e) => e.target.select()}
                disabled={disabled}
                className="w-full pl-6 pr-1.5 py-1 bg-transparent border-none text-[11px] font-black text-slate-800 focus:outline-none transition-all text-right"
