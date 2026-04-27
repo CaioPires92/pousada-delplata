@@ -131,7 +131,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
     const has4P = roomTypeId === 'all' || (selectedRoom?.inventoryFor4Guests ?? 0) > 0;
 
     return (
-        <div className="flex flex-col max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 max-w-2xl w-full mx-auto animate-in fade-in zoom-in duration-300">
+        <div className="flex flex-col max-h-[95vh] bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 max-w-2xl w-full mx-auto animate-in fade-in zoom-in duration-300">
             {/* Header */}
             <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -139,7 +139,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                         <Zap className="h-5 w-5 text-yellow-400 fill-yellow-400" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Edição em Lote</h2>
+                        <h2 className="text-lg font-black text-slate-800 tracking-tight">Edição em Lote</h2>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Ação Direta</p>
                     </div>
                 </div>
@@ -153,7 +153,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto scrollbar-hide">
-                <div className="p-8 space-y-10">
+                <div className="p-6 space-y-6">
                     
                     {/* BLOCO 1 - ESCOPO */}
                     <section className="space-y-6">
@@ -191,19 +191,19 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
 
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Período</label>
-                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 h-[46px]">
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2 h-[46px]">
                                     <input
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
-                                        className="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 flex-1 p-0 cursor-pointer"
+                                        className="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 flex-1 p-0 cursor-pointer min-w-0"
                                     />
                                     <ChevronRight className="h-3 w-3 text-slate-300 shrink-0" />
                                     <input
                                         type="date"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
-                                        className="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 flex-1 p-0 cursor-pointer"
+                                        className="bg-transparent border-none text-xs font-bold text-slate-700 focus:ring-0 flex-1 p-0 cursor-pointer min-w-0"
                                     />
                                 </div>
                             </div>
@@ -254,11 +254,14 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                             placeholder="Não alterar"
                                             value={price}
                                             onChange={(e) => {
-                                                const val = parseFloat(e.target.value);
-                                                if (isNaN(val)) setPrice('');
-                                                else {
+                                                const raw = e.target.value;
+                                                if (raw === '') {
+                                                    setPrice('');
+                                                    return;
+                                                }
+                                                const val = parseFloat(raw);
+                                                if (!isNaN(val)) {
                                                     setPrice(val.toString());
-                                                    e.target.value = val.toString();
                                                 }
                                             }}
                                             onFocus={(e) => e.target.select()}
@@ -272,11 +275,14 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                             placeholder="Não alterar"
                                             value={minLos}
                                             onChange={(e) => {
-                                                const val = parseInt(e.target.value);
-                                                if (isNaN(val)) setMinLos('');
-                                                else {
+                                                const raw = e.target.value;
+                                                if (raw === '') {
+                                                    setMinLos('');
+                                                    return;
+                                                }
+                                                const val = parseInt(raw);
+                                                if (!isNaN(val)) {
                                                     setMinLos(val.toString());
-                                                    e.target.value = val.toString();
                                                 }
                                             }}
                                             onFocus={(e) => e.target.select()}
@@ -309,11 +315,14 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                                 placeholder="—"
                                                 value={inventoryStd}
                                                 onChange={(e) => {
-                                                    const val = parseInt(e.target.value);
-                                                    if (isNaN(val)) setInventoryStd('');
-                                                    else {
+                                                    const raw = e.target.value;
+                                                    if (raw === '') {
+                                                        setInventoryStd('');
+                                                        return;
+                                                    }
+                                                    const val = parseInt(raw);
+                                                    if (!isNaN(val)) {
                                                         setInventoryStd(val.toString());
-                                                        e.target.value = val.toString();
                                                     }
                                                 }}
                                                 onFocus={(e) => e.target.select()}
@@ -349,11 +358,14 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                                     placeholder="—"
                                                     value={inventory4P}
                                                     onChange={(e) => {
-                                                        const val = parseInt(e.target.value);
-                                                        if (isNaN(val)) setInventory4P('');
-                                                        else {
+                                                        const raw = e.target.value;
+                                                        if (raw === '') {
+                                                            setInventory4P('');
+                                                            return;
+                                                        }
+                                                        const val = parseInt(raw);
+                                                        if (!isNaN(val)) {
                                                             setInventory4P(val.toString());
-                                                            e.target.value = val.toString();
                                                         }
                                                     }}
                                                     onFocus={(e) => e.target.select()}
@@ -434,7 +446,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
                 <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-slate-400">
                     <span>Resumo de impacto</span>
                     <span className={cn(hasChanges ? "text-slate-800" : "text-slate-300")}>

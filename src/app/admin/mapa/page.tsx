@@ -859,8 +859,9 @@ export default function MapaReservas() {
                     if (field === 'fourGuestInventory') {
                         return { ...d, fourGuestInventory: Number(value) };
                     }
-                    if (field === 'status') {
-                        return { ...d, stopSell: value === 'FECHADO' };
+                    if (field === 'status' || field === 'stopSell') {
+                        const isClosed = (field === 'status') ? (value === 'FECHADO') : !!value;
+                        return { ...d, stopSell: isClosed };
                     }
                     return { ...d, [field]: value };
                 }
@@ -883,7 +884,9 @@ export default function MapaReservas() {
                 };
                 const apiField = apiFieldMap[field] || field;
                 let apiValue = value;
-                if (apiField === 'stopSell') apiValue = (value === 'FECHADO');
+                if (apiField === 'stopSell') {
+                    apiValue = (typeof value === 'boolean') ? value : (value === 'FECHADO');
+                }
                 
                 await saveSingleDayRate(dateObj, { [apiField]: apiValue }, false, roomId);
             }
@@ -1132,12 +1135,13 @@ export default function MapaReservas() {
                 return;
             }
             rateUpdates = { minLos: requestedValue };
-        } else if (inventorySelection.field === 'cta' || inventorySelection.field === 'ctd') {
+        } else if (inventorySelection.field === 'cta' || inventorySelection.field === 'ctd' || inventorySelection.field === 'status') {
             if (inventoryBatchValue !== 'true' && inventoryBatchValue !== 'false') {
                 showToast('error', `Selecione um valor válido para ${inventorySelection.field.toUpperCase()}.`);
                 return;
             }
-            rateUpdates = { [inventorySelection.field]: inventoryBatchValue === 'true' };
+            const field = inventorySelection.field === 'status' ? 'stopSell' : inventorySelection.field;
+            rateUpdates = { [field]: inventoryBatchValue === 'true' };
         }
 
         const sortedDates = [...inventorySelection.dates].sort();
@@ -1490,8 +1494,8 @@ export default function MapaReservas() {
                                         <input
                                             type="number"
                                             step="0.01"
-                                            value={editPrice}
-                                            onChange={e => setEditPrice(e.target.value)}
+                                            value={editPrice === 0 ? '' : editPrice}
+                                            onChange={e => setEditPrice(parseFloat(e.target.value) || 0)}
                                             className={styles.input}
                                             style={{ paddingLeft: '2.5rem', width: '100%' }}
                                             autoFocus
@@ -1506,8 +1510,8 @@ export default function MapaReservas() {
                                     <input
                                         type="number"
                                         min="1"
-                                        value={editMinLos}
-                                        onChange={e => setEditMinLos(e.target.value)}
+                                        value={editMinLos === 0 ? '' : editMinLos}
+                                        onChange={e => setEditMinLos(parseInt(e.target.value) || 0)}
                                         className={styles.input}
                                         style={{ width: '100%' }}
                                     />
@@ -1521,8 +1525,8 @@ export default function MapaReservas() {
                                 <input
                                     type="number"
                                     min="0"
-                                    value={editInventory}
-                                    onChange={e => setEditInventory(e.target.value)}
+                                    value={editInventory === 0 ? '' : editInventory}
+                                    onChange={e => setEditInventory(parseInt(e.target.value) || 0)}
                                     className={styles.input}
                                     style={{ width: '100%', marginBottom: '0.6rem' }}
                                 />
@@ -1690,7 +1694,17 @@ export default function MapaReservas() {
                                 type="number"
                                 min={inventorySelection.field === 'minLos' ? '1' : '0'}
                                 value={inventoryBatchValue}
-                                onChange={(event) => setInventoryBatchValue(event.target.value)}
+                                onChange={(event) => {
+                                    const raw = event.target.value;
+                                    if (raw === '') {
+                                        setInventoryBatchValue('');
+                                        return;
+                                    }
+                                    const val = parseFloat(raw);
+                                    if (!isNaN(val)) {
+                                        setInventoryBatchValue(val.toString());
+                                    }
+                                }}
                                 className={styles.inventoryBatchInput}
                                 aria-label={getSelectionInputLabel(inventorySelection.field)}
                             />
