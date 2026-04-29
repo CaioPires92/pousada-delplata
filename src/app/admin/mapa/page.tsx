@@ -222,9 +222,9 @@ export default function MapaReservas() {
     // Modal state (for Grid)
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [editPrice, setEditPrice] = useState('');
-    const [editMinLos, setEditMinLos] = useState('');
-    const [editInventory, setEditInventory] = useState('');
+    const [editPrice, setEditPrice] = useState(0);
+    const [editMinLos, setEditMinLos] = useState(0);
+    const [editInventory, setEditInventory] = useState(0);
     const [editStopSell, setEditStopSell] = useState(false);
     const [editCta, setEditCta] = useState(false);
     const [editCtd, setEditCtd] = useState(false);
@@ -589,21 +589,21 @@ export default function MapaReservas() {
         setSelectedDate(day);
         
         if (data) {
-            setEditPrice(String(data.price));
-            setEditMinLos(String(data.minLos));
+            setEditPrice(data.price);
+            setEditMinLos(data.minLos);
             setEditStopSell(Boolean(data.stopSell));
             setEditCta(Boolean(data.cta));
             setEditCtd(Boolean(data.ctd));
-            setEditInventory(String(data.totalInventory ?? data.capacityTotal ?? 0));
+            setEditInventory(data.totalInventory ?? data.capacityTotal ?? 0);
             setExistingRateId(rate?.id ?? null);
         } else {
             const room = roomTypes.find(r => r.id === selectedRoomId);
-            setEditPrice(room?.basePrice.toString() || '0');
-            setEditMinLos('1');
+            setEditPrice(room?.basePrice || 0);
+            setEditMinLos(1);
             setEditStopSell(false);
             setEditCta(false);
             setEditCtd(false);
-            setEditInventory('1');
+            setEditInventory(1);
             setExistingRateId(null);
         }
         
