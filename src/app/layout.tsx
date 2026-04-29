@@ -4,6 +4,7 @@ import Script from "next/script";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import HolidayBanner from "@/components/HolidayBanner";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import {
@@ -106,6 +107,7 @@ export default function RootLayout({
           `}
         </Script>
         <Header />
+        <HolidayBanner />
         {children}
         <Footer />
         <WhatsAppFloatingButton />
