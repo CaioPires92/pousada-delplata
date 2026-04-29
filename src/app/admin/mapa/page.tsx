@@ -613,13 +613,13 @@ export default function MapaReservas() {
     const handleSave = async () => {
         if (!selectedRoomId || !selectedDate || !editPrice) return;
 
-        const price = parseFloat(editPrice);
+        const price = editPrice;
         if (isNaN(price)) {
             showToast('error', 'Preço inválido');
             return;
         }
 
-        const inventoryValue = Number(editInventory);
+        const inventoryValue = editInventory;
         if (!Number.isFinite(inventoryValue) || inventoryValue < 0) {
             showToast('error', 'Quantidade de quartos inválida.');
             return;
@@ -630,7 +630,7 @@ export default function MapaReservas() {
         try {
             await saveSingleDayRate(selectedDate, {
                 price,
-                minLos: parseInt(editMinLos) || 1,
+                minLos: editMinLos || 1,
                 stopSell: editStopSell,
                 cta: editCta,
                 ctd: editCtd
