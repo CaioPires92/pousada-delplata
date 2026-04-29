@@ -38,7 +38,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         dateTo: '2026-04-21',
         image: '/fotos/piscina-aptos/DJI_0863.jpg',
         minNights: 3,
-        enabled: true,
+        enabled: false,
     },
     {
         id: 'dia-do-trabalho-2026',
