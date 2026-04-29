@@ -54,6 +54,27 @@ export const RateCard: React.FC<RateCardProps> = ({
   disabled = false,
 }) => {
   const isOpen = status === 'ABERTO';
+  const [localPrice, setLocalPrice] = React.useState<string>(price ? price.toString() : '');
+
+  // Sync local price when prop changes from outside (e.g. after save or fetch)
+  React.useEffect(() => {
+    setLocalPrice(price ? price.toString() : '');
+  }, [price]);
+
+  const handlePriceBlur = () => {
+    const val = parseFloat(localPrice);
+    if (!isNaN(val) && val !== price) {
+      onPriceChange(val);
+    } else if (isNaN(val)) {
+        setLocalPrice(price ? price.toString() : '');
+    }
+  };
+
+  const handlePriceKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
 
   return (
     <div className={cn(
@@ -103,24 +124,13 @@ export const RateCard: React.FC<RateCardProps> = ({
            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400">R$</span>
             <input
                type="number"
-                defaultValue={price || ''}
-                onChange={(e) => {
-                   const val = parseFloat(e.target.value);
-                   if (isNaN(val)) {
-                       onPriceChange(0);
-                   } else {
-                       onPriceChange(val);
-                   }
-                }}
-                onBlur={(e) => {
-                   const val = parseFloat(e.target.value);
-                   if (!isNaN(val)) {
-                       e.target.value = val.toString();
-                   }
-                }}
-               onFocus={(e) => e.target.select()}
-               disabled={disabled}
-               className="w-full pl-6 pr-1.5 py-1 bg-transparent border-none text-[11px] font-black text-slate-800 focus:outline-none transition-all text-right"
+                value={localPrice}
+                onChange={(e) => setLocalPrice(e.target.value)}
+                onBlur={handlePriceBlur}
+                onKeyDown={handlePriceKeyDown}
+                onFocus={(e) => e.target.select()}
+                disabled={disabled}
+                className="w-full pl-6 pr-1.5 py-1 bg-transparent border-none text-[11px] font-black text-slate-800 focus:outline-none transition-all text-right"
             />
         </div>
       </div>
