@@ -82,7 +82,7 @@ interface EditableCellProps {
 }
 
 type RateUpdatePayload = Record<string, string | number | boolean>;
-type DragSelectionField = InventoryField | 'price' | 'minLos' | 'cta' | 'ctd';
+type DragSelectionField = InventoryField | 'price' | 'minLos' | 'cta' | 'ctd' | 'status';
 
 type InventoryDragState = {
     roomId: string;
