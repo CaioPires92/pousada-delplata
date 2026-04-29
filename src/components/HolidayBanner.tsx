@@ -64,6 +64,7 @@ export default function HolidayBanner() {
                 height={800}
                 className="w-full h-auto object-contain cursor-pointer transition-transform hover:scale-[1.02] duration-500"
                 priority
+                unoptimized
               />
             </Link>
           </motion.div>
