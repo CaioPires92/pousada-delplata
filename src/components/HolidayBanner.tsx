@@ -58,7 +58,7 @@ export default function HolidayBanner() {
               className="block w-full"
             >
               <Image
-                src="/banners/feriado-maio.jpg"
+                src="/banners/banner-01-maio.png"
                 alt="Promoção Últimas Vagas Feriado 1º de Maio"
                 width={1200}
                 height={800}
