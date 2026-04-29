@@ -2,6 +2,25 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { 
+    Plus, 
+    Pencil, 
+    Users, 
+    Home, 
+    Banknote, 
+    Box, 
+    Layers, 
+    Info, 
+    Image as ImageIcon,
+    X
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import styles from './quartos.module.css';
 
 interface RoomType {
@@ -23,12 +42,12 @@ export default function AdminQuartosPage() {
     const [editingRoom, setEditingRoom] = useState<RoomType | null>(null);
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [creatingRoom, setCreatingRoom] = useState({
-        name: 'Apartamento Anexo',
+        name: '',
         description: '',
-        capacity: 3,
-        totalUnits: 2,
+        capacity: 2,
+        totalUnits: 1,
         inventoryFor4Guests: 0,
-        basePrice: 499,
+        basePrice: 0,
         amenities: '',
         photosText: '',
     });
@@ -93,7 +112,6 @@ export default function AdminQuartosPage() {
 
             await fetchRooms();
             setEditingRoom(null);
-            alert('Quarto atualizado com sucesso!');
         } catch {
             alert('Erro ao salvar quarto');
         }
@@ -151,7 +169,6 @@ export default function AdminQuartosPage() {
                 basePrice: '',
                 capacity: ''
             });
-            alert('Quartos atualizados com sucesso!');
         } catch (error) {
             alert('Erro ao atualizar quartos em lote');
             console.error(error);
@@ -212,7 +229,6 @@ export default function AdminQuartosPage() {
 
             await fetchRooms();
             setCreateModalOpen(false);
-            alert('Quarto criado com sucesso!');
         } catch (error) {
             console.error(error);
             alert(error instanceof Error ? error.message : 'Erro ao criar quarto');
@@ -221,406 +237,391 @@ export default function AdminQuartosPage() {
 
     if (loading) {
         return (
-            <div className={styles.loading}>Carregando...</div>
+            <div className={styles.loading}>
+                <div className={styles.loadingSpinner}></div>
+                <p>Carregando acomodações...</p>
+            </div>
         );
     }
 
     return (
-        <>
-            <div className={styles.pageHeader}>
-                <h2>Gerenciar Quartos ({rooms.length})</h2>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <button
-                        onClick={() => setCreateModalOpen(true)}
-                        className={styles.batchButton}
-                    >
-                        ➕ Adicionar Quarto
-                    </button>
-                    <button
-                        onClick={() => setBatchModalOpen(true)}
-                        className={styles.batchButton}
-                    >
-                        📦 Edição em Lote
-                    </button>
+        <div className={styles.container}>
+            <div className={styles.main}>
+                <div className={styles.pageHeader}>
+                    <div>
+                        <h2>Gerenciar Quartos</h2>
+                        <p className="text-slate-500 mt-2 font-medium">Configure as categorias, capacidades e preços base.</p>
+                    </div>
+                    <div className={styles.headerActions}>
+                        <Button 
+                            onClick={() => setBatchModalOpen(true)}
+                            variant="outline"
+                            className="h-11 px-6 border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold gap-2"
+                        >
+                            <Box className="w-4 h-4" />
+                            Edição em Lote
+                        </Button>
+                        <Button 
+                            onClick={() => setCreateModalOpen(true)}
+                            className="h-11 px-6 bg-slate-900 hover:bg-slate-800 text-white font-semibold gap-2 shadow-lg shadow-slate-200"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Adicionar Quarto
+                        </Button>
+                    </div>
+                </div>
+
+                <div className={styles.roomsGrid}>
+                    {rooms.map((room) => (
+                        <Card key={room.id} className={styles.roomCard}>
+                            <CardHeader className={styles.roomHeader}>
+                                <div className="flex flex-col gap-1">
+                                    <CardTitle className={styles.roomHeaderH3}>{room.name}</CardTitle>
+                                    <Badge variant="secondary" className="w-fit bg-slate-100 text-slate-700 hover:bg-slate-100 border-none px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold">
+                                        ID: {room.id.substring(0, 8)}
+                                    </Badge>
+                                </div>
+                                <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    onClick={() => handleEdit(room)}
+                                    className="h-9 w-9 rounded-full hover:bg-slate-100 transition-colors"
+                                >
+                                    <Pencil className="w-4 h-4 text-slate-600" />
+                                </Button>
+                            </CardHeader>
+                            <CardContent className={styles.roomDetails}>
+                                <p className={styles.description}>{room.description}</p>
+
+                                <div className={styles.specs}>
+                                    <div className={styles.spec}>
+                                        <span className={styles.specLabel}>Capacidade</span>
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className={styles.specValue}>{room.capacity} pessoas</span>
+                                        </div>
+                                    </div>
+                                    <div className={styles.spec}>
+                                        <span className={styles.specLabel}>Unidades</span>
+                                        <div className="flex items-center gap-2">
+                                            <Home className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className={styles.specValue}>{room.totalUnits} unid.</span>
+                                        </div>
+                                    </div>
+                                    <div className={styles.spec}>
+                                        <span className={styles.specLabel}>Subinventário (4p)</span>
+                                        <div className="flex items-center gap-2">
+                                            <Layers className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className={styles.specValue}>{room.inventoryFor4Guests} unid.</span>
+                                        </div>
+                                    </div>
+                                    <div className={styles.spec}>
+                                        <span className={styles.specLabel}>Preço Base</span>
+                                        <div className="flex items-center gap-2">
+                                            <Banknote className="w-3.5 h-3.5 text-emerald-500" />
+                                            <span className={styles.specValue}>R$ {Number(room.basePrice).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className={styles.amenities}>
+                                    <strong>Comodidades</strong>
+                                    <p>{room.amenities || 'Nenhuma comodidade informada.'}</p>
+                                </div>
+
+                                <div className={styles.photos}>
+                                    <ImageIcon className="w-4 h-4" />
+                                    <span>{room.photos.length} fotos cadastradas</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
                 </div>
             </div>
 
-            <div className={styles.roomsGrid}>
-                {rooms.map((room) => (
-                    <div key={room.id} className={styles.roomCard}>
-                        <div className={styles.roomHeader}>
-                            <h3>{room.name}</h3>
-                            <button
-                                onClick={() => handleEdit(room)}
-                                className={styles.editButton}
-                            >
-                                ✏️ Editar
-                            </button>
-                        </div>
-
-                        <div className={styles.roomDetails}>
-                            <p className={styles.description}>{room.description}</p>
-
-                            <div className={styles.specs}>
-                                <div className={styles.spec}>
-                                    <span className={styles.specLabel}>Capacidade:</span>
-                                    <span className={styles.specValue}>{room.capacity} pessoas</span>
-                                </div>
-                                <div className={styles.spec}>
-                                    <span className={styles.specLabel}>Unidades:</span>
-                                    <span className={styles.specValue}>{room.totalUnits}</span>
-                                </div>
-                                <div className={styles.spec}>
-                                    <span className={styles.specLabel}>Até 4 hóspedes:</span>
-                                    <span className={styles.specValue}>{room.inventoryFor4Guests} unid.</span>
-                                </div>
-                                <div className={styles.spec}>
-                                    <span className={styles.specLabel}>Preço Base:</span>
-                                    <span className={styles.specValue}>
-                                        R$ {Number(room.basePrice).toFixed(2)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className={styles.amenities}>
-                                <strong>Comodidades:</strong>
-                                <p>{room.amenities}</p>
-                            </div>
-
-                            {room.photos.length > 0 && (
-                                <div className={styles.photos}>
-                                    <strong>Fotos: {room.photos.length}</strong>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
+            {/* Modal de Edição */}
             {editingRoom && (
-                <div className={styles.modal}>
+                <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
-                        <h2>Editar Quarto</h2>
-
-                        <div className={styles.formField}>
-                            <label>Nome:</label>
-                            <input
-                                type="text"
-                                value={editingRoom.name}
-                                onChange={(e) => setEditingRoom({
-                                    ...editingRoom,
-                                    name: e.target.value
-                                })}
-                            />
+                        <div className={styles.modalHeader}>
+                            <h2>Editar Acomodação</h2>
+                            <p className={styles.modalDescription}>Atualize os detalhes de {editingRoom.name}.</p>
                         </div>
 
-                        <div className={styles.formField}>
-                            <label>Descrição:</label>
-                            <textarea
-                                value={editingRoom.description}
-                                onChange={(e) => setEditingRoom({
-                                    ...editingRoom,
-                                    description: e.target.value
-                                })}
-                                rows={3}
-                            />
-                        </div>
+                        <div className={styles.formGrid}>
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Nome da Acomodação</Label>
+                                <Input
+                                    value={editingRoom.name}
+                                    onChange={(e) => setEditingRoom({...editingRoom, name: e.target.value})}
+                                    className={styles.input}
+                                />
+                            </div>
 
-                        <div className={styles.formRow}>
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Descrição</Label>
+                                <Textarea
+                                    value={editingRoom.description}
+                                    onChange={(e) => setEditingRoom({...editingRoom, description: e.target.value})}
+                                    rows={3}
+                                    className={styles.textarea}
+                                />
+                            </div>
+
                             <div className={styles.formField}>
-                                <label>Capacidade:</label>
-                                <input
+                                <Label>Capacidade (Hóspedes)</Label>
+                                <Input
                                     type="number"
                                     value={editingRoom.capacity}
-                                    onChange={(e) => setEditingRoom({
-                                        ...editingRoom,
-                                        capacity: parseInt(e.target.value)
-                                    })}
+                                    onChange={(e) => setEditingRoom({...editingRoom, capacity: parseInt(e.target.value) || 0})}
+                                    className={styles.input}
                                 />
                             </div>
 
                             <div className={styles.formField}>
-                                <label>Unidades:</label>
-                                <input
+                                <Label>Total de Unidades</Label>
+                                <Input
                                     type="number"
                                     value={editingRoom.totalUnits}
-                                    onChange={(e) => setEditingRoom({
-                                        ...editingRoom,
-                                        totalUnits: parseInt(e.target.value)
-                                    })}
+                                    onChange={(e) => setEditingRoom({...editingRoom, totalUnits: parseInt(e.target.value) || 0})}
+                                    className={styles.input}
                                 />
                             </div>
 
                             <div className={styles.formField}>
-                                <label>Unidades para 4 hóspedes:</label>
-                                <input
+                                <Label>Subinventário (4 pessoas)</Label>
+                                <Input
                                     type="number"
                                     min="0"
                                     max={editingRoom.totalUnits}
                                     value={editingRoom.inventoryFor4Guests}
-                                    onChange={(e) => setEditingRoom({
-                                        ...editingRoom,
-                                        inventoryFor4Guests: parseInt(e.target.value) || 0
-                                    })}
+                                    onChange={(e) => setEditingRoom({...editingRoom, inventoryFor4Guests: parseInt(e.target.value) || 0})}
+                                    className={styles.input}
                                 />
                             </div>
 
                             <div className={styles.formField}>
-                                <label>Preço (R$):</label>
-                                <input
+                                <Label>Preço Base (R$)</Label>
+                                <Input
                                     type="number"
                                     step="0.01"
                                     value={editingRoom.basePrice}
-                                    onChange={(e) => setEditingRoom({
-                                        ...editingRoom,
-                                        basePrice: parseFloat(e.target.value)
-                                    })}
+                                    onChange={(e) => setEditingRoom({...editingRoom, basePrice: parseFloat(e.target.value) || 0})}
+                                    className={styles.input}
+                                />
+                            </div>
+
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Comodidades</Label>
+                                <Textarea
+                                    value={editingRoom.amenities}
+                                    onChange={(e) => setEditingRoom({...editingRoom, amenities: e.target.value})}
+                                    rows={2}
+                                    className={styles.textarea}
                                 />
                             </div>
                         </div>
 
-                        <div className={styles.formField}>
-                            <label>Comodidades:</label>
-                            <textarea
-                                value={editingRoom.amenities}
-                                onChange={(e) => setEditingRoom({
-                                    ...editingRoom,
-                                    amenities: e.target.value
-                                })}
-                                rows={2}
-                            />
-                        </div>
-
                         <div className={styles.modalActions}>
-                            <button onClick={() => setEditingRoom(null)} className={styles.cancelButton}>
+                            <Button variant="ghost" onClick={() => setEditingRoom(null)} className="h-11 px-6 text-slate-600 font-semibold">
                                 Cancelar
-                            </button>
-                            <button onClick={handleSave} className={styles.saveButton}>
-                                Salvar
-                            </button>
+                            </Button>
+                            <Button onClick={handleSave} className="h-11 px-10 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-lg shadow-slate-200">
+                                Salvar Alterações
+                            </Button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Modal de Criação */}
             {createModalOpen && (
-                <div className={styles.modal}>
+                <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
-                        <h2>Novo Quarto</h2>
-
-                        <div className={styles.formField}>
-                            <label>Nome:</label>
-                            <input
-                                type="text"
-                                value={creatingRoom.name}
-                                onChange={(e) => setCreatingRoom({ ...creatingRoom, name: e.target.value })}
-                            />
+                        <div className={styles.modalHeader}>
+                            <h2>Nova Acomodação</h2>
+                            <p className={styles.modalDescription}>Cadastre uma nova categoria de quarto.</p>
                         </div>
 
-                        <div className={styles.formField}>
-                            <label>Descrição:</label>
-                            <textarea
-                                value={creatingRoom.description}
-                                onChange={(e) => setCreatingRoom({ ...creatingRoom, description: e.target.value })}
-                                rows={3}
-                            />
-                        </div>
+                        <div className={styles.formGrid}>
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Nome</Label>
+                                <Input
+                                    placeholder="Ex: Suíte Master"
+                                    value={creatingRoom.name}
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, name: e.target.value})}
+                                    className={styles.input}
+                                />
+                            </div>
 
-                        <div className={styles.formRow}>
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Descrição</Label>
+                                <Textarea
+                                    placeholder="Descreva o quarto..."
+                                    value={creatingRoom.description}
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, description: e.target.value})}
+                                    rows={3}
+                                    className={styles.textarea}
+                                />
+                            </div>
+
                             <div className={styles.formField}>
-                                <label>Capacidade:</label>
-                                <input
+                                <Label>Capacidade</Label>
+                                <Input
                                     type="number"
-                                    min="1"
                                     value={creatingRoom.capacity}
-                                    onChange={(e) =>
-                                        setCreatingRoom({
-                                            ...creatingRoom,
-                                            capacity: parseInt(e.target.value) || 1,
-                                        })
-                                    }
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, capacity: parseInt(e.target.value) || 1})}
+                                    className={styles.input}
                                 />
                             </div>
 
                             <div className={styles.formField}>
-                                <label>Unidades:</label>
-                                <input
+                                <Label>Total de Unidades</Label>
+                                <Input
                                     type="number"
-                                    min="0"
                                     value={creatingRoom.totalUnits}
-                                    onChange={(e) =>
-                                        setCreatingRoom({
-                                            ...creatingRoom,
-                                            totalUnits: parseInt(e.target.value) || 0,
-                                        })
-                                    }
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, totalUnits: parseInt(e.target.value) || 0})}
+                                    className={styles.input}
                                 />
                             </div>
 
                             <div className={styles.formField}>
-                                <label>Unidades para 4 hóspedes:</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max={creatingRoom.totalUnits}
-                                    value={creatingRoom.inventoryFor4Guests}
-                                    onChange={(e) =>
-                                        setCreatingRoom({
-                                            ...creatingRoom,
-                                            inventoryFor4Guests: parseInt(e.target.value) || 0,
-                                        })
-                                    }
-                                />
-                            </div>
-
-                            <div className={styles.formField}>
-                                <label>Preço (R$):</label>
-                                <input
+                                <Label>Preço Base (R$)</Label>
+                                <Input
                                     type="number"
                                     step="0.01"
-                                    min="0"
                                     value={creatingRoom.basePrice}
-                                    onChange={(e) =>
-                                        setCreatingRoom({
-                                            ...creatingRoom,
-                                            basePrice: Number(e.target.value) || 0,
-                                        })
-                                    }
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, basePrice: parseFloat(e.target.value) || 0})}
+                                    className={styles.input}
+                                />
+                            </div>
+
+                            <div className={styles.formField}>
+                                <Label>Subinventário (4p)</Label>
+                                <Input
+                                    type="number"
+                                    value={creatingRoom.inventoryFor4Guests}
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, inventoryFor4Guests: parseInt(e.target.value) || 0})}
+                                    className={styles.input}
+                                />
+                            </div>
+
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Comodidades</Label>
+                                <Textarea
+                                    placeholder="TV, Ar Condicionado, Wi-Fi..."
+                                    value={creatingRoom.amenities}
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, amenities: e.target.value})}
+                                    rows={2}
+                                    className={styles.textarea}
+                                />
+                            </div>
+
+                            <div className={cn(styles.formField, styles.formFieldFull)}>
+                                <Label>Fotos (1 URL por linha)</Label>
+                                <Textarea
+                                    placeholder="https://imagem.jpg"
+                                    value={creatingRoom.photosText}
+                                    onChange={(e) => setCreatingRoom({...creatingRoom, photosText: e.target.value})}
+                                    rows={3}
+                                    className={styles.textarea}
                                 />
                             </div>
                         </div>
 
-                        <div className={styles.formField}>
-                            <label>Comodidades:</label>
-                            <textarea
-                                value={creatingRoom.amenities}
-                                onChange={(e) => setCreatingRoom({ ...creatingRoom, amenities: e.target.value })}
-                                rows={2}
-                            />
-                        </div>
-
-                        <div className={styles.formField}>
-                            <label>Fotos (1 URL por linha):</label>
-                            <textarea
-                                value={creatingRoom.photosText}
-                                onChange={(e) => setCreatingRoom({ ...creatingRoom, photosText: e.target.value })}
-                                rows={3}
-                            />
-                        </div>
-
                         <div className={styles.modalActions}>
-                            <button onClick={() => setCreateModalOpen(false)} className={styles.cancelButton}>
+                            <Button variant="ghost" onClick={() => setCreateModalOpen(false)} className="h-11 px-6 text-slate-600 font-semibold">
                                 Cancelar
-                            </button>
-                            <button onClick={handleCreateRoom} className={styles.saveButton}>
-                                Criar
-                            </button>
+                            </Button>
+                            <Button onClick={handleCreateRoom} className="h-11 px-10 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-lg shadow-slate-200">
+                                Criar Quarto
+                            </Button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Modal de Lote */}
             {batchModalOpen && (
-                <div className={styles.modal}>
+                <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
-                        <h2>Edição em Lote</h2>
-                        <p className={styles.modalDescription}>
-                            Atualize a quantidade de unidades disponíveis para múltiplos quartos de uma vez.
-                        </p>
-
-                        <div className={styles.formField}>
-                            <label>Tipo de Quarto:</label>
-                            <select
-                                value={batchData.roomTypeId}
-                                onChange={(e) => setBatchData({
-                                    ...batchData,
-                                    roomTypeId: e.target.value
-                                })}
-                                style={{
-                                    width: '100%',
-                                    padding: '0.75rem',
-                                    borderRadius: '6px',
-                                    border: '1px solid #ddd',
-                                    fontSize: '1rem'
-                                }}
-                            >
-                                <option value="all">Todos os Quartos</option>
-                                {rooms.map(room => (
-                                    <option key={room.id} value={room.id}>
-                                        {room.name}
-                                    </option>
-                                ))}
-                            </select>
+                        <div className={styles.modalHeader}>
+                            <h2>Edição em Lote</h2>
+                            <p className={styles.modalDescription}>Atualize múltiplos quartos de uma só vez.</p>
                         </div>
 
-                        <div className={styles.formField}>
-                            <label>Nova Quantidade Disponível (Total Units):</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={batchData.totalUnits}
-                                onChange={(e) => setBatchData({
-                                    ...batchData,
-                                    totalUnits: e.target.value
-                                })}
-                            />
-                        </div>
+                        <div className="space-y-6">
+                            <div className={styles.formField}>
+                                <Label>Tipo de Quarto</Label>
+                                <select
+                                    value={batchData.roomTypeId}
+                                    onChange={(e) => setBatchData({...batchData, roomTypeId: e.target.value})}
+                                    className={styles.select}
+                                >
+                                    <option value="all">Todos os Quartos</option>
+                                    {rooms.map(room => (
+                                        <option key={room.id} value={room.id}>{room.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
-                        <div className={styles.formField}>
-                            <label>Nova Capacidade:</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={batchData.capacity}
-                                onChange={(e) => setBatchData({
-                                    ...batchData,
-                                    capacity: e.target.value
-                                })}
-                                />
-                        </div>
-
-                        <div className={styles.formField}>
-                            <label>Novo Subinventário para 4 hóspedes:</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={batchData.inventoryFor4Guests}
-                                onChange={(e) => setBatchData({
-                                    ...batchData,
-                                    inventoryFor4Guests: e.target.value
-                                })}
-                            />
-                        </div>
-
-                        <div className={styles.formField}>
-                            <label>Novo Preço Base (R$):</label>
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={batchData.basePrice}
-                                onChange={(e) => setBatchData({
-                                    ...batchData,
-                                    basePrice: e.target.value
-                                })}
-                            />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className={styles.formField}>
+                                    <Label>Total de Unidades</Label>
+                                    <Input
+                                        placeholder="Manter atual"
+                                        type="number"
+                                        value={batchData.totalUnits}
+                                        onChange={(e) => setBatchData({...batchData, totalUnits: e.target.value})}
+                                        className={styles.input}
+                                    />
+                                </div>
+                                <div className={styles.formField}>
+                                    <Label>Capacidade</Label>
+                                    <Input
+                                        placeholder="Manter atual"
+                                        type="number"
+                                        value={batchData.capacity}
+                                        onChange={(e) => setBatchData({...batchData, capacity: e.target.value})}
+                                        className={styles.input}
+                                    />
+                                </div>
+                                <div className={styles.formField}>
+                                    <Label>Subinventário (4p)</Label>
+                                    <Input
+                                        placeholder="Manter atual"
+                                        type="number"
+                                        value={batchData.inventoryFor4Guests}
+                                        onChange={(e) => setBatchData({...batchData, inventoryFor4Guests: e.target.value})}
+                                        className={styles.input}
+                                    />
+                                </div>
+                                <div className={styles.formField}>
+                                    <Label>Preço Base (R$)</Label>
+                                    <Input
+                                        placeholder="Manter atual"
+                                        type="number"
+                                        step="0.01"
+                                        value={batchData.basePrice}
+                                        onChange={(e) => setBatchData({...batchData, basePrice: e.target.value})}
+                                        className={styles.input}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className={styles.modalActions}>
-                            <button
-                                onClick={() => setBatchModalOpen(false)}
-                                className={styles.cancelButton}
-                            >
+                            <Button variant="ghost" onClick={() => setBatchModalOpen(false)} className="h-11 px-6 text-slate-600 font-semibold">
                                 Cancelar
-                            </button>
-                            <button
-                                onClick={handleBatchSave}
-                                className={styles.saveButton}
-                            >
-                                Salvar Alterações
-                            </button>
+                            </Button>
+                            <Button onClick={handleBatchSave} className="h-11 px-10 bg-slate-900 hover:bg-slate-800 text-white font-semibold shadow-lg shadow-slate-200">
+                                Aplicar Alterações
+                            </Button>
                         </div>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }
+

@@ -2,6 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { 
+    Search, 
+    Filter, 
+    Calendar, 
+    BarChart3, 
+    CheckCircle2, 
+    AlertCircle,
+    ChevronLeft,
+    ChevronRight,
+    Loader2,
+    RefreshCw,
+    XCircle,
+    Info
+} from 'lucide-react';
 import { gaEvent } from '@/lib/analytics';
 import BookingRowCard from './booking-row-card';
 import { getStatusText } from './booking-view';
@@ -13,6 +27,10 @@ import {
     type PeriodMode,
 } from './period';
 import type { Booking, BookingAction } from './types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import styles from './reservas.module.css';
 
 type ActionModalState = {
@@ -376,17 +394,23 @@ export default function AdminReservasPage() {
     }, [actionModal]);
 
     return (
-        <>
+        <div className="min-h-screen bg-slate-50/50 pb-20">
             <section className={styles.wrapper}>
                 <header className={styles.stickyHeader}>
                     <div className={styles.headerTitleRow}>
-                        <h2 className={styles.pageTitle}>Reservas</h2>
-                        <span className={styles.resultCount}>{filteredBookings.length} resultados</span>
+                        <div className="flex items-center gap-4">
+                            <BarChart3 className="w-8 h-8 text-slate-900" />
+                            <h2 className={styles.pageTitle}>Gerenciamento de Reservas</h2>
+                        </div>
+                        <span className={styles.resultCount}>
+                            <Search className="w-3 h-3 inline-block mr-2" />
+                            {filteredBookings.length} resultados
+                        </span>
                     </div>
 
                     <div className={styles.headerControls}>
                         <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Status</span>
+                            <span className={styles.controlLabel}>Filtrar por Status</span>
                             <div className={styles.statusTabs}>
                                 {STATUS_TABS.map((tab) => (
                                     <button
@@ -401,92 +425,117 @@ export default function AdminReservasPage() {
                         </div>
 
                         <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Período</span>
-                            <div className={styles.periodModeTabs}>
-                                {PERIOD_MODES.map((mode) => (
-                                    <button
-                                        key={mode.key}
-                                        className={periodMode === mode.key ? styles.modeButtonActive : styles.modeButton}
-                                        onClick={() => onChangePeriodMode(mode.key)}
-                                    >
-                                        {mode.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <span className={styles.controlLabel}>Período de Check-in</span>
+                            <div className="flex items-center gap-4">
+                                <div className={styles.periodModeTabs}>
+                                    {PERIOD_MODES.map((mode) => (
+                                        <button
+                                            key={mode.key}
+                                            className={periodMode === mode.key ? styles.modeButtonActive : styles.modeButton}
+                                            onClick={() => onChangePeriodMode(mode.key)}
+                                        >
+                                            {mode.label}
+                                        </button>
+                                    ))}
+                                </div>
 
-                            <div className={styles.periodControls}>
-                                {periodMode !== 'range' ? (
-                                    <div className={styles.periodNavigator}>
-                                        <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(-1)}>
-                                            {'<'}
-                                        </button>
-                                        <span className={styles.periodLabel}>{periodLabel}</span>
-                                        <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(1)}>
-                                            {'>'}
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className={styles.rangeInputs}>
-                                        <input
-                                            type="date"
-                                            className={styles.dateInput}
-                                            value={rangeFrom}
-                                            onChange={(event) => setRangeFrom(event.target.value)}
-                                            aria-label="Data inicial"
-                                        />
-                                        <span className={styles.rangeSeparator}>até</span>
-                                        <input
-                                            type="date"
-                                            className={styles.dateInput}
-                                            value={rangeTo}
-                                            onChange={(event) => setRangeTo(event.target.value)}
-                                            aria-label="Data final"
-                                        />
-                                    </div>
-                                )}
+                                <div className={styles.periodControls}>
+                                    {periodMode !== 'range' ? (
+                                        <div className={styles.periodNavigator}>
+                                            <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(-1)}>
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </button>
+                                            <span className={styles.periodLabel}>{periodLabel}</span>
+                                            <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(1)}>
+                                                <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className={styles.rangeInputs}>
+                                            <input
+                                                type="date"
+                                                className={styles.dateInput}
+                                                value={rangeFrom}
+                                                onChange={(event) => setRangeFrom(event.target.value)}
+                                            />
+                                            <span className={styles.rangeSeparator}>até</span>
+                                            <input
+                                                type="date"
+                                                className={styles.dateInput}
+                                                value={rangeTo}
+                                                onChange={(event) => setRangeTo(event.target.value)}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {isRangeInvalid ? (
-                                <small className={styles.periodHint}>Intervalo inválido: mantendo comportamento atual sem filtro de data.</small>
+                                <div className="flex items-center gap-1.5 mt-2 text-amber-600">
+                                    <AlertCircle className="w-3 h-3" />
+                                    <small className="font-bold uppercase text-[10px]">Intervalo inválido</small>
+                                </div>
                             ) : null}
                         </div>
 
                         <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Analytics de teste</span>
+                            <span className={styles.controlLabel}>Configurações Avançadas</span>
                             <label className={styles.toggleLabel}>
-                                <input
-                                    type="checkbox"
-                                    checked={analyticsTestMode}
-                                    onChange={(event) => onToggleAnalyticsTestMode(event.target.checked)}
-                                />
-                                <span>Marcar eventos GA4 como teste</span>
-                                <span className={analyticsTestMode ? styles.modeOnBadge : styles.modeOffBadge} title="Nao altera reservas ou pagamentos, apenas a marcacao dos eventos no analytics">
-                                    {analyticsTestMode ? 'ATIVO' : 'DESLIGADO'}
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={analyticsTestMode}
+                                        onChange={(event) => onToggleAnalyticsTestMode(event.target.checked)}
+                                    />
+                                    <span className="text-sm font-bold text-slate-700">Analytics Debug</span>
+                                </div>
+                                <span className={analyticsTestMode ? styles.modeOnBadge : styles.modeOffBadge}>
+                                    {analyticsTestMode ? 'ATIVO' : 'OFF'}
                                 </span>
                             </label>
                             {testPaymentsEnabled ? (
-                                <small className={styles.testPaymentsNote}>Ação &quot;Aprovar pagamento de teste&quot; habilitada nas reservas.</small>
+                                <div className="flex items-center gap-1.5 mt-2 text-blue-600">
+                                    <Info className="w-3 h-3" />
+                                    <small className="font-bold uppercase text-[10px]">Modo Sandbox Ativo</small>
+                                </div>
                             ) : null}
                         </div>
                     </div>
                 </header>
 
                 {actionFeedback ? (
-                    <div className={actionFeedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError}>
+                    <div className={cn(
+                        "p-4 rounded-2xl border flex items-center gap-3 font-bold text-sm animate-in fade-in slide-in-from-top-4",
+                        actionFeedback.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-red-50 border-red-100 text-red-700"
+                    )}>
+                        {actionFeedback.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                         {actionFeedback.message}
                     </div>
                 ) : null}
 
                 {loading && bookings.length > 0 ? (
-                    <div className={styles.inlineLoading}>Atualizando listagem...</div>
+                    <div className="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase tracking-widest pl-4">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Atualizando...
+                    </div>
                 ) : null}
 
                 {loading && bookings.length === 0 ? (
-                    <div className={styles.loading}>Carregando...</div>
-                ) : filteredBookings.length === 0 ? (
-                    <div className={styles.empty}>
-                        <p>Nenhuma reserva encontrada</p>
+                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                        <Loader2 className="w-10 h-10 animate-spin text-slate-200" />
+                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Carregando Reservas...</p>
                     </div>
+                ) : filteredBookings.length === 0 ? (
+                    <Card className="border-none shadow-none bg-white/50 border border-slate-100 py-20 flex flex-col items-center justify-center gap-4 rounded-[32px]">
+                        <Search className="w-12 h-12 text-slate-200" />
+                        <div className="text-center">
+                            <p className="text-slate-900 font-extrabold text-xl">Nenhuma reserva encontrada</p>
+                            <p className="text-slate-400 font-medium">Tente alterar os filtros ou o período de busca.</p>
+                        </div>
+                        <Button variant="outline" onClick={() => {setFilter('ALL'); setPeriodMode('month');}} className="rounded-xl font-bold mt-4">
+                            Limpar Filtros
+                        </Button>
+                    </Card>
                 ) : (
                     <div className={styles.cardsList}>
                         {filteredBookings.map((booking) => (
@@ -509,10 +558,18 @@ export default function AdminReservasPage() {
             {actionModal ? (
                 <div className={styles.modalBackdrop} onClick={() => setActionModal(null)}>
                     <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
-                        <h3 className={styles.modalTitle}>{getActionLabel(actionModal.action)}</h3>
+                        <div className="flex items-center gap-3 mb-6 text-red-600">
+                             {actionModal.action === 'delete' ? <XCircle className="w-8 h-8" /> : <Info className="w-8 h-8 text-slate-900" />}
+                             <h3 className={styles.modalTitle}>{getActionLabel(actionModal.action)}</h3>
+                        </div>
+                        
                         <p className={styles.modalDescription}>{getActionDescription(actionModal.action, actionModal.booking)}</p>
-                        <div className={styles.modalMeta}>
-                            <strong>Reserva:</strong> {actionModal.booking.id.slice(0, 8).toUpperCase()} - {actionModal.booking.guest.name}
+                        
+                        <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Referência</p>
+                            <p className="font-bold text-slate-900">
+                                {actionModal.booking.id.slice(0, 8).toUpperCase()} — {actionModal.booking.guest.name}
+                            </p>
                         </div>
 
                         <div className={styles.modalActions}>
@@ -530,12 +587,12 @@ export default function AdminReservasPage() {
                                 onClick={confirmActionModal}
                                 disabled={Boolean(actionBusy)}
                             >
-                                Confirmar
+                                {actionBusy ? 'Processando...' : 'Confirmar Ação'}
                             </button>
                         </div>
                     </div>
                 </div>
             ) : null}
-        </>
+        </div>
     );
 }
