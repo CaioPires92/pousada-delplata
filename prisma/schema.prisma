@@ -209,3 +209,119 @@ model CouponAttemptLog {
   @@index([createdAt])
   @@index([codePrefix])
 }
+
+model Contact {
+  id              String              @id @default(uuid())
+  name            String?
+  phoneRaw        String?
+  phoneNormalized String?             @unique
+  email           String?
+  source          String              @default("manual")
+  status          String              @default("lead")
+  optInWhatsapp   Boolean             @default(false)
+  optOutAt        DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  conversations   Conversation[]
+  pipelineCards   PipelineCard[]
+  actionLogs      InternalActionLog[]
+
+  @@index([email])
+  @@index([source])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Conversation {
+  id                    String              @id @default(uuid())
+  contactId             String
+  channel               String
+  status                String              @default("open")
+  chatbotEnabled        Boolean             @default(false)
+  automationPausedUntil DateTime?
+  assignedUserId        String?
+  lastMessageAt         DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages              Message[]
+  pipelineCards         PipelineCard[]
+  actionLogs            InternalActionLog[]
+
+  @@index([contactId])
+  @@index([channel, status])
+  @@index([assignedUserId])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id                String       @id @default(uuid())
+  conversationId    String
+  externalMessageId String?
+  senderType        String
+  content           String?
+  messageType       String       @default("text")
+  mediaUrl          String?
+  metadataJson      String?
+  sentAt            DateTime
+  createdAt         DateTime     @default(now())
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, externalMessageId])
+  @@index([conversationId, sentAt])
+  @@index([senderType])
+  @@index([messageType])
+}
+
+model PipelineCard {
+  id             String        @id @default(uuid())
+  contactId      String
+  conversationId String?
+  stage          String        @default("novo")
+  priority       String        @default("media")
+  assignedUserId String?
+  source         String        @default("manual")
+  lastActivityAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([contactId])
+  @@index([conversationId])
+  @@index([stage, priority])
+  @@index([assignedUserId])
+  @@index([lastActivityAt])
+}
+
+model ChatbotSettings {
+  id                            String   @id @default(uuid())
+  enabledGlobal                 Boolean  @default(false)
+  enabledWhatsapp               Boolean  @default(false)
+  enabledSite                   Boolean  @default(false)
+  defaultHandoffMessage         String?
+  maxAutoReplyDelaySeconds      Int      @default(30)
+  staleAvailabilityLimitMinutes Int      @default(60)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+}
+
+model InternalActionLog {
+  id             String        @id @default(uuid())
+  userId         String?
+  contactId      String?
+  conversationId String?
+  bookingId      String?
+  action         String
+  metadataJson   String?
+  createdAt      DateTime      @default(now())
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([contactId])
+  @@index([conversationId])
+  @@index([bookingId])
+  @@index([action])
+  @@index([createdAt])
+}
