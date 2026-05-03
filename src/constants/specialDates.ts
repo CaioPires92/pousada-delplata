@@ -41,16 +41,6 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         enabled: false,
     },
     {
-        id: 'dia-do-trabalho-2026',
-        title: 'Dia do Trabalho',
-        description: 'Sexta-feira de feriado ideal para descanso em família.',
-        dateFrom: '2026-05-01',
-        dateTo: '2026-05-03',
-        image: '/fotos/piscina-aptos/DJI_0908.jpg',
-        minNights: 2,
-        enabled: true,
-    },
-    {
         id: 'corpus-christi-2026',
         title: 'Corpus Christi',
         description: 'Feriado de quinta-feira com alta procura em Serra Negra.',
