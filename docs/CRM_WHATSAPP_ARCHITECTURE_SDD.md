@@ -113,7 +113,7 @@ src/
 ### FASE 3 — CONTROLE CHATBOT
 
 - [x] Task 1 — Endpoint PATCH chatbot
-- [ ] Task 2 — Toggle ON/OFF na conversa
+- [x] Task 2 — Toggle ON/OFF na conversa
 
 ### FASE 4 — KANBAN
 

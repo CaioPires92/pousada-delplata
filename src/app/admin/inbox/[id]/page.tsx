@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import ChatbotToggle from "./ChatbotToggle";
 import ReplyBox from "./ReplyBox";
 import MessageList from "./MessageList";
 
@@ -114,16 +115,23 @@ export default async function ConversationPage({
                             </p>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide">
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                                {conversation.channel}
-                            </span>
-                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
-                                {conversation.status}
-                            </span>
-                            <span className={`rounded-full border px-3 py-2 ${chatbotStatus.tone}`}>
-                                {chatbotStatus.label}
-                            </span>
+                        <div className="flex flex-col gap-3 sm:items-end">
+                            <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-wide sm:justify-end">
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
+                                    {conversation.channel}
+                                </span>
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
+                                    {conversation.status}
+                                </span>
+                                <span className={`rounded-full border px-3 py-2 ${chatbotStatus.tone}`}>
+                                    {chatbotStatus.label}
+                                </span>
+                            </div>
+
+                            <ChatbotToggle
+                                chatbotEnabled={conversation.chatbotEnabled}
+                                conversationId={conversation.id}
+                            />
                         </div>
                     </div>
                 </div>
