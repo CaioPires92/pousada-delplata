@@ -1,0 +1,122 @@
+# CRM WhatsApp Delplata — Arquitetura e SDD
+
+## 1. Visão geral
+
+O projeto Delplata-Motor passa a ter dois domínios dentro do mesmo repositório:
+
+1. Motor de Reservas
+2. CRM WhatsApp
+
+O CRM deve ser criado como módulo paralelo, sem alterar o funcionamento do motor atual.
+
+O banco atual já possui estrutura de reservas, quartos, tarifas, disponibilidade, hóspedes, pagamentos, cupons e usuários administrativos. O CRM foi adicionado de forma paralela com Contact, Conversation, Message, PipelineCard, ChatbotSettings e InternalActionLog. :contentReference[oaicite:0]{index=0}
+
+---
+
+## 2. Objetivo do CRM
+
+O CRM tem como objetivo substituir gradualmente o WhatsApp Web da recepção.
+
+Funcionalidades previstas:
+
+- Receber mensagens via Evolution API
+- Criar/atualizar contatos
+- Criar conversas
+- Salvar histórico de mensagens
+- Exibir inbox interno
+- Permitir resposta manual da recepção
+- Pausar chatbot quando humano assumir
+- Criar Kanban automático/manual
+- Futuramente consultar disponibilidade/preços
+- Futuramente operar chatbot do WhatsApp e do site
+
+---
+
+## 3. Stack técnica
+
+### Aplicação
+
+- Next.js
+- App Router
+- TypeScript
+- Prisma ORM
+
+### Banco
+
+- SQLite/Turso via Prisma
+- Driver adapter LibSQL
+
+### WhatsApp
+
+- Evolution API
+- Instância: usar variável de ambiente
+- API Key: usar variável de ambiente
+
+### Automação futura
+
+- n8n
+- Chatbot com IA
+- Redis opcional para fila/memória curta
+
+---
+
+## 4. Organização de pastas recomendada
+
+```txt
+src/
+  app/
+    api/
+      availability/              # motor de reservas atual
+      bookings/                  # motor de reservas atual
+      crm/
+        conversations/
+          route.ts               # lista conversas
+          [id]/
+            route.ts             # detalhe da conversa
+      whatsapp/
+        webhook/
+          route.ts               # recebe mensagens Evolution API
+        send/
+          route.ts               # envia resposta manual
+    admin/
+      inbox/
+        page.tsx                 # lista conversas
+        [id]/
+          page.tsx               # histórico da conversa
+
+  lib/
+    prisma.ts                    # Prisma Client
+    whatsapp/
+      evolution.ts               # cliente Evolution API
+    crm/
+      # serviços futuros do CRM
+```
+
+---
+
+## 5. Roadmap de implementação
+
+### FASE 1 — BASE
+
+- [x] Prisma CRM
+- [x] Webhook
+- [x] Inbox
+- [x] Conversation detail
+- [x] Evolution API
+
+### FASE 2 — RESPOSTA MANUAL
+
+- [x] Task 1 — Endpoint de envio
+- [x] Task 2 — UI de resposta
+- [x] Task 3 — UX conversa
+
+### FASE 3 — CONTROLE CHATBOT
+
+- [ ] Task 1 — Endpoint PATCH chatbot
+- [ ] Task 2 — Toggle ON/OFF na conversa
+
+### FASE 4 — KANBAN
+
+- [ ] Task 1 — GET pipeline
+- [ ] Task 2 — Tela kanban
+- [ ] Task 3 — Mover stage manualmente
