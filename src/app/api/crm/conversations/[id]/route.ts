@@ -7,6 +7,16 @@ type RouteParams = {
     }>;
 };
 
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+    }
+
+    return value as JsonRecord;
+}
+
 export async function GET(_request: Request, { params }: RouteParams) {
     try {
         const { id } = await params;
@@ -59,6 +69,59 @@ export async function GET(_request: Request, { params }: RouteParams) {
         });
     } catch (error) {
         console.error("Erro ao buscar conversa:", error);
+        return NextResponse.json(
+            { ok: false, error: "internal_error" },
+            { status: 500 }
+        );
+    }
+}
+
+export async function PATCH(request: Request, { params }: RouteParams) {
+    try {
+        const { id } = await params;
+        const body = await request.json().catch(() => null);
+        const bodyRecord = asRecord(body);
+
+        if (typeof bodyRecord?.chatbotEnabled !== "boolean") {
+            return NextResponse.json(
+                { ok: false, error: "invalid_body" },
+                { status: 400 }
+            );
+        }
+
+        const existingConversation = await prisma.conversation.findUnique({
+            where: { id },
+            select: { id: true },
+        });
+
+        if (!existingConversation) {
+            return NextResponse.json(
+                { ok: false, error: "conversation_not_found" },
+                { status: 404 }
+            );
+        }
+
+        const conversation = await prisma.conversation.update({
+            where: { id },
+            data: {
+                chatbotEnabled: bodyRecord.chatbotEnabled,
+                automationPausedUntil: null,
+            },
+            select: {
+                id: true,
+                chatbotEnabled: true,
+                automationPausedUntil: true,
+            },
+        });
+
+        return NextResponse.json({
+            ok: true,
+            conversationId: conversation.id,
+            chatbotEnabled: conversation.chatbotEnabled,
+            automationPausedUntil: conversation.automationPausedUntil,
+        });
+    } catch (error) {
+        console.error("Erro ao atualizar chatbot da conversa:", error);
         return NextResponse.json(
             { ok: false, error: "internal_error" },
             { status: 500 }
