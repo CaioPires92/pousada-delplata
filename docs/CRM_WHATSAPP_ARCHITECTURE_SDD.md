@@ -120,3 +120,28 @@ src/
 - [x] Task 1 — GET pipeline
 - [x] Task 2 — Tela kanban
 - [x] Task 3 — Mover stage manualmente
+
+### FASE 5 — PERSISTÊNCIA OPERACIONAL / PRODUÇÃO
+
+- [x] Task 1 — Registrar mensagem enviada pelo CRM no banco
+- [ ] Task 2 — Confirmar webhook recebendo resposta real do WhatsApp
+- [ ] Task 3 — Evitar mensagem duplicada no front
+- [ ] Task 4 — Atualizar preview da conversa após envio/recebimento
+- [ ] Task 5 — Status visual: enviada / recebida / erro
+
+### FASE 6 — AUTOMAÇÃO CONTROLADA
+
+- [ ] Task 1 — Criar tabela/configuração de respostas automáticas
+- [ ] Task 2 — Chatbot responder só se `chatbotEnabled = true`
+- [ ] Task 3 — Criar regra básica: saudação / preço / disponibilidade
+- [ ] Task 4 — Logar toda ação automática
+- [ ] Task 5 — Botão “assumir conversa” para desligar bot naquela conversa
+
+### FASE 7 — CRM DE VERDADE
+
+- [ ] Task 1 — Criar lead manualmente
+- [ ] Task 2 — Vincular contato a reserva existente
+- [ ] Task 3 — Campo de valor estimado
+- [ ] Task 4 — Campo de data pretendida
+- [ ] Task 5 — Motivo de perda
+- [ ] Task 6 — Histórico interno/anotações
