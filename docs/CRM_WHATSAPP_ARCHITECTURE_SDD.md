@@ -117,6 +117,6 @@ src/
 
 ### FASE 4 — KANBAN
 
-- [ ] Task 1 — GET pipeline
+- [x] Task 1 — GET pipeline
 - [ ] Task 2 — Tela kanban
 - [ ] Task 3 — Mover stage manualmente
