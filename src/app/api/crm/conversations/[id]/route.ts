@@ -48,6 +48,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
             status: conversation.status,
             channel: conversation.channel,
             chatbotEnabled: conversation.chatbotEnabled,
+            automationPausedUntil: conversation.automationPausedUntil,
             lastMessageAt: conversation.lastMessageAt,
             contact: {
                 id: conversation.contact.id,

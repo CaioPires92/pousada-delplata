@@ -16,6 +16,46 @@ interface MessageListProps {
     conversationId: string;
 }
 
+function formatMessageTime(message: Message): string {
+    const parsed = new Date(message.sentAt || message.createdAt);
+    if (Number.isNaN(parsed.getTime())) {
+        return "";
+    }
+
+    return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+    }).format(parsed);
+}
+
+function getMessageStyle(senderType: string): {
+    alignment: string;
+    bubble: string;
+    label: string;
+} {
+    if (senderType === "human") {
+        return {
+            alignment: "justify-end",
+            bubble: "bg-emerald-600 text-white",
+            label: "Recepção",
+        };
+    }
+
+    if (senderType === "bot") {
+        return {
+            alignment: "justify-end",
+            bubble: "border border-sky-200 bg-sky-50 text-sky-950",
+            label: "Bot",
+        };
+    }
+
+    return {
+        alignment: "justify-start",
+        bubble: "border border-slate-200 bg-white text-slate-950",
+        label: "Hóspede",
+    };
+}
+
 export default function MessageList({ initialMessages, conversationId }: MessageListProps) {
     const [messages, setMessages] = useState<Message[]>(initialMessages);
 
@@ -46,32 +86,36 @@ export default function MessageList({ initialMessages, conversationId }: Message
     }, [conversationId]);
 
     return (
-        <div className="space-y-3">
+        <div className="min-h-[420px] space-y-3 rounded-2xl bg-slate-50 px-3 py-4 sm:px-4">
             {messages.length === 0 ? (
-                <p className="text-slate-500">Nenhuma mensagem encontrada.</p>
+                <div className="flex min-h-[240px] items-center justify-center text-sm text-slate-500">
+                    Nenhuma mensagem encontrada.
+                </div>
             ) : (
                 messages.map((message) => {
-                    const isGuest = message.senderType === "guest";
+                    const style = getMessageStyle(message.senderType);
 
                     return (
                         <div
                             key={message.id}
-                            className={`flex ${isGuest ? "justify-start" : "justify-end"}`}
+                            className={`flex ${style.alignment}`}
                         >
                             <div
-                                className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${isGuest
-                                    ? "bg-slate-100 text-slate-900"
-                                    : "bg-emerald-600 text-white"
-                                    }`}
+                                className={`max-w-[82%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[70%] ${style.bubble}`}
                             >
-                                <p className="text-xs font-semibold uppercase opacity-70">
-                                    {message.senderType}
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wide opacity-75">
+                                        {style.label}
+                                    </p>
+                                    <p className="text-xs opacity-60">
+                                        {message.messageType}
+                                    </p>
+                                </div>
+                                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">
+                                    {message.content || "Mensagem sem texto"}
                                 </p>
-                                <p className="mt-1">{message.content}</p>
-                                <p className="mt-2 text-xs opacity-60">
-                                    {new Date(message.sentAt || message.createdAt).toLocaleString(
-                                        "pt-BR"
-                                    )}
+                                <p className="mt-2 text-right text-xs opacity-60">
+                                    {formatMessageTime(message)}
                                 </p>
                             </div>
                         </div>
