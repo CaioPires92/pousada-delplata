@@ -119,4 +119,4 @@ src/
 
 - [x] Task 1 — GET pipeline
 - [x] Task 2 — Tela kanban
-- [ ] Task 3 — Mover stage manualmente
+- [x] Task 3 — Mover stage manualmente

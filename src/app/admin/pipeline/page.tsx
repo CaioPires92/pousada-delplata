@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Loader2, MessageCircle, Phone } from "lucide-react";
 
@@ -77,50 +77,73 @@ function getPriorityStyle(priority: string): string {
     return "border-amber-200 bg-amber-50 text-amber-700";
 }
 
+const STAGE_OPTIONS = Object.keys(STAGE_LABELS);
+
 export default function AdminPipelinePage() {
     const [stages, setStages] = useState<PipelineStage[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [movingCardId, setMovingCardId] = useState<string | null>(null);
+
+    const loadPipeline = useCallback(async (options?: { keepLoadingState?: boolean }) => {
+        try {
+            setError(null);
+            if (!options?.keepLoadingState) {
+                setLoading(true);
+            }
+
+            const response = await fetch("/api/crm/pipeline", {
+                cache: "no-store",
+            });
+
+            if (!response.ok) {
+                throw new Error("Falha ao carregar pipeline");
+            }
+
+            const data = await response.json() as PipelineResponse;
+            setStages(Array.isArray(data.stages) ? data.stages : []);
+        } catch (err) {
+            console.error("Erro ao carregar pipeline do CRM:", err);
+            setError("Não foi possível carregar o pipeline.");
+            setStages([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        let active = true;
-
-        async function loadPipeline() {
-            try {
-                setError(null);
-                const response = await fetch("/api/crm/pipeline", {
-                    cache: "no-store",
-                });
-
-                if (!response.ok) {
-                    throw new Error("Falha ao carregar pipeline");
-                }
-
-                const data = await response.json() as PipelineResponse;
-                if (!active) {
-                    return;
-                }
-
-                setStages(Array.isArray(data.stages) ? data.stages : []);
-            } catch (err) {
-                console.error("Erro ao carregar pipeline do CRM:", err);
-                if (active) {
-                    setError("Não foi possível carregar o pipeline.");
-                    setStages([]);
-                }
-            } finally {
-                if (active) {
-                    setLoading(false);
-                }
-            }
-        }
-
         loadPipeline();
+    }, [loadPipeline]);
 
-        return () => {
-            active = false;
-        };
-    }, []);
+    async function handleStageChange(cardId: string, nextStage: string) {
+        setMovingCardId(cardId);
+        setError(null);
+
+        try {
+            const response = await fetch(`/api/crm/pipeline/${cardId}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    stage: nextStage,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Falha ao mover card");
+            }
+
+            await loadPipeline({ keepLoadingState: true });
+        } catch (err) {
+            console.error("Erro ao mover card do pipeline:", err);
+            setError("Não foi possível mover o card.");
+        } finally {
+            setMovingCardId(null);
+        }
+    }
 
     const totalCards = useMemo(
         () => stages.reduce((total, stage) => total + stage.cards.length, 0),
@@ -213,6 +236,22 @@ export default function AdminPipelinePage() {
                                                     {card.source} · {card.conversation?.channel ?? "sem conversa"}
                                                 </p>
                                             </div>
+
+                                            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                Stage
+                                                <select
+                                                    value={card.stage}
+                                                    disabled={movingCardId === card.id}
+                                                    onChange={(event) => handleStageChange(card.id, event.target.value)}
+                                                    className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                                >
+                                                    {STAGE_OPTIONS.map((stageOption) => (
+                                                        <option key={stageOption} value={stageOption}>
+                                                            {formatStageLabel(stageOption)}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
 
                                             {card.conversation && (
                                                 <Link
