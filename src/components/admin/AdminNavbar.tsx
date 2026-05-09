@@ -7,13 +7,14 @@ import {
     LayoutDashboard, 
     ClipboardList, 
     PlusCircle, 
-    Home, 
-    CalendarRange, 
-    Ticket, 
-    Globe, 
+    Home,
+    CalendarRange,
+    Ticket,
+    Globe,
     LogOut,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    KanbanSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +42,7 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
         { href: '/admin/quartos', label: 'Quartos', icon: Home },
         { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
         { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
+        { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
     ];
 
     const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
