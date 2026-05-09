@@ -2,31 +2,73 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEvolutionText } from "@/lib/whatsapp/evolution";
 
-/**
- * Endpoint para envio manual de mensagens via CRM.
- * POST /api/whatsapp/send
- * Body: { conversationId: string, text: string }
- */
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | undefined {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return undefined;
+    }
+
+    return value as JsonRecord;
+}
+
+function firstString(...values: unknown[]): string | undefined {
+    for (const value of values) {
+        if (typeof value !== "string") {
+            continue;
+        }
+
+        const trimmed = value.trim();
+        if (trimmed) {
+            return trimmed;
+        }
+    }
+
+    return undefined;
+}
+
+function extractEvolutionMessageId(response: unknown): string | null {
+    const root = asRecord(response);
+    const data = asRecord(root?.data);
+    const key = asRecord(root?.key) ?? asRecord(data?.key);
+    const message = asRecord(root?.message) ?? asRecord(data?.message);
+    const messageKey = asRecord(message?.key);
+
+    return firstString(
+        root?.id,
+        root?.messageId,
+        data?.id,
+        data?.messageId,
+        key?.id,
+        messageKey?.id,
+    ) ?? null;
+}
+
 export async function POST(request: Request) {
     try {
         const body = await request.json().catch(() => null);
+        const bodyRecord = asRecord(body);
+        const conversationId = firstString(bodyRecord?.conversationId);
+        const text = firstString(bodyRecord?.text);
 
-        if (!body || !body.conversationId || !body.text) {
+        if (!conversationId || !text) {
             return NextResponse.json(
                 { ok: false, error: "invalid_body" },
                 { status: 400 }
             );
         }
 
-        const { conversationId, text } = body;
-
-        // 2. Buscar Conversation pelo id, incluindo Contact.
         const conversation = await prisma.conversation.findUnique({
             where: { id: conversationId },
-            include: { contact: true },
+            include: {
+                contact: {
+                    select: {
+                        phoneNormalized: true,
+                    },
+                },
+            },
         });
 
-        // 3. Se não encontrar conversa, retornar 404.
         if (!conversation) {
             return NextResponse.json(
                 { ok: false, error: "conversation_not_found" },
@@ -34,7 +76,6 @@ export async function POST(request: Request) {
             );
         }
 
-        // 4. Se contato não tiver phoneNormalized, retornar 400.
         if (!conversation.contact.phoneNormalized) {
             return NextResponse.json(
                 { ok: false, error: "missing_normalized_phone" },
@@ -42,12 +83,11 @@ export async function POST(request: Request) {
             );
         }
 
-        // 5. Enviar mensagem pela Evolution API usando phoneNormalized.
-        let evolutionResponse;
+        let evolutionResponse: unknown;
         try {
             evolutionResponse = await sendEvolutionText({
                 number: conversation.contact.phoneNormalized,
-                text: text,
+                text,
             });
         } catch (error) {
             console.error("Erro ao enviar mensagem via Evolution:", error);
@@ -57,17 +97,14 @@ export async function POST(request: Request) {
             );
         }
 
-        // Extrair ID externo se disponível (comum em evolution: data.key.id)
-        const externalMessageId = evolutionResponse?.key?.id || null;
         const now = new Date();
-        const automationPausedUntil = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutos
+        const automationPausedUntil = new Date(now.getTime() + 30 * 60 * 1000);
 
-        // 6. Criar Message e 7. Atualizar Conversation dentro de uma transação.
         const result = await prisma.$transaction(async (tx) => {
             const message = await tx.message.create({
                 data: {
                     conversationId: conversation.id,
-                    externalMessageId,
+                    externalMessageId: extractEvolutionMessageId(evolutionResponse),
                     senderType: "human",
                     content: text,
                     messageType: "text",
@@ -87,7 +124,6 @@ export async function POST(request: Request) {
             return message;
         });
 
-        // 9. Retornar resposta de sucesso.
         return NextResponse.json({
             ok: true,
             messageId: result.id,
