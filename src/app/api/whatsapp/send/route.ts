@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createAutomationPausedUntil } from "@/lib/crm/automationPause";
 import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
 
 type JsonRecord = Record<string, unknown>;
@@ -102,7 +103,7 @@ export async function POST(request: Request) {
         }
 
         const now = new Date();
-        const automationPausedUntil = new Date(now.getTime() + 30 * 60 * 1000);
+        const automationPausedUntil = createAutomationPausedUntil(now);
 
         const result = await prisma.$transaction(async (tx) => {
             const message = await tx.message.create({

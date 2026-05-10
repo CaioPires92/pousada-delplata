@@ -9,6 +9,7 @@ import { fetchEvolutionContact, resolveEvolutionSendTarget } from '@/lib/whatsap
 import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/crm/identity';
 import { recordCrmEvent } from '@/lib/crm/events';
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from '@/lib/crm/pipelineStages';
+import { isConversationAutomationActive } from '@/lib/crm/automationPause';
 
 export const runtime = 'nodejs';
 
@@ -722,8 +723,7 @@ export async function POST(
     }
   });
 
-  const isAutomationEnabled = conversation?.chatbotEnabled && 
-    (!conversation.automationPausedUntil || new Date(conversation.automationPausedUntil) < new Date());
+  const isAutomationEnabled = isConversationAutomationActive(conversation);
 
   // ETAPA DE SELEÇÃO DE DESTINO (Hardenings Phase 7/8)
   const finalIdentity = extractWhatsAppIdentity(payloadRecord);

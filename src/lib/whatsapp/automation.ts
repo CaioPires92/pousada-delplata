@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { isConversationAutomationActive } from "@/lib/crm/automationPause";
 import { sendEvolutionText } from "./evolution";
 
 export async function matchRule(text: string): Promise<string | null> {
@@ -21,6 +22,18 @@ export async function matchRule(text: string): Promise<string | null> {
 }
 
 export async function processAutoResponse(conversationId: string, phone: string, text: string) {
+    const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: {
+            chatbotEnabled: true,
+            automationPausedUntil: true,
+        },
+    });
+
+    if (!isConversationAutomationActive(conversation)) {
+        return null;
+    }
+
     const responseText = await matchRule(text);
     
     if (!responseText) return null;
