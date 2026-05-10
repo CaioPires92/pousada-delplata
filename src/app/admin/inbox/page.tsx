@@ -87,8 +87,12 @@ export default function AdminInboxPage() {
 
     loadConversations();
 
+    // Polling a cada 10 segundos
+    const intervalId = setInterval(loadConversations, 10000);
+
     return () => {
       active = false;
+      clearInterval(intervalId);
     };
   }, []);
 

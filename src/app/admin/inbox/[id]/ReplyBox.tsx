@@ -33,9 +33,27 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
             return;
         }
 
+        const tempId = `temp-${Date.now()}`;
+        const optimisticMessage = {
+            id: tempId,
+            conversationId,
+            senderType: "human",
+            content: messageText,
+            messageType: "text",
+            createdAt: new Date().toISOString(),
+            sentAt: new Date().toISOString(),
+            status: 'pending' as const
+        };
+
+        // Disparar evento para o MessageList
+        window.dispatchEvent(new CustomEvent('crm-new-message', { 
+            detail: { conversationId, message: optimisticMessage } 
+        }));
+
         setIsLoading(true);
         setError(null);
         setSentFeedback(null);
+        setText("");
 
         try {
             const response = await fetch("/api/whatsapp/send", {
@@ -52,15 +70,22 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
             const data = await response.json();
 
             if (!response.ok) {
+                // Notificar erro para a mensagem específica
+                window.dispatchEvent(new CustomEvent('crm-message-error', { 
+                    detail: { conversationId, messageId: tempId } 
+                }));
                 throw new Error(data.error || "Falha ao enviar mensagem");
             }
 
-            setText("");
             setSentFeedback("Mensagem enviada.");
-            router.refresh();
         } catch (err) {
             console.error("Erro ao enviar:", err);
             setError(getErrorMessage(err));
+            
+            // Garantir que o ícone de erro apareça mesmo se o throw acontecer antes do dispatch acima
+            window.dispatchEvent(new CustomEvent('crm-message-error', { 
+                detail: { conversationId, messageId: tempId } 
+            }));
         } finally {
             setIsLoading(false);
         }
