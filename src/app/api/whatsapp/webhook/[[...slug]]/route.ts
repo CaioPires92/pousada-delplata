@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import prisma from '@/lib/prisma';
-import { fetchEvolutionContact } from '@/lib/whatsapp/evolution';
+import { fetchEvolutionContact, resolveEvolutionSendTarget } from '@/lib/whatsapp/evolution';
 import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/crm/identity';
 import { recordCrmEvent } from '@/lib/crm/events';
 
@@ -253,6 +253,22 @@ function summarizePayload(payload: JsonRecord): string {
   return JSON.stringify(summary);
 }
 
+function isMessageStatusUpdate(payload: JsonRecord, eventName: string): boolean {
+  const payloadData = firstRecord(payload.data, payload.body);
+  const root = firstRecord(payloadData, payload) ?? payload;
+  const event = firstString(payload.event);
+  const message = firstRecord(root.message, payload.message);
+  const status = firstString(root.status);
+  const keyId = firstString(root.keyId);
+  const messageId = firstString(root.messageId);
+
+  return (
+    (event === 'messages.update' || eventName === 'messages-update') &&
+    !message &&
+    Boolean(status || keyId || messageId)
+  );
+}
+
 function extractWebhookMessage(payload: JsonRecord): ExtractedWebhookMessage {
   const payloadData = firstRecord(payload.data, payload.body);
   const root = firstRecord(payloadData, payload) ?? payload;
@@ -356,6 +372,11 @@ export async function POST(
 
   // ETAPA 2 — LOGS DE DEBUG (AUDITORIA)
   console.log("FULL WEBHOOK", JSON.stringify(payloadRecord, null, 2));
+
+  if (isMessageStatusUpdate(payloadRecord, eventName)) {
+    console.log('--- [WEBHOOK] IGNORADO: ATUALIZAÇÃO DE STATUS DA MENSAGEM ---');
+    return NextResponse.json({ ok: true, ignored: true, reason: 'message_status_update' });
+  }
 
   let extracted = extractWebhookMessage(payloadRecord);
   
@@ -687,19 +708,43 @@ export async function POST(
   // --- ETAPA 6: AUTOMAÇÃO (FASE 6) ---
   const conversation = await prisma.conversation.findUnique({
     where: { id: result.conversationId },
-    select: { chatbotEnabled: true, automationPausedUntil: true, contact: { select: { phone: true } } }
+    select: {
+      chatbotEnabled: true,
+      automationPausedUntil: true,
+      contact: {
+        select: {
+          phone: true,
+          phoneRaw: true,
+          whatsappJid: true,
+        },
+      },
+    }
   });
 
   const isAutomationEnabled = conversation?.chatbotEnabled && 
     (!conversation.automationPausedUntil || new Date(conversation.automationPausedUntil) < new Date());
 
-  if (isAutomationEnabled && extracted.textContent && conversation?.contact?.phone) {
+  // ETAPA DE SELEÇÃO DE DESTINO (Hardenings Phase 7/8)
+  const finalIdentity = extractWhatsAppIdentity(payloadRecord);
+  const targetId = conversation?.contact
+    ? resolveEvolutionSendTarget(conversation.contact, finalIdentity.phone || extracted.phone || extracted.phoneRaw)
+    : finalIdentity.phone || extracted.phone || extracted.phoneRaw;
+
+  console.log(`--- [WEBHOOK] DEBUG AUTOMAÇÃO ---`, {
+    extractedPhone: extracted.phone,
+    identityPhone: finalIdentity.phone,
+    contactPhone: conversation?.contact?.phone,
+    phoneRaw: extracted.phoneRaw,
+    SELECTED_TARGET: targetId
+  });
+
+  if (isAutomationEnabled && extracted.textContent && targetId) {
     try {
-      console.log(`--- [WEBHOOK] EXECUTANDO AUTOMAÇÃO PARA: ${conversation.contact.phone} ---`);
+      console.log(`--- [WEBHOOK] EXECUTANDO AUTOMAÇÃO PARA: ${targetId} ---`);
       const { processAutoResponse } = await import('@/lib/whatsapp/automation');
       const response = await processAutoResponse(
         result.conversationId,
-        conversation.contact.phone,
+        targetId,
         extracted.textContent
       );
       if (response) {

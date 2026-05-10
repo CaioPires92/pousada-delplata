@@ -3,6 +3,25 @@ type SendTextParams = {
     text: string;
 };
 
+type ContactSendTarget = {
+    phone?: string | null;
+    phoneRaw?: string | null;
+    whatsappJid?: string | null;
+};
+
+export function resolveEvolutionSendTarget(contact: ContactSendTarget, fallback?: string | null) {
+    const jid = contact.whatsappJid?.trim();
+    const fallbackTarget = fallback?.trim();
+    const phone = contact.phone?.trim();
+    const phoneRaw = contact.phoneRaw?.trim();
+
+    if (jid?.includes("@lid")) return jid;
+    if (fallbackTarget?.includes("@lid")) return fallbackTarget;
+    if (jid) return jid;
+    if (fallbackTarget?.includes("@")) return fallbackTarget;
+    return phone || phoneRaw || fallbackTarget || null;
+}
+
 export async function sendEvolutionText({ number, text }: SendTextParams) {
     const apiUrl = process.env.EVOLUTION_API_URL;
     const apiKey = process.env.EVOLUTION_API_KEY;
@@ -12,7 +31,14 @@ export async function sendEvolutionText({ number, text }: SendTextParams) {
         throw new Error("Evolution API env vars missing");
     }
 
-    const cleanNumber = number.replace(/\D/g, "");
+    // Garantimos que o destino seja um JID válido para a Evolution
+    let target = number;
+    if (!target.includes("@")) {
+        // Se for só número, limpamos e adicionamos o sufixo padrão
+        target = target.replace(/\D/g, "") + "@s.whatsapp.net";
+    }
+
+    console.log(`--- [EVOLUTION] FORÇANDO ENVIO PARA JID: ${target} ---`);
 
     const response = await fetch(
         `${apiUrl}/message/sendText/${instanceName}`,
@@ -23,7 +49,7 @@ export async function sendEvolutionText({ number, text }: SendTextParams) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                number: cleanNumber,
+                number: target,
                 text,
             }),
         }
@@ -32,10 +58,11 @@ export async function sendEvolutionText({ number, text }: SendTextParams) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-        console.error("Evolution sendText error details:", JSON.stringify(data, null, 2));
+        console.error("--- [EVOLUTION] ERRO NO ENVIO ---", JSON.stringify(data, null, 2));
         throw new Error("Failed to send WhatsApp message");
     }
 
+    console.log("--- [EVOLUTION] MENSAGEM ENVIADA COM SUCESSO ---", data?.key?.id);
     return data;
 }
 

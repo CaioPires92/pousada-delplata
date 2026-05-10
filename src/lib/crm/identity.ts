@@ -21,7 +21,7 @@ export interface JidResolution {
 export function resolveContactJidFromEvolutionPayload(body: any): JidResolution {
   const data = body?.data;
   const key = data?.key;
-  const fromMe = key?.fromMe === true;
+  const fromMe = key?.fromMe === true || data?.fromMe === true;
   const instanceNumber = body?.sender;
 
   let contactJid: string | null = null;
@@ -69,8 +69,25 @@ export function extractWhatsAppIdentity(payload: any): WhatsAppIdentity {
     pushName: typeof pushName === 'string' ? pushName : null
   };
 
+  // Lógica de Identidade Híbrida
   if (isLid(rawJid)) {
     identity.lid = rawJid.replace('@lid', '');
+    // Busca agressiva pelo número real em campos que representam o PARTICIPANTE (GUEST)
+    const possibleSenderFields = [
+      payload.data?.key?.participant,
+      payload.data?.participant
+    ];
+
+    for (const s of possibleSenderFields) {
+      if (s && typeof s === 'string' && isWhatsappPhoneJid(s)) {
+        const extractedPhone = normalizeBrazilianPhone(s.split('@')[0]);
+        // Se o número extraído for o da própria pousada, ignoramos para não dar loop
+        if (extractedPhone && extractedPhone !== process.env.POUSADA_PHONE) {
+          identity.phone = extractedPhone;
+          if (identity.phone) break; 
+        }
+      }
+    }
   } else if (isWhatsappPhoneJid(rawJid)) {
     const rawPhone = rawJid.split('@')[0];
     identity.phone = normalizeBrazilianPhone(rawPhone);
@@ -87,7 +104,7 @@ export function normalizeBrazilianPhone(input: string): string | null {
   if (!input) return null;
   
   // Remove tudo que não é dígito
-  let clean = input.replace(/\D/g, '');
+  const clean = input.replace(/\D/g, '');
 
   if (!clean) return null;
 

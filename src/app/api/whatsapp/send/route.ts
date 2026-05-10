@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { sendEvolutionText } from "@/lib/whatsapp/evolution";
+import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -64,6 +64,8 @@ export async function POST(request: Request) {
                 contact: {
                     select: {
                         phone: true,
+                        phoneRaw: true,
+                        whatsappJid: true,
                     },
                 },
             },
@@ -76,9 +78,11 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!conversation.contact.phone) {
+        const target = resolveEvolutionSendTarget(conversation.contact);
+
+        if (!target) {
             return NextResponse.json(
-                { ok: false, error: "missing_normalized_phone" },
+                { ok: false, error: "missing_whatsapp_target" },
                 { status: 400 }
             );
         }
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
         let evolutionResponse: unknown;
         try {
             evolutionResponse = await sendEvolutionText({
-                number: conversation.contact.phone,
+                number: target,
                 text,
             });
         } catch (error) {
