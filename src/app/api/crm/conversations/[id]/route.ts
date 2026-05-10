@@ -55,6 +55,13 @@ export async function GET(_request: Request, { params }: RouteParams) {
                         stage: true,
                         estimatedValue: true,
                         intendedArrival: true,
+                        intendedCheckin: true,
+                        intendedCheckout: true,
+                        adults: true,
+                        children: true,
+                        roomTypeInterest: true,
+                        lossReason: true,
+                        lostReason: true,
                         bookingId: true,
                     }
                 }

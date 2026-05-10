@@ -17,6 +17,13 @@ type PipelineCard = {
     id: string;
     estimatedValue: number | null;
     intendedArrival: string | null;
+    intendedCheckin: string | null;
+    intendedCheckout: string | null;
+    adults: number | null;
+    children: number | null;
+    roomTypeInterest: string | null;
+    lossReason: string | null;
+    lostReason: string | null;
     stage: string;
     bookingId: string | null;
 };

@@ -291,7 +291,13 @@ model PipelineCard {
   updatedAt      DateTime      @updatedAt
   estimatedValue Float?
   intendedArrival DateTime?
+  intendedCheckin DateTime?
+  intendedCheckout DateTime?
+  adults         Int?
+  children       Int?
+  roomTypeInterest String?
   lossReason     String?
+  lostReason     String?
   bookingId      String?
   contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)

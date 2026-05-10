@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { DollarSign, Calendar, StickyNote, Save, Plus, Trash2, Clock, Search, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { useCallback, useState, useEffect } from "react";
+import { DollarSign, StickyNote, Save, Plus, Trash2, Clock, Search, Link as LinkIcon, AlertCircle } from "lucide-react";
+import { formatDateBR } from "@/lib/date";
 
 type InternalNote = {
     id: string;
@@ -13,6 +14,13 @@ type PipelineCard = {
     id: string;
     estimatedValue: number | null;
     intendedArrival: string | null;
+    intendedCheckin: string | null;
+    intendedCheckout: string | null;
+    adults: number | null;
+    children: number | null;
+    roomTypeInterest: string | null;
+    lossReason: string | null;
+    lostReason: string | null;
     stage: string;
     bookingId: string | null;
 };
@@ -45,32 +53,40 @@ export default function SalesSidebar({ conversationId, initialCard }: SalesSideb
 
     const [editData, setEditData] = useState({
         estimatedValue: initialCard?.estimatedValue?.toString() || "",
-        intendedArrival: initialCard?.intendedArrival ? new Date(initialCard.intendedArrival).toISOString().split('T')[0] : ""
+        intendedCheckin: initialCard?.intendedCheckin
+            ? new Date(initialCard.intendedCheckin).toISOString().split('T')[0]
+            : initialCard?.intendedArrival
+                ? new Date(initialCard.intendedArrival).toISOString().split('T')[0]
+                : "",
+        intendedCheckout: initialCard?.intendedCheckout ? new Date(initialCard.intendedCheckout).toISOString().split('T')[0] : "",
+        adults: initialCard?.adults?.toString() || "",
+        children: initialCard?.children?.toString() || "",
+        roomTypeInterest: initialCard?.roomTypeInterest || "",
     });
 
-    useEffect(() => {
-        fetchNotes();
-        // Reset erro ao mudar de conversa
-        setUiError(null);
-    }, [conversationId]);
-
-    async function fetchNotes() {
+    const fetchNotes = useCallback(async () => {
         try {
             const res = await fetch(`/api/crm/conversations/${conversationId}/notes`);
             if (!res.ok) throw new Error();
             const data = await res.json();
             if (data.ok) setNotes(data.notes);
-        } catch (err) {
+        } catch {
             console.error("Falha ao carregar notas");
         }
-    }
+    }, [conversationId]);
+
+    useEffect(() => {
+        fetchNotes();
+        // Reset erro ao mudar de conversa
+        setUiError(null);
+    }, [conversationId, fetchNotes]);
 
     async function handleUpdateCard(updates: any) {
         if (!card) return;
         setIsSaving(true);
         setUiError(null);
         try {
-            const res = await fetch(`/api/crm/pipeline/${card.id}`, {
+            const res = await fetch(`/api/crm/pipeline/cards/${card.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updates),
@@ -97,7 +113,7 @@ export default function SalesSidebar({ conversationId, initialCard }: SalesSideb
             if (!res.ok) throw new Error();
             const data = await res.json();
             if (data.ok) setSearchResults(data.bookings);
-        } catch (err) {
+        } catch {
             setUiError("Erro ao buscar reservas.");
         } finally {
             setIsSearching(false);
@@ -163,21 +179,76 @@ export default function SalesSidebar({ conversationId, initialCard }: SalesSideb
                             </div>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Check-in</label>
+                                <input
+                                    disabled={isSaving}
+                                    type="date"
+                                    value={editData.intendedCheckin}
+                                    onChange={e => setEditData({ ...editData, intendedCheckin: e.target.value })}
+                                    className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-emerald-500 focus:bg-white outline-none text-sm font-bold transition-all disabled:opacity-50"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Check-out</label>
+                                <input
+                                    disabled={isSaving}
+                                    type="date"
+                                    value={editData.intendedCheckout}
+                                    onChange={e => setEditData({ ...editData, intendedCheckout: e.target.value })}
+                                    className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-emerald-500 focus:bg-white outline-none text-sm font-bold transition-all disabled:opacity-50"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Adultos</label>
+                                <input
+                                    disabled={isSaving}
+                                    type="number"
+                                    min="1"
+                                    value={editData.adults}
+                                    onChange={e => setEditData({ ...editData, adults: e.target.value })}
+                                    className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-emerald-500 focus:bg-white outline-none text-sm font-bold transition-all disabled:opacity-50"
+                                    placeholder="2"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Criancas</label>
+                                <input
+                                    disabled={isSaving}
+                                    type="number"
+                                    min="0"
+                                    value={editData.children}
+                                    onChange={e => setEditData({ ...editData, children: e.target.value })}
+                                    className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-emerald-500 focus:bg-white outline-none text-sm font-bold transition-all disabled:opacity-50"
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
+
                         <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Data Pretendida</label>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Acomodacao de interesse</label>
                             <input
                                 disabled={isSaving}
-                                type="date"
-                                value={editData.intendedArrival}
-                                onChange={e => setEditData({ ...editData, intendedArrival: e.target.value })}
+                                type="text"
+                                value={editData.roomTypeInterest}
+                                onChange={e => setEditData({ ...editData, roomTypeInterest: e.target.value })}
                                 className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-emerald-500 focus:bg-white outline-none text-sm font-bold transition-all disabled:opacity-50"
+                                placeholder="Chale, apartamento..."
                             />
                         </div>
 
                         <button
                             onClick={() => handleUpdateCard({
                                 estimatedValue: parseFloat(editData.estimatedValue) || null,
-                                intendedArrival: editData.intendedArrival || null
+                                intendedCheckin: editData.intendedCheckin || null,
+                                intendedCheckout: editData.intendedCheckout || null,
+                                adults: editData.adults ? Number(editData.adults) : null,
+                                children: editData.children ? Number(editData.children) : 0,
+                                roomTypeInterest: editData.roomTypeInterest || null,
                             })}
                             disabled={isSaving}
                             className="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 disabled:opacity-50"
@@ -240,7 +311,7 @@ export default function SalesSidebar({ conversationId, initialCard }: SalesSideb
                                     <div key={b.id} className="p-2 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-between group">
                                         <div className="min-w-0">
                                             <p className="text-[10px] font-black text-slate-800 truncate">{b.roomType.name}</p>
-                                            <p className="text-[9px] text-slate-500 font-bold">{new Date(b.checkIn).toLocaleDateString()} - {new Date(b.checkOut).toLocaleDateString()}</p>
+                                            <p className="text-[9px] text-slate-500 font-bold">{formatDateBR(b.checkIn)} - {formatDateBR(b.checkOut)}</p>
                                         </div>
                                         <button
                                             disabled={isSaving}

@@ -10,7 +10,13 @@ export type UpdatePipelineCardInput = {
   actorType?: "human" | "n8n" | "system";
   estimatedValue?: unknown;
   intendedArrival?: unknown;
+  intendedCheckin?: unknown;
+  intendedCheckout?: unknown;
+  adults?: unknown;
+  children?: unknown;
+  roomTypeInterest?: unknown;
   lossReason?: unknown;
+  lostReason?: unknown;
   bookingId?: unknown;
 };
 
@@ -37,6 +43,14 @@ function parseNullableNumber(value: unknown): number | null | undefined {
 
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return undefined;
+
+  return parsed;
+}
+
+function parseNullableInteger(value: unknown): number | null | undefined {
+  const parsed = parseNullableNumber(value);
+  if (parsed === undefined || parsed === null) return parsed;
+  if (!Number.isInteger(parsed) || parsed < 0) return undefined;
 
   return parsed;
 }
@@ -83,6 +97,8 @@ export async function updatePipelineCard(
       stage: true,
       contactId: true,
       conversationId: true,
+      intendedCheckin: true,
+      intendedCheckout: true,
     },
   });
 
@@ -93,6 +109,7 @@ export async function updatePipelineCard(
   const updateData: Prisma.PipelineCardUpdateInput = {
     lastActivityAt: new Date(),
   };
+  const changedFields: string[] = [];
 
   let nextStage: string | undefined;
 
@@ -109,24 +126,80 @@ export async function updatePipelineCard(
   if (input.estimatedValue !== undefined) {
     if (estimatedValue === undefined) return { ok: false, status: 400, error: "invalid_estimated_value" };
     updateData.estimatedValue = estimatedValue;
+    changedFields.push("estimatedValue");
   }
 
   const intendedArrival = parseNullableDate(input.intendedArrival);
   if (input.intendedArrival !== undefined) {
     if (intendedArrival === undefined) return { ok: false, status: 400, error: "invalid_intended_arrival" };
     updateData.intendedArrival = intendedArrival;
+    changedFields.push("intendedArrival");
+  }
+
+  const intendedCheckin = parseNullableDate(input.intendedCheckin);
+  if (input.intendedCheckin !== undefined) {
+    if (intendedCheckin === undefined) return { ok: false, status: 400, error: "invalid_intended_checkin" };
+    updateData.intendedCheckin = intendedCheckin;
+    updateData.intendedArrival = intendedCheckin;
+    changedFields.push("intendedCheckin", "intendedArrival");
+  }
+
+  const intendedCheckout = parseNullableDate(input.intendedCheckout);
+  if (input.intendedCheckout !== undefined) {
+    if (intendedCheckout === undefined) return { ok: false, status: 400, error: "invalid_intended_checkout" };
+    updateData.intendedCheckout = intendedCheckout;
+    changedFields.push("intendedCheckout");
+  }
+
+  const effectiveCheckin = input.intendedCheckin !== undefined ? intendedCheckin : existing.intendedCheckin;
+  const effectiveCheckout = input.intendedCheckout !== undefined ? intendedCheckout : existing.intendedCheckout;
+
+  if (effectiveCheckin instanceof Date && effectiveCheckout instanceof Date && effectiveCheckout <= effectiveCheckin) {
+    return { ok: false, status: 400, error: "invalid_date_range" };
+  }
+
+  const adults = parseNullableInteger(input.adults);
+  if (input.adults !== undefined) {
+    if (adults === undefined || adults === 0) return { ok: false, status: 400, error: "invalid_adults" };
+    updateData.adults = adults;
+    changedFields.push("adults");
+  }
+
+  const children = parseNullableInteger(input.children);
+  if (input.children !== undefined) {
+    if (children === undefined) return { ok: false, status: 400, error: "invalid_children" };
+    updateData.children = children;
+    changedFields.push("children");
+  }
+
+  const roomTypeInterest = parseNullableString(input.roomTypeInterest);
+  if (input.roomTypeInterest !== undefined) {
+    if (roomTypeInterest === undefined) return { ok: false, status: 400, error: "invalid_room_type_interest" };
+    updateData.roomTypeInterest = roomTypeInterest;
+    changedFields.push("roomTypeInterest");
   }
 
   const lossReason = parseNullableString(input.lossReason);
   if (input.lossReason !== undefined) {
     if (lossReason === undefined) return { ok: false, status: 400, error: "invalid_loss_reason" };
     updateData.lossReason = lossReason;
+    updateData.lostReason = lossReason;
+    changedFields.push("lossReason", "lostReason");
+  }
+
+  const lostReason = parseNullableString(input.lostReason);
+  if (input.lostReason !== undefined) {
+    if (lostReason === undefined) return { ok: false, status: 400, error: "invalid_lost_reason" };
+    updateData.lostReason = lostReason;
+    updateData.lossReason = lostReason;
+    changedFields.push("lostReason", "lossReason");
   }
 
   const bookingId = parseNullableString(input.bookingId);
   if (input.bookingId !== undefined) {
     if (bookingId === undefined) return { ok: false, status: 400, error: "invalid_booking_id" };
     updateData.bookingId = bookingId;
+    changedFields.push("bookingId");
   }
 
   const card = await updatePipelineCardUnchecked(id, updateData);
@@ -145,6 +218,19 @@ export async function updatePipelineCard(
         fromStage: normalizedPreviousStage,
         toStage: nextStage,
         reason: reason ?? null,
+        actorType: input.actorType ?? "human",
+      },
+    });
+  }
+
+  if (changedFields.length > 0) {
+    await recordCrmEvent({
+      action: "PipelineCardCommercialFieldsUpdated",
+      contactId: existing.contactId,
+      conversationId: existing.conversationId ?? undefined,
+      metadata: {
+        pipelineCardId: existing.id,
+        changedFields: Array.from(new Set(changedFields)),
         actorType: input.actorType ?? "human",
       },
     });

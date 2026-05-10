@@ -17,6 +17,13 @@ type PipelineCardResponse = {
     updatedAt: Date;
     estimatedValue: number | null;
     intendedArrival: Date | null;
+    intendedCheckin: Date | null;
+    intendedCheckout: Date | null;
+    adults: number | null;
+    children: number | null;
+    roomTypeInterest: string | null;
+    lossReason: string | null;
+    lostReason: string | null;
     contact: {
         id: string;
         name: string;
@@ -76,6 +83,13 @@ export async function GET() {
             updatedAt: card.updatedAt,
             estimatedValue: card.estimatedValue,
             intendedArrival: card.intendedArrival,
+            intendedCheckin: card.intendedCheckin,
+            intendedCheckout: card.intendedCheckout,
+            adults: card.adults,
+            children: card.children,
+            roomTypeInterest: card.roomTypeInterest,
+            lossReason: card.lossReason,
+            lostReason: card.lostReason,
             contact: {
                 id: card.contact.id,
                 name: card.contact.name || "Sem nome",
