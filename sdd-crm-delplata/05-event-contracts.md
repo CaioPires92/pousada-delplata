@@ -214,11 +214,20 @@ Emitido quando oportunidade é perdida.
 
 ## 4. Contrato para ações vindas do n8n
 
-Endpoint futuro:
+Endpoint:
 
 ```txt
 POST /api/crm/internal-actions
 Authorization: Bearer CRM_INTERNAL_API_TOKEN
+```
+
+Envelope padrão de requisição:
+
+```json
+{
+  "action": "PAUSE_AUTOMATION",
+  "payload": {}
+}
 ```
 
 ### MOVE_PIPELINE_CARD
@@ -270,7 +279,8 @@ Authorization: Bearer CRM_INTERNAL_API_TOKEN
     "intendedCheckin": "2026-06-15",
     "intendedCheckout": "2026-06-17",
     "adults": 2,
-    "children": 1
+    "children": 1,
+    "roomTypeInterest": "Chale"
   }
 }
 ```
@@ -300,7 +310,18 @@ Erro:
 ```json
 {
   "ok": false,
-  "error": "INVALID_STAGE",
-  "message": "Stage informado não é permitido"
+  "error": "INVALID_PAYLOAD",
+  "message": "Payload inválido"
 }
+```
+
+Erros esperados:
+
+```txt
+401 UNAUTHORIZED
+400 INVALID_PAYLOAD
+400 INVALID_ACTION
+404 NOT_FOUND
+409 AUTOMATION_PAUSED
+500 INTERNAL_ERROR
 ```
