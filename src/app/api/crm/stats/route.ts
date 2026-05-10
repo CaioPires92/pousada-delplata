@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 
 export async function GET() {
   try {
@@ -23,7 +24,7 @@ export async function GET() {
     const activeValue = await prisma.pipelineCard.aggregate({
       where: {
         stage: {
-          notIn: ['fechado', 'perdido']
+          notIn: [...PIPELINE_TERMINAL_STAGE_VALUES]
         }
       },
       _sum: {
@@ -34,7 +35,7 @@ export async function GET() {
     // 4. Valor Fechado (Sucesso)
     const closedValue = await prisma.pipelineCard.aggregate({
       where: {
-        stage: 'fechado'
+        stage: { in: [PIPELINE_STAGES.RESERVA_CONFIRMADA, 'fechado'] }
       },
       _sum: {
         estimatedValue: true
@@ -86,7 +87,7 @@ export async function GET() {
         closedValue: closedValue._sum.estimatedValue || 0,
         avgResponseTime: avgResponseTimeMin,
         conversionRate: totalLeads > 0 
-          ? ((stagesCount.find(s => s.stage === 'fechado')?._count._all || 0) / totalLeads) * 100 
+          ? ((stagesCount.find(s => s.stage === PIPELINE_STAGES.RESERVA_CONFIRMADA || s.stage === 'fechado')?._count._all || 0) / totalLeads) * 100 
           : 0
       }
     });

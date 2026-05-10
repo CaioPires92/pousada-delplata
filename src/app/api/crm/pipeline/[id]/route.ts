@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-
-const ALLOWED_STAGES = new Set([
-    "novo",
-    "em_atendimento",
-    "proposta",
-    "fechado",
-    "perdido",
-]);
+import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 
 type RouteParams = {
     params: Promise<{
@@ -20,34 +12,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         const { id } = await params;
         const body = await request.json().catch(() => null);
 
-        if (!body) {
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
             return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
         }
 
-        const updateData: any = {
-            lastActivityAt: new Date(),
-        };
-
-        if (body.stage) {
-            if (!ALLOWED_STAGES.has(body.stage)) {
-                return NextResponse.json({ ok: false, error: "invalid_stage" }, { status: 400 });
-            }
-            updateData.stage = body.stage;
-        }
-
-        if (body.estimatedValue !== undefined) updateData.estimatedValue = body.estimatedValue;
-        if (body.intendedArrival !== undefined) updateData.intendedArrival = body.intendedArrival ? new Date(body.intendedArrival) : null;
-        if (body.lossReason !== undefined) updateData.lossReason = body.lossReason;
-        if (body.bookingId !== undefined) updateData.bookingId = body.bookingId;
-
-        const pipelineCard = await prisma.pipelineCard.update({
-            where: { id },
-            data: updateData,
+        const result = await updatePipelineCard(id, {
+            ...(body as Record<string, unknown>),
+            actorType: "human",
         });
+
+        if (!result.ok) {
+            return NextResponse.json(
+                { ok: false, error: result.error },
+                { status: result.status }
+            );
+        }
 
         return NextResponse.json({
             ok: true,
-            card: pipelineCard,
+            card: result.card,
+            stageChanged: result.stageChanged,
         });
     } catch (error) {
         console.error("Erro ao atualizar card do pipeline:", error);

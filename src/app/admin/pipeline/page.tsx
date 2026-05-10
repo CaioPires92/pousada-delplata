@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Loader2, MessageCircle, Phone, Plus, X, Calendar, DollarSign, AlertCircle, RefreshCcw } from "lucide-react";
+import { ArrowRight, Loader2, Phone, Plus, X, Calendar, DollarSign, AlertCircle, RefreshCcw } from "lucide-react";
+import { PIPELINE_STAGE_LABELS, PIPELINE_STAGE_ORDER, PIPELINE_STAGES } from "@/lib/crm/pipelineStages";
+import { formatDateBR } from "@/lib/date";
 
 type PipelineCard = {
     id: string;
@@ -40,14 +42,6 @@ type PipelineResponse = {
     stages: PipelineStage[];
 };
 
-const STAGE_LABELS: Record<string, string> = {
-    novo: "Novo",
-    em_atendimento: "Em atendimento",
-    proposta: "Proposta",
-    fechado: "Fechado",
-    perdido: "Perdido",
-};
-
 const LOSS_REASONS = [
     "Preço alto",
     "Sem disponibilidade",
@@ -58,7 +52,7 @@ const LOSS_REASONS = [
 ];
 
 function formatStageLabel(stage: string): string {
-    return STAGE_LABELS[stage] ?? stage.replace(/_/g, " ");
+    return PIPELINE_STAGE_LABELS[stage as keyof typeof PIPELINE_STAGE_LABELS] ?? stage.replace(/_/g, " ");
 }
 
 function formatCurrency(value: number | null): string {
@@ -66,7 +60,7 @@ function formatCurrency(value: number | null): string {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-const STAGE_OPTIONS = Object.keys(STAGE_LABELS);
+const STAGE_OPTIONS = PIPELINE_STAGE_ORDER;
 
 export default function AdminPipelinePage() {
     const [stages, setStages] = useState<PipelineStage[]>([]);
@@ -111,7 +105,7 @@ export default function AdminPipelinePage() {
     }, [loadPipeline]);
 
     async function handleStageChange(cardId: string, nextStage: string, reason?: string) {
-        if (nextStage === "perdido" && !reason) {
+        if (nextStage === PIPELINE_STAGES.PERDIDO && !reason) {
             setCardToLose(cardId);
             setShowLossModal(true);
             return;
@@ -120,10 +114,10 @@ export default function AdminPipelinePage() {
         setMovingCardId(cardId);
         setError(null);
         try {
-            const response = await fetch(`/api/crm/pipeline/${cardId}`, {
+            const response = await fetch(`/api/crm/pipeline/cards/${cardId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ stage: nextStage, lossReason: reason || null }),
+                body: JSON.stringify({ stage: nextStage, reason: reason || null, lossReason: reason || null }),
             });
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error(data.error || "Erro ao mover card.");
@@ -140,11 +134,12 @@ export default function AdminPipelinePage() {
         if (!cardToLose || !lossReason) return;
         setIsSaving(true);
         try {
-            await handleStageChange(cardToLose, "perdido", lossReason);
+            await handleStageChange(cardToLose, PIPELINE_STAGES.PERDIDO, lossReason);
             setShowLossModal(false);
             setCardToLose(null);
             setLossReason("");
-        } catch (err) {} finally {
+        } catch {
+        } finally {
             setIsSaving(false);
         }
     }
@@ -283,7 +278,7 @@ export default function AdminPipelinePage() {
                                                 'border-slate-200 hover:border-emerald-200'
                                             }`}
                                         >
-                                            {card.stage === "fechado" && <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500 rotate-45 translate-x-6 -translate-y-6" />}
+                                            {card.stage === PIPELINE_STAGES.RESERVA_CONFIRMADA && <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500 rotate-45 translate-x-6 -translate-y-6" />}
                                             
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
@@ -305,7 +300,7 @@ export default function AdminPipelinePage() {
                                                 {card.intendedArrival && (
                                                     <span className="flex items-center gap-1 text-[10px] font-black bg-slate-100 text-slate-700 px-2 py-1 rounded-lg border border-slate-200">
                                                         <Calendar size={10} />
-                                                        {new Date(card.intendedArrival).toLocaleDateString("pt-BR")}
+                                                        {formatDateBR(card.intendedArrival)}
                                                     </span>
                                                 )}
                                             </div>

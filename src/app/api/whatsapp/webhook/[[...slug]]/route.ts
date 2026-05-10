@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import { fetchEvolutionContact, resolveEvolutionSendTarget } from '@/lib/whatsapp/evolution';
 import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/crm/identity';
 import { recordCrmEvent } from '@/lib/crm/events';
+import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from '@/lib/crm/pipelineStages';
 
 export const runtime = 'nodejs';
 
@@ -610,7 +611,7 @@ export async function POST(
         where: {
           contactId: contact.id,
           NOT: {
-            stage: 'perdido',
+            stage: { in: [...PIPELINE_TERMINAL_STAGE_VALUES] },
           },
         },
         select: {
@@ -623,7 +624,7 @@ export async function POST(
           data: {
             contactId: contact.id,
             conversationId: conversation.id,
-            stage: 'novo',
+            stage: PIPELINE_STAGES.NOVO_LEAD,
             priority: 'normal',
             source: 'whatsapp',
             lastActivityAt,

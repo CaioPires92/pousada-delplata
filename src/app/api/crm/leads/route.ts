@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 
 export async function POST(req: Request) {
     try {
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
                 where: {
                     contactId: contact.id,
                     NOT: {
-                        stage: { in: ["fechado", "perdido"] }
+                        stage: { in: [...PIPELINE_TERMINAL_STAGE_VALUES] }
                     }
                 }
             });
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
                 data: {
                     contactId: contact.id,
                     conversationId: conversation.id,
-                    stage: "novo",
+                    stage: PIPELINE_STAGES.NOVO_LEAD,
                     source: source || "manual",
                     estimatedValue: parsedValue,
                     intendedArrival: intendedArrival ? new Date(intendedArrival) : null,

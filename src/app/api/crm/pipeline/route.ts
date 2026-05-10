@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-
-const STAGE_ORDER = ["novo", "em_atendimento", "proposta", "fechado", "perdido"];
+import {
+    comparePipelineStages,
+    normalizePipelineStage,
+    PIPELINE_STAGE_ORDER,
+} from "@/lib/crm/pipelineStages";
 
 type PipelineCardResponse = {
     id: string;
@@ -27,25 +30,6 @@ type PipelineCardResponse = {
         lastMessage: string | null;
     } | null;
 };
-
-function compareStages(left: string, right: string): number {
-    const leftIndex = STAGE_ORDER.indexOf(left);
-    const rightIndex = STAGE_ORDER.indexOf(right);
-
-    if (leftIndex === -1 && rightIndex === -1) {
-        return left.localeCompare(right);
-    }
-
-    if (leftIndex === -1) {
-        return 1;
-    }
-
-    if (rightIndex === -1) {
-        return -1;
-    }
-
-    return leftIndex - rightIndex;
-}
 
 export async function GET() {
     try {
@@ -83,7 +67,7 @@ export async function GET() {
 
         const cards: PipelineCardResponse[] = pipelineCards.map((card) => ({
             id: card.id,
-            stage: card.stage,
+            stage: normalizePipelineStage(card.stage),
             priority: card.priority,
             source: card.source,
             assignedUserId: card.assignedUserId,
@@ -109,9 +93,9 @@ export async function GET() {
         }));
 
         const stageNames = Array.from(new Set([
-            ...STAGE_ORDER,
+            ...PIPELINE_STAGE_ORDER,
             ...cards.map((card) => card.stage),
-        ])).sort(compareStages);
+        ])).sort(comparePipelineStages);
 
         const stages = stageNames.map((stage) => ({
             stage,
