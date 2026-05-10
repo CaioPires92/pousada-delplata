@@ -2,16 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { mergePolledMessages, type InboxMessage } from "./messagePolling";
 
-type Message = {
-    id: string;
-    senderType: string;
-    content: string | null;
-    messageType: string;
-    createdAt: string;
-    sentAt: string | null;
-    status?: 'pending' | 'sent' | 'error';
-};
+type Message = InboxMessage;
 
 interface MessageListProps {
     initialMessages: Message[];
@@ -102,34 +95,42 @@ export default function MessageList({ initialMessages, conversationId }: Message
         return () => window.removeEventListener('crm-message-error', handleMessageError);
     }, [conversationId]);
 
-    // Polling a cada 5 segundos
+    // Polling controlado a cada 3 segundos
     useEffect(() => {
-        const intervalId = setInterval(async () => {
+        let isDisposed = false;
+
+        async function fetchMessages() {
+            if (document.visibilityState !== "visible") return;
+
             try {
                 const response = await fetch(`/api/crm/conversations/${conversationId}`, {
                     cache: "no-store",
                 });
-                if (!response.ok) return;
+                if (!response.ok || isDisposed) return;
 
                 const data = await response.json();
                 if (data && data.messages) {
-                    setMessages(prev => {
-                        // Mesclar mensagens mantendo as locais que ainda não voltaram do server
-                        const serverMessages = data.messages as Message[];
-                        const pendingLocals = prev.filter(m => m.status === 'pending' && !serverMessages.some(sm => sm.content === m.content && sm.senderType === m.senderType));
-                        
-                        // Ordenar por data
-                        return [...serverMessages, ...pendingLocals].sort((a, b) => 
-                            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                        );
-                    });
+                    setMessages(prev => mergePolledMessages(prev, data.messages as Message[]));
                 }
             } catch (error) {
                 console.error("Erro no polling de mensagens:", error);
             }
-        }, 5000);
+        }
 
-        return () => clearInterval(intervalId);
+        const intervalId = setInterval(fetchMessages, 3000);
+        window.addEventListener("focus", fetchMessages);
+        document.addEventListener("visibilitychange", fetchMessages);
+
+        if (document.visibilityState === "visible") {
+            fetchMessages();
+        }
+
+        return () => {
+            isDisposed = true;
+            clearInterval(intervalId);
+            window.removeEventListener("focus", fetchMessages);
+            document.removeEventListener("visibilitychange", fetchMessages);
+        };
     }, [conversationId]);
 
     return (
