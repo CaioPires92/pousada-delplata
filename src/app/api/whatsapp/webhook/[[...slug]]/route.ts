@@ -622,6 +622,32 @@ export async function POST(
     throw error;
   }
 
+  // --- ETAPA 6: AUTOMAÇÃO (FASE 6) ---
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: result.conversationId },
+    select: { chatbotEnabled: true, automationPausedUntil: true, contact: { select: { phoneNormalized: true } } }
+  });
+
+  const isAutomationEnabled = conversation?.chatbotEnabled && 
+    (!conversation.automationPausedUntil || new Date(conversation.automationPausedUntil) < new Date());
+
+  if (isAutomationEnabled && extracted.textContent && conversation?.contact?.phoneNormalized) {
+    try {
+      console.log(`--- [WEBHOOK] EXECUTANDO AUTOMAÇÃO PARA: ${conversation.contact.phoneNormalized} ---`);
+      const { processAutoResponse } = await import('@/lib/whatsapp/automation');
+      const response = await processAutoResponse(
+        result.conversationId,
+        conversation.contact.phoneNormalized,
+        extracted.textContent
+      );
+      if (response) {
+        console.log(`--- [WEBHOOK] BOT RESPONDEU: ${response} ---`);
+      }
+    } catch (autoError) {
+      console.error('--- [WEBHOOK] ERRO NA AUTOMAÇÃO ---', autoError);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     ...result,

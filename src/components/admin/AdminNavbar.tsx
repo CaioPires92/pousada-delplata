@@ -14,7 +14,9 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    KanbanSquare
+    KanbanSquare,
+    MessageSquare,
+    Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,10 +41,12 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList },
         { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
+        { href: '/admin/inbox', label: 'Mensagens', icon: MessageSquare },
+        { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
         { href: '/admin/quartos', label: 'Quartos', icon: Home },
+        { href: '/admin/settings/chatbot', label: 'Chatbot', icon: Bot },
         { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
         { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
-        { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
     ];
 
     const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -132,4 +136,3 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
         </aside>
     );
 }
-
