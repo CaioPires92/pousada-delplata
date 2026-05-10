@@ -60,7 +60,7 @@ export async function GET() {
                     select: {
                         id: true,
                         name: true,
-                        phoneNormalized: true,
+                        phone: true,
                     },
                 },
                 conversation: {
@@ -95,7 +95,7 @@ export async function GET() {
             contact: {
                 id: card.contact.id,
                 name: card.contact.name || "Sem nome",
-                phone: card.contact.phoneNormalized,
+                phone: card.contact.phone,
             },
             conversation: card.conversation
                 ? {

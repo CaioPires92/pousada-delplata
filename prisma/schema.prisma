@@ -214,8 +214,8 @@ model Contact {
   id              String              @id @default(uuid())
   name            String?
   phoneRaw        String?
-  phoneNormalized String?             @unique
-  whatsappLid     String?             @unique
+  phone           String?             @unique
+  lid             String?             @unique
   whatsappJid     String?             @unique
   email           String?
   source          String              @default("manual")
@@ -242,7 +242,9 @@ model Conversation {
   chatbotEnabled        Boolean             @default(false)
   automationPausedUntil DateTime?
   assignedUserId        String?
-  lastMessageAt         DateTime?
+  unreadCount           Int                 @default(0)
+  lastReadAt            DateTime?
+  lastMessageAt         DateTime?           @default(now())
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)

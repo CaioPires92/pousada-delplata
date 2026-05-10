@@ -16,6 +16,7 @@ import {
     ChevronRight,
     KanbanSquare,
     MessageSquare,
+    BarChart3,
     Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,7 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
         { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
         { href: '/admin/inbox', label: 'Mensagens', icon: MessageSquare },
         { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
+        { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
         { href: '/admin/quartos', label: 'Quartos', icon: Home },
         { href: '/admin/settings/chatbot', label: 'Chatbot', icon: Bot },
         { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },

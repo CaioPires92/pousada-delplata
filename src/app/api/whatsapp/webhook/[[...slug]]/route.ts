@@ -6,7 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import prisma from '@/lib/prisma';
 import { fetchEvolutionContact } from '@/lib/whatsapp/evolution';
-import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/whatsapp/identity';
+import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/crm/identity';
+import { recordCrmEvent } from '@/lib/crm/events';
 
 export const runtime = 'nodejs';
 
@@ -29,8 +30,9 @@ type ExtractedWebhookMessage = {
   fromMe: boolean;
   mediaUrl?: string;
   messageType: SupportedMessageType;
-  phoneNormalized?: string;
+  phone?: string;
   phoneRaw?: string;
+  lid?: string;
   rawPayload: JsonRecord;
   sentAt: Date;
   textContent?: string;
@@ -265,12 +267,12 @@ function extractWebhookMessage(payload: JsonRecord): ExtractedWebhookMessage {
     fromMe: resolution.fromMe,
     contactJid: resolution.contactJid,
     reason: resolution.reason,
-    remoteJid: payload?.data?.key?.remoteJid || payload?.data?.remoteJid,
-    participant: payload?.data?.key?.participant || payload?.data?.participant,
-    sender: payload?.data?.sender,
-    owner: payload?.data?.owner,
-    instance: payload?.instance,
-    pushName: payload?.data?.pushName,
+    remoteJid: (payload as any)?.data?.key?.remoteJid || (payload as any)?.data?.remoteJid,
+    participant: (payload as any)?.data?.key?.participant || (payload as any)?.data?.participant,
+    sender: (payload as any)?.data?.sender,
+    owner: (payload as any)?.data?.owner,
+    instance: (payload as any)?.instance,
+    pushName: (payload as any)?.data?.pushName,
   });
 
   const identity = extractWhatsAppIdentity(payload);
@@ -284,8 +286,9 @@ function extractWebhookMessage(payload: JsonRecord): ExtractedWebhookMessage {
     fromMe: Boolean(root.fromMe ?? key?.fromMe ?? false),
     mediaUrl: extractMediaUrl(message),
     messageType,
-    phoneNormalized: identity.phone,
-    phoneRaw: identity.jid,
+    phone: identity.phone || undefined,
+    phoneRaw: identity.jid || undefined,
+    lid: identity.lid || undefined,
     rawPayload: payload,
     sentAt: extractSentAt(root, payloadData),
     textContent: extractMessageContent(message),
@@ -373,7 +376,7 @@ export async function POST(
           
           extracted = {
             ...extracted,
-            phoneNormalized: normalized.normalized,
+            phone: normalized.normalized,
             contactName: contactInfo.pushName || extracted.contactName,
           };
         }
@@ -383,7 +386,7 @@ export async function POST(
     }
   }
 
-  console.log(`--- [WEBHOOK] MENSAGEM EXTRAÍDA: De=${extracted.phoneNormalized || extracted.phoneRaw} ID=${extracted.externalMessageId} DeMim=${extracted.fromMe} ---`);
+  console.log(`--- [WEBHOOK] MENSAGEM EXTRAÍDA: De=${extracted.phone || extracted.phoneRaw} ID=${extracted.externalMessageId} DeMim=${extracted.fromMe} ---`);
 
   if (extracted.fromMe) {
     console.log('--- [WEBHOOK] IGNORADO: MENSAGEM ENVIADA POR MIM ---');
@@ -392,7 +395,7 @@ export async function POST(
 
   // ETAPA 3 — VALIDAÇÃO HÍBRIDA
   // Permitimos prosseguir se tivermos OU o telefone normalizado OU o JID bruto (que pode ser um LID)
-  if (!extracted.phoneNormalized && !extracted.phoneRaw) {
+  if (!extracted.phone && !extracted.phoneRaw) {
     console.warn('--- [WEBHOOK] AVISO: IDENTIDADE NÃO IDENTIFICADA ---');
     return NextResponse.json({ ok: false, reason: 'missing_identity' });
   }
@@ -442,18 +445,18 @@ export async function POST(
         where: {
           OR: [
             identity.jid ? { whatsappJid: identity.jid } : undefined,
-            identity.lid ? { whatsappLid: identity.lid } : undefined,
-            identity.phone ? { phoneNormalized: identity.phone } : undefined,
+            identity.lid ? { lid: identity.lid } : undefined,
+            identity.phone ? { phone: identity.phone } : undefined,
           ].filter(Boolean) as any
         }
       });
 
       // Log de Match para Auditoria
-      let matchedBy: "whatsappJid" | "whatsappLid" | "phoneNormalized" | "new" = "new";
+      let matchedBy: "whatsappJid" | "lid" | "phone" | "new" = "new";
       if (contact) {
         if (identity.jid && contact.whatsappJid === identity.jid) matchedBy = "whatsappJid";
-        else if (identity.lid && contact.whatsappLid === identity.lid) matchedBy = "whatsappLid";
-        else if (identity.phone && contact.phoneNormalized === identity.phone) matchedBy = "phoneNormalized";
+        else if (identity.lid && contact.lid === identity.lid) matchedBy = "lid";
+        else if (identity.phone && contact.phone === identity.phone) matchedBy = "phone";
       }
 
       console.log("[CONTACT MATCH]", {
@@ -466,36 +469,40 @@ export async function POST(
         // Atualização Incremental: Se achamos o contato, mas ele não tinha algum campo, preenchemos agora
         const needsUpdate = 
           (identity.jid && !contact.whatsappJid) || 
-          (identity.lid && !contact.whatsappLid) || 
-          (identity.phone && !contact.phoneNormalized);
+          (identity.lid && !contact.lid) || 
+          (identity.phone && !contact.phone);
 
         if (needsUpdate) {
           contact = await tx.contact.update({
             where: { id: contact.id },
             data: {
               whatsappJid: contact.whatsappJid || identity.jid,
-              whatsappLid: contact.whatsappLid || identity.lid,
-              phoneNormalized: contact.phoneNormalized || identity.phone,
+              lid: contact.lid || identity.lid,
+              phone: contact.phone || identity.phone,
               phoneRaw: contact.phoneRaw || identity.phone,
               name: contact.name || extracted.contactName || '.'
             }
           });
         }
+        
       } else {
         // RACE CONDITION PROTECTION: Se dois webhooks chegam juntos, um deles vai falhar no create (P2002)
         // Se falhar, tentamos buscar novamente pois o outro processo acabou de criar
+        let createdNow = false;
         try {
           contact = await tx.contact.create({
             data: {
               name: extracted.contactName || '.',
-              phoneNormalized: identity.phone,
+              phone: identity.phone,
               phoneRaw: identity.phone,
-              whatsappLid: identity.lid,
+              lid: identity.lid,
               whatsappJid: identity.jid,
               source: 'whatsapp',
               status: 'lead'
             }
           });
+          createdNow = true;
+          matchedBy = "new";
         } catch (createError: any) {
           if (createError.code === 'P2002') {
             console.log("[WEBHOOK] RACE CONDITION DETECTED - RETRYING FIND");
@@ -503,14 +510,19 @@ export async function POST(
               where: {
                 OR: [
                   identity.jid ? { whatsappJid: identity.jid } : undefined,
-                  identity.lid ? { whatsappLid: identity.lid } : undefined,
-                  identity.phone ? { phoneNormalized: identity.phone } : undefined,
+                  identity.lid ? { lid: identity.lid } : undefined,
+                  identity.phone ? { phone: identity.phone } : undefined,
                 ].filter(Boolean) as any
               }
             });
           } else {
             throw createError;
           }
+        }
+
+        if (createdNow && contact) {
+           // Marcar para emitir evento LeadCreated após a transação
+           (tx as any)._isNewLead = true;
         }
       }
 
@@ -567,6 +579,9 @@ export async function POST(
         },
         data: {
           lastMessageAt: extracted.sentAt,
+          unreadCount: {
+            increment: 1
+          }
         },
       });
 
@@ -599,9 +614,38 @@ export async function POST(
         contactId: contact.id,
         conversationId: conversation.id,
         messageId: message.id,
+        isNewLead: (tx as any)._isNewLead === true
       };
     });
-    console.log('--- [WEBHOOK] SUCESSO: MENSAGEM SALVA NO BANCO ---');
+
+    // ETAPA 5.1 — EMISSÃO DE EVENTOS (FORA DA TRANSAÇÃO PARA NÃO BLOQUEAR)
+    // 1. LeadCreated
+    if ((result as any).isNewLead) {
+      recordCrmEvent({
+        action: 'LeadCreated',
+        contactId: result.contactId,
+        conversationId: result.conversationId,
+        metadata: {
+          source: 'whatsapp',
+          name: extracted.contactName
+        }
+      });
+    }
+
+    // 2. MessageReceived
+    recordCrmEvent({
+      action: 'MessageReceived',
+      contactId: result.contactId,
+      conversationId: result.conversationId,
+      metadata: {
+        messageId: result.messageId,
+        channel: 'whatsapp',
+        text: extracted.textContent,
+        messageType: extracted.messageType
+      }
+    });
+
+    console.log('--- [WEBHOOK] SUCESSO: MENSAGEM SALVA E EVENTOS EMITIDOS ---');
   } catch (error) {
     console.error('--- [WEBHOOK] ERRO CRÍTICO NO PROCESSAMENTO ---');
     console.error(error);
@@ -643,19 +687,19 @@ export async function POST(
   // --- ETAPA 6: AUTOMAÇÃO (FASE 6) ---
   const conversation = await prisma.conversation.findUnique({
     where: { id: result.conversationId },
-    select: { chatbotEnabled: true, automationPausedUntil: true, contact: { select: { phoneNormalized: true } } }
+    select: { chatbotEnabled: true, automationPausedUntil: true, contact: { select: { phone: true } } }
   });
 
   const isAutomationEnabled = conversation?.chatbotEnabled && 
     (!conversation.automationPausedUntil || new Date(conversation.automationPausedUntil) < new Date());
 
-  if (isAutomationEnabled && extracted.textContent && conversation?.contact?.phoneNormalized) {
+  if (isAutomationEnabled && extracted.textContent && conversation?.contact?.phone) {
     try {
-      console.log(`--- [WEBHOOK] EXECUTANDO AUTOMAÇÃO PARA: ${conversation.contact.phoneNormalized} ---`);
+      console.log(`--- [WEBHOOK] EXECUTANDO AUTOMAÇÃO PARA: ${conversation.contact.phone} ---`);
       const { processAutoResponse } = await import('@/lib/whatsapp/automation');
       const response = await processAutoResponse(
         result.conversationId,
-        conversation.contact.phoneNormalized,
+        conversation.contact.phone,
         extracted.textContent
       );
       if (response) {

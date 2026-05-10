@@ -10,8 +10,8 @@ export async function GET() {
                     select: {
                         id: true,
                         name: true,
-                        phoneNormalized: true,
-                        whatsappLid: true,
+                        phone: true,
+                        lid: true,
                     },
                 },
                 messages: {
@@ -29,10 +29,11 @@ export async function GET() {
             conversations.map((c) => ({
                 id: c.id,
                 name: c.contact?.name || "Sem nome",
-                phone: c.contact?.phoneNormalized || null,
-                lid: c.contact?.whatsappLid || null,
+                phone: c.contact?.phone || null,
+                lid: c.contact?.lid || null,
                 lastMessage: c.messages[0]?.content || null,
                 lastMessageAt: c.lastMessageAt,
+                unreadCount: c.unreadCount,
             }))
         );
     } catch (error) {

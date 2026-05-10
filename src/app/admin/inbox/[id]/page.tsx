@@ -18,6 +18,7 @@ type PipelineCard = {
     estimatedValue: number | null;
     intendedArrival: string | null;
     stage: string;
+    bookingId: string | null;
 };
 
 type ConversationDetail = {

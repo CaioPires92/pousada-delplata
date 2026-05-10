@@ -25,7 +25,7 @@ export async function POST(req: Request) {
             let contact = await tx.contact.findFirst({
                 where: {
                     OR: [
-                        phone ? { phoneNormalized: phone } : undefined,
+                        phone ? { phone: phone } : undefined,
                         email ? { email: email } : undefined,
                     ].filter(Boolean) as any,
                 },
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
                     data: {
                         name,
                         phoneRaw: phone,
-                        phoneNormalized: phone,
+                        phone: phone,
                         email,
                         source: source || "manual",
                     },

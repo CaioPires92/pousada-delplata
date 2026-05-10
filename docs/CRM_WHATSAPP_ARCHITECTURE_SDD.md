@@ -124,24 +124,24 @@ src/
 ### FASE 5 — PERSISTÊNCIA OPERACIONAL / PRODUÇÃO
 
 - [x] Task 1 — Registrar mensagem enviada pelo CRM no banco
-- [ ] Task 2 — Confirmar webhook recebendo resposta real do WhatsApp
-- [ ] Task 3 — Evitar mensagem duplicada no front
-- [ ] Task 4 — Atualizar preview da conversa após envio/recebimento
-- [ ] Task 5 — Status visual: enviada / recebida / erro
+- [x] Task 2 — Confirmar webhook recebendo resposta real do WhatsApp
+- [x] Task 3 — Evitar mensagem duplicada no front
+- [x] Task 4 — Atualizar preview da conversa após envio/recebimento
+- [x] Task 5 — Status visual: enviada / recebida / erro
 
 ### FASE 6 — AUTOMAÇÃO CONTROLADA
 
-- [ ] Task 1 — Criar tabela/configuração de respostas automáticas
-- [ ] Task 2 — Chatbot responder só se `chatbotEnabled = true`
-- [ ] Task 3 — Criar regra básica: saudação / preço / disponibilidade
-- [ ] Task 4 — Logar toda ação automática
-- [ ] Task 5 — Botão “assumir conversa” para desligar bot naquela conversa
+- [x] Task 1 — Criar tabela/configuração de respostas automáticas
+- [x] Task 2 — Chatbot responder só se `chatbotEnabled = true`
+- [x] Task 3 — Criar regra básica: saudação / preço / disponibilidade
+- [x] Task 4 — Logar toda ação automática
+- [x] Task 5 — Botão “assumir conversa” para desligar bot naquela conversa
 
 ### FASE 7 — CRM DE VERDADE
 
-- [ ] Task 1 — Criar lead manualmente
-- [ ] Task 2 — Vincular contato a reserva existente
-- [ ] Task 3 — Campo de valor estimado
-- [ ] Task 4 — Campo de data pretendida
-- [ ] Task 5 — Motivo de perda
-- [ ] Task 6 — Histórico interno/anotações
+- [x] Task 1 — Criar lead manualmente
+- [x] Task 2 — Vincular contato a reserva existente
+- [x] Task 3 — Campo de valor estimado
+- [x] Task 4 — Campo de data pretendida
+- [x] Task 5 — Motivo de perda
+- [x] Task 6 — Histórico interno/anotações

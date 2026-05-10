@@ -63,7 +63,7 @@ export async function POST(request: Request) {
             include: {
                 contact: {
                     select: {
-                        phoneNormalized: true,
+                        phone: true,
                     },
                 },
             },
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!conversation.contact.phoneNormalized) {
+        if (!conversation.contact.phone) {
             return NextResponse.json(
                 { ok: false, error: "missing_normalized_phone" },
                 { status: 400 }
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         let evolutionResponse: unknown;
         try {
             evolutionResponse = await sendEvolutionText({
-                number: conversation.contact.phoneNormalized,
+                number: conversation.contact.phone,
                 text,
             });
         } catch (error) {

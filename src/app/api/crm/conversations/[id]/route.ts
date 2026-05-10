@@ -21,14 +21,18 @@ export async function GET(_request: Request, { params }: RouteParams) {
     try {
         const { id } = await params;
 
-        const conversation = await prisma.conversation.findUnique({
+        const conversation = await prisma.conversation.update({
             where: { id },
+            data: {
+                unreadCount: 0,
+                lastReadAt: new Date(),
+            },
             include: {
                 contact: {
                     select: {
                         id: true,
                         name: true,
-                        phoneNormalized: true,
+                        phone: true,
                     },
                 },
                 messages: {
@@ -74,7 +78,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
             contact: {
                 id: conversation.contact.id,
                 name: conversation.contact.name || "Sem nome",
-                phone: conversation.contact.phoneNormalized,
+                phone: conversation.contact.phone,
             },
             pipelineCard: conversation.pipelineCards[0] || null,
             messages: conversation.messages,

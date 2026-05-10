@@ -73,6 +73,8 @@ export default function AdminPipelinePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [movingCardId, setMovingCardId] = useState<string | null>(null);
+    const [filterPriority, setFilterPriority] = useState<string>("all");
+    const [filterSource, setFilterSource] = useState<string>("all");
 
     // Modal de Novo Lead
     const [showNewLeadModal, setShowNewLeadModal] = useState(false);
@@ -175,6 +177,17 @@ export default function AdminPipelinePage() {
 
     const totalCards = useMemo(() => stages.reduce((total, stage) => total + stage.cards.length, 0), [stages]);
 
+    const filteredStages = useMemo(() => {
+        return stages.map(stage => ({
+            ...stage,
+            cards: stage.cards.filter(card => {
+                const matchPriority = filterPriority === "all" || card.priority === filterPriority;
+                const matchSource = filterSource === "all" || card.source === filterSource;
+                return matchPriority && matchSource;
+            })
+        }));
+    }, [stages, filterPriority, filterSource]);
+
     return (
         <div className="space-y-6">
             <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
@@ -205,6 +218,34 @@ export default function AdminPipelinePage() {
                 </div>
             </header>
 
+            <div className="flex flex-wrap gap-4 items-center bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Prioridade:</span>
+                    <select 
+                        value={filterPriority} 
+                        onChange={(e) => setFilterPriority(e.target.value)}
+                        className="text-xs font-bold border border-slate-200 rounded-lg px-2 py-1 bg-slate-50 outline-none"
+                    >
+                        <option value="all">Todas</option>
+                        <option value="high">Alta</option>
+                        <option value="normal">Normal</option>
+                        <option value="low">Baixa</option>
+                    </select>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Origem:</span>
+                    <select 
+                        value={filterSource} 
+                        onChange={(e) => setFilterSource(e.target.value)}
+                        className="text-xs font-bold border border-slate-200 rounded-lg px-2 py-1 bg-slate-50 outline-none"
+                    >
+                        <option value="all">Todas</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="manual">Manual</option>
+                    </select>
+                </div>
+            </div>
+
             {error && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-5 flex items-center justify-between text-sm font-black text-red-700 uppercase tracking-widest">
                     <div className="flex items-center gap-3">
@@ -222,7 +263,7 @@ export default function AdminPipelinePage() {
                 </div>
             ) : (
                 <section className="grid gap-4 xl:grid-cols-5 h-full items-start pb-10">
-                    {stages.map((stage) => (
+                    {filteredStages.map((stage) => (
                         <div key={stage.stage} className="flex flex-col min-h-[500px] rounded-3xl border border-slate-200 bg-slate-50/50 backdrop-blur-sm">
                             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/60">
                                 <h2 className="text-xs font-black uppercase tracking-widest text-slate-800 italic">{formatStageLabel(stage.stage)}</h2>
@@ -234,7 +275,14 @@ export default function AdminPipelinePage() {
                                     <div className="rounded-2xl border border-dashed border-slate-300 bg-white/50 px-4 py-10 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">Vazio</div>
                                 ) : (
                                     stage.cards.map((card) => (
-                                        <article key={card.id} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all cursor-default relative overflow-hidden">
+                                        <article 
+                                            key={card.id} 
+                                            className={`group rounded-2xl border bg-white p-5 shadow-sm hover:shadow-md transition-all cursor-default relative overflow-hidden ${
+                                                card.priority === 'high' ? 'border-red-200 border-l-4 border-l-red-500' : 
+                                                card.priority === 'low' ? 'border-slate-200 opacity-80' : 
+                                                'border-slate-200 hover:border-emerald-200'
+                                            }`}
+                                        >
                                             {card.stage === "fechado" && <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500 rotate-45 translate-x-6 -translate-y-6" />}
                                             
                                             <div className="flex items-start justify-between gap-3">

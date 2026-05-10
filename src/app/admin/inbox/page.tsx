@@ -10,6 +10,7 @@ type ConversationListItem = {
   name: string;
   phone: string | null;
   lid: string | null;
+  unreadCount: number;
 };
 
 function formatDateTime(value: string | null): string {
@@ -68,6 +69,7 @@ export default function AdminInboxPage() {
               name: record.name,
               phone: typeof record.phone === 'string' ? record.phone : null,
               lid: typeof record.lid === 'string' ? record.lid : null,
+              unreadCount: typeof record.unreadCount === 'number' ? record.unreadCount : 0,
             };
           })
           .filter((item): item is ConversationListItem => item !== null);
@@ -135,8 +137,13 @@ export default function AdminInboxPage() {
                         </p>
                       </div>
 
-                      <div className="shrink-0 text-sm text-slate-500">
+                      <div className="shrink-0 flex flex-col items-end gap-2 text-sm text-slate-500">
                         {formatDateTime(conversation.lastMessageAt)}
+                        {conversation.unreadCount > 0 && (
+                          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">
+                            {conversation.unreadCount}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>
