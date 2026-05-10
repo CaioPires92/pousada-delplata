@@ -11,6 +11,7 @@ export async function GET() {
                         id: true,
                         name: true,
                         phoneNormalized: true,
+                        whatsappLid: true,
                     },
                 },
                 messages: {
@@ -29,6 +30,7 @@ export async function GET() {
                 id: c.id,
                 name: c.contact?.name || "Sem nome",
                 phone: c.contact?.phoneNormalized || null,
+                lid: c.contact?.whatsappLid || null,
                 lastMessage: c.messages[0]?.content || null,
                 lastMessageAt: c.lastMessageAt,
             }))

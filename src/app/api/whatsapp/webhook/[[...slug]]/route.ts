@@ -2,9 +2,24 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
+import fs from 'fs';
+import path from 'path';
 import prisma from '@/lib/prisma';
+import { fetchEvolutionContact } from '@/lib/whatsapp/evolution';
+import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/whatsapp/identity';
 
 export const runtime = 'nodejs';
+
+function logToFile(data: any) {
+  try {
+    const logPath = path.join(process.cwd(), 'webhook_debug.log');
+    const timestamp = new Date().toISOString();
+    const entry = `[${timestamp}] ${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}\n---\n`;
+    fs.appendFileSync(logPath, entry);
+  } catch (err) {
+    console.error('Falha ao escrever no log:', err);
+  }
+}
 
 type JsonRecord = Record<string, unknown>;
 type SupportedMessageType = 'text' | 'image' | 'audio' | 'document' | 'unknown';
@@ -242,26 +257,35 @@ function extractWebhookMessage(payload: JsonRecord): ExtractedWebhookMessage {
   const key = firstRecord(root.key, payload.key);
   const message = firstRecord(root.message, payload.message);
 
-  const rawPhone = firstString(
-    root.remoteJid,
-    root.sender,
-    root.from,
-    root.jid,
-    root.participant,
-    key?.remoteJid,
-    key?.participant,
-  );
-  const normalizedPhone = normalizeWhatsappPhone(rawPhone);
+  // ETAPA 2 — LOGS DE DEBUG
+  const resolution = resolveContactJidFromEvolutionPayload(payload);
+  
+  console.log("[WEBHOOK IDENTITY DEBUG]", {
+    event: payload?.event,
+    fromMe: resolution.fromMe,
+    contactJid: resolution.contactJid,
+    reason: resolution.reason,
+    remoteJid: payload?.data?.key?.remoteJid || payload?.data?.remoteJid,
+    participant: payload?.data?.key?.participant || payload?.data?.participant,
+    sender: payload?.data?.sender,
+    owner: payload?.data?.owner,
+    instance: payload?.instance,
+    pushName: payload?.data?.pushName,
+  });
+
+  const identity = extractWhatsAppIdentity(payload);
+  console.log("--- [WEBHOOK] IDENTIDADE FINAL PARA CRM ---", JSON.stringify(identity, null, 2));
+
   const messageType = normalizeMessageType(firstString(root.messageType, payload.messageType), message);
 
   return {
-    contactName: firstString(root.pushName, root.notifyName, payload.pushName, payload.notifyName),
+    contactName: identity.pushName || firstString(root.pushName, root.notifyName, payload.pushName, payload.notifyName),
     externalMessageId: firstString(root.id, root.messageId, key?.id),
     fromMe: Boolean(root.fromMe ?? key?.fromMe ?? false),
     mediaUrl: extractMediaUrl(message),
     messageType,
-    phoneNormalized: normalizedPhone.normalized,
-    phoneRaw: normalizedPhone.raw ?? rawPhone,
+    phoneNormalized: identity.phone,
+    phoneRaw: identity.jid,
     rawPayload: payload,
     sentAt: extractSentAt(root, payloadData),
     textContent: extractMessageContent(message),
@@ -298,8 +322,16 @@ function isAuthorized(request: Request): boolean {
   return secureEquals(configuredSecret, providedSecret);
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ slug?: string[] }> }
+) {
+  const { slug } = await params;
+  const eventName = slug?.join('/') || 'default';
+  console.log(`--- [WEBHOOK] INÍCIO DA REQUISIÇÃO (Evento: ${eventName}) ---`);
+  
   if (!isAuthorized(request)) {
+    console.error('--- [WEBHOOK] ERRO: NÃO AUTORIZADO (SECRET INVÁLIDO) ---');
     return NextResponse.json({ ok: false, reason: 'unauthorized' }, { status: 401 });
   }
 
@@ -307,23 +339,62 @@ export async function POST(request: Request) {
 
   try {
     payload = await request.json();
+    console.log('--- [WEBHOOK] PAYLOAD RECEBIDO ---');
   } catch {
+    console.error('--- [WEBHOOK] ERRO: JSON INVÁLIDO ---');
     return NextResponse.json({ ok: false, reason: 'invalid_json' }, { status: 400 });
   }
 
   const payloadRecord = asRecord(payload);
   if (!payloadRecord) {
+    console.error('--- [WEBHOOK] ERRO: PAYLOAD NÃO É UM OBJETO ---');
     return NextResponse.json({ ok: false, reason: 'invalid_payload' }, { status: 400 });
   }
 
-  const extracted = extractWebhookMessage(payloadRecord);
+  // ETAPA 2 — LOGS DE DEBUG (AUDITORIA)
+  console.log("FULL WEBHOOK", JSON.stringify(payloadRecord, null, 2));
+
+  let extracted = extractWebhookMessage(payloadRecord);
+  
+  // LÓGICA DE RESOLUÇÃO DE LID (WhatsApp Linked Identity)
+  // Mantemos como enriquecimento, mas a identidade base já foi capturada
+  if (extracted.phoneRaw?.includes('@lid')) {
+    logToFile(`LID DETECTADO NO WEBHOOK: ${extracted.phoneRaw}`);
+    try {
+      const contactInfo = await fetchEvolutionContact(extracted.phoneRaw);
+      if (contactInfo) {
+        logToFile({ msg: 'ENRIQUECIMENTO VIA EVOLUTION API', contactInfo });
+        
+        const realJid = contactInfo.resolvedJid || contactInfo.id || contactInfo.remoteJid;
+        
+        if (realJid && realJid.includes('@s.whatsapp.net')) {
+          const normalized = normalizeWhatsappPhone(realJid);
+          logToFile(`LID RESOLVIDO PARA JID REAL: ${extracted.phoneRaw} -> ${normalized.normalized}`);
+          
+          extracted = {
+            ...extracted,
+            phoneNormalized: normalized.normalized,
+            contactName: contactInfo.pushName || extracted.contactName,
+          };
+        }
+      }
+    } catch (error) {
+      logToFile({ error: 'FALHA NA RESOLUÇÃO DE LID', details: error });
+    }
+  }
+
+  console.log(`--- [WEBHOOK] MENSAGEM EXTRAÍDA: De=${extracted.phoneNormalized || extracted.phoneRaw} ID=${extracted.externalMessageId} DeMim=${extracted.fromMe} ---`);
 
   if (extracted.fromMe) {
+    console.log('--- [WEBHOOK] IGNORADO: MENSAGEM ENVIADA POR MIM ---');
     return NextResponse.json({ ok: true, ignored: true, reason: 'from_me' });
   }
 
-  if (!extracted.phoneNormalized) {
-    return NextResponse.json({ ok: false, reason: 'missing_phone' });
+  // ETAPA 3 — VALIDAÇÃO HÍBRIDA
+  // Permitimos prosseguir se tivermos OU o telefone normalizado OU o JID bruto (que pode ser um LID)
+  if (!extracted.phoneNormalized && !extracted.phoneRaw) {
+    console.warn('--- [WEBHOOK] AVISO: IDENTIDADE NÃO IDENTIFICADA ---');
+    return NextResponse.json({ ok: false, reason: 'missing_identity' });
   }
 
   if (extracted.externalMessageId) {
@@ -363,41 +434,81 @@ export async function POST(request: Request) {
 
   try {
     result = await prisma.$transaction(async (tx) => {
-      const contact = await tx.contact.upsert({
+      // ETAPA 4 — BUSCA UNIFICADA E DEDUPLICAÇÃO
+      const identity = extractWhatsAppIdentity(extracted.rawPayload);
+      
+      // Busca agressiva por qualquer identificador disponível
+      let contact = await tx.contact.findFirst({
         where: {
-          phoneNormalized: extracted.phoneNormalized,
-        },
-        create: {
-          name: extracted.contactName,
-          phoneRaw: extracted.phoneRaw ?? extracted.phoneNormalized,
-          phoneNormalized: extracted.phoneNormalized,
-          source: 'whatsapp',
-          status: 'lead',
-        },
-        update: {
-          name: extracted.contactName,
-          phoneRaw: extracted.phoneRaw ?? extracted.phoneNormalized,
-          source: 'whatsapp',
-          status: 'lead',
-        },
-        select: {
-          id: true,
-        },
+          OR: [
+            identity.jid ? { whatsappJid: identity.jid } : undefined,
+            identity.lid ? { whatsappLid: identity.lid } : undefined,
+            identity.phone ? { phoneNormalized: identity.phone } : undefined,
+          ].filter(Boolean) as any
+        }
       });
 
+      // Log de Match para Auditoria
+      let matchedBy: "whatsappJid" | "whatsappLid" | "phoneNormalized" | "new" = "new";
+      if (contact) {
+        if (identity.jid && contact.whatsappJid === identity.jid) matchedBy = "whatsappJid";
+        else if (identity.lid && contact.whatsappLid === identity.lid) matchedBy = "whatsappLid";
+        else if (identity.phone && contact.phoneNormalized === identity.phone) matchedBy = "phoneNormalized";
+      }
+
+      console.log("[CONTACT MATCH]", {
+        matchedBy,
+        contactId: contact?.id,
+        identity: { jid: identity.jid, lid: identity.lid, phone: identity.phone }
+      });
+
+      if (contact) {
+        // Atualização Incremental: Se achamos o contato, mas ele não tinha algum campo, preenchemos agora
+        const needsUpdate = 
+          (identity.jid && !contact.whatsappJid) || 
+          (identity.lid && !contact.whatsappLid) || 
+          (identity.phone && !contact.phoneNormalized);
+
+        if (needsUpdate) {
+          contact = await tx.contact.update({
+            where: { id: contact.id },
+            data: {
+              whatsappJid: contact.whatsappJid || identity.jid,
+              whatsappLid: contact.whatsappLid || identity.lid,
+              phoneNormalized: contact.phoneNormalized || identity.phone,
+              phoneRaw: contact.phoneRaw || identity.phone,
+              name: contact.name || extracted.contactName || '.'
+            }
+          });
+        }
+      } else {
+        // Apenas criar se realmente nenhum identificador bateu
+        contact = await tx.contact.create({
+          data: {
+            name: extracted.contactName || '.',
+            phoneNormalized: identity.phone,
+            phoneRaw: identity.phone,
+            whatsappLid: identity.lid,
+            whatsappJid: identity.jid,
+            source: 'whatsapp',
+            status: 'lead'
+          }
+        });
+      }
+
+      if (!contact) {
+        throw new Error("Falha crítica ao resolver ou criar contato.");
+      }
+
+      // ETAPA 5 — BUSCA/CRIAÇÃO DE CONVERSA (POR CONTACTID)
       let conversation = await tx.conversation.findFirst({
         where: {
           contactId: contact.id,
           channel: 'whatsapp',
           status: 'open',
         },
-        orderBy: [
-          { lastMessageAt: 'desc' },
-          { createdAt: 'desc' },
-        ],
-        select: {
-          id: true,
-        },
+        orderBy: { lastMessageAt: 'desc' },
+        select: { id: true },
       });
 
       if (!conversation) {
@@ -441,8 +552,6 @@ export async function POST(request: Request) {
         },
       });
 
-      // O schema atual não possui status de card; nesta etapa, tratamos qualquer card
-      // não perdido como aberto para evitar duplicidade no primeiro contato.
       const existingPipelineCard = await tx.pipelineCard.findFirst({
         where: {
           contactId: contact.id,
@@ -474,7 +583,11 @@ export async function POST(request: Request) {
         messageId: message.id,
       };
     });
+    console.log('--- [WEBHOOK] SUCESSO: MENSAGEM SALVA NO BANCO ---');
   } catch (error) {
+    console.error('--- [WEBHOOK] ERRO CRÍTICO NO PROCESSAMENTO ---');
+    console.error(error);
+    
     if (
       extracted.externalMessageId &&
       error instanceof Prisma.PrismaClientKnownRequestError &&

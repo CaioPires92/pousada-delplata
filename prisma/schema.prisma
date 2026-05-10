@@ -215,6 +215,8 @@ model Contact {
   name            String?
   phoneRaw        String?
   phoneNormalized String?             @unique
+  whatsappLid     String?             @unique
+  whatsappJid     String?             @unique
   email           String?
   source          String              @default("manual")
   status          String              @default("lead")

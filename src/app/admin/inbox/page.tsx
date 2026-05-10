@@ -9,6 +9,7 @@ type ConversationListItem = {
   lastMessageAt: string | null;
   name: string;
   phone: string | null;
+  lid: string | null;
 };
 
 function formatDateTime(value: string | null): string {
@@ -66,6 +67,7 @@ export default function AdminInboxPage() {
               lastMessageAt: typeof record.lastMessageAt === 'string' ? record.lastMessageAt : null,
               name: record.name,
               phone: typeof record.phone === 'string' ? record.phone : null,
+              lid: typeof record.lid === 'string' ? record.lid : null,
             };
           })
           .filter((item): item is ConversationListItem => item !== null);
@@ -122,7 +124,7 @@ export default function AdminInboxPage() {
                           {conversation.name}
                         </h2>
                         <p className="mt-1 text-sm text-slate-500">
-                          {conversation.phone ?? 'Telefone não informado'}
+                          {conversation.phone ?? (conversation.lid ? `ID: ${conversation.lid}` : 'Telefone não informado')}
                         </p>
                         <p className="mt-3 text-sm text-slate-700">
                           {conversation.lastMessage ?? 'Sem mensagem visível'}
