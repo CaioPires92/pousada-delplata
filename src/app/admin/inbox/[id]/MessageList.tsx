@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CheckCheck, Clock, AlertCircle } from "lucide-react";
 
 type Message = {
     id: string;
@@ -59,16 +59,21 @@ function getMessageStyle(senderType: string): {
 
 export default function MessageList({ initialMessages, conversationId }: MessageListProps) {
     const [messages, setMessages] = useState<Message[]>(initialMessages);
+    const bottomRef = useRef<HTMLDivElement | null>(null);
 
     // Sincronizar com props iniciais
     useEffect(() => {
         setMessages(initialMessages);
     }, [initialMessages]);
 
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ block: "end" });
+    }, [messages]);
+
     // Listener para mensagens otimistas enviadas pelo ReplyBox
     useEffect(() => {
-        const handleOptimisticMessage = (event: any) => {
-            const { detail } = event;
+        const handleOptimisticMessage = (event: Event) => {
+            const { detail } = event as CustomEvent<{ conversationId: string; message: Message }>;
             if (detail.conversationId === conversationId) {
                 setMessages(prev => {
                     // Evitar duplicata se por acaso o polling já pegou
@@ -84,8 +89,8 @@ export default function MessageList({ initialMessages, conversationId }: Message
 
     // Listener para erros de envio
     useEffect(() => {
-        const handleMessageError = (event: any) => {
-            const { detail } = event;
+        const handleMessageError = (event: Event) => {
+            const { detail } = event as CustomEvent<{ conversationId: string; messageId: string }>;
             if (detail.conversationId === conversationId) {
                 setMessages(prev => prev.map(m => 
                     m.id === detail.messageId ? { ...m, status: 'error' } : m
@@ -128,9 +133,9 @@ export default function MessageList({ initialMessages, conversationId }: Message
     }, [conversationId]);
 
     return (
-        <div className="min-h-[450px] space-y-4 rounded-3xl bg-slate-50/50 px-4 py-6">
+        <div className="min-h-full space-y-4 px-1 py-2">
             {messages.length === 0 ? (
-                <div className="flex min-h-[300px] items-center justify-center text-sm text-slate-400 font-medium">
+                <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-sm font-medium text-slate-400">
                     Inicie a conversa enviando uma mensagem abaixo.
                 </div>
             ) : (
@@ -144,7 +149,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
                             className={`flex ${style.alignment}`}
                         >
                             <div
-                                className={`group relative max-w-[85%] rounded-2xl px-4 py-3 sm:max-w-[75%] ${style.bubble} transition-all duration-200`}
+                                className={`group relative max-w-[88%] rounded-lg px-4 py-3 sm:max-w-[74%] ${style.bubble} transition-all duration-200`}
                             >
                                 <div className="flex items-center justify-between gap-4">
                                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">
@@ -183,6 +188,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
                     );
                 })
             )}
+            <div ref={bottomRef} />
         </div>
     );
 }

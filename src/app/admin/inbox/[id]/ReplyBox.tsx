@@ -93,33 +93,36 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
     }
 
     return (
-        <form className="mt-8 border-t pt-6" onSubmit={handleSend}>
-            <div className="space-y-4">
+        <form onSubmit={handleSend}>
+            <div className="space-y-3">
                 <Textarea
                     placeholder="Digite sua resposta aqui..."
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    className="min-h-[100px] resize-none rounded-2xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
+                    className="min-h-[88px] resize-none rounded-lg border-slate-200 bg-white text-sm focus:border-emerald-500 focus:ring-emerald-500"
                     disabled={isLoading}
                 />
                 
                 {error && (
-                    <p className="text-sm font-medium text-red-500">
+                    <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
                         {error}
                     </p>
                 )}
 
                 {sentFeedback && !error && (
-                    <p className="text-sm font-medium text-emerald-600">
+                    <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
                         {sentFeedback}
                     </p>
                 )}
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        {isLoading ? "Enviando pelo WhatsApp" : "Resposta manual"}
+                    </p>
                     <Button
                         type="submit"
                         disabled={isLoading || !text.trim()}
-                        className="bg-emerald-600 px-8 py-6 text-base font-semibold hover:bg-emerald-700 rounded-2xl transition-all"
+                        className="h-11 rounded-lg bg-emerald-600 px-6 text-sm font-black uppercase tracking-widest hover:bg-emerald-700"
                     >
                         {isLoading ? "Enviando..." : "Enviar Mensagem"}
                     </Button>

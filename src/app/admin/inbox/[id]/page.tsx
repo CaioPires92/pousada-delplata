@@ -106,14 +106,14 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                         </div>
                     </header>
 
-                    <div className="flex-1 overflow-auto bg-slate-50 p-6">
+                    <div className="flex-1 overflow-auto bg-slate-50 px-4 py-5 sm:px-6">
                         <MessageList
                             initialMessages={conversation.messages}
                             conversationId={conversation.id}
                         />
                     </div>
 
-                    <div className="border-t border-slate-200 p-4">
+                    <div className="shrink-0 border-t border-slate-200 bg-white p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.04)]">
                         <ReplyBox conversationId={conversation.id} />
                     </div>
                 </section>
