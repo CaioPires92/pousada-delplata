@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createAutomationPausedUntil } from "@/lib/crm/automationPause";
+import { createAutomationPausedUntil, DEFAULT_AUTOMATION_PAUSE_MINUTES } from "@/lib/crm/automationPause";
 import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
 
 type JsonRecord = Record<string, unknown>;
@@ -123,6 +123,33 @@ export async function POST(request: Request) {
                 data: {
                     lastMessageAt: now,
                     automationPausedUntil,
+                },
+            });
+
+            const eventMetadata = {
+                messageId: message.id,
+                externalMessageId: message.externalMessageId,
+                target,
+                pauseStrategy: "temporary",
+                pauseMinutes: DEFAULT_AUTOMATION_PAUSE_MINUTES,
+                pausedUntil: automationPausedUntil.toISOString(),
+            };
+
+            await tx.internalActionLog.create({
+                data: {
+                    action: "HumanTookOver",
+                    contactId: conversation.contactId,
+                    conversationId: conversation.id,
+                    metadataJson: JSON.stringify(eventMetadata),
+                },
+            });
+
+            await tx.internalActionLog.create({
+                data: {
+                    action: "AutomationPaused",
+                    contactId: conversation.contactId,
+                    conversationId: conversation.id,
+                    metadataJson: JSON.stringify(eventMetadata),
                 },
             });
 

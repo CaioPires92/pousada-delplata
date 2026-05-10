@@ -55,7 +55,7 @@ function getChatbotStatus(conversation: ConversationDetail): { label: string; to
     const isPaused = pausedUntil !== null && pausedUntil.getTime() > Date.now();
     if (isPaused) {
         return {
-            label: `Chatbot pausado até ${formatDateTime(conversation.automationPausedUntil)}`,
+            label: `Automação pausada por atendimento humano até ${formatDateTime(conversation.automationPausedUntil)}`,
             tone: "border-amber-200 bg-amber-50 text-amber-800",
         };
     }

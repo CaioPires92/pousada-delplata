@@ -78,6 +78,7 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
             }
 
             setSentFeedback("Mensagem enviada.");
+            router.refresh();
         } catch (err) {
             console.error("Erro ao enviar:", err);
             setError(getErrorMessage(err));
