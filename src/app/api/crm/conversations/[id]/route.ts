@@ -43,6 +43,17 @@ export async function GET(_request: Request, { params }: RouteParams) {
                         sentAt: true,
                     },
                 },
+                pipelineCards: {
+                    take: 1,
+                    orderBy: { updatedAt: "desc" },
+                    select: {
+                        id: true,
+                        stage: true,
+                        estimatedValue: true,
+                        intendedArrival: true,
+                        bookingId: true,
+                    }
+                }
             },
         });
 
@@ -65,6 +76,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
                 name: conversation.contact.name || "Sem nome",
                 phone: conversation.contact.phoneNormalized,
             },
+            pipelineCard: conversation.pipelineCards[0] || null,
             messages: conversation.messages,
         });
     } catch (error) {

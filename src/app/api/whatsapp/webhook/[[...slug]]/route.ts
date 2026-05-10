@@ -482,22 +482,40 @@ export async function POST(
           });
         }
       } else {
-        // Apenas criar se realmente nenhum identificador bateu
-        contact = await tx.contact.create({
-          data: {
-            name: extracted.contactName || '.',
-            phoneNormalized: identity.phone,
-            phoneRaw: identity.phone,
-            whatsappLid: identity.lid,
-            whatsappJid: identity.jid,
-            source: 'whatsapp',
-            status: 'lead'
+        // RACE CONDITION PROTECTION: Se dois webhooks chegam juntos, um deles vai falhar no create (P2002)
+        // Se falhar, tentamos buscar novamente pois o outro processo acabou de criar
+        try {
+          contact = await tx.contact.create({
+            data: {
+              name: extracted.contactName || '.',
+              phoneNormalized: identity.phone,
+              phoneRaw: identity.phone,
+              whatsappLid: identity.lid,
+              whatsappJid: identity.jid,
+              source: 'whatsapp',
+              status: 'lead'
+            }
+          });
+        } catch (createError: any) {
+          if (createError.code === 'P2002') {
+            console.log("[WEBHOOK] RACE CONDITION DETECTED - RETRYING FIND");
+            contact = await tx.contact.findFirst({
+              where: {
+                OR: [
+                  identity.jid ? { whatsappJid: identity.jid } : undefined,
+                  identity.lid ? { whatsappLid: identity.lid } : undefined,
+                  identity.phone ? { phoneNormalized: identity.phone } : undefined,
+                ].filter(Boolean) as any
+              }
+            });
+          } else {
+            throw createError;
           }
-        });
+        }
       }
 
       if (!contact) {
-        throw new Error("Falha crítica ao resolver ou criar contato.");
+        throw new Error("Falha crítica ao resolver ou criar contato após proteção de concorrência.");
       }
 
       // ETAPA 5 — BUSCA/CRIAÇÃO DE CONVERSA (POR CONTACTID)

@@ -248,6 +248,7 @@ model Conversation {
   contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
   messages              Message[]
   pipelineCards         PipelineCard[]
+  internalNotes         InternalNote[]
   actionLogs            InternalActionLog[]
 
   @@index([contactId])
@@ -286,6 +287,10 @@ model PipelineCard {
   lastActivityAt DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  estimatedValue Float?
+  intendedArrival DateTime?
+  lossReason     String?
+  bookingId      String?
   contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
@@ -335,5 +340,18 @@ model InternalActionLog {
   @@index([conversationId])
   @@index([bookingId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model InternalNote {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String?
+  content        String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId])
   @@index([createdAt])
 }

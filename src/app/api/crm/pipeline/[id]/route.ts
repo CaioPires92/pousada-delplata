@@ -15,62 +15,42 @@ type RouteParams = {
     }>;
 };
 
-type JsonRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): JsonRecord | undefined {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        return undefined;
-    }
-
-    return value as JsonRecord;
-}
-
 export async function PATCH(request: Request, { params }: RouteParams) {
     try {
         const { id } = await params;
         const body = await request.json().catch(() => null);
-        const bodyRecord = asRecord(body);
 
-        if (typeof bodyRecord?.stage !== "string" || !ALLOWED_STAGES.has(bodyRecord.stage)) {
-            return NextResponse.json(
-                { ok: false, error: "invalid_body" },
-                { status: 400 }
-            );
+        if (!body) {
+            return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
         }
 
-        const existingCard = await prisma.pipelineCard.findUnique({
-            where: { id },
-            select: { id: true },
-        });
+        const updateData: any = {
+            lastActivityAt: new Date(),
+        };
 
-        if (!existingCard) {
-            return NextResponse.json(
-                { ok: false, error: "pipeline_card_not_found" },
-                { status: 404 }
-            );
+        if (body.stage) {
+            if (!ALLOWED_STAGES.has(body.stage)) {
+                return NextResponse.json({ ok: false, error: "invalid_stage" }, { status: 400 });
+            }
+            updateData.stage = body.stage;
         }
+
+        if (body.estimatedValue !== undefined) updateData.estimatedValue = body.estimatedValue;
+        if (body.intendedArrival !== undefined) updateData.intendedArrival = body.intendedArrival ? new Date(body.intendedArrival) : null;
+        if (body.lossReason !== undefined) updateData.lossReason = body.lossReason;
+        if (body.bookingId !== undefined) updateData.bookingId = body.bookingId;
 
         const pipelineCard = await prisma.pipelineCard.update({
             where: { id },
-            data: {
-                stage: bodyRecord.stage,
-                lastActivityAt: new Date(),
-            },
-            select: {
-                id: true,
-                stage: true,
-                lastActivityAt: true,
-            },
+            data: updateData,
         });
 
         return NextResponse.json({
             ok: true,
-            cardId: pipelineCard.id,
-            stage: pipelineCard.stage,
-            lastActivityAt: pipelineCard.lastActivityAt,
+            card: pipelineCard,
         });
     } catch (error) {
-        console.error("Erro ao mover card do pipeline:", error);
+        console.error("Erro ao atualizar card do pipeline:", error);
         return NextResponse.json(
             { ok: false, error: "internal_error" },
             { status: 500 }

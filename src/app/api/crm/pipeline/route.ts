@@ -12,6 +12,8 @@ type PipelineCardResponse = {
     lastActivityAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
+    estimatedValue: number | null;
+    intendedArrival: Date | null;
     contact: {
         id: string;
         name: string;
@@ -88,6 +90,8 @@ export async function GET() {
             lastActivityAt: card.lastActivityAt,
             createdAt: card.createdAt,
             updatedAt: card.updatedAt,
+            estimatedValue: card.estimatedValue,
+            intendedArrival: card.intendedArrival,
             contact: {
                 id: card.contact.id,
                 name: card.contact.name || "Sem nome",
