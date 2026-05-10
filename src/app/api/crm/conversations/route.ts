@@ -3,7 +3,10 @@ import prisma from "@/lib/prisma";
 export async function GET() {
     try {
         const conversations = await prisma.conversation.findMany({
-            orderBy: { lastMessageAt: "desc" },
+            orderBy: [
+                { lastMessageAt: "desc" },
+                { updatedAt: "desc" },
+            ],
             take: 20,
             include: {
                 contact: {
@@ -15,10 +18,14 @@ export async function GET() {
                     },
                 },
                 messages: {
-                    orderBy: { createdAt: "desc" },
+                    orderBy: [
+                        { sentAt: "desc" },
+                        { createdAt: "desc" },
+                    ],
                     take: 1,
                     select: {
                         content: true,
+                        sentAt: true,
                         createdAt: true,
                     },
                 },
@@ -32,7 +39,7 @@ export async function GET() {
                 phone: c.contact?.phone || null,
                 lid: c.contact?.lid || null,
                 lastMessage: c.messages[0]?.content || null,
-                lastMessageAt: c.lastMessageAt,
+                lastMessageAt: c.lastMessageAt ?? c.messages[0]?.sentAt ?? c.messages[0]?.createdAt ?? null,
                 unreadCount: c.unreadCount,
             }))
         );

@@ -89,12 +89,19 @@ export default function AdminInboxPage() {
 
     loadConversations();
 
-    // Polling a cada 10 segundos
-    const intervalId = setInterval(loadConversations, 10000);
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadConversations();
+      }
+    }, 3000);
+    window.addEventListener('focus', loadConversations);
+    document.addEventListener('visibilitychange', loadConversations);
 
     return () => {
       active = false;
       clearInterval(intervalId);
+      window.removeEventListener('focus', loadConversations);
+      document.removeEventListener('visibilitychange', loadConversations);
     };
   }, []);
 
