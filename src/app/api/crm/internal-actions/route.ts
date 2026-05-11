@@ -6,6 +6,8 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
 
+export const runtime = "nodejs";
+
 type InternalAction =
   | "MOVE_PIPELINE_CARD"
   | "SEND_WHATSAPP_MESSAGE"
