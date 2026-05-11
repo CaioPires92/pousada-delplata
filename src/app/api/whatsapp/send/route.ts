@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createAutomationPausedUntil, DEFAULT_AUTOMATION_PAUSE_MINUTES } from "@/lib/crm/automationPause";
+import { recordCrmEvent } from "@/lib/crm/events";
 import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
 
 type JsonRecord = Record<string, unknown>;
@@ -96,6 +97,16 @@ export async function POST(request: Request) {
             });
         } catch (error) {
             console.error("Erro ao enviar mensagem via Evolution:", error);
+            await recordCrmEvent({
+                action: "WhatsAppSendFailed",
+                contactId: conversation.contactId,
+                conversationId: conversation.id,
+                metadata: {
+                    target,
+                    textLength: text.length,
+                    error: error instanceof Error ? error.message : "unknown_error",
+                },
+            });
             return NextResponse.json(
                 { ok: false, error: "evolution_send_failed" },
                 { status: 502 }
