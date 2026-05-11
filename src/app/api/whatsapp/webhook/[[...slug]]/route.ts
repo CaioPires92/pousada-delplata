@@ -411,11 +411,6 @@ export async function POST(
 
   console.log(`--- [WEBHOOK] MENSAGEM EXTRAÍDA: De=${extracted.phone || extracted.phoneRaw} ID=${extracted.externalMessageId} DeMim=${extracted.fromMe} ---`);
 
-  if (extracted.fromMe) {
-    console.log('--- [WEBHOOK] IGNORADO: MENSAGEM ENVIADA POR MIM ---');
-    return NextResponse.json({ ok: true, ignored: true, reason: 'from_me' });
-  }
-
   // ETAPA 3 — VALIDAÇÃO HÍBRIDA
   // Permitimos prosseguir se tivermos OU o telefone normalizado OU o JID bruto (que pode ser um LID)
   if (!extracted.phone && !extracted.phoneRaw) {
@@ -582,7 +577,7 @@ export async function POST(
         data: {
           conversationId: conversation.id,
           externalMessageId: extracted.externalMessageId,
-          senderType: 'guest',
+          senderType: extracted.fromMe ? 'human' : 'guest',
           content: extracted.textContent,
           messageType: extracted.messageType,
           mediaUrl: extracted.mediaUrl,
@@ -602,9 +597,11 @@ export async function POST(
         },
         data: {
           lastMessageAt: extracted.sentAt,
-          unreadCount: {
-            increment: 1
-          }
+          ...(extracted.fromMe ? {} : {
+            unreadCount: {
+              increment: 1
+            }
+          })
         },
       });
 
@@ -657,7 +654,7 @@ export async function POST(
 
     // 2. MessageReceived
     recordCrmEvent({
-      action: 'MessageReceived',
+      action: extracted.fromMe ? 'WhatsAppMessageSent' : 'MessageReceived',
       contactId: result.contactId,
       conversationId: result.conversationId,
       metadata: {
@@ -739,7 +736,7 @@ export async function POST(
     SELECTED_TARGET: targetId
   });
 
-  if (isAutomationEnabled && extracted.textContent && targetId) {
+  if (!extracted.fromMe && isAutomationEnabled && extracted.textContent && targetId) {
     try {
       console.log(`--- [WEBHOOK] EXECUTANDO AUTOMAÇÃO PARA: ${targetId} ---`);
       const { processAutoResponse } = await import('@/lib/whatsapp/automation');

@@ -11,6 +11,29 @@ interface MessageListProps {
     conversationId: string;
 }
 
+function getScrollContainer(element: HTMLElement | null): HTMLElement | null {
+    let current = element?.parentElement ?? null;
+
+    while (current) {
+        const style = window.getComputedStyle(current);
+        const overflowY = style.overflowY;
+
+        if (overflowY === "auto" || overflowY === "scroll") {
+            return current;
+        }
+
+        current = current.parentElement;
+    }
+
+    return null;
+}
+
+function isNearBottom(container: HTMLElement | null): boolean {
+    if (!container) return true;
+
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+}
+
 function formatMessageTime(message: Message): string {
     const parsed = new Date(message.sentAt || message.createdAt);
     if (Number.isNaN(parsed.getTime())) {
@@ -52,7 +75,10 @@ function getMessageStyle(senderType: string): {
 
 export default function MessageList({ initialMessages, conversationId }: MessageListProps) {
     const [messages, setMessages] = useState<Message[]>(initialMessages);
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const bottomRef = useRef<HTMLDivElement | null>(null);
+    const shouldAutoScrollRef = useRef(true);
+    const lastMessageId = messages[messages.length - 1]?.id;
 
     // Sincronizar com props iniciais
     useEffect(() => {
@@ -60,14 +86,32 @@ export default function MessageList({ initialMessages, conversationId }: Message
     }, [initialMessages]);
 
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ block: "end" });
-    }, [messages]);
+        const scrollContainer = getScrollContainer(rootRef.current);
+
+        const updateAutoScrollIntent = () => {
+            shouldAutoScrollRef.current = isNearBottom(scrollContainer);
+        };
+
+        updateAutoScrollIntent();
+        scrollContainer?.addEventListener("scroll", updateAutoScrollIntent, { passive: true });
+
+        return () => {
+            scrollContainer?.removeEventListener("scroll", updateAutoScrollIntent);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (shouldAutoScrollRef.current) {
+            bottomRef.current?.scrollIntoView({ block: "end" });
+        }
+    }, [lastMessageId]);
 
     // Listener para mensagens otimistas enviadas pelo ReplyBox
     useEffect(() => {
         const handleOptimisticMessage = (event: Event) => {
             const { detail } = event as CustomEvent<{ conversationId: string; message: Message }>;
             if (detail.conversationId === conversationId) {
+                shouldAutoScrollRef.current = true;
                 setMessages(prev => {
                     // Evitar duplicata se por acaso o polling já pegou
                     if (prev.some(m => m.id === detail.message.id)) return prev;
@@ -134,7 +178,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
     }, [conversationId]);
 
     return (
-        <div className="min-h-full space-y-4 px-1 py-2">
+        <div ref={rootRef} className="min-h-full space-y-4 px-1 py-2">
             {messages.length === 0 ? (
                 <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-white text-sm font-medium text-slate-400">
                     Inicie a conversa enviando uma mensagem abaixo.

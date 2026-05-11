@@ -17,14 +17,14 @@ function routeParams() {
   return { params: Promise.resolve({ slug: ["messages-upsert"] }) };
 }
 
-function textPayload(id: string, remoteJid: string, text = "Mensagem de teste") {
+function textPayload(id: string, remoteJid: string, text = "Mensagem de teste", fromMe = false) {
   return {
     event: "messages.upsert",
     instance: TEST_INSTANCE,
     data: {
       key: {
         remoteJid,
-        fromMe: false,
+        fromMe,
         id,
       },
       pushName: "Contato Teste",
@@ -199,5 +199,30 @@ describe("WhatsApp CRM webhook hardening", () => {
     expect(message?.messageType).toBe("image");
     expect(message?.content).toBe("Foto da pousada");
     expect(message?.mediaUrl).toBe("https://example.com/image.jpg");
+  });
+
+  it("saves WhatsApp messages sent directly by the inn as human replies", async () => {
+    const payload = textPayload("test-direct-whatsapp-reply", "5511999990005@s.whatsapp.net", "Resposta direta pelo WhatsApp", true);
+
+    const response = await POST(webhookRequest(payload), routeParams());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+
+    const message = await prisma.message.findFirst({
+      where: { externalMessageId: "test-direct-whatsapp-reply" },
+      include: {
+        conversation: {
+          include: {
+            contact: true,
+          },
+        },
+      },
+    });
+
+    expect(message?.senderType).toBe("human");
+    expect(message?.content).toBe("Resposta direta pelo WhatsApp");
+    expect(message?.conversation.contact.phone).toBe("5511999990005");
   });
 });
