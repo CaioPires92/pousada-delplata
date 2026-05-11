@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, CheckCircle2, MessageSquare, PlusCircle } from 'lucide-react';
+import { Bell, MessageSquare, PlusCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -38,9 +38,12 @@ export default function AdminHeader() {
   }
 
   useEffect(() => {
-    fetchNotifications();
+    const timeout = window.setTimeout(fetchNotifications, 0);
     const interval = setInterval(fetchNotifications, 15000); // Poll a cada 15s
-    return () => clearInterval(interval);
+    return () => {
+      window.clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, []);
 
   return (

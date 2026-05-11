@@ -217,10 +217,10 @@ export default function ChatbotSettingsPage() {
                                     <div className="space-y-1 flex-1">
                                         <div className="flex items-center gap-2">
                                             <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg text-xs font-black uppercase tracking-tighter italic">Trigger</span>
-                                            <span className="font-black text-lg text-slate-800">"{rule.trigger}"</span>
+                                            <span className="font-black text-lg text-slate-800">&quot;{rule.trigger}&quot;</span>
                                         </div>
                                         <p className="text-slate-600 font-medium line-clamp-2 italic text-sm">
-                                            "{rule.response}"
+                                            &quot;{rule.response}&quot;
                                         </p>
                                     </div>
                                 )}
