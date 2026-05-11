@@ -214,7 +214,9 @@ model Contact {
   id              String              @id @default(uuid())
   name            String?
   phoneRaw        String?
-  phoneNormalized String?             @unique
+  phone           String?             @unique
+  lid             String?             @unique
+  whatsappJid     String?             @unique
   email           String?
   source          String              @default("manual")
   status          String              @default("lead")
@@ -240,12 +242,15 @@ model Conversation {
   chatbotEnabled        Boolean             @default(false)
   automationPausedUntil DateTime?
   assignedUserId        String?
-  lastMessageAt         DateTime?
+  unreadCount           Int                 @default(0)
+  lastReadAt            DateTime?
+  lastMessageAt         DateTime?           @default(now())
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
   messages              Message[]
   pipelineCards         PipelineCard[]
+  internalNotes         InternalNote[]
   actionLogs            InternalActionLog[]
 
   @@index([contactId])
@@ -284,6 +289,16 @@ model PipelineCard {
   lastActivityAt DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  estimatedValue Float?
+  intendedArrival DateTime?
+  intendedCheckin DateTime?
+  intendedCheckout DateTime?
+  adults         Int?
+  children       Int?
+  roomTypeInterest String?
+  lossReason     String?
+  lostReason     String?
+  bookingId      String?
   contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
@@ -306,6 +321,16 @@ model ChatbotSettings {
   updatedAt                     DateTime @updatedAt
 }
 
+model ChatbotRule {
+  id        String   @id @default(uuid())
+  trigger   String   @unique
+  response  String
+  category  String   @default("faq")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model InternalActionLog {
   id             String        @id @default(uuid())
   userId         String?
@@ -323,5 +348,18 @@ model InternalActionLog {
   @@index([conversationId])
   @@index([bookingId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model InternalNote {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String?
+  content        String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId])
   @@index([createdAt])
 }

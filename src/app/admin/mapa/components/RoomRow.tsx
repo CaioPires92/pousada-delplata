@@ -151,10 +151,10 @@ export const RoomRow: React.FC<RoomRowProps> = ({
                   isWeekend ? "bg-slate-50/80" : "bg-white"
                 )}>
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.1em]">
-                    {dateObj.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                    {new Intl.DateTimeFormat('pt-BR', { weekday: 'short', timeZone: 'UTC' }).format(dateObj).replace('.', '')}
                   </span>
                   <span className="text-[10px] font-black text-slate-700 leading-none">
-                    {dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    {new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(dateObj)}
                   </span>
                 </div>
 
