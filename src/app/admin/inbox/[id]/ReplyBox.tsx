@@ -3,6 +3,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -124,7 +125,17 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
                         disabled={isLoading || !text.trim()}
                         className="h-11 rounded-lg bg-emerald-600 px-6 text-sm font-black uppercase tracking-widest hover:bg-emerald-700"
                     >
-                        {isLoading ? "Enviando..." : "Enviar Mensagem"}
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Enviando
+                            </>
+                        ) : (
+                            <>
+                                <Send className="mr-2 h-4 w-4" />
+                                Enviar
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>

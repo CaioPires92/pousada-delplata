@@ -187,6 +187,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
                 messages.map((message) => {
                     const style = getMessageStyle(message.senderType);
                     const isHuman = message.senderType === "human";
+                    const hasError = message.status === "error";
 
                     return (
                         <div
@@ -194,7 +195,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
                             className={`flex ${style.alignment}`}
                         >
                             <div
-                                className={`group relative max-w-[88%] rounded-lg px-4 py-3 sm:max-w-[74%] ${style.bubble} transition-all duration-200`}
+                                className={`group relative max-w-[88%] rounded-lg px-4 py-3 sm:max-w-[74%] ${style.bubble} ${hasError ? "ring-2 ring-red-300" : ""} transition-all duration-200`}
                             >
                                 <div className="flex items-center justify-between gap-4">
                                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">
@@ -228,6 +229,18 @@ export default function MessageList({ initialMessages, conversationId }: Message
                                         </div>
                                     )}
                                 </div>
+
+                                {isHuman && message.status === "pending" && (
+                                    <p className="mt-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-70">
+                                        Enviando
+                                    </p>
+                                )}
+
+                                {isHuman && hasError && (
+                                    <p className="mt-2 rounded-md bg-red-50 px-2 py-1 text-right text-[11px] font-bold text-red-700">
+                                        Falha ao enviar. Tente novamente.
+                                    </p>
+                                )}
                             </div>
                         </div>
                     );

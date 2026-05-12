@@ -21,6 +21,30 @@ Todo evento deve seguir este formato:
 }
 ```
 
+### Envelope atual enviado ao n8n
+
+Na implementação atual, `emitCrmEvent` envia o evento para `N8N_WEBHOOK_URL` em formato simples, compatível com o workflow local validado em 2026-05-12:
+
+```json
+{
+  "timestamp": "2026-05-12T20:08:43.751Z",
+  "action": "QuoteRequested",
+  "contactId": "646d3472-c46a-477d-a33d-f537147d1571",
+  "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+  "metadata": {}
+}
+```
+
+Equivalencia provisoria:
+
+```txt
+action -> eventType
+timestamp -> occurredAt
+metadata -> payload
+```
+
+O contrato canonico acima continua sendo o alvo desejado. Enquanto o app estiver emitindo `action` e `metadata`, o n8n deve consumir esse formato real.
+
 ## 3. Eventos principais
 
 ### MessageReceived
@@ -128,6 +152,27 @@ Emitido quando cliente informa dados suficientes para orçamento.
 }
 ```
 
+Exemplo real emitido por `POST /api/crm/quote`:
+
+```json
+{
+  "timestamp": "2026-05-12T20:08:43.751Z",
+  "action": "QuoteRequested",
+  "contactId": "646d3472-c46a-477d-a33d-f537147d1571",
+  "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+  "metadata": {
+    "checkin": "2026-06-15",
+    "checkout": "2026-06-17",
+    "adults": 2,
+    "children": 0,
+    "childrenAges": [],
+    "resultOk": true,
+    "optionsCount": 4,
+    "error": null
+  }
+}
+```
+
 ### QuoteSent
 
 Emitido quando orçamento é enviado.
@@ -230,6 +275,14 @@ Envelope padrão de requisição:
 }
 ```
 
+URL de producao testada:
+
+```txt
+https://www.pousadadelplata.com.br/api/crm/internal-actions
+```
+
+O token deve ficar somente em variavel/credencial do n8n. Nao colocar token em node exposto ao front.
+
 ### MOVE_PIPELINE_CARD
 
 ```json
@@ -255,6 +308,32 @@ Envelope padrão de requisição:
 }
 ```
 
+Exemplo real usado no workflow n8n validado:
+
+```json
+{
+  "action": "SEND_WHATSAPP_MESSAGE",
+  "payload": {
+    "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+    "text": "Teste n8n: recebi o evento QuoteRequested e consegui responder pelo CRM."
+  }
+}
+```
+
+Resposta esperada:
+
+```json
+{
+  "ok": true,
+  "action": "SEND_WHATSAPP_MESSAGE",
+  "result": {
+    "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+    "messageId": "989eb09d-1517-4e57-a662-e4f0d0945e7f",
+    "externalMessageId": "3EB00725C86AF4F954138F"
+  }
+}
+```
+
 ### PAUSE_AUTOMATION
 
 ```json
@@ -264,6 +343,31 @@ Envelope padrão de requisição:
     "conversationId": "conv_123",
     "minutes": 30,
     "reason": "Humano assumiu atendimento"
+  }
+}
+```
+
+Exemplo real validado:
+
+```json
+{
+  "action": "PAUSE_AUTOMATION",
+  "payload": {
+    "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+    "minutes": 15
+  }
+}
+```
+
+Resposta esperada:
+
+```json
+{
+  "ok": true,
+  "action": "PAUSE_AUTOMATION",
+  "result": {
+    "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+    "pausedUntil": "2026-05-11T16:55:34.996Z"
   }
 }
 ```
@@ -285,15 +389,112 @@ Envelope padrão de requisição:
 }
 ```
 
-## 5. Regras de segurança
+## 5. Contrato de orcamento para n8n
+
+Endpoint:
+
+```txt
+POST /api/crm/quote
+Authorization: Bearer CRM_INTERNAL_API_TOKEN
+Content-Type: application/json
+```
+
+URL de producao testada:
+
+```txt
+https://www.pousadadelplata.com.br/api/crm/quote
+```
+
+Requisicao:
+
+```json
+{
+  "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+  "checkin": "2026-06-15",
+  "checkout": "2026-06-17",
+  "adults": 2,
+  "children": 0
+}
+```
+
+Resposta real resumida:
+
+```json
+{
+  "ok": true,
+  "conversationId": "5ccbc27c-7b49-4370-a174-d408b44a03a7",
+  "quote": {
+    "ok": true,
+    "checkin": "2026-06-15",
+    "checkout": "2026-06-17",
+    "nights": 2,
+    "options": [
+      {
+        "roomTypeName": "Apartamento Anexo",
+        "remainingUnits": 2,
+        "totalPrice": 538
+      },
+      {
+        "roomTypeName": "Chale",
+        "remainingUnits": 2,
+        "totalPrice": 558
+      }
+    ]
+  }
+}
+```
+
+O n8n deve usar essa rota para consultar disponibilidade/preco. Ele nao deve acessar Turso diretamente.
+
+## 6. Workflow n8n validado em teste local
+
+Webhook de entrada:
+
+```txt
+POST /webhook/crm-events
+```
+
+Variavel da Vercel:
+
+```txt
+N8N_WEBHOOK_URL=https://<tunel-publico>/webhook/crm-events
+```
+
+Fluxo minimo validado:
+
+```txt
+Webhook
+  -> Filtrar QuoteRequested
+  -> Enviar WhatsApp pelo CRM
+```
+
+Filtro usado:
+
+```js
+const item = $input.first();
+const body = item.json.body || {};
+
+if (body.action !== 'QuoteRequested') {
+  return [];
+}
+
+return [{ json: item.json }];
+```
+
+Esse filtro evita loop: quando o CRM registra o envio feito pelo n8n, esse novo evento nao deve disparar outra resposta automatica.
+
+## 7. Regras de segurança
 
 - Toda ação do n8n exige token interno.
 - Toda ação deve gerar log.
 - Se conversa estiver pausada, n8n não deve enviar mensagem.
 - Se o card não existir, retornar erro claro.
 - Se stage for inválido, retornar erro claro.
+- O n8n deve chamar apenas APIs do CRM. Nunca escrever direto no banco.
+- Se `N8N_WEBHOOK_URL` falhar, o atendimento nao deve quebrar.
+- Em teste local, manter o tunel publico aberto enquanto a Vercel chama o n8n.
 
-## 6. Respostas padrão
+## 8. Respostas padrão
 
 Sucesso:
 
