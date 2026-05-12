@@ -17,6 +17,13 @@ function asNonEmptyString(value: unknown) {
   return trimmed || undefined;
 }
 
+function getBearerToken(request: Request): string | undefined {
+  const authorization = request.headers.get("authorization");
+  if (!authorization?.startsWith("Bearer ")) return undefined;
+
+  return authorization.slice("Bearer ".length).trim() || undefined;
+}
+
 function asPositiveInteger(value: unknown) {
   const parsed = typeof value === "number" ? value : Number.parseInt(String(value ?? ""), 10);
   if (!Number.isInteger(parsed) || parsed < 1) return undefined;
@@ -44,6 +51,16 @@ function parseChildrenAges(value: unknown, childrenCount: number) {
 }
 
 export async function POST(request: Request) {
+  const expectedToken = process.env.CRM_INTERNAL_API_TOKEN;
+  const token = getBearerToken(request);
+
+  if (!expectedToken || token !== expectedToken) {
+    return NextResponse.json(
+      { ok: false, error: "UNAUTHORIZED", message: "Token não fornecido ou inválido" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json().catch(() => null);
 

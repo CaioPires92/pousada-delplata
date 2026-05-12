@@ -21,10 +21,15 @@ vi.mock("@/lib/crm/events", () => ({
   recordCrmEvent: vi.fn(),
 }));
 
-function quoteRequest(body: unknown) {
+const TEST_TOKEN = "test-crm-token";
+
+function quoteRequest(body: unknown, token = TEST_TOKEN) {
   return new Request("http://localhost/api/crm/quote", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -32,6 +37,7 @@ function quoteRequest(body: unknown) {
 describe("POST /api/crm/quote", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.CRM_INTERNAL_API_TOKEN = TEST_TOKEN;
     vi.mocked(prisma.conversation.findUnique).mockResolvedValue({
       id: "conversation-1",
       contactId: "contact-1",
@@ -156,6 +162,25 @@ describe("POST /api/crm/quote", () => {
 
     expect(response.status).toBe(400);
     expect(body).toEqual({ ok: false, error: "invalid_body" });
+    expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests without the internal bearer token", async () => {
+    const response = await POST(quoteRequest({
+      conversationId: "conversation-1",
+      checkin: "2026-06-15",
+      checkout: "2026-06-17",
+      adults: 2,
+      children: 0,
+    }, ""));
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body).toEqual({
+      ok: false,
+      error: "UNAUTHORIZED",
+      message: "Token não fornecido ou inválido",
+    });
     expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
   });
 });
