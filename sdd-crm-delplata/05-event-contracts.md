@@ -191,6 +191,60 @@ Emitido quando orçamento é enviado.
 }
 ```
 
+Payload recomendado para implementação real:
+
+```json
+{
+  "eventType": "QuoteSent",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "payload": {
+    "quoteRequest": {
+      "checkin": "2026-06-15",
+      "checkout": "2026-06-17",
+      "adults": 2,
+      "children": 0
+    },
+    "selectedOption": null,
+    "options": [
+      {
+        "roomTypeId": "room_1",
+        "roomTypeName": "Apartamento Anexo",
+        "remainingUnits": 2,
+        "totalPrice": 538,
+        "currency": "BRL"
+      }
+    ],
+    "messageId": "msg_123",
+    "externalMessageId": "evo_123",
+    "sentBy": "n8n"
+  }
+}
+```
+
+Envelope atual equivalente:
+
+```json
+{
+  "timestamp": "2026-05-12T21:10:00.000Z",
+  "action": "QuoteSent",
+  "contactId": "contact_123",
+  "conversationId": "conv_123",
+  "metadata": {
+    "checkin": "2026-06-15",
+    "checkout": "2026-06-17",
+    "adults": 2,
+    "children": 0,
+    "optionsCount": 4,
+    "minPrice": 538,
+    "maxPrice": 598,
+    "currency": "BRL",
+    "messageId": "msg_123",
+    "sentBy": "n8n"
+  }
+}
+```
+
 ### ReservationStarted
 
 Emitido quando cliente inicia intenção clara de reservar.
@@ -256,6 +310,152 @@ Emitido quando oportunidade é perdida.
   }
 }
 ```
+
+## 3.1. Eventos operacionais e de estado
+
+### ConversationStateChanged
+
+Emitido quando o estado conversacional persistente muda.
+
+```json
+{
+  "eventType": "ConversationStateChanged",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "payload": {
+    "previousFlow": null,
+    "currentFlow": "quote",
+    "previousStep": null,
+    "currentStep": "collecting_dates",
+    "flowData": {
+      "adults": 2
+    },
+    "reason": "Mensagem indicou pedido de orçamento",
+    "actorType": "system"
+  }
+}
+```
+
+Envelope atual equivalente:
+
+```json
+{
+  "action": "ConversationStateChanged",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "metadata": {
+    "previousFlow": null,
+    "currentFlow": "quote",
+    "previousStep": null,
+    "currentStep": "collecting_dates",
+    "flowData": {
+      "adults": 2
+    },
+    "reason": "Mensagem indicou pedido de orçamento",
+    "actorType": "system"
+  }
+}
+```
+
+### ReservationDraftCreated
+
+Emitido quando o CRM cria um rascunho de reserva assistida.
+
+```json
+{
+  "eventType": "ReservationDraftCreated",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "payload": {
+    "reservationDraftId": "draft_123",
+    "pipelineCardId": "card_123",
+    "roomTypeId": "room_1",
+    "checkin": "2026-06-15",
+    "checkout": "2026-06-17",
+    "adults": 2,
+    "children": 0,
+    "estimatedValue": 538,
+    "currency": "BRL",
+    "status": "draft"
+  }
+}
+```
+
+### AutomationFailed
+
+Emitido quando uma automação falha de forma controlada.
+
+```json
+{
+  "eventType": "AutomationFailed",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "payload": {
+    "automation": "quote_flow",
+    "step": "send_quote_message",
+    "errorCode": "EVOLUTION_SEND_FAILED",
+    "message": "Evolution API retornou erro ao enviar mensagem",
+    "recoverable": true,
+    "attempt": 1,
+    "nextAction": "retry"
+  }
+}
+```
+
+Critérios:
+
+- não deve quebrar atendimento;
+- deve registrar contexto suficiente para suporte;
+- não deve expor segredo/token;
+- se for recuperável, deve gerar `RetryScheduled`.
+
+### RetryScheduled
+
+Emitido quando uma ação falha e entra em retry.
+
+```json
+{
+  "eventType": "RetryScheduled",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "payload": {
+    "jobId": "job_123",
+    "action": "SEND_WHATSAPP_MESSAGE",
+    "attempt": 2,
+    "maxAttempts": 5,
+    "runAt": "2026-05-12T21:15:00.000Z",
+    "backoffMs": 60000,
+    "reason": "Evolution indisponível"
+  }
+}
+```
+
+### HumanEscalationRequested
+
+Emitido quando automação pede intervenção humana.
+
+```json
+{
+  "eventType": "HumanEscalationRequested",
+  "conversationId": "conv_123",
+  "contactId": "contact_123",
+  "payload": {
+    "reason": "Cliente pediu condição fora da regra automática",
+    "priority": "high",
+    "currentFlow": "quote",
+    "currentStep": "negotiation",
+    "lastCustomerMessage": "Consegue fazer mais barato se eu pagar pix?",
+    "suggestedAction": "Atendente revisar negociação"
+  }
+}
+```
+
+Critérios:
+
+- deve aparecer para operação;
+- não deve continuar respondendo automaticamente sem nova regra;
+- pode pausar automação temporariamente;
+- deve manter contexto para o atendente.
 
 ## 4. Contrato para ações vindas do n8n
 

@@ -414,6 +414,592 @@ Se algum falhar por erro pré-existente, documentar exatamente qual.
 
 ---
 
+# Fase 16 — Automação de orçamento via n8n
+
+Objetivo: transformar o orçamento em fluxo operacional real, sem colocar regra de negócio dentro do n8n e sem acesso direto ao banco.
+
+## Task 16.1 — Criar parser básico de intenção
+
+Criar:
+
+```txt
+src/lib/crm/intentParser.ts
+```
+
+Extrair:
+
+```txt
+checkin
+checkout
+adultos
+crianças
+intenção
+```
+
+Critérios:
+
+- regex defensiva;
+- tolerar linguagem natural comum;
+- retornar campos parciais;
+- não usar IA complexa ainda;
+- não bloquear atendimento se não conseguir interpretar.
+
+## Task 16.2 — Criar estado conversacional
+
+Adicionar em `Conversation`, se ainda não existir:
+
+```txt
+currentFlow
+flowStep
+flowDataJson
+lastAutomationAt
+```
+
+Critérios:
+
+- migration aditiva;
+- fluxo persistente;
+- evitar perguntas repetidas;
+- permitir retomada;
+- manter compatibilidade com conversas já existentes.
+
+## Task 16.3 — Fluxo automático de coleta
+
+Critérios:
+
+- perguntar apenas dados faltantes;
+- evitar loops;
+- respeitar pausa humana;
+- respeitar `chatbotEnabled`;
+- timeout de fluxo;
+- registrar eventos relevantes.
+
+## Task 16.4 — Automação de orçamento ponta a ponta
+
+Fluxo:
+
+```txt
+Mensagem → parser → quote → resposta → pipeline
+```
+
+Critérios:
+
+- montar mensagem amigável;
+- registrar `QuoteSent`;
+- atualizar card automaticamente;
+- usar `/api/crm/quote`;
+- enviar via `/api/crm/internal-actions`;
+- não criar reserva ainda.
+
+## Task 16.5 — Debounce de orçamento
+
+Critérios:
+
+- impedir múltiplas cotações simultâneas;
+- lock temporal por conversa;
+- evitar spam;
+- registrar quando uma cotação for ignorada por debounce;
+- manter comportamento seguro se n8n atrasar ou repetir execução.
+
+---
+
+# Fase 17 — Pipeline orientado a estado
+
+Objetivo: impedir que o Kanban vire uma coleção de estados soltos sem regra operacional.
+
+## Task 17.1 — Criar state machine do pipeline
+
+Criar:
+
+```txt
+src/lib/crm/pipelineMachine.ts
+```
+
+Critérios:
+
+- validar transições;
+- impedir estados inválidos;
+- retornar erro claro;
+- cobrir transições por testes.
+
+Exemplo:
+
+```txt
+NOVO_LEAD → PAGAMENTO_PENDENTE não deve ser permitido diretamente.
+```
+
+## Task 17.2 — Automatizar mudanças de estágio
+
+Critérios:
+
+- `QuoteSent` → `ORCAMENTO_ENVIADO`;
+- cliente respondeu após orçamento → `AGUARDANDO_RESPOSTA`;
+- reserva iniciada → `RESERVA_EM_ANDAMENTO`;
+- automação deve usar API/serviço do CRM;
+- humano pode sobrescrever quando necessário.
+
+## Task 17.3 — Histórico completo de movimentação
+
+Criar tabela:
+
+```txt
+PipelineStageHistory
+```
+
+Critérios:
+
+- migration aditiva;
+- auditoria completa;
+- base para analytics futuro;
+- registrar estágio anterior, estágio novo, ator, motivo e timestamp.
+
+---
+
+# Fase 18 — Reserva assistida
+
+Objetivo: permitir avanço comercial até intenção clara de reserva, ainda sem automatizar a reserva final.
+
+## Task 18.1 — Detectar intenção de reserva
+
+Critérios:
+
+- identificar mensagens como:
+  - `quero fechar`;
+  - `como faço pagamento`;
+  - `vamos reservar`;
+- emitir `ReservationStarted`;
+- evitar falso positivo agressivo.
+
+## Task 18.2 — Fluxo assistido de reserva
+
+Coletar:
+
+```txt
+nome
+CPF
+e-mail
+forma de pagamento
+```
+
+Critérios:
+
+- ainda sem reserva automática;
+- humano pode assumir;
+- dados parciais ficam salvos;
+- respeitar LGPD e minimizar dados sensíveis.
+
+## Task 18.3 — Draft de reserva
+
+Criar:
+
+```txt
+ReservationDraft
+```
+
+Critérios:
+
+- migration aditiva;
+- salvar intenção;
+- evitar perda de contexto;
+- relacionar com conversa, contato e card;
+- não confirmar reserva automaticamente.
+
+---
+
+# Fase 19 — Observabilidade
+
+Objetivo: sair do "ver console/log da Vercel" e criar operação visível para suporte.
+
+## Task 19.1 — Central de eventos
+
+Criar UI:
+
+```txt
+/admin/crm/events
+```
+
+Critérios:
+
+- últimos eventos;
+- erros;
+- retries;
+- falhas n8n;
+- filtros por conversa, contato, ação e severidade.
+
+## Task 19.2 — Logs estruturados
+
+Padronizar níveis:
+
+```txt
+INFO
+WARN
+ERROR
+AUTOMATION
+SECURITY
+```
+
+Critérios:
+
+- formato previsível;
+- evitar dados sensíveis em logs;
+- logs úteis para debug de produção.
+
+## Task 19.3 — Alertas operacionais
+
+Critérios:
+
+- Evolution offline;
+- n8n offline;
+- webhook falhando;
+- fila travada;
+- alerta visível no admin ou canal operacional definido.
+
+---
+
+# Fase 20 — Retry/Filas
+
+Objetivo: impedir perda silenciosa quando Evolution, n8n ou rede falharem.
+
+## Task 20.1 — Retry de envio WhatsApp
+
+Critérios:
+
+- retry exponencial;
+- marcar status;
+- limitar número de tentativas;
+- preservar histórico de erro.
+
+## Task 20.2 — Dead letter queue
+
+Critérios:
+
+- mensagens falhas;
+- automações quebradas;
+- replay manual;
+- motivo de falha claro.
+
+## Task 20.3 — Fila de automação
+
+Criar:
+
+```txt
+queue simples
+```
+
+Critérios:
+
+- processamento serial por conversa;
+- evitar duas automações respondendo ao mesmo tempo;
+- base para worker futuro.
+
+---
+
+# Fase 21 — Segurança operacional
+
+Objetivo: proteger tokens, evitar abuso e criar auditoria administrativa.
+
+## Task 21.1 — Rotacionar segredos
+
+Rotacionar:
+
+```txt
+Evolution
+CRM_INTERNAL_API_TOKEN
+n8n API key
+n8n MCP token
+túneis temporários expostos
+```
+
+Critérios:
+
+- atualizar Vercel;
+- atualizar n8n;
+- atualizar documentação local;
+- validar após rotação.
+
+## Task 21.2 — Rate limit interno
+
+Critérios:
+
+- evitar spam;
+- evitar loop;
+- limitar ações por conversa;
+- resposta previsível quando limite for atingido.
+
+## Task 21.3 — Auditoria administrativa
+
+Critérios:
+
+- registrar quem moveu card;
+- registrar quem respondeu;
+- registrar quem pausou bot;
+- registrar origem: humano, n8n, sistema ou webhook.
+
+---
+
+# Fase 22 — Infraestrutura real
+
+Objetivo: substituir túneis temporários por serviços persistentes e previsíveis.
+
+## Task 22.1 — VPS definitiva
+
+Critérios:
+
+- Evolution persistente;
+- volumes;
+- backup;
+- HTTPS;
+- restart automático.
+
+## Task 22.2 — n8n persistente
+
+Critérios:
+
+- banco persistente;
+- credenciais seguras;
+- backup;
+- URL fixa;
+- política de atualização.
+
+## Task 22.3 — URLs definitivas
+
+Remover:
+
+```txt
+ngrok
+túneis temporários
+URLs descartáveis
+```
+
+Critérios:
+
+- Vercel apontando para URLs fixas;
+- documentação atualizada;
+- teste de envio e evento após troca.
+
+---
+
+# Fase 23 — Realtime
+
+Objetivo: trocar polling por atualização instantânea quando a base estiver estável.
+
+## Task 23.1 — Migrar polling para websocket/SSE
+
+Critérios:
+
+- inbox realtime;
+- mensagens instantâneas;
+- fallback seguro se realtime cair;
+- não quebrar SSR/admin.
+
+## Task 23.2 — Status online
+
+Critérios:
+
+- digitando;
+- entregue;
+- lido futuramente;
+- sem prometer status que a Evolution não fornece com confiança.
+
+---
+
+# Fase 24 — Analytics CRM
+
+Objetivo: medir operação comercial, não apenas armazenar conversa.
+
+## Task 24.1 — Métricas comerciais
+
+Criar métricas:
+
+```txt
+taxa de conversão
+tempo de resposta
+orçamento → reserva
+leads por origem
+motivos de perda
+```
+
+## Task 24.2 — Dashboard operacional
+
+Criar UI:
+
+```txt
+/admin/crm/dashboard
+```
+
+Critérios:
+
+- visão diária/semanal;
+- funil comercial;
+- alertas básicos;
+- sem misturar com dashboard financeiro do motor.
+
+---
+
+# Fase 25 — Pós-venda
+
+Objetivo: criar relacionamento depois da hospedagem sem virar campanha agressiva.
+
+## Task 25.1 — Fluxo pós hospedagem
+
+Critérios:
+
+- agradecer;
+- pedir avaliação;
+- detectar problemas;
+- respeitar opt-out.
+
+## Task 25.2 — Recuperação de lead perdido
+
+Critérios:
+
+- follow-up automático;
+- janela configurável;
+- limite de tentativas;
+- não insistir quando humano marcar como perdido definitivo.
+
+---
+
+# Fase 26 — Multi-canal
+
+Objetivo: reaproveitar o CRM para canais além do WhatsApp sem duplicar estrutura.
+
+## Task 26.1 — Chat do site
+
+Critérios:
+
+- reutilizar `Conversation`;
+- reutilizar `Message`;
+- reutilizar `Pipeline`;
+- identificar origem `site_chat`;
+- manter histórico unificado.
+
+## Task 26.2 — Formulários integrados
+
+Critérios:
+
+- formulários do site criam/atualizam lead;
+- não duplicar contato;
+- registrar origem;
+- permitir handoff para WhatsApp.
+
+---
+
+# Fase 27 — IA operacional real
+
+Objetivo: introduzir IA apenas depois de fluxo, logs, retry e handoff estarem maduros.
+
+## Task 27.1 — Classificador com IA
+
+Critérios:
+
+- fallback humano;
+- baixo custo;
+- logs;
+- limites de confiança;
+- nunca confirmar reserva sozinho.
+
+## Task 27.2 — Respostas contextuais
+
+Critérios:
+
+- usar contexto da conversa;
+- respeitar disponibilidade/preço via API;
+- não inventar política;
+- registrar decisão e prompt resumido para auditoria.
+
+---
+
+# Fase 28 — Escalabilidade
+
+Objetivo: preparar locks, filas e cache para crescimento.
+
+## Task 28.1 — Redis
+
+Usar para:
+
+```txt
+locks
+debounce
+cache
+rate limit
+```
+
+Critérios:
+
+- fallback quando Redis estiver indisponível;
+- TTL definido;
+- não usar como fonte primária de verdade.
+
+## Task 28.2 — Queue worker
+
+Critérios:
+
+- processar automações fora da requisição;
+- retry controlado;
+- observabilidade;
+- desligamento seguro.
+
+---
+
+# Fase 29 — Campanhas
+
+Objetivo: permitir comunicação ativa somente com opt-in e controle.
+
+## Task 29.1 — Opt-in
+
+Critérios:
+
+- registrar consentimento;
+- opt-out simples;
+- origem do consentimento;
+- auditoria.
+
+## Task 29.2 — Segmentação
+
+Critérios:
+
+- segmentar por estágio, datas, origem e histórico;
+- evitar dados sensíveis desnecessários.
+
+## Task 29.3 — Broadcast controlado
+
+Critérios:
+
+- limite de envio;
+- janela de horário;
+- preview antes de disparar;
+- logs e métricas;
+- descadastro respeitado.
+
+---
+
+# Fase 30 — Reserva automática
+
+Objetivo: só automatizar reserva final depois de fluxo estável, logs, retry, auditoria e fallback humano.
+
+Pré-requisitos:
+
+```txt
+fluxo estável
+logs
+retry
+auditoria
+fallback humano
+observabilidade
+infra persistente
+```
+
+Critérios:
+
+- criar reserva apenas via serviço/API do motor;
+- validação forte de disponibilidade;
+- confirmação humana opcional por configuração;
+- rollback/compensação para falha de pagamento;
+- auditoria completa.
+
+---
+
 # Regra para execução por IA/Codex
 
 Executar uma task por vez.
