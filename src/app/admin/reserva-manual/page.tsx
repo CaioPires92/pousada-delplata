@@ -49,7 +49,7 @@ export default function ReservaManualPage() {
     const [paymentError, setPaymentError] = useState('');
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'approved' | 'rejected' | 'pending' | 'error'>('idle');
     const [paymentStatusMessage, setPaymentStatusMessage] = useState('');
-    const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
+    const [sendGuestEmail, setSendGuestEmail] = useState(false);
     const paymentBrickRef = useRef<any>(null);
     const pollRef = useRef<number | null>(null);
     const paymentSectionId = 'manualPaymentSection';
@@ -244,6 +244,7 @@ export default function ReservaManualPage() {
                                     bookingId: paymentBookingId,
                                     description: `Reserva ${paymentBookingId}`,
                                     transaction_amount: paymentAmount,
+                                    skipGuestEmail: !sendGuestEmail,
                                 }),
                             }).then(async (res) => {
                                 const responseData = await res.json().catch(() => ({}));
@@ -450,6 +451,22 @@ export default function ReservaManualPage() {
                                             <p className="text-[10px] text-slate-400 font-medium">
                                                 O comprovante será enviado para este e-mail.
                                             </p>
+                                            <div className="flex items-center gap-2 mt-2 select-none">
+                                                 <input
+                                                     type="checkbox"
+                                                     id="sendGuestEmail"
+                                                     checked={sendGuestEmail}
+                                                     onChange={(e) => setSendGuestEmail(e.target.checked)}
+                                                     disabled={Boolean(paymentBookingId)}
+                                                     className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                                                 />
+                                                 <label 
+                                                     htmlFor="sendGuestEmail" 
+                                                     className="text-xs text-slate-500 font-semibold cursor-pointer"
+                                                 >
+                                                     Enviar e-mail de confirmação para o hóspede
+                                                 </label>
+                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-slate-600 font-semibold text-xs uppercase tracking-wider flex items-center gap-1">
