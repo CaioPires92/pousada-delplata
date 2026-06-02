@@ -176,6 +176,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Acomodação</label>
                                 <div className="relative">
                                     <select
+                                        aria-label="Tipo de quarto"
                                         value={roomTypeId}
                                         onChange={(e) => setRoomTypeId(e.target.value)}
                                         className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-slate-800 outline-none transition-all"
@@ -193,6 +194,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Período</label>
                                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2 h-[46px]">
                                     <input
+                                        aria-label="Data inicial"
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
@@ -200,6 +202,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                     />
                                     <ChevronRight className="h-3 w-3 text-slate-300 shrink-0" />
                                     <input
+                                        aria-label="Data final"
                                         type="date"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
@@ -250,6 +253,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                     <div className="relative group">
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm transition-colors group-focus-within:text-slate-800">R$</div>
                                         <input
+                                            aria-label="Alterar preço da diária"
                                             type="number"
                                             placeholder="Não alterar"
                                             value={price}
@@ -271,6 +275,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                     <div className="relative group">
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px] uppercase tracking-widest transition-colors group-focus-within:text-slate-800">Min. Noites</div>
                                         <input
+                                            aria-label="Alterar mínimo de noites"
                                             type="number"
                                             placeholder="Não alterar"
                                             value={minLos}
@@ -311,6 +316,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors shadow-sm font-bold"
                                             >-</button>
                                             <input 
+                                                aria-label="Alterar quantidade de quartos disponíveis"
                                                 type="number"
                                                 placeholder="—"
                                                 value={inventoryStd}
@@ -354,6 +360,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                                     className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors shadow-sm font-bold"
                                                 >-</button>
                                                 <input 
+                                                    aria-label="Alterar quantidade de quartos disponíveis (quadruplo)"
                                                     type="number"
                                                     placeholder="—"
                                                     value={inventory4P}
@@ -392,6 +399,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                             </div>
                             <div className="grid grid-cols-3 gap-4">
                                 <button
+                                    aria-label="Alterar Stop Sell"
                                     onClick={() => toggleTriState(stopSell, setStopSell)}
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all group",
@@ -407,6 +415,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                 </button>
 
                                 <button
+                                    aria-label="Alterar CTA"
                                     onClick={() => toggleTriState(cta, setCta)}
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all group",
@@ -422,6 +431,7 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                 </button>
 
                                 <button
+                                    aria-label="Alterar CTD"
                                     onClick={() => toggleTriState(ctd, setCtd)}
                                     className={cn(
                                         "flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 transition-all group",

@@ -29,6 +29,7 @@ interface RateCardProps {
   onDragEnter?: (event: React.MouseEvent, field: string) => void;
   selectedFields?: string[];
   disabled?: boolean;
+  testIdPrefix?: string;
 }
 
 export const RateCard: React.FC<RateCardProps> = ({
@@ -52,6 +53,7 @@ export const RateCard: React.FC<RateCardProps> = ({
   onDragEnter,
   selectedFields = [],
   disabled = false,
+  testIdPrefix,
 }) => {
   const isOpen = status === 'ABERTO';
   const [localPrice, setLocalPrice] = React.useState<string>(price ? price.toString() : '');
@@ -115,6 +117,7 @@ export const RateCard: React.FC<RateCardProps> = ({
         onMouseDown={(e) => onDragStart?.(e, 'price')}
         onMouseEnter={(e) => onDragEnter?.(e, 'price')}
         data-inventory-selection-cell="true"
+        data-testid={testIdPrefix ? `price-cell-${testIdPrefix}` : undefined}
         className={cn(
           "h-12 flex items-center justify-center border-b border-slate-100 px-2 cursor-cell select-none",
           selectedFields.includes('price') && styles.inventorySelectionCell
@@ -140,6 +143,7 @@ export const RateCard: React.FC<RateCardProps> = ({
         onMouseDown={(e) => onDragStart?.(e, 'inventory')}
         onMouseEnter={(e) => onDragEnter?.(e, 'inventory')}
         data-inventory-selection-cell="true"
+        data-testid={testIdPrefix ? `inventory-cell-${testIdPrefix}` : undefined}
         className={cn(
           "h-12 flex items-center justify-center border-b border-slate-100 px-2 cursor-cell select-none",
           selectedFields.includes('inventory') && styles.inventorySelectionCell
@@ -202,6 +206,7 @@ export const RateCard: React.FC<RateCardProps> = ({
         onMouseDown={(e) => onDragStart?.(e, 'cta')}
         onMouseEnter={(e) => onDragEnter?.(e, 'cta')}
         data-inventory-selection-cell="true"
+        data-testid={testIdPrefix ? `cta-cell-${testIdPrefix}` : undefined}
         className={cn(
           "h-10 flex items-center justify-center border-b border-slate-100 px-2 cursor-cell select-none",
           selectedFields.includes('cta') && styles.inventorySelectionCell

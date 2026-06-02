@@ -1,64 +1,30 @@
-# Pousada Delplata — Motor de Reservas
+# Delplata-Motor
 
-## Visão Geral
-- Frontend responsivo (Next.js + React)
-- Backend com APIs (Disponibilidade, Reservas, Pagamentos)
-- Integração Mercado Pago
-- Painel administrativo
-- Testes automatizados
+Repositorio monolitico com dois projetos:
 
-## Tecnologias
-- Next.js 16, React 19, TypeScript
-- Prisma ORM, Turso (LibSQL)
-- Nodemailer, JWT, bcryptjs
+1. Site + Motor de Reservas
+2. CRM + Fluxos n8n
 
-## Scripts úteis
+## Onde comeca cada projeto
+
+- Site + Motor: `src/app` (rotas publicas e reserva), `src/app/api/availability`, `src/app/api/bookings`, `src/app/api/payments`, `src/lib/mercadopago`.
+- CRM + n8n: `src/app/admin/inbox`, `src/app/admin/crm`, `src/app/api/crm`, `src/app/api/whatsapp`, `src/lib/crm`, `src/lib/whatsapp`, `n8n/workflows`.
+
+Detalhamento completo em:
+- `docs/architecture/PROJECT_BOUNDARIES.md`
+- `docs/architecture/REPO_OWNERSHIP_MAP.md`
+- `docs/projects/RESERVAS_SCOPE.md`
+- `docs/projects/CRM_N8N_SCOPE.md`
+
+## Scripts uteis
+
 ```bash
-# Desenvolvimento
-npm run dev        # inicia servidor local
-
-# Verificação
-npm run lint       # ESLint
-npm run typecheck  # TypeScript --noEmit
-
-# Banco (guardrails com dry-run/confirm)
-npm run db:update:desc:dry
-npm run db:update:desc
-npm run db:update:prices:dry
-npm run db:update:prices
-npm run db:update:fees:dry
-npm run db:update:fees
+npm run dev
+npm run lint
+npm run typecheck
+npm run test
 ```
 
-## Estrutura
-```
-src/app/...
-prisma/schema.prisma
-scripts/manage-pousada.ts
-```
+## Observacao
 
-## Deploy & Ambiente
-- Configure variáveis na Vercel:
-  - DATABASE_URL (Turso), DATABASE_AUTH_TOKEN
-  - NEXT_PUBLIC_MP_PUBLIC_KEY, MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET
-  - GA4_MEASUREMENT_ID, GA4_API_SECRET
-  - ADMIN_JWT_SECRET
-  - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
-  - NEXT_PUBLIC_APP_URL (após primeiro deploy)
-- Root Directory na Vercel: raiz do repositorio
-- Webhook: `POST /api/webhooks/mercadopago` (evento Payments)
-
-## Roadmap
-Consulte [ROADMAP.md](./ROADMAP.md) para próximos passos, segurança e melhorias.
-## Diagnóstico rápido
-```bash
-npm run diag:mp:credentials
-npm run diag:payments
-npm run diag:booking:last
-npm run diag:legacy:all
-```
-
-Scripts legados/manuais foram movidos para:
-- `scripts/diagnostics/`
-- `scripts/manual/`
-
+Existe trabalho em andamento no repositorio (arquivos modificados). A organizacao documental acima foi feita para clarificar fronteiras sem alterar comportamento de runtime.

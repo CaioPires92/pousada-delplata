@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { createAutomationPausedUntil, isConversationAutomationActive } from "@/lib/crm/automationPause";
+import { enqueueAutomationJob, processNextAutomationJobForConversation } from "@/lib/crm/automationQueue";
+import { buildAuditMetadata } from "@/lib/crm/audit";
+import { cacheIncrWithTtl } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
-import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
+import { resolveEvolutionSendTarget, sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
 
 export const runtime = "nodejs";
 
@@ -12,7 +15,18 @@ type InternalAction =
   | "MOVE_PIPELINE_CARD"
   | "SEND_WHATSAPP_MESSAGE"
   | "PAUSE_AUTOMATION"
-  | "UPDATE_LEAD_FIELDS";
+  | "SET_CONVERSATION_AUTOMATION_PAUSED"
+  | "UPDATE_LEAD_FIELDS"
+  | "ADD_CARD_NOTE"
+  | "SET_CARD_TAGS"
+  | "CREATE_FOLLOW_UP_TASK"
+  | "MARK_QUOTE_SENT"
+  | "MARK_RESERVATION_INTENT"
+  | "MARK_PAYMENT_PENDING"
+  | "MARK_RESERVATION_CONFIRMED"
+  | "REGISTER_UPSELL_OFFER"
+  | "REGISTER_UPSELL_ACCEPTED"
+  | "REGISTER_UPSELL_REJECTED";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -20,7 +34,18 @@ const SUPPORTED_ACTIONS = new Set<InternalAction>([
   "MOVE_PIPELINE_CARD",
   "SEND_WHATSAPP_MESSAGE",
   "PAUSE_AUTOMATION",
+  "SET_CONVERSATION_AUTOMATION_PAUSED",
   "UPDATE_LEAD_FIELDS",
+  "ADD_CARD_NOTE",
+  "SET_CARD_TAGS",
+  "CREATE_FOLLOW_UP_TASK",
+  "MARK_QUOTE_SENT",
+  "MARK_RESERVATION_INTENT",
+  "MARK_PAYMENT_PENDING",
+  "MARK_RESERVATION_CONFIRMED",
+  "REGISTER_UPSELL_OFFER",
+  "REGISTER_UPSELL_ACCEPTED",
+  "REGISTER_UPSELL_REJECTED",
 ]);
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -41,8 +66,28 @@ function getBearerToken(request: Request): string | undefined {
   return authorization.slice("Bearer ".length).trim() || undefined;
 }
 
+function getInternalToken(request: Request): string | undefined {
+  return getBearerToken(request) || asNonEmptyString(request.headers.get("x-internal-token"));
+}
+
 function jsonError(status: number, error: string, message: string) {
   return NextResponse.json({ ok: false, error, message }, { status });
+}
+
+async function enforceConversationActionRateLimit(conversationId: string) {
+  const maxActionsPerMinute = Math.max(3, Number.parseInt(process.env.CRM_ACTION_RATE_LIMIT_PER_MINUTE ?? "12", 10) || 12);
+  const rateKey = `crm:rate:conversation:${conversationId}`;
+
+  const recentCount = await cacheIncrWithTtl(rateKey, 60);
+
+  if (recentCount >= maxActionsPerMinute) {
+    return {
+      ok: false as const,
+      response: jsonError(429, "RATE_LIMITED", "Limite temporário de ações por conversa atingido"),
+    };
+  }
+
+  return { ok: true as const };
 }
 
 function extractEvolutionMessageId(response: unknown): string | null {
@@ -66,6 +111,16 @@ async function handleMovePipelineCard(payload: JsonRecord) {
 
   if (!pipelineCardId || !toStage) {
     return jsonError(400, "INVALID_PAYLOAD", "Informe pipelineCardId e toStage");
+  }
+
+  const existingCard = await prisma.pipelineCard.findUnique({
+    where: { id: pipelineCardId },
+    select: { conversationId: true },
+  });
+
+  if (existingCard?.conversationId) {
+    const rateLimit = await enforceConversationActionRateLimit(existingCard.conversationId);
+    if (!rateLimit.ok) return rateLimit.response;
   }
 
   const result = await updatePipelineCard(pipelineCardId, {
@@ -96,6 +151,16 @@ async function handleUpdateLeadFields(payload: JsonRecord) {
 
   if (!pipelineCardId) {
     return jsonError(400, "INVALID_PAYLOAD", "Informe pipelineCardId");
+  }
+
+  const existingCard = await prisma.pipelineCard.findUnique({
+    where: { id: pipelineCardId },
+    select: { conversationId: true },
+  });
+
+  if (existingCard?.conversationId) {
+    const rateLimit = await enforceConversationActionRateLimit(existingCard.conversationId);
+    if (!rateLimit.ok) return rateLimit.response;
   }
 
   const fields = { ...payload };
@@ -137,6 +202,9 @@ async function handlePauseAutomation(payload: JsonRecord) {
     return jsonError(400, "INVALID_PAYLOAD", "Informe conversationId e minutes");
   }
 
+  const rateLimit = await enforceConversationActionRateLimit(conversationId);
+  if (!rateLimit.ok) return rateLimit.response;
+
   const existingConversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: {
@@ -165,8 +233,11 @@ async function handlePauseAutomation(payload: JsonRecord) {
     contactId: conversation.contactId,
     conversationId: conversation.id,
     metadata: {
-      actorType: "n8n",
-      reason: reason ?? "Paused via internal action",
+      ...buildAuditMetadata({
+        actorType: "n8n",
+        origin: "n8n_api",
+        reason: reason ?? "Paused via internal action",
+      }),
       durationMinutes: minutes,
       pausedUntil: pausedUntil.toISOString(),
     },
@@ -182,6 +253,151 @@ async function handlePauseAutomation(payload: JsonRecord) {
   });
 }
 
+async function handleAddCardNote(payload: JsonRecord) {
+  const pipelineCardId = asNonEmptyString(payload.pipelineCardId);
+  const content = asNonEmptyString(payload.content);
+
+  if (!pipelineCardId || !content) {
+    return jsonError(400, "INVALID_PAYLOAD", "Informe pipelineCardId e content");
+  }
+
+  const card = await prisma.pipelineCard.findUnique({
+    where: { id: pipelineCardId },
+    select: { conversationId: true, contactId: true },
+  });
+
+  if (!card) {
+    return jsonError(404, "NOT_FOUND", "Card não encontrado");
+  }
+
+  if (!card.conversationId) {
+    return jsonError(400, "INVALID_STATE", "Card sem conversa associada");
+  }
+
+  const note = await prisma.internalNote.create({
+    data: {
+      conversationId: card.conversationId,
+      content,
+      authorId: "n8n",
+    },
+  });
+
+  await recordCrmEvent({
+    action: "CardNoteAdded",
+    contactId: card.contactId,
+    conversationId: card.conversationId,
+    metadata: {
+      ...buildAuditMetadata({ actorType: "n8n", origin: "n8n_api" }),
+      pipelineCardId,
+      noteId: note.id,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    action: "ADD_CARD_NOTE",
+    result: { noteId: note.id },
+  });
+}
+
+async function handleSetCardTags(payload: JsonRecord) {
+  const pipelineCardId = asNonEmptyString(payload.pipelineCardId);
+  const tags = asNonEmptyString(payload.tags);
+
+  if (!pipelineCardId || tags === undefined) {
+    return jsonError(400, "INVALID_PAYLOAD", "Informe pipelineCardId e tags");
+  }
+
+  const card = await prisma.pipelineCard.update({
+    where: { id: pipelineCardId },
+    data: { tags },
+    select: { id: true, conversationId: true, contactId: true },
+  });
+
+  await recordCrmEvent({
+    action: "CardTagsUpdated",
+    contactId: card.contactId,
+    conversationId: card.conversationId ?? undefined,
+    metadata: {
+      ...buildAuditMetadata({ actorType: "n8n", origin: "n8n_api" }),
+      pipelineCardId,
+      tags,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    action: "SET_CARD_TAGS",
+    result: { pipelineCardId: card.id, tags },
+  });
+}
+
+async function handleCreateFollowUpTask(payload: JsonRecord) {
+  const pipelineCardId = asNonEmptyString(payload.pipelineCardId);
+  const followUpAtStr = asNonEmptyString(payload.followUpAt);
+
+  if (!pipelineCardId || !followUpAtStr) {
+    return jsonError(400, "INVALID_PAYLOAD", "Informe pipelineCardId e followUpAt (ISO)");
+  }
+
+  const followUpAt = new Date(followUpAtStr);
+  if (isNaN(followUpAt.getTime())) {
+    return jsonError(400, "INVALID_PAYLOAD", "Data followUpAt inválida");
+  }
+
+  const card = await prisma.pipelineCard.update({
+    where: { id: pipelineCardId },
+    data: { followUpAt },
+    select: { id: true, conversationId: true, contactId: true, followUpAt: true },
+  });
+
+  await recordCrmEvent({
+    action: "FollowUpScheduled",
+    contactId: card.contactId,
+    conversationId: card.conversationId ?? undefined,
+    metadata: {
+      ...buildAuditMetadata({ actorType: "n8n", origin: "n8n_api" }),
+      pipelineCardId,
+      followUpAt: followUpAt.toISOString(),
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    action: "CREATE_FOLLOW_UP_TASK",
+    result: { pipelineCardId: card.id, followUpAt: card.followUpAt },
+  });
+}
+
+async function handleMarkState(payload: JsonRecord, stage: string, actionName: string) {
+  const pipelineCardId = asNonEmptyString(payload.pipelineCardId);
+  const reason = asNonEmptyString(payload.reason) ?? `Marked as ${stage} via n8n`;
+
+  if (!pipelineCardId) {
+    return jsonError(400, "INVALID_PAYLOAD", "Informe pipelineCardId");
+  }
+
+  const result = await updatePipelineCard(pipelineCardId, {
+    stage,
+    reason,
+    actorType: "n8n",
+  });
+
+  if (!result.ok) {
+    return jsonError(result.status, "UPDATE_FAILED", result.error || "Falha ao atualizar card");
+  }
+
+  return NextResponse.json({
+    ok: true,
+    action: actionName,
+    result: {
+      pipelineCardId: result.card.id,
+      stage: result.card.stage,
+      stageChanged: result.stageChanged,
+    },
+  });
+}
+
 async function handleSendWhatsAppMessage(payload: JsonRecord) {
   const conversationId = asNonEmptyString(payload.conversationId);
   const text = asNonEmptyString(payload.text);
@@ -189,6 +405,9 @@ async function handleSendWhatsAppMessage(payload: JsonRecord) {
   if (!conversationId || !text) {
     return jsonError(400, "INVALID_PAYLOAD", "Informe conversationId e text");
   }
+
+  const rateLimit = await enforceConversationActionRateLimit(conversationId);
+  if (!rateLimit.ok) return rateLimit.response;
 
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -216,55 +435,92 @@ async function handleSendWhatsAppMessage(payload: JsonRecord) {
     return jsonError(400, "INVALID_PAYLOAD", "Contato sem destino WhatsApp válido");
   }
 
-  const evolutionResponse = await sendEvolutionText({ number: target, text });
-  const now = new Date();
-
-  const message = await prisma.message.create({
-    data: {
-      conversationId: conversation.id,
-      externalMessageId: extractEvolutionMessageId(evolutionResponse),
-      senderType: "bot",
-      content: text,
-      messageType: "text",
-      sentAt: now,
-      metadataJson: JSON.stringify({
-        actorType: "n8n",
-        evolutionResponse,
-      }),
-    },
-  });
-
-  await prisma.conversation.update({
-    where: { id: conversation.id },
-    data: { lastMessageAt: now },
-  });
-
-  await recordCrmEvent({
-    action: "WhatsAppMessageSent",
-    contactId: conversation.contactId,
+  await enqueueAutomationJob({
     conversationId: conversation.id,
-    metadata: {
-      actorType: "n8n",
-      messageId: message.id,
-      externalMessageId: message.externalMessageId,
-      target,
-    },
+    action: "SEND_WHATSAPP_MESSAGE",
+    payload: { target, text },
   });
+
+  const processingResult = await processNextAutomationJobForConversation(conversation.id, async job => {
+    if (job.action !== "SEND_WHATSAPP_MESSAGE" || !job.payload.text || !job.payload.target) {
+      throw new Error("invalid_queue_payload");
+    }
+
+    const evolutionResponse = await sendEvolutionTextWithRetry({
+      number: job.payload.target,
+      text: job.payload.text,
+    });
+    const now = new Date();
+
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        externalMessageId: extractEvolutionMessageId(evolutionResponse),
+        senderType: "bot",
+        content: job.payload.text,
+        messageType: "text",
+        sentAt: now,
+        metadataJson: JSON.stringify({
+          actorType: "n8n",
+          evolutionResponse,
+          queueJobId: job.id,
+        }),
+      },
+    });
+
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: now },
+    });
+
+    await recordCrmEvent({
+      action: "WhatsAppMessageSent",
+      contactId: conversation.contactId,
+      conversationId: conversation.id,
+      metadata: {
+        ...buildAuditMetadata({
+          actorType: "n8n",
+          origin: "n8n_api",
+        }),
+        messageId: message.id,
+        externalMessageId: message.externalMessageId,
+        target: job.payload.target,
+        queueJobId: job.id,
+      },
+    });
+  });
+
+  if (!processingResult.ok) {
+    return NextResponse.json({
+      ok: true,
+      action: "SEND_WHATSAPP_MESSAGE",
+      result: {
+        conversationId: conversation.id,
+        queued: true,
+        processedNow: processingResult.processed,
+        queueJobId: processingResult.jobId ?? null,
+        deliveryStatus: "queued_failed",
+        queueError: processingResult.error ?? "unknown_queue_error",
+      },
+    });
+  }
 
   return NextResponse.json({
     ok: true,
     action: "SEND_WHATSAPP_MESSAGE",
     result: {
       conversationId: conversation.id,
-      messageId: message.id,
-      externalMessageId: message.externalMessageId,
+      queued: true,
+      processedNow: processingResult.processed,
+      queueJobId: processingResult.jobId ?? null,
+      deliveryStatus: "sent",
     },
   });
 }
 
 export async function POST(request: Request) {
   const expectedToken = process.env.CRM_INTERNAL_API_TOKEN;
-  const token = getBearerToken(request);
+  const token = getInternalToken(request);
 
   if (!expectedToken || token !== expectedToken) {
     return jsonError(401, "UNAUTHORIZED", "Token não fornecido ou inválido");
@@ -289,9 +545,30 @@ export async function POST(request: Request) {
       case "SEND_WHATSAPP_MESSAGE":
         return handleSendWhatsAppMessage(body.payload);
       case "PAUSE_AUTOMATION":
+      case "SET_CONVERSATION_AUTOMATION_PAUSED":
         return handlePauseAutomation(body.payload);
       case "UPDATE_LEAD_FIELDS":
         return handleUpdateLeadFields(body.payload);
+      case "ADD_CARD_NOTE":
+        return handleAddCardNote(body.payload);
+      case "SET_CARD_TAGS":
+        return handleSetCardTags(body.payload);
+      case "CREATE_FOLLOW_UP_TASK":
+        return handleCreateFollowUpTask(body.payload);
+      case "MARK_QUOTE_SENT":
+        return handleMarkState(body.payload, "ORCAMENTO_ENVIADO", "MARK_QUOTE_SENT");
+      case "MARK_RESERVATION_INTENT":
+        return handleMarkState(body.payload, "RESERVA_EM_ANDAMENTO", "MARK_RESERVATION_INTENT");
+      case "MARK_PAYMENT_PENDING":
+        return handleMarkState(body.payload, "PAGAMENTO_PENDENTE", "MARK_PAYMENT_PENDING");
+      case "MARK_RESERVATION_CONFIRMED":
+        return handleMarkState(body.payload, "RESERVA_CONFIRMADA", "MARK_RESERVATION_CONFIRMED");
+      case "REGISTER_UPSELL_OFFER":
+        return handleUpdateLeadFields({ ...body.payload, upsellStatus: "ofertado" });
+      case "REGISTER_UPSELL_ACCEPTED":
+        return handleUpdateLeadFields({ ...body.payload, upsellStatus: "aceito" });
+      case "REGISTER_UPSELL_REJECTED":
+        return handleUpdateLeadFields({ ...body.payload, upsellStatus: "recusado" });
     }
   } catch (error) {
     console.error("[CRM_INTERNAL_ACTION] Error:", error);

@@ -142,6 +142,7 @@ export async function GET(request: Request) {
             const fourGuestCapacityTotal = Math.max(0, Math.min(capacityTotal, Number(roomType.inventoryFor4Guests ?? 0)));
             const adjustedTotal = adjustment ? Math.max(0, Math.min(capacityTotal, Number(adjustment.totalUnits))) : null;
             const bookingsCount = bookingsCountByDay.get(dateStr) || 0;
+            const occupiedUnits = adjustment ? Number(adjustment.occupiedUnits || 0) : 0;
             const totalInventory = adjustedTotal !== null
                 ? Math.max(0, adjustedTotal - bookingsCount)
                 : Math.max(0, capacityTotal - bookingsCount);
@@ -165,6 +166,7 @@ export async function GET(request: Request) {
                 totalInventory,
                 capacityTotal,
                 bookingsCount,
+                occupiedUnits,
                 available,
                 isAdjusted: !!adjustment,
                 fourGuestInventory,

@@ -102,7 +102,6 @@ async function migrate() {
         { name: 'child6To11Fee', ddl: 'ALTER TABLE RoomType ADD COLUMN child6To11Fee NUMERIC NOT NULL DEFAULT 0' },
         { name: 'externalId', ddl: 'ALTER TABLE RoomType ADD COLUMN externalId TEXT' },
     ];
-
     const rateDefs = [
         { name: 'cta', ddl: 'ALTER TABLE Rate ADD COLUMN cta INTEGER NOT NULL DEFAULT 0' },
         { name: 'ctd', ddl: 'ALTER TABLE Rate ADD COLUMN ctd INTEGER NOT NULL DEFAULT 0' },
@@ -110,11 +109,16 @@ async function migrate() {
         { name: 'minLos', ddl: 'ALTER TABLE Rate ADD COLUMN minLos INTEGER NOT NULL DEFAULT 1' },
     ];
 
+    const inventoryAdjustmentDefs = [
+        { name: 'occupiedUnits', ddl: 'ALTER TABLE InventoryAdjustment ADD COLUMN occupiedUnits INTEGER NOT NULL DEFAULT 0' },
+    ];
+
     const addedRoomType = await ensureColumns('RoomType', roomTypeDefs);
     const addedRate = await ensureColumns('Rate', rateDefs);
     const addedRateIndexes = await ensureRateUniqueIndex();
+    const addedInventoryAdjustment = await ensureColumns('InventoryAdjustment', inventoryAdjustmentDefs);
 
-    const totalAdded = addedRoomType + addedRate + addedRateIndexes;
+    const totalAdded = addedRoomType + addedRate + addedRateIndexes + addedInventoryAdjustment;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');

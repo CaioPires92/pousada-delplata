@@ -44,12 +44,12 @@ export async function POST(request: Request) {
                 const availabilities = await hospedinClient.getAvailability(externalId, beginDate, endDate);
 
                 for (const day of availabilities) {
-                    // Regra 1: caso haja 2 quartos ou menos a disponibilidade deve ser marcada como esgotada
-                    // Regra 2: não deve abrir mais que 2 quartos de cada acomodação mesmo que haja mais no hospedin
                     const localAvail = day.availability <= 2 ? 0 : 2;
 
                     const dateKey = day.date;
                     const isoDate = new Date(`${dateKey}T00:00:00Z`);
+
+                    const occupiedUnits = Math.max(0, room.totalUnits - day.availability);
 
                     await prisma.inventoryAdjustment.upsert({
                         where: {
@@ -60,6 +60,7 @@ export async function POST(request: Request) {
                         },
                         update: {
                             totalUnits: localAvail,
+                            occupiedUnits: occupiedUnits,
                             date: isoDate
                         },
                         create: {
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
                             dateKey: dateKey,
                             date: isoDate,
                             totalUnits: localAvail,
+                            occupiedUnits: occupiedUnits,
                         },
                     });
                 }

@@ -11,6 +11,16 @@ type ConversationListItem = {
   phone: string | null;
   lid: string | null;
   unreadCount: number;
+  presence?: {
+    isOnline: boolean;
+    typing: boolean;
+    lastSeenAt: string | null;
+    delivery: {
+      sent: boolean;
+      read: boolean;
+      note: string;
+    };
+  };
 };
 
 function formatDateTime(value: string | null): string {
@@ -70,6 +80,9 @@ export default function AdminInboxPage() {
               phone: typeof record.phone === 'string' ? record.phone : null,
               lid: typeof record.lid === 'string' ? record.lid : null,
               unreadCount: typeof record.unreadCount === 'number' ? record.unreadCount : 0,
+              presence: typeof record.presence === 'object' && record.presence !== null
+                ? (record.presence as ConversationListItem['presence'])
+                : undefined,
             };
           })
           .filter((item): item is ConversationListItem => item !== null);
@@ -133,9 +146,16 @@ export default function AdminInboxPage() {
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <h2 className="truncate text-base font-semibold text-slate-900">
-                          {conversation.name}
-                        </h2>
+                        <div className="flex items-center gap-2">
+                          <h2 className="truncate text-base font-semibold text-slate-900">
+                            {conversation.name}
+                          </h2>
+                          {conversation.presence?.isOnline ? (
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                              Online
+                            </span>
+                          ) : null}
+                        </div>
                         <p className="mt-1 text-sm text-slate-500">
                           {conversation.phone ?? (conversation.lid ? `ID: ${conversation.lid}` : 'Telefone não informado')}
                         </p>

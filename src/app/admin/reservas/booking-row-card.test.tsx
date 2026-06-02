@@ -50,12 +50,12 @@ describe('BookingRowCard', () => {
 
         expect(screen.getByText('Maria Teste')).toBeInTheDocument();
         expect(screen.getByText('Pendente')).toBeInTheDocument();
-        expect(screen.getByText('Check-in: 08/03/2026')).toBeInTheDocument();
-        expect(screen.getByText('Check-out: 10/03/2026')).toBeInTheDocument();
+        expect(screen.getByTestId('booking-card-abc123456789')).toHaveTextContent('Check-in: 08/03/2026');
+        expect(screen.getByTestId('booking-card-abc123456789')).toHaveTextContent('Check-out: 10/03/2026');
         expect(screen.getByText('R$ 880.00')).toBeInTheDocument();
         expect(screen.getByText('3 hósp. (2A/1C)')).toBeInTheDocument();
         expect(screen.getByText('Idades: 7')).toBeInTheDocument();
-        expect(screen.getByRole('combobox', { name: /Ações da reserva/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Ações/i })).toBeInTheDocument();
     });
 
     it('usa createdAt como fallback quando checkIn está ausente', () => {
@@ -92,7 +92,7 @@ describe('BookingRowCard', () => {
             />
         );
 
-        expect(screen.getByText('Check-in: 15/04/2026')).toBeInTheDocument();
-        expect(screen.getByText('Check-out: -')).toBeInTheDocument();
+        expect(screen.getByTestId('booking-card-def123456789')).toHaveTextContent('Check-in: 15/04/2026');
+        expect(screen.getByTestId('booking-card-def123456789')).toHaveTextContent('Check-out: -');
     });
 });

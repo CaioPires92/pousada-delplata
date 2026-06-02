@@ -119,7 +119,9 @@ export const RoomRow: React.FC<RoomRowProps> = ({
         >
           {dates.map((date) => {
             const data = calendarData[date] || {};
-            const occupancy = data.available !== undefined ? (data.bookingsCount / data.capacityTotal) * 100 : 0;
+            const occupancy = data.available !== undefined 
+              ? (Math.max(data.bookingsCount, data.occupiedUnits || 0) / data.capacityTotal) * 100 
+              : 0;
             const status = data.stopSell ? 'FECHADO' : 'ABERTO';
             const inventorySTD = data.totalInventory || 0;
             const inventory4P = data.fourGuestInventory || 0;
@@ -178,6 +180,7 @@ export const RoomRow: React.FC<RoomRowProps> = ({
                   onCTDToggle={() => onRateUpdate(date, 'ctd', !ctd)}
                   onDragStart={(e, field) => onDragStart(e, roomType.id, field, date)}
                   onDragEnter={(e, field) => onDragEnter(e, roomType.id, field, date)}
+                  testIdPrefix={`${roomType.id}-${date}`}
                 />
               </div>
             );

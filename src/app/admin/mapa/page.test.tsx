@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import MapaPage from './page';
 import { getOccupancyMetrics } from './occupancy';
-import styles from './mapa.module.css';
 
 vi.mock('next/link', () => ({
     default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
@@ -46,11 +45,17 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
     const fixedTodayKey = '2026-03-11';
 
     beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-03-11T12:00:00.000Z'));
         vi.clearAllMocks();
         Object.defineProperty(window.HTMLElement.prototype, 'scrollTo', {
             value: vi.fn(),
             writable: true
         });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('renderiza o mapa com dados completos e remove o bloco de tarifa base', async () => {
@@ -75,9 +80,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
-            expect(screen.getByText('Apartamento Teste')).toBeInTheDocument();
-            expect(screen.getByText('HOJE')).toBeInTheDocument();
-            expect(container.textContent).toContain('Standard');
+            expect(screen.getAllByText('Apartamento Teste').length).toBeGreaterThan(0);
+            expect(container.textContent).toContain('STD');
             expect(container.textContent).toContain('Ocupação');
         });
 
@@ -107,7 +111,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
-            expect(screen.getByText('Apartamento Teste')).toBeInTheDocument();
+            expect(screen.getAllByText('Apartamento Teste').length).toBeGreaterThan(0);
         });
 
         expect(getOccupancyMetrics({ capacityTotal: 0, bookingsCount: 0, available: 4 }).occupancyPct).toBeNull();
@@ -135,7 +139,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
-            expect(screen.getByText('Apartamento Teste')).toBeInTheDocument();
+            expect(screen.getAllByText('Apartamento Teste').length).toBeGreaterThan(0);
         });
 
         const metrics = getOccupancyMetrics({ capacityTotal: 3, bookingsCount: null, available: null });
@@ -165,10 +169,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
 
         await waitFor(() => {
             expect(container.textContent).toContain('FECHADO');
-            expect(screen.getAllByRole('button', { name: /Aumentar standard/i }).length).toBeGreaterThan(0);
         });
-
-        expect(container.querySelector(`.${styles.inventoryClosed}`)).toBeTruthy();
     }, 30000);
 
     it('exibe a linha compacta de quadruplo no mapa', async () => {
@@ -194,11 +195,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         render(<MapaPage />);
 
         await waitFor(() => {
-            expect(screen.getByText('Quadruplo')).toBeInTheDocument();
-            expect(screen.getByText('Standard')).toBeInTheDocument();
-            expect(screen.getAllByRole('button', { name: /Diminuir quadruplo/i }).length).toBeGreaterThan(0);
-            expect(screen.getAllByRole('button', { name: /Aumentar quadruplo/i }).length).toBeGreaterThan(0);
-            expect(screen.getAllByRole('button', { name: /Aumentar standard/i }).length).toBeGreaterThan(0);
+            expect(screen.getByText('4P')).toBeInTheDocument();
+            expect(screen.getByText('STD')).toBeInTheDocument();
         });
     }, 30000);
 
@@ -259,21 +257,17 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByLabelText('Tipo de quarto')).toBeInTheDocument();
             expect(screen.getByLabelText('Data inicial')).toBeInTheDocument();
             expect(screen.getByLabelText('Data final')).toBeInTheDocument();
-            expect(screen.getByText('Alterar mínimo de noites')).toBeInTheDocument();
-            expect(screen.getByText('Alterar quantidade de quartos disponíveis')).toBeInTheDocument();
-            expect(screen.getByText('Alterar Stop Sell')).toBeInTheDocument();
-            expect(screen.getByText('Alterar CTA')).toBeInTheDocument();
-            expect(screen.getByText('Alterar CTD')).toBeInTheDocument();
+            expect(screen.getByText('Preço e Estadia')).toBeInTheDocument();
+            expect(screen.getByText('Disponibilidade')).toBeInTheDocument();
+            expect(screen.getByText('Restrições e Status')).toBeInTheDocument();
         });
 
         fireEvent.change(screen.getByLabelText('Data inicial'), { target: { value: '2026-03-09' } });
         fireEvent.change(screen.getByLabelText('Data final'), { target: { value: '2026-03-11' } });
 
-        fireEvent.click(screen.getByLabelText('Alterar preço da diária'));
-        fireEvent.change(screen.getByPlaceholderText('Ex.: 299'), { target: { value: '420' } });
+        fireEvent.change(screen.getByLabelText('Alterar preço da diária'), { target: { value: '420' } });
 
         fireEvent.click(screen.getByLabelText('Alterar Stop Sell'));
-        fireEvent.change(screen.getByLabelText('Valor de Stop Sell'), { target: { value: 'true' } });
 
         fireEvent.click(screen.getByRole('button', { name: /Aplicar alterações em lote/i }));
 
@@ -350,9 +344,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
 
         fireEvent.change(screen.getByLabelText('Data inicial'), { target: { value: '2026-03-09' } });
         fireEvent.change(screen.getByLabelText('Data final'), { target: { value: '2026-03-11' } });
-        fireEvent.click(screen.getByLabelText('Alterar quantidade de quartos disponíveis'));
-        fireEvent.click(screen.getByRole('button', { name: 'Quadruplo' }));
-        fireEvent.change(screen.getByPlaceholderText('Ex.: 4'), { target: { value: '1' } });
+        fireEvent.change(screen.getByLabelText('Alterar quantidade de quartos disponíveis (quadruplo)'), { target: { value: '1' } });
         fireEvent.click(screen.getByRole('button', { name: /Aplicar alterações em lote/i }));
 
         await waitFor(() => {

@@ -6,10 +6,13 @@ import fs from 'fs';
 import path from 'path';
 import prisma from '@/lib/prisma';
 import { fetchEvolutionContact, resolveEvolutionSendTarget } from '@/lib/whatsapp/evolution';
+import { buildAuditMetadata } from '@/lib/crm/audit';
 import { extractWhatsAppIdentity, resolveContactJidFromEvolutionPayload } from '@/lib/crm/identity';
 import { recordCrmEvent } from '@/lib/crm/events';
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from '@/lib/crm/pipelineStages';
 import { isConversationAutomationActive } from '@/lib/crm/automationPause';
+import { buildQuoteFlowState } from '@/lib/crm/conversationFlow';
+import { applyPipelineAutomationOnIncomingMessage } from '@/lib/crm/pipelineAutomation';
 
 export const runtime = 'nodejs';
 
@@ -556,7 +559,12 @@ export async function POST(
           status: 'open',
         },
         orderBy: { lastMessageAt: 'desc' },
-        select: { id: true },
+        select: {
+          id: true,
+          currentFlow: true,
+          flowStep: true,
+          flowDataJson: true,
+        },
       });
 
       if (!conversation) {
@@ -569,6 +577,9 @@ export async function POST(
           },
           select: {
             id: true,
+            currentFlow: true,
+            flowStep: true,
+            flowDataJson: true,
           },
         });
       }
@@ -590,6 +601,13 @@ export async function POST(
       });
 
       const lastActivityAt = new Date();
+      const flowState = !extracted.fromMe && extracted.textContent
+        ? buildQuoteFlowState(extracted.textContent, {
+            currentFlow: conversation.currentFlow,
+            flowStep: conversation.flowStep,
+            flowDataJson: conversation.flowDataJson,
+          })
+        : null;
 
       await tx.conversation.update({
         where: {
@@ -597,6 +615,11 @@ export async function POST(
         },
         data: {
           lastMessageAt: extracted.sentAt,
+          ...(flowState ? {
+            currentFlow: flowState.currentFlow,
+            flowStep: flowState.flowStep,
+            flowDataJson: flowState.flowDataJson,
+          } : {}),
           ...(extracted.fromMe ? {} : {
             unreadCount: {
               increment: 1
@@ -658,6 +681,10 @@ export async function POST(
       contactId: result.contactId,
       conversationId: result.conversationId,
       metadata: {
+        ...buildAuditMetadata({
+          actorType: "webhook",
+          origin: "webhook",
+        }),
         messageId: result.messageId,
         channel: 'whatsapp',
         text: extracted.textContent,
@@ -665,10 +692,31 @@ export async function POST(
       }
     });
 
+    if (!extracted.fromMe) {
+      await applyPipelineAutomationOnIncomingMessage({
+        conversationId: result.conversationId,
+        contactId: result.contactId,
+        text: extracted.textContent,
+      });
+    }
+
     console.log('--- [WEBHOOK] SUCESSO: MENSAGEM SALVA E EVENTOS EMITIDOS ---');
   } catch (error) {
     console.error('--- [WEBHOOK] ERRO CRÍTICO NO PROCESSAMENTO ---');
     console.error(error);
+    try {
+      await prisma.internalActionLog.create({
+        data: {
+          action: "WebhookProcessingFailed",
+          metadataJson: JSON.stringify({
+            externalMessageId: extracted.externalMessageId ?? null,
+            reason: error instanceof Error ? error.message : "unknown_error",
+          }),
+        },
+      });
+    } catch {
+      // noop
+    }
     
     if (
       extracted.externalMessageId &&

@@ -1,0 +1,461 @@
+{
+  "name": "CRM Premium Unified Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crm-events",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ],
+      "webhookId": "crm-events-webhook"
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "apiUrl",
+              "value": "={{ $env.CRM_API_URL || 'https://www.pousadadelplata.com.br' }}"
+            },
+            {
+              "name": "internalToken",
+              "value": "={{ $env.CRM_INTERNAL_API_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-1",
+      "name": "Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $node[\"Webhook\"].json.eventType || $node[\"Webhook\"].json.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "QuoteRequested"
+            },
+            {
+              "value2": "FAQ_REQUESTED"
+            },
+            {
+              "value2": "RESERVATION_INTENT_DETECTED"
+            },
+            {
+              "value2": "CUSTOMER_REPLIED_AFTER_QUOTE"
+            },
+            {
+              "value2": "CUSTOMER_NO_RESPONSE"
+            },
+            {
+              "value2": "HumanTookOver"
+            },
+            {
+              "value2": "AutomationPaused"
+            },
+            {
+              "value2": "LeadCreated"
+            }
+          ]
+        }
+      },
+      "id": "router-1",
+      "name": "Event Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node[\"Configuration\"].json.apiUrl }}/api/crm/quote",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"conversationId\": \"{{ $node[\"Webhook\"].json.conversationId }}\",\n  \"checkin\": \"{{ $node[\"Webhook\"].json.metadata.checkin }}\",\n  \"checkout\": \"{{ $node[\"Webhook\"].json.metadata.checkout }}\",\n  \"adults\": {{ $node[\"Webhook\"].json.metadata.adults || 2 }},\n  \"children\": {{ $node[\"Webhook\"].json.metadata.children || 0 }}\n}",
+        "options": {}
+      },
+      "id": "quote-request-1",
+      "name": "Get CRM Quote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        750,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "crm-internal-token",
+          "name": "CRM Internal Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $node[\"Webhook\"].json;\nconst quoteResponse = $node[\"Get CRM Quote\"].json;\nconst quote = quoteResponse.quote;\n\nif (!quote || !quote.ok) {\n  return { \n    action: \"SEND_WHATSAPP_MESSAGE\",\n    payload: {\n      conversationId: webhook.conversationId,\n      text: \"Desculpe, não encontrei opções para essas datas no momento. Gostaria de tentar outro período?\"\n    }\n  };\n}\n\nlet msg = `Olá! Encontrei as seguintes opções para sua estadia (${quote.checkin} a ${quote.checkout}):\\n\\n`;\n\nquote.options.forEach(opt => {\n  msg += `*${opt.roomTypeName}*: R$ ${opt.totalPrice.toFixed(2).replace('.', ',')}\\n`;\n});\n\nmsg += \"\\nPodemos prosseguir com a reserva de alguma dessas opções?\";\n\nreturn [\n  {\n    json: {\n      action: \"SEND_WHATSAPP_MESSAGE\",\n      payload: {\n        conversationId: webhook.conversationId,\n        text: msg\n      }\n    }\n  },\n  {\n    json: {\n      action: \"MOVE_PIPELINE_CARD\",\n      payload: {\n        pipelineCardId: webhook.pipelineCardId || webhook.metadata?.pipelineCardId,\n        toStage: \"ORCAMENTO_ENVIADO\",\n        reason: \"Cotação enviada automaticamente pelo n8n\"\n      }\n    }\n  }\n];"
+      },
+      "id": "quote-format-1",
+      "name": "Process Quote Actions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        950,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "quote-split-1",
+      "name": "Execute Actions Sequentially",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        1150,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node[\"Configuration\"].json.apiUrl }}/api/crm/internal-actions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "crm-action-1",
+      "name": "Execute CRM Action",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1350,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "crm-internal-token",
+          "name": "CRM Internal Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const category = $node[\"Webhook\"].json.metadata?.category;\nconst answers = {\n  \"pet\": \"Aceitamos pets de pequeno porte! Cobramos uma taxa única de limpeza de R$ 50,00.\",\n  \"checkin\": \"Nosso check-in inicia às 14:00 e vai até as 22:00.\",\n  \"checkout\": \"O check-out deve ser realizado até as 12:00.\",\n  \"localizacao\": \"Estamos localizados no centro de Serra Negra, próximos à Praça João Zelante.\",\n  \"estacionamento\": \"Possuímos estacionamento gratuito e fechado para nossos hóspedes.\",\n  \"cafe_da_manha\": \"O café da manhã está incluso na diária e é servido das 08:00 às 10:30.\"\n};\n\nconst text = answers[category] || \"Essa é uma ótima pergunta! Vou encaminhar para um de nossos atendentes te responder com precisão agora mesmo.\";\n\nreturn {\n  action: \"SEND_WHATSAPP_MESSAGE\",\n  payload: {\n    conversationId: $node[\"Webhook\"].json.conversationId,\n    text: text\n  }\n};"
+      },
+      "id": "faq-mapper-1",
+      "name": "FAQ Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        750,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $node[\"Webhook\"].json;\nreturn [\n  {\n    json: {\n      action: \"MOVE_PIPELINE_CARD\",\n      payload: {\n        pipelineCardId: webhook.pipelineCardId || webhook.metadata?.pipelineCardId,\n        toStage: \"RESERVA_EM_ANDAMENTO\",\n        reason: \"Intenção de reserva detectada pelo n8n\"\n      }\n    }\n  },\n  {\n    json: {\n      action: \"SEND_WHATSAPP_MESSAGE\",\n      payload: {\n        conversationId: webhook.conversationId,\n        text: \"Que ótimo! Vamos prosseguir com sua reserva.\\n\\nPara confirmar, precisarei de alguns dados:\\n- Nome completo\\n- CPF\\n- E-mail\\n\\nVocê pode me informar por aqui?\"\n      }\n    }\n  }\n];"
+      },
+      "id": "intent-logic-1",
+      "name": "Reservation Intent Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        750,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  action: \"MOVE_PIPELINE_CARD\",\n  payload: {\n    pipelineCardId: $node[\"Webhook\"].json.pipelineCardId || $node[\"Webhook\"].json.metadata?.pipelineCardId,\n    toStage: \"AGUARDANDO_RESPOSTA\",\n    reason: \"Cliente respondeu após cotação\"\n  }\n};"
+      },
+      "id": "reply-logic-1",
+      "name": "Reply After Quote Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        750,
+        750
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  action: \"SEND_WHATSAPP_MESSAGE\",\n  payload: {\n    conversationId: $node[\"Webhook\"].json.conversationId,\n    text: \"Olá! Passando para saber se você conseguiu ver as opções que te enviei. Alguma dúvida?\"\n  }\n};"
+      },
+      "id": "no-response-logic-1",
+      "name": "No Response Follow-up",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        750,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  action: \"UPDATE_LEAD_FIELDS\",\n  payload: {\n    pipelineCardId: $node[\"Webhook\"].json.pipelineCardId || $node[\"Webhook\"].json.metadata?.pipelineCardId,\n    tags: [\"atendimento-humano\"]\n  }\n};"
+      },
+      "id": "human-takeover-logic-1",
+      "name": "Human Takeover Tagging",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        750,
+        1150
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Webhook Entry & Global Config",
+        "height": 260,
+        "width": 380
+      },
+      "id": "note-1",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        50,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Event Routing",
+        "height": 1100,
+        "width": 240
+      },
+      "id": "note-2",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        450,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Quote Automation Flow",
+        "height": 250,
+        "width": 840
+      },
+      "id": "note-3",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        50
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration": {
+      "main": [
+        [
+          {
+            "node": "Event Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event Router": {
+      "main": [
+        [
+          {
+            "node": "Get CRM Quote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FAQ Logic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reservation Intent Logic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply After Quote Logic",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Response Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Takeover Tagging",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Takeover Tagging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get CRM Quote": {
+      "main": [
+        [
+          {
+            "node": "Process Quote Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Quote Actions": {
+      "main": [
+        [
+          {
+            "node": "Execute Actions Sequentially",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Actions Sequentially": {
+      "main": [
+        [
+          {
+            "node": "Execute CRM Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute CRM Action": {
+      "main": [
+        [
+          {
+            "node": "Execute Actions Sequentially",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FAQ Logic": {
+      "main": [
+        [
+          {
+            "node": "Execute CRM Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservation Intent Logic": {
+      "main": [
+        [
+          {
+            "node": "Execute Actions Sequentially",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply After Quote Logic": {
+      "main": [
+        [
+          {
+            "node": "Execute CRM Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Response Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Execute CRM Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Takeover Tagging": {
+      "main": [
+        [
+          {
+            "node": "Execute CRM Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "v1",
+  "id": "1",
+  "meta": {
+    "instanceId": "default"
+  }
+}

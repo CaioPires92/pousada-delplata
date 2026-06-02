@@ -1661,7 +1661,7 @@ export default function MapaReservas() {
             )}
 
             {bulkModalOpen && (
-                <div className={styles.modalOverlay} onClick={() => setBulkModalOpen(false)}>
+                <div className={styles.modalOverlay} data-testid="bulk-modal" onClick={() => setBulkModalOpen(false)}>
                     <div 
                         className="w-full max-w-2xl mx-auto flex items-center justify-center min-h-screen p-4"
                         onClick={e => e.stopPropagation()} 

@@ -66,6 +66,34 @@ export async function sendEvolutionText({ number, text }: SendTextParams) {
     return data;
 }
 
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function sendEvolutionTextWithRetry(
+    params: SendTextParams,
+    options?: { maxAttempts?: number; baseDelayMs?: number }
+) {
+    const maxAttempts = Math.max(1, options?.maxAttempts ?? 3);
+    const baseDelayMs = Math.max(100, options?.baseDelayMs ?? 500);
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            return await sendEvolutionText(params);
+        } catch (error) {
+            lastError = error;
+            if (attempt >= maxAttempts) break;
+
+            const delay = baseDelayMs * 2 ** (attempt - 1);
+            await sleep(delay);
+        }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("Failed to send WhatsApp message after retries");
+}
+
 export async function fetchEvolutionContact(jid: string) {
     const apiUrl = process.env.EVOLUTION_API_URL;
     const apiKey = process.env.EVOLUTION_API_KEY;

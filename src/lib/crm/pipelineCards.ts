@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/prisma";
+import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { canTransitionPipelineStage } from "@/lib/crm/pipelineMachine";
 import { isPipelineStage, normalizePipelineStage } from "@/lib/crm/pipelineStages";
 
 export type UpdatePipelineCardInput = {
@@ -119,6 +121,10 @@ export async function updatePipelineCard(
     }
 
     nextStage = normalizePipelineStage(input.stage);
+    const transition = canTransitionPipelineStage(existing.stage, nextStage);
+    if (!transition.ok) {
+      return { ok: false, status: 400, error: "invalid_stage_transition" };
+    }
     updateData.stage = nextStage;
   }
 
@@ -209,6 +215,16 @@ export async function updatePipelineCard(
   if (stageChanged) {
     const reason = parseNullableString(input.reason);
 
+    await prisma.pipelineStageHistory.create({
+      data: {
+        pipelineCardId: existing.id,
+        fromStage: normalizedPreviousStage,
+        toStage: nextStage!,
+        actorType: input.actorType ?? "human",
+        reason: reason ?? null,
+      },
+    });
+
     await recordCrmEvent({
       action: "PipelineStageChanged",
       contactId: existing.contactId,
@@ -217,8 +233,11 @@ export async function updatePipelineCard(
         pipelineCardId: existing.id,
         fromStage: normalizedPreviousStage,
         toStage: nextStage,
-        reason: reason ?? null,
-        actorType: input.actorType ?? "human",
+        ...buildAuditMetadata({
+          actorType: input.actorType ?? "human",
+          origin: input.actorType === "n8n" ? "n8n_api" : input.actorType === "system" ? "system" : "admin_ui",
+          reason: reason ?? null,
+        }),
       },
     });
   }
@@ -231,7 +250,10 @@ export async function updatePipelineCard(
       metadata: {
         pipelineCardId: existing.id,
         changedFields: Array.from(new Set(changedFields)),
-        actorType: input.actorType ?? "human",
+        ...buildAuditMetadata({
+          actorType: input.actorType ?? "human",
+          origin: input.actorType === "n8n" ? "n8n_api" : input.actorType === "system" ? "system" : "admin_ui",
+        }),
       },
     });
   }

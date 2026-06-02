@@ -1,15 +1,23 @@
 # Documentacao do projeto
 
-Este diretorio concentra os materiais que antes ficavam na raiz do repositorio.
+## Mapa rapido
 
-## Estrutura
+- `docs/architecture/PROJECT_BOUNDARIES.md`: fronteiras entre os dois projetos no mesmo repositorio.
+- `docs/architecture/REPO_OWNERSHIP_MAP.md`: mapa por pasta (ownership) de cada projeto.
+- `docs/architecture/DESIGN_SYSTEM.md`: padrao visual e tokens compartilhados.
+- `docs/projects/RESERVAS_SCOPE.md`: escopo do Site + Motor de Reservas.
+- `docs/projects/CRM_N8N_SCOPE.md`: escopo do CRM + Fluxos n8n.
 
-- `docs/product/`: documentos de produto (PRD, PDD, checklist responsivo).
-- `docs/root-legacy/`: documentacao historica migrada da raiz (QA, CI/CD, guias e notas).
+## Produto e operacao
 
-## Scripts utilitarios relacionados
+- `docs/product/`: PRD, PDD, checklists e planos de produto.
+- `docs/ops/`: runbooks operacionais do CRM/n8n.
 
-- `scripts/maintenance/`: scripts de manutencao e apoio operacional migrados da raiz.
+## Material tecnico adicional
 
-- scripts/diagnostics/: utilitarios de diagnostico e suites legadas de teste manual.
-- scripts/manual/: artefatos de teste manual (HTML/BAT e pacote legado).
+- `docs/CRM_WHATSAPP_ARCHITECTURE_SDD.md`: SDD consolidado do CRM WhatsApp.
+- `docs/TURSO_COUPONS_SQL.md`: notas de SQL/Turso.
+
+## Historico
+
+- `docs/root-legacy/`: documentacao antiga preservada.

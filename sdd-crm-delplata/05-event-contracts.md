@@ -10,14 +10,17 @@ Todo evento deve seguir este formato:
 
 ```json
 {
-  "eventType": "MessageReceived",
   "eventId": "evt_...",
-  "occurredAt": "2026-05-09T21:00:00.000Z",
-  "source": "crm",
-  "channel": "whatsapp",
+  "eventType": "MessageReceived",
   "conversationId": "...",
   "contactId": "...",
-  "payload": {}
+  "pipelineCardId": "...",
+  "phone": "5511999999999",
+  "customerName": "João Silva",
+  "messageText": "...",
+  "source": "crm",
+  "timestamp": "2026-05-09T21:00:00.000Z",
+  "metadata": {}
 }
 ```
 
@@ -143,11 +146,73 @@ Emitido quando cliente informa dados suficientes para orçamento.
   "eventType": "QuoteRequested",
   "conversationId": "conv_123",
   "contactId": "contact_123",
-  "payload": {
+  "metadata": {
     "checkin": "2026-06-15",
     "checkout": "2026-06-17",
     "adults": 2,
     "children": 1
+  }
+}
+```
+
+### FAQ_REQUESTED
+
+Emitido quando o bot detecta uma dúvida frequente que pode ser respondida pelo n8n.
+
+```json
+{
+  "eventType": "FAQ_REQUESTED",
+  "conversationId": "conv_123",
+  "messageText": "Aceita pet?",
+  "metadata": {
+    "category": "pet",
+    "confidence": 0.95
+  }
+}
+```
+
+### RESERVATION_INTENT_DETECTED
+
+Emitido quando o bot detecta uma intenção clara de fechar a reserva.
+
+```json
+{
+  "eventType": "RESERVATION_INTENT_DETECTED",
+  "conversationId": "conv_123",
+  "messageText": "Vou querer reservar sim, como faço o pix?",
+  "metadata": {
+    "detectedIntent": "confirm_booking",
+    "confidence": 0.98
+  }
+}
+```
+
+### CUSTOMER_REPLIED_AFTER_QUOTE
+
+Emitido quando o cliente responde após ter recebido um orçamento, mas sem ser um fechamento direto.
+
+```json
+{
+  "eventType": "CUSTOMER_REPLIED_AFTER_QUOTE",
+  "conversationId": "conv_123",
+  "messageText": "Tem alguma opção com vista para o jardim?",
+  "metadata": {
+    "lastQuoteId": "quote_123"
+  }
+}
+```
+
+### CUSTOMER_NO_RESPONSE
+
+Emitido via cron/job quando o cliente fica muito tempo sem responder após uma cotação (follow-up).
+
+```json
+{
+  "eventType": "CUSTOMER_NO_RESPONSE",
+  "conversationId": "conv_123",
+  "metadata": {
+    "hoursSinceLastInteraction": 24,
+    "currentStage": "ORCAMENTO_ENVIADO"
   }
 }
 ```
@@ -290,6 +355,69 @@ Emitido quando reserva é confirmada.
   "payload": {
     "bookingId": "booking_123",
     "pipelineCardId": "card_123"
+  }
+}
+```
+
+### PRE_CHECKIN_WINDOW
+
+Emitido X dias antes do check-in para disparar fluxos de upsell.
+
+```json
+{
+  "eventId": "evt_...",
+  "eventType": "PRE_CHECKIN_WINDOW",
+  "conversationId": "conv_123",
+  "metadata": {
+    "daysToArrival": 3,
+    "bookingId": "booking_123",
+    "roomType": "Chale Luxo"
+  }
+}
+```
+
+### POST_CHECKOUT_WINDOW
+
+Emitido após o check-out para fluxos de feedback ou pós-venda.
+
+```json
+{
+  "eventId": "evt_...",
+  "eventType": "POST_CHECKOUT_WINDOW",
+  "conversationId": "conv_123",
+  "metadata": {
+    "checkoutDate": "2026-05-15"
+  }
+}
+```
+
+### HUMAN_TAKEOVER_STARTED
+
+Emitido quando a automação é pausada para atendimento humano.
+
+```json
+{
+  "eventId": "evt_...",
+  "eventType": "HUMAN_TAKEOVER_STARTED",
+  "conversationId": "conv_123",
+  "metadata": {
+    "actor": "atendente_1",
+    "pausedUntil": "2026-05-13T23:59:59Z"
+  }
+}
+```
+
+### HUMAN_TAKEOVER_ENDED
+
+Emitido quando a automação é retomada.
+
+```json
+{
+  "eventId": "evt_...",
+  "eventType": "HUMAN_TAKEOVER_ENDED",
+  "conversationId": "conv_123",
+  "metadata": {
+    "reason": "Retomada manual"
   }
 }
 ```

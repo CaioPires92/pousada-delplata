@@ -1,147 +1,131 @@
-# CRM WhatsApp Delplata — Arquitetura e SDD
+# SDD — CRM WhatsApp Delplata
 
-## 1. Visão geral
+## 0. Metadados do documento
 
-O projeto Delplata-Motor passa a ter dois domínios dentro do mesmo repositório:
+- Status: Draft tecnico em uso
+- Ultima revisao: 2026-05-14
+- Escopo: Projeto B (CRM + n8n)
+- Dependencias externas: Evolution API, n8n
+- Dependencia interna critica: Motor de Reservas (Projeto A) para disponibilidade/tarifa
 
-1. Motor de Reservas
-2. CRM WhatsApp
+## 1. Contexto
 
-O CRM deve ser criado como módulo paralelo, sem alterar o funcionamento do motor atual.
+Este repositorio contem dois dominios:
 
-O banco atual já possui estrutura de reservas, quartos, tarifas, disponibilidade, hóspedes, pagamentos, cupons e usuários administrativos. O CRM foi adicionado de forma paralela com Contact, Conversation, Message, PipelineCard, ChatbotSettings e InternalActionLog. :contentReference[oaicite:0]{index=0}
+1. Motor de Reservas (fonte de verdade para disponibilidade/tarifa/reserva/pagamento).
+2. CRM WhatsApp (fonte de verdade para atendimento e pipeline comercial).
 
----
+Objetivo: evoluir o CRM sem quebrar o motor existente.
 
-## 2. Objetivo do CRM
+## 2. Escopo
 
-O CRM tem como objetivo substituir gradualmente o WhatsApp Web da recepção.
+### Incluido
+- recebimento de mensagens via Evolution API;
+- contato/conversa/mensagem;
+- inbox e resposta manual;
+- pipeline comercial e estagios;
+- eventos internos para automacao via n8n;
+- logs de auditoria.
 
-Funcionalidades previstas:
+### Fora de escopo (fase atual)
+- escrita direta de n8n no banco;
+- substituicao do motor de reservas;
+- confirmacao automatica de reserva sem API validada.
 
-- Receber mensagens via Evolution API
-- Criar/atualizar contatos
-- Criar conversas
-- Salvar histórico de mensagens
-- Exibir inbox interno
-- Permitir resposta manual da recepção
-- Pausar chatbot quando humano assumir
-- Criar Kanban automático/manual
-- Futuramente consultar disponibilidade/preços
-- Futuramente operar chatbot do WhatsApp e do site
-
----
-
-## 3. Stack técnica
-
-### Aplicação
-
-- Next.js
-- App Router
-- TypeScript
-- Prisma ORM
-
-### Banco
-
-- SQLite/Turso via Prisma
-- Driver adapter LibSQL
-
-### WhatsApp
-
-- Evolution API
-- Instância: usar variável de ambiente
-- API Key: usar variável de ambiente
-
-### Automação futura
-
-- n8n
-- Chatbot com IA
-- Redis opcional para fila/memória curta
-
----
-
-## 4. Organização de pastas recomendada
+## 3. Arquitetura logica
 
 ```txt
-src/
-  app/
-    api/
-      availability/              # motor de reservas atual
-      bookings/                  # motor de reservas atual
-      crm/
-        conversations/
-          route.ts               # lista conversas
-          [id]/
-            route.ts             # detalhe da conversa
-      whatsapp/
-        webhook/
-          route.ts               # recebe mensagens Evolution API
-        send/
-          route.ts               # envia resposta manual
-    admin/
-      inbox/
-        page.tsx                 # lista conversas
-        [id]/
-          page.tsx               # histórico da conversa
-
-  lib/
-    prisma.ts                    # Prisma Client
-    whatsapp/
-      evolution.ts               # cliente Evolution API
-    crm/
-      # serviços futuros do CRM
+WhatsApp/Evolution -> /api/whatsapp/webhook -> servicos CRM -> Prisma/Turso
+                                                   |                    |
+                                                   +-> eventos -> n8n --+
+                                                              |
+                                                  chamadas autenticadas para API CRM
 ```
 
----
+## 4. Componentes
 
-## 5. Roadmap de implementação
+### APIs
+- `POST /api/whatsapp/webhook/[[...slug]]`
+- `POST /api/whatsapp/send`
+- `GET /api/crm/conversations`
+- `GET /api/crm/conversations/[id]`
+- `PATCH /api/crm/pipeline/cards/[id]`
+- endpoints internos de automacao em `/api/crm/*`
 
-### FASE 1 — BASE
+### Servicos
+- `src/lib/whatsapp/evolution.ts`
+- `src/lib/crm/identity.ts`
+- `src/lib/crm/conversationFlow.ts`
+- `src/lib/crm/pipelineMachine.ts`
+- `src/lib/crm/events.ts`
+- `src/lib/crm/automationQueue.ts`
 
-- [x] Prisma CRM
-- [x] Webhook
-- [x] Inbox
-- [x] Conversation detail
-- [x] Evolution API
+### UI
+- inbox e detalhe: `src/app/admin/inbox/*`
+- modulo CRM: `src/app/admin/crm/*`
 
-### FASE 2 — RESPOSTA MANUAL
+## 5. Modelo de dados (alto nivel)
 
-- [x] Task 1 — Endpoint de envio
-- [x] Task 2 — UI de resposta
-- [x] Task 3 — UX conversa
+- `Contact`
+- `Conversation`
+- `Message`
+- `PipelineCard`
+- `InternalActionLog`
+- tabelas auxiliares de automacao e historico de estagio
 
-### FASE 3 — CONTROLE CHATBOT
+## 6. Contrato de integracao com n8n
 
-- [x] Task 1 — Endpoint PATCH chatbot
-- [x] Task 2 — Toggle ON/OFF na conversa
+Regra principal:
 
-### FASE 4 — KANBAN
+```txt
+n8n nunca acessa banco diretamente.
+n8n sempre chama API interna autenticada do CRM.
+```
 
-- [x] Task 1 — GET pipeline
-- [x] Task 2 — Tela kanban
-- [x] Task 3 — Mover stage manualmente
+Evento minimo emitido pelo CRM:
 
-### FASE 5 — PERSISTÊNCIA OPERACIONAL / PRODUÇÃO
+```json
+{
+  "timestamp": "2026-05-14T00:00:00.000Z",
+  "action": "QuoteRequested",
+  "conversationId": "...",
+  "contactId": "...",
+  "metadata": {}
+}
+```
 
-- [x] Task 1 — Registrar mensagem enviada pelo CRM no banco
-- [x] Task 2 — Confirmar webhook recebendo resposta real do WhatsApp
-- [x] Task 3 — Evitar mensagem duplicada no front
-- [x] Task 4 — Atualizar preview da conversa após envio/recebimento
-- [x] Task 5 — Status visual: enviada / recebida / erro
+## 7. NFRs
 
-### FASE 6 — AUTOMAÇÃO CONTROLADA
+- TypeScript estrito;
+- idempotencia para mensagens por `externalId` quando disponivel;
+- operacoes criticas com transacao;
+- logs acionaveis para diagnostico;
+- compatibilidade retroativa com rotas do motor.
 
-- [x] Task 1 — Criar tabela/configuração de respostas automáticas
-- [x] Task 2 — Chatbot responder só se `chatbotEnabled = true`
-- [x] Task 3 — Criar regra básica: saudação / preço / disponibilidade
-- [x] Task 4 — Logar toda ação automática
-- [x] Task 5 — Botão “assumir conversa” para desligar bot naquela conversa
+## 8. Riscos e mitigacoes
 
-### FASE 7 — CRM DE VERDADE
+- Duplicidade de mensagem: dedupe por identificadores externos e janela temporal.
+- Corrida de automacao/humano: usar `chatbotEnabled` + `automationPausedUntil`.
+- Falha de n8n: nao bloquear persistencia da conversa; registrar falha.
 
-- [x] Task 1 — Criar lead manualmente
-- [x] Task 2 — Vincular contato a reserva existente
-- [x] Task 3 — Campo de valor estimado
-- [x] Task 4 — Campo de data pretendida
-- [x] Task 5 — Motivo de perda
-- [x] Task 6 — Histórico interno/anotações
+## 9. Criterios de aceite
+
+- mensagem inbound aparece na inbox;
+- resposta manual enviada e persistida;
+- pipeline atualiza com rastreabilidade;
+- evento chega ao n8n sem quebrar atendimento;
+- falha externa nao derruba fluxo principal.
+
+## 10. Rastreabilidade (requisito -> evidencia)
+
+- Inbound WhatsApp persistido -> `src/app/api/whatsapp/webhook/[[...slug]]/route.ts`
+- Resposta manual persistida -> `src/app/api/whatsapp/send/route.ts`
+- Pipeline e eventos -> `src/lib/crm/pipelineMachine.ts`, `src/lib/crm/events.ts`
+- Fila/automacao resiliente -> `src/lib/crm/automationQueue.ts`, `src/lib/crm/automationQueueWorker.ts`
+- Cobertura de regressao -> `src/app/api/whatsapp/webhook/route.test.ts`, `src/app/api/whatsapp/send/route.test.ts`
+
+## 11. Referencias
+
+- `sdd-crm-delplata/` (requirements, design, task list, contracts)
+- `n8n/README.md`
+- `docs/ops/CRM_N8N_PERSISTENT_RUNBOOK.md`

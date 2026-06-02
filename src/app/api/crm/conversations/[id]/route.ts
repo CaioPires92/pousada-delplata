@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { buildAuditMetadata } from "@/lib/crm/audit";
+import { recordCrmEvent } from "@/lib/crm/events";
+import { inferPresenceFromLastGuestMessage } from "@/lib/crm/presence";
 
 type RouteParams = {
     params: Promise<{
@@ -88,6 +91,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
                 phone: conversation.contact.phone,
             },
             pipelineCard: conversation.pipelineCards[0] || null,
+            presence: inferPresenceFromLastGuestMessage(
+                [...conversation.messages]
+                    .reverse()
+                    .find(message => message.senderType === "guest")?.sentAt ?? null
+            ),
             messages: conversation.messages,
         });
     } catch (error) {
@@ -134,6 +142,19 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 id: true,
                 chatbotEnabled: true,
                 automationPausedUntil: true,
+            },
+        });
+
+        await recordCrmEvent({
+            action: "ChatbotToggleChanged",
+            contactId: undefined,
+            conversationId: conversation.id,
+            metadata: {
+                ...buildAuditMetadata({
+                    actorType: "human",
+                    origin: "admin_ui",
+                }),
+                chatbotEnabled: conversation.chatbotEnabled,
             },
         });
 

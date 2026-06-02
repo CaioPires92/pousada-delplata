@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createAutomationPausedUntil, DEFAULT_AUTOMATION_PAUSE_MINUTES } from "@/lib/crm/automationPause";
+import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
-import { resolveEvolutionSendTarget, sendEvolutionText } from "@/lib/whatsapp/evolution";
+import { resolveEvolutionSendTarget, sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
         const bodyRecord = asRecord(body);
         const conversationId = firstString(bodyRecord?.conversationId);
         const text = firstString(bodyRecord?.text);
+        const actorId = firstString(bodyRecord?.userId, bodyRecord?.actorId);
 
         if (!conversationId || !text) {
             return NextResponse.json(
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
 
         let evolutionResponse: unknown;
         try {
-            evolutionResponse = await sendEvolutionText({
+            evolutionResponse = await sendEvolutionTextWithRetry({
                 number: target,
                 text,
             });
@@ -144,6 +146,11 @@ export async function POST(request: Request) {
                 pauseStrategy: "temporary",
                 pauseMinutes: DEFAULT_AUTOMATION_PAUSE_MINUTES,
                 pausedUntil: automationPausedUntil.toISOString(),
+                ...buildAuditMetadata({
+                    actorType: "human",
+                    origin: "human_api",
+                    actorId,
+                }),
             };
 
             await tx.internalActionLog.create({

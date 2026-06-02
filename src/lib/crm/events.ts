@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { crmLog } from "@/lib/crm/logger";
 
 export interface CrmEventInput {
   action: string;
@@ -28,10 +29,26 @@ export async function recordCrmEvent(input: CrmEventInput) {
 
     // Após registrar no banco, emitimos para sistemas externos (n8n)
     await emitCrmEvent(input);
+    crmLog({
+      level: "AUTOMATION",
+      action: input.action,
+      message: "CRM event recorded",
+      context: {
+        contactId: input.contactId,
+        conversationId: input.conversationId,
+      },
+    });
 
     return log;
   } catch (error) {
-    console.error(`[CRM EVENT ERROR] Falha ao registrar evento ${input.action}:`, error);
+    crmLog({
+      level: "ERROR",
+      action: input.action,
+      message: "Failed to record CRM event",
+      context: {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
     // Não lançamos erro para não quebrar o fluxo principal (atendimento)
     return null;
   }
@@ -62,9 +79,39 @@ export async function emitCrmEvent(input: CrmEventInput) {
     });
 
     if (!response.ok) {
-      console.warn(`[CRM EVENT EMIT WARNING] n8n respondeu com status ${response.status}`);
+      crmLog({
+        level: "WARN",
+        action: input.action,
+        message: "n8n responded with non-success status",
+        context: { status: response.status },
+      });
     }
   } catch (error) {
-    console.error(`[CRM EVENT EMIT ERROR] Falha ao enviar para n8n:`, error);
+    crmLog({
+      level: "ERROR",
+      action: input.action,
+      message: "Failed to emit CRM event to n8n",
+      context: {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+
+    try {
+      await prisma.internalActionLog.create({
+        data: {
+          action: "N8NEmitFailed",
+          contactId: input.contactId,
+          conversationId: input.conversationId,
+          bookingId: input.bookingId,
+          userId: input.userId,
+          metadataJson: JSON.stringify({
+            originalAction: input.action,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        },
+      });
+    } catch {
+      // noop
+    }
   }
 }

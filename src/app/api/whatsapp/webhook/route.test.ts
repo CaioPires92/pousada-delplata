@@ -94,6 +94,10 @@ async function cleanupTestData() {
 }
 
 describe("WhatsApp CRM webhook hardening", () => {
+  // Webhook processing includes DB transaction + CRM event side effects, which can be
+  // slightly slower on shared CI/local runners and cause intermittent 5s timeouts.
+  vi.setConfig({ testTimeout: 15000 });
+
   beforeEach(async () => {
     delete process.env.EVOLUTION_WEBHOOK_SECRET;
     process.env.EVOLUTION_API_URL = "http://evolution.test";

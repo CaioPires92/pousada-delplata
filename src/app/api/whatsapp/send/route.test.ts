@@ -8,11 +8,11 @@ vi.mock("@/lib/whatsapp/evolution", async () => {
 
   return {
     ...actual,
-    sendEvolutionText: vi.fn(),
+    sendEvolutionTextWithRetry: vi.fn(),
   };
 });
 
-import { sendEvolutionText } from "@/lib/whatsapp/evolution";
+import { sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
 
 function request(body: unknown) {
   return new Request("http://localhost/api/whatsapp/send", {
@@ -39,7 +39,7 @@ async function cleanupTestData() {
 
 describe("manual WhatsApp send hardening", () => {
   beforeEach(async () => {
-    vi.mocked(sendEvolutionText).mockReset();
+    vi.mocked(sendEvolutionTextWithRetry).mockReset();
     await cleanupTestData();
   });
 
@@ -48,7 +48,7 @@ describe("manual WhatsApp send hardening", () => {
   });
 
   it("logs Evolution send failures and does not create a message", async () => {
-    vi.mocked(sendEvolutionText).mockRejectedValue(new Error("evolution offline"));
+    vi.mocked(sendEvolutionTextWithRetry).mockRejectedValue(new Error("evolution offline"));
 
     const contact = await prisma.contact.create({
       data: {

@@ -177,6 +177,32 @@ export default function MessageList({ initialMessages, conversationId }: Message
         };
     }, [conversationId]);
 
+    // Realtime via SSE com fallback no polling existente.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const source = new EventSource(`/api/crm/conversations/${conversationId}/stream?intervalMs=3000`);
+        source.onmessage = (event) => {
+            if (document.visibilityState !== "visible") return;
+            try {
+                const data = JSON.parse(event.data) as { ok?: boolean; messages?: Message[] };
+                if (!data?.ok || !Array.isArray(data.messages)) return;
+                const incomingMessages: Message[] = data.messages ?? [];
+                setMessages(prev => mergePolledMessages(prev, incomingMessages));
+            } catch {
+                // ignore parse failures
+            }
+        };
+
+        source.onerror = () => {
+            source.close();
+        };
+
+        return () => {
+            source.close();
+        };
+    }, [conversationId]);
+
     return (
         <div ref={rootRef} className="min-h-full space-y-4 px-1 py-2">
             {messages.length === 0 ? (

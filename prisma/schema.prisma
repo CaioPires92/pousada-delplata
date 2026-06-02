@@ -62,6 +62,7 @@ model InventoryAdjustment {
   date       DateTime
   dateKey    String
   totalUnits Int
+  occupiedUnits Int    @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   roomType   RoomType @relation(fields: [roomTypeId], references: [id])
@@ -226,6 +227,7 @@ model Contact {
   updatedAt       DateTime            @updatedAt
   conversations   Conversation[]
   pipelineCards   PipelineCard[]
+  reservationDrafts ReservationDraft[]
   actionLogs      InternalActionLog[]
 
   @@index([email])
@@ -241,15 +243,24 @@ model Conversation {
   status                String              @default("open")
   chatbotEnabled        Boolean             @default(false)
   automationPausedUntil DateTime?
+  currentFlow           String?
+  flowStep              String?
+  flowDataJson          String?
+  lastAutomationAt      DateTime?
   assignedUserId        String?
   unreadCount           Int                 @default(0)
   lastReadAt            DateTime?
   lastMessageAt         DateTime?           @default(now())
+  lastCustomerMessageAt DateTime?
+  lastHumanMessageAt    DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
   messages              Message[]
   pipelineCards         PipelineCard[]
+  reservationDrafts     ReservationDraft[]
+  automationQueueJobs   AutomationQueueJob[]
+  deadLetterItems       DeadLetterQueueItem[]
   internalNotes         InternalNote[]
   actionLogs            InternalActionLog[]
 
@@ -257,6 +268,42 @@ model Conversation {
   @@index([channel, status])
   @@index([assignedUserId])
   @@index([lastMessageAt])
+}
+
+model AutomationQueueJob {
+  id             String       @id @default(uuid())
+  conversationId String
+  action         String
+  payloadJson    String
+  status         String       @default("pending")
+  attempts       Int          @default(0)
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model DeadLetterQueueItem {
+  id             String       @id @default(uuid())
+  conversationId String?
+  source         String
+  action         String
+  reason         String
+  payloadJson    String
+  status         String       @default("open")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  replayedAt     DateTime?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([source, action])
 }
 
 model Message {
@@ -299,14 +346,57 @@ model PipelineCard {
   lossReason     String?
   lostReason     String?
   bookingId      String?
+  tags           String?
+  followUpAt     DateTime?
+  quoteStatus    String?
+  upsellStatus   String?
   contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  stageHistory   PipelineStageHistory[]
+  reservationDrafts ReservationDraft[]
 
   @@index([contactId])
   @@index([conversationId])
   @@index([stage, priority])
   @@index([assignedUserId])
   @@index([lastActivityAt])
+}
+
+model ReservationDraft {
+  id               String        @id @default(uuid())
+  contactId        String
+  conversationId   String
+  pipelineCardId   String?
+  status           String        @default("in_progress")
+  guestName        String?
+  guestCpf         String?
+  guestEmail       String?
+  paymentMethod    String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  contact          Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversation     Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  pipelineCard     PipelineCard? @relation(fields: [pipelineCardId], references: [id], onDelete: SetNull)
+
+  @@index([contactId, createdAt])
+  @@index([conversationId, updatedAt])
+  @@index([pipelineCardId])
+  @@index([status])
+}
+
+model PipelineStageHistory {
+  id             String        @id @default(uuid())
+  pipelineCardId String
+  fromStage      String
+  toStage        String
+  actorType      String        @default("system")
+  reason         String?
+  createdAt      DateTime      @default(now())
+  pipelineCard   PipelineCard  @relation(fields: [pipelineCardId], references: [id], onDelete: Cascade)
+
+  @@index([pipelineCardId, createdAt])
+  @@index([fromStage, toStage])
 }
 
 model ChatbotSettings {
