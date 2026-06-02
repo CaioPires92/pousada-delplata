@@ -18,9 +18,9 @@ export const OccupancyRing: React.FC<OccupancyRingProps> = ({
   const offset = circumference - (percentage / 100) * circumference;
 
   const getColor = (percent: number) => {
-    if (percent <= 30) return '#ef4444'; // Red-500
+    if (percent <= 30) return '#22c55e'; // Green-500
     if (percent <= 70) return '#eab308'; // Yellow-500
-    return '#22c55e'; // Green-500
+    return '#ef4444'; // Red-500
   };
 
   return (
