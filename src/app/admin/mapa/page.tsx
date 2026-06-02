@@ -64,6 +64,7 @@ interface RoomType {
         totalInventory: number;
         capacityTotal: number;
         bookingsCount: number;
+        occupiedUnits?: number;
         available: number;
         fourGuestInventory?: number;
         fourGuestCapacityTotal?: number;

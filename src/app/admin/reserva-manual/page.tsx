@@ -50,6 +50,7 @@ export default function ReservaManualPage() {
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'approved' | 'rejected' | 'pending' | 'error'>('idle');
     const [paymentStatusMessage, setPaymentStatusMessage] = useState('');
     const [sendGuestEmail, setSendGuestEmail] = useState(false);
+    const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const pollRef = useRef<number | null>(null);
     const paymentSectionId = 'manualPaymentSection';
