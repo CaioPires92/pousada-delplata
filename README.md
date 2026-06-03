@@ -28,3 +28,4 @@ npm run test
 ## Observacao
 
 Existe trabalho em andamento no repositorio (arquivos modificados). A organizacao documental acima foi feita para clarificar fronteiras sem alterar comportamento de runtime.
+# delplata-dashboard
