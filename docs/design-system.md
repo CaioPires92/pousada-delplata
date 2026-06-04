@@ -458,6 +458,12 @@ Pode ficar:
 - CTA areia/dourado claro com texto escuro e microcopy curta de tarifa
 - hóspedes em linguagem humana, sem expor complexidade logo de início
 - idade das crianças pode ficar dentro do seletor de hóspedes, não no corpo principal da barra
+- CTA da booking bar hero deve ter presença real:
+  - altura `62px`
+  - largura mínima `320px`
+  - largura ideal de coluna no desktop: `420px`
+  - coluna própria generosa no desktop, sem parecer comprimido
+  - no mobile ocupa `100%` da largura disponível
 
 ### Forbidden Fields
 

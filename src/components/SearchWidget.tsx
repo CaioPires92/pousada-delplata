@@ -32,6 +32,7 @@ function deferStateUpdate(callback: () => void) {
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
     uiPreset?: 'default' | 'inline' | 'hero';
+    hideCouponField?: boolean;
     ctaMicrocopy?: string;
     submitLabel?: string;
     submitLabelMobile?: string;
@@ -43,6 +44,7 @@ interface SearchWidgetProps {
 export default function SearchWidget({
     variant = 'default',
     uiPreset = 'default',
+    hideCouponField = false,
     ctaMicrocopy,
     submitLabel = 'Buscar',
     submitLabelMobile,
@@ -299,7 +301,7 @@ export default function SearchWidget({
     const isInlinePreset = uiPreset === 'inline';
     const isHeroPreset = uiPreset === 'hero';
     const shouldShowHeroCompact = isHeroPreset && collapsible && !isHeroExpanded;
-    const showCouponField = !isHeroPreset;
+    const showCouponField = !isHeroPreset && !hideCouponField;
     const heroCalendarClassNames = isHeroPreset ? {
         months: 'flex flex-col space-y-4',
         month: 'space-y-4',
@@ -320,7 +322,7 @@ export default function SearchWidget({
     } satisfies CalendarProps['classNames'] : undefined;
     const heroSelectContentClass = 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-2 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
     const heroSelectItemClass = 'rounded-none py-3 pl-10 pr-4 font-accent text-sm font-medium uppercase tracking-[0.14em] text-[color:var(--brand-forest)] focus:bg-[color:var(--brand-white)] focus:text-[color:var(--brand-forest)]';
-    const heroBarClass = 'max-w-[1180px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-6 shadow-[0_12px_28px_rgba(40,50,35,0.08)]';
+    const heroBarClass = 'mx-auto w-full max-w-[1180px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-6 shadow-[0_12px_28px_rgba(40,50,35,0.08)]';
     const heroFieldClass = 'flex h-full items-center px-7';
     const heroFieldInnerClass = 'flex h-[58px] w-full flex-col justify-center gap-2';
     const heroGuestsInnerClass = 'flex h-[58px] w-full max-w-[172px] flex-col justify-center gap-2';
@@ -328,7 +330,7 @@ export default function SearchWidget({
     const heroLabelClass = 'flex items-center gap-2 text-[0.56rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-forest)]/75';
     const heroValueClass = 'flex h-auto w-full cursor-pointer items-center justify-between rounded-none border-0 bg-transparent px-0 py-0 text-left font-sans text-[0.98rem] font-semibold text-[color:var(--brand-forest)] transition-colors duration-300 hover:text-primary';
     const heroTriggerClass = 'h-auto w-full rounded-none border-0 bg-transparent px-0 font-sans text-[0.98rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 focus:ring-0 focus:ring-offset-0';
-    const heroButtonColumnClass = 'flex h-full items-center px-7';
+    const heroButtonColumnClass = 'flex h-full items-center justify-center px-7';
     const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
 
     const labelClass = isInlinePreset
@@ -474,11 +476,13 @@ export default function SearchWidget({
             {!shouldShowHeroCompact ? (
             <div className={cn(isHeroPreset && heroBarClass)}>
             <form onSubmit={handleSearch} className={cn(
-                "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(16,minmax(0,1fr))] gap-4 items-end",
-                isHeroPreset && "gap-y-4 lg:h-[96px] lg:grid-cols-[1fr_1fr_1.2fr_340px] lg:items-center lg:content-center lg:gap-x-0 lg:gap-y-0"
+                "grid grid-cols-1 gap-4 items-end md:grid-cols-2",
+                isHeroPreset
+                    ? "gap-y-4 lg:h-[100px] lg:grid-cols-[1fr_1fr_1.1fr_420px] lg:items-center lg:content-center lg:gap-x-0 lg:gap-y-0 xl:grid-cols-[1fr_1fr_1.1fr_420px]"
+                    : "xl:grid-cols-[repeat(16,minmax(0,1fr))]"
             )}>
                 {/* Check-in */}
-                <div className={cn("flex flex-col md:col-span-1 xl:col-span-3", isHeroPreset && `${heroFieldClass} ${heroDividerClass}`)}>
+                <div className={cn("flex flex-col md:col-span-1", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1` : "xl:col-span-3")}>
                     <div className={cn(isHeroPreset && heroFieldInnerClass)}>
                     <label className={labelClass}>
                         <CalendarIcon className="w-4 h-4" />
@@ -520,7 +524,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Check-out */}
-                <div className={cn("flex flex-col md:col-span-1 xl:col-span-3", isHeroPreset && `${heroFieldClass} ${heroDividerClass}`)}>
+                <div className={cn("flex flex-col md:col-span-1", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1` : "xl:col-span-3")}>
                     <div className={cn(isHeroPreset && heroFieldInnerClass)}>
                     <label className={labelClass}>
                         <CalendarIcon className="w-4 h-4" />
@@ -566,7 +570,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Hóspedes / Adultos / Crianças */}
-                <div className={cn("flex flex-col md:col-span-2 xl:col-span-4", isHeroPreset && `${heroFieldClass} ${heroDividerClass}`)}>
+                <div className={cn("flex flex-col md:col-span-2", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1` : "xl:col-span-4")}>
                     <div className={cn(isHeroPreset && heroGuestsInnerClass, !isHeroPreset && heroFieldInnerClass)}>
                     <label htmlFor="adults" className={labelClass}>
                         <Users className="w-4 h-4" />
@@ -753,14 +757,14 @@ export default function SearchWidget({
                 ) : null}
 
                 {/* Botão de busca */}
-                <div className={cn("md:col-span-2 xl:col-span-4", isHeroPreset && `${heroButtonColumnClass} lg:col-span-1 lg:min-w-0`)}>
+                <div className={cn("md:col-span-2", isHeroPreset ? `${heroButtonColumnClass} lg:col-span-1 lg:min-w-0 xl:col-span-1` : "xl:col-span-4")}>
                     <Button
                         type="submit"
                         size={isHeroPreset ? "default" : "lg"}
                         className={isInlinePreset
                             ? 'w-full h-11 min-w-[170px] px-4 text-sm font-semibold flex items-center justify-center gap-2'
                             : isHeroPreset
-                                ? 'flex h-[58px] w-full min-w-0 items-center justify-center gap-2 rounded-none border border-[color:var(--brand-gold)] bg-[color:var(--brand-gold)] px-4 font-sans text-[13px] font-semibold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-[color:var(--brand-gold)]/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
+                                ? 'mx-auto flex h-[62px] w-[320px] max-w-full items-center justify-center gap-2 rounded-none border border-[color:var(--brand-gold)] bg-[color:var(--brand-gold)] px-8 font-sans text-[14px] font-semibold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-[color:var(--brand-gold)]/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
                         aria-label={submitLabel}
                         onClick={() => {
@@ -776,7 +780,7 @@ export default function SearchWidget({
                         {isHeroPreset ? (
                             <span className="flex flex-col items-center justify-center leading-none">
                                 <span className="whitespace-nowrap">{loading ? loadingLabel : submitLabel}</span>
-                                <span className="mt-1 text-[0.55rem] tracking-[0.12em] text-[#6f5a43]">
+                                <span className="mt-1 text-[0.58rem] tracking-[0.12em] text-[#6f5a43]">
                                     Melhor tarifa
                                 </span>
                             </span>

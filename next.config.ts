@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "img-src 'self' data: https: blob:",
                 "font-src 'self' https://fonts.gstatic.com",
-                "frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com",
+                "frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.google.com https://*.googleusercontent.com",
                 "connect-src 'self' https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://*.google-analytics.com https://*.google.com https://*.doubleclick.net https://*.clarity.ms https://*.sentry.io"
             ].join('; ')
           },

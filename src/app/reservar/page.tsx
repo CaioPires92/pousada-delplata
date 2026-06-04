@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useCallback, useEffect, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
@@ -71,7 +71,6 @@ interface RoomGalleryState {
 function ReservarContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const pathname = usePathname();
     const checkIn = searchParams.get('checkIn');
     const checkOut = searchParams.get('checkOut');
     const adults = searchParams.get('adults') || '2';
@@ -97,7 +96,6 @@ function ReservarContent() {
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
     const [formMessage, setFormMessage] = useState('');
     const [promoAppliedInResults, setPromoAppliedInResults] = useState(false);
-    const [promoAlertDismissed, setPromoAlertDismissed] = useState(false);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -263,21 +261,8 @@ function ReservarContent() {
     }, [promoFromQuery, selectedRoom]);
 
     useEffect(() => {
-        setPromoAlertDismissed(false);
-    }, [promoFromQuery]);
-
-    useEffect(() => {
         setSearchEditorOpen(false);
     }, [checkIn, checkOut, adults, children, childrenAgesKey]);
-
-    const handleTryAnotherPromo = useCallback(() => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('promo');
-        params.delete('coupon');
-        const query = params.toString();
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-        setPromoAlertDismissed(true);
-    }, [pathname, router, searchParams]);
 
     const getWhatsAppUrl = () => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
@@ -824,7 +809,7 @@ function ReservarContent() {
                         <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
                             Reservas
                         </p>
-                        <h1 className="font-hero-display mb-4 mt-4 text-[2.9rem] font-semibold leading-[0.98] md:text-[4rem]">
+                        <h1 className="font-sans mb-4 mt-4 text-[2.9rem] font-semibold leading-[0.98] md:text-[4rem]">
                             Planeje sua Estadia
                         </h1>
                         <p className="mx-auto max-w-2xl text-lg leading-8 text-white/88">
@@ -832,8 +817,14 @@ function ReservarContent() {
                         </p>
                     </div>
 
-                    <div className="w-full border border-white/20 bg-white/95 p-6 backdrop-blur-sm md:p-8">
-                        <SearchWidget variant="light" />
+                    <div className="w-full">
+                        <SearchWidget
+                            variant="light"
+                            uiPreset="hero"
+                            hideCouponField
+                            submitLabel="Ver disponibilidade"
+                            submitLabelMobile="Buscar"
+                        />
                     </div>
                 </div>
             </main>
@@ -944,27 +935,28 @@ function ReservarContent() {
                     }
                 />
                 {searchEditorOpen ? (
-                    <div className="mb-6 rounded-xl border border-primary/20 bg-white p-4 shadow-sm">
+                    <div className="mb-6">
                         <SearchWidget
                             variant="light"
-                            uiPreset="inline"
+                            uiPreset="hero"
+                            hideCouponField
                             prefillFromQuery
-                            submitLabel="Atualizar busca"
-                            submitLabelMobile="Atualizar"
+                            submitLabel="Ver disponibilidade"
+                            submitLabelMobile="Buscar"
                         />
                     </div>
                 ) : null}
 
-                <div className="mb-6 rounded-lg border border-border/60 bg-white px-4 py-3">
+                <div className="mb-6 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3">
                     <div className="flex items-center justify-between gap-4">
                         <p className="text-sm font-medium text-foreground">Passo {currentStep} de {totalSteps}</p>
                         <p className="text-xs text-muted-foreground">
                             {currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}
                         </p>
                     </div>
-                    <div className="mt-2 h-2 w-full rounded-full bg-muted">
+                    <div className="mt-2 h-2 w-full bg-[color:var(--brand-cream)]">
                         <div
-                            className="h-full rounded-full bg-primary transition-all"
+                            className="h-full bg-primary transition-all"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
@@ -972,37 +964,7 @@ function ReservarContent() {
 
                 {!selectedRoom ? (
                     <div className="space-y-6">
-                        <h2 className="font-hero-display pl-1 text-2xl font-semibold text-primary">Escolha sua Acomodação</h2>
-                        {couponCode && !promoAppliedInResults && !promoAlertDismissed ? (
-                            <div className="relative flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                                <p className="pr-8">
-                                    <strong>O código promocional &quot;{couponCode}&quot; não foi aplicado!</strong>{' '}
-                                    Consulte os resultados ou{' '}
-                                    <button
-                                        type="button"
-                                        onClick={handleTryAnotherPromo}
-                                        className="font-medium underline underline-offset-2 hover:no-underline"
-                                    >
-                                        tente outro código promocional
-                                    </button>
-                                    .
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => setPromoAlertDismissed(true)}
-                                    className="absolute right-3 top-3 text-amber-800/70 hover:text-amber-900"
-                                    aria-label="Fechar alerta de cupom"
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ) : null}
-                        {couponCode && promoAppliedInResults ? (
-                            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                                Cupom {couponCode} aplicado aos preços da busca.
-                            </div>
-                        ) : null}
-
+                        <h2 className="font-sans pl-1 text-2xl font-semibold text-primary">Escolha sua Acomodação</h2>
                         {loading || availableRooms === null ? (
                             <div className="space-y-6">
                                 <div className="text-center">
@@ -1011,7 +973,7 @@ function ReservarContent() {
                                 <RoomListSkeleton />
                             </div>
                         ) : availableRooms.length === 0 ? (
-                            <div className="text-center py-16 bg-white rounded-xl border border-dashed border-border">
+                            <div className="border border-dashed border-primary/20 bg-[color:var(--brand-white)] py-16 text-center">
                                 <p className="text-xl text-muted-foreground mb-4">Nenhum quarto disponível para as datas selecionadas.</p>
                                 <Button onClick={() => window.location.href = '/reservar'}>
                                     Buscar Outras Datas
@@ -1019,7 +981,7 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <h2 className="font-hero-display text-lg font-semibold text-foreground">
+                                <h2 className="font-sans text-lg font-semibold text-foreground">
                                     {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
                                 </h2>
                                 <div className="grid grid-cols-1 gap-6">
@@ -1029,7 +991,7 @@ function ReservarContent() {
                                         const canOpenGallery = roomPhotos.length > 0;
 
                                         return (
-                                        <Card key={room.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-border/50 group">
+                                        <Card key={room.id} className="group overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-colors duration-200 hover:border-primary/20">
                                         <div className="grid md:grid-cols-12 gap-0">
                                             <div
                                                 className={`md:col-span-4 relative h-64 md:h-auto overflow-hidden ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
@@ -1049,7 +1011,7 @@ function ReservarContent() {
                                                         src={roomPrimaryImage}
                                                         alt={room.name}
                                                         fill
-                                                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                                        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -1057,7 +1019,7 @@ function ReservarContent() {
                                                     </div>
                                                 )}
                                                 {canOpenGallery ? (
-                                                    <div className="absolute bottom-3 right-3 bg-black/55 text-white px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5">
+                                                    <div className="absolute bottom-3 right-3 bg-black/55 px-2.5 py-1 text-xs font-medium text-white flex items-center gap-1.5">
                                                         <Camera className="w-3.5 h-3.5" />
                                                         <span>Ver fotos ({roomPhotos.length})</span>
                                                     </div>
@@ -1086,7 +1048,7 @@ function ReservarContent() {
 
                                                     <div className="flex flex-wrap gap-2 mb-6">
                                                         {room.amenities.split(',').map((amenity, i) => (
-                                                            <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs font-medium border border-secondary/20">
+                                                            <span key={i} className="inline-flex items-center gap-1.5 border border-primary/10 bg-[color:var(--brand-cream)] px-3 py-1 text-xs font-medium text-primary">
                                                                 <Check className="w-3 h-3" /> {amenity.trim()}
                                                             </span>
                                                         ))}
@@ -1124,26 +1086,26 @@ function ReservarContent() {
                     </div>
                 ) : paymentBookingId ? (
                     <div className="max-w-4xl mx-auto">
-                        <Card className="border-border/50 shadow-lg">
-                            <CardHeader className="bg-primary/5 border-b border-border/60 pb-6">
+                        <Card className="rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
+                            <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] pb-6">
                                 <CardTitle className="text-xl">Pagamento</CardTitle>
                                 <CardDescription>Escolha o método e finalize sua reserva com segurança.</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-6">
                                 {Number(paymentAmount || 0) > 0 ? (
-                                    <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex items-center justify-between">
+                                    <div className="mb-4 flex items-center justify-between border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3">
                                         <span className="text-sm text-muted-foreground">Valor total a pagar</span>
                                         <strong className="text-lg font-bold text-primary">R$ {Number(paymentAmount || 0).toFixed(2)}</strong>
                                     </div>
                                 ) : null}
                                 {paymentError ? (
-                                    <div className="bg-destructive/10 text-destructive p-4 rounded-lg border border-destructive/20">
+                                    <div className="border border-destructive/20 bg-destructive/10 p-4 text-destructive">
                                         {paymentError}
                                     </div>
                                 ) : null}
 
                                 {paymentStatus !== 'idle' && paymentStatusMessage ? (
-                                    <div className={`p-4 rounded-xl border mt-4 ${paymentStatus === 'approved' ? 'bg-green-50 border-green-200 text-green-700' : paymentStatus === 'pending' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                                    <div className={`mt-4 border p-4 ${paymentStatus === 'approved' ? 'border-green-200 bg-green-50 text-green-700' : paymentStatus === 'pending' ? 'border-yellow-200 bg-yellow-50 text-yellow-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
                                         {paymentStatusMessage}
                                     </div>
                                 ) : null}
@@ -1156,12 +1118,12 @@ function ReservarContent() {
                                         <p className="text-xs text-muted-foreground mb-3">
                                             Parcelamento aparece após preencher os primeiros dígitos do cartão.
                                         </p>
-                                        <div className="rounded-xl border border-border/60 bg-white p-4 shadow-sm">
+                                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-4">
                                             <div id={paymentContainerId} />
                                         </div>
                                     </div>
 
-                                    <div className="bg-white border border-border/60 rounded-xl p-4 shadow-sm">
+                                    <div className="border border-primary/10 bg-[color:var(--brand-white)] p-4">
                                         <div className="flex items-center justify-between mb-3">
                                             <h3 className="text-xs font-semibold text-primary uppercase tracking-widest">
                                                 Pix instantâneo
@@ -1186,7 +1148,7 @@ function ReservarContent() {
                                                     width={200}
                                                     height={200}
                                                     unoptimized
-                                                    className="h-[200px] w-[200px] rounded-lg bg-white p-2 border border-border/60"
+                                                    className="h-[200px] w-[200px] border border-primary/10 bg-[color:var(--brand-white)] p-2"
                                                 />
                                                 {pixData.qr_code ? (
                                                     <div className="w-full">
@@ -1230,7 +1192,7 @@ function ReservarContent() {
                 ) : (
                     <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="lg:hidden sticky top-20 z-30">
-                            <div className="rounded-xl border border-border/60 bg-white/95 backdrop-blur px-4 py-3 shadow-sm">
+                            <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3">
                                 <button
                                     type="button"
                                     className="flex w-full items-center justify-between gap-3 text-left"
@@ -1280,10 +1242,10 @@ function ReservarContent() {
                                 <ArrowLeft className="w-4 h-4" /> Voltar para seleção de quartos
                             </Button>
 
-                            <Card id="guest-form" className="border-border/50 shadow-md">
-                                <CardHeader className="bg-muted/30 border-b border-border/50 pb-6">
+                            <Card id="guest-form" className="rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
+                                <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] pb-6">
                                     <div className="flex items-center gap-3">
-                                        <div className="bg-primary/10 p-2 rounded-lg text-primary">
+                                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-2 text-primary">
                                             <User className="w-5 h-5" />
                                         </div>
                                         <div>
@@ -1345,7 +1307,7 @@ function ReservarContent() {
                                         </div>
 
                                         {appliedCoupon ? (
-                                            <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+                                            <div className="space-y-2 border border-emerald-200 bg-emerald-50/60 p-4">
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="text-sm font-medium text-emerald-800">Cupom aplicado</span>
                                                     <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
@@ -1356,7 +1318,7 @@ function ReservarContent() {
                                             </div>
                                         ) : null}
 
-                                        <div className="rounded-lg border border-border/60 bg-white p-3 text-xs text-muted-foreground">
+                                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-3 text-xs text-muted-foreground">
                                             <span className="font-medium text-foreground">Cancelamento:</span>{' '}
                                             Consulte prazos e condições antes de concluir a reserva.{' '}
                                             <Link
@@ -1370,7 +1332,7 @@ function ReservarContent() {
                                             .
                                         </div>
 
-                                        <div className="bg-secondary/5 p-4 rounded-lg border border-secondary/20">
+                                        <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
                                             <div className="flex items-start gap-3">
                                                 <input
                                                     type="checkbox"
@@ -1392,12 +1354,12 @@ function ReservarContent() {
                                         </div>
 
                                         {formMessage ? (
-                                            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                            <div role="alert" className="border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                                                 {formMessage}
                                             </div>
                                         ) : null}
 
-                                        <Button type="submit" className="w-full h-12 text-lg shadow-lg shadow-primary/20" size="lg" disabled={processing}>
+                                        <Button type="submit" className="h-12 w-full rounded-none text-lg shadow-none" size="lg" disabled={processing}>
                                             {processing ? (
                                                 <span className="flex items-center gap-2">
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -1419,8 +1381,8 @@ function ReservarContent() {
                         </div>
 
                         <div className="hidden lg:block lg:col-span-1">
-                            <Card className="sticky top-28 border-border/50 shadow-md overflow-hidden">
-                                <div className="bg-primary p-4 text-white text-center">
+                            <Card className="sticky top-28 overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
+                                <div className="bg-primary p-4 text-center text-white">
                                     <h3 className="font-bold text-lg">Resumo da Reserva</h3>
                                 </div>
                                 <div className="aspect-video relative">
@@ -1458,7 +1420,7 @@ function ReservarContent() {
                                         </div>
                                     </div>
 
-                                    <div className="bg-muted/30 p-4 rounded-lg mt-4">
+                                    <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-sm text-muted-foreground">{bookingDiscount > 0 ? 'Total com desconto' : 'Total'}</span>
                                             <span className="text-2xl font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
