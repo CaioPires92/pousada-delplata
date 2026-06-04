@@ -553,6 +553,32 @@ Nunca antes de:
 - Acomodações
 - Experiências
 
+Formato oficial:
+
+- usar bloco editorial horizontal, não carrossel de cards genéricos
+- selo discreto no topo com `UI Label`
+- headline editorial à esquerda com `Playfair Display`
+- imagem principal destacada à direita
+- faixa branca inferior com até `3` datas clicáveis
+- CTA final escuro integrado à seção
+
+Tokens e linguagem:
+
+- fundo principal em `cream`
+- bloco final em `forest`
+- acentos e ícones em `gold`
+- textos funcionais em `Inter`
+- títulos editoriais em `Playfair Display`
+- usar apenas raios do sistema: `16px` e `24px`
+
+Regras:
+
+- não usar slider/carrossel como padrão principal nessa seção
+- não empilhar múltiplos cards promocionais independentes
+- a data selecionada deve atualizar imagem e CTA da seção
+- o CTA deve apontar para a data ativa
+- a seção deve parecer campanha editorial, não listagem operacional
+
 ### 10. Final CTA
 
 Imagem emocional grande.
@@ -647,6 +673,13 @@ Preferir:
 - pouco chrome visual
 - permitir composição com Google, Booking e Tripadvisor quando reforçar confiança sem parecer widget
 - `EditorialStats` é o padrão obrigatório para esse tipo de composição visual
+
+### Seasonal Campaigns
+
+- `SpecialDatesSection` é o padrão oficial para datas especiais, feriados e campanhas sazonais da home
+- deve reutilizar tokens semânticos do sistema (`primary`, `secondary`, `background`, `font-display`, `font-sans`)
+- não recriar essa seção manualmente com outro grid, outra tipografia ou outra hierarquia visual
+- se houver variação futura, ela deve nascer como evolução deste padrão, não como bloco paralelo
 
 ---
 

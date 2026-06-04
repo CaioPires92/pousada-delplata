@@ -1,12 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, MoonStar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { ArrowRight, CalendarDays, MoonStar } from 'lucide-react';
 import { buildReservarUrl, type SpecialDateConfig } from '@/constants/specialDates';
 
 type SpecialDatesSectionProps = {
@@ -28,161 +25,146 @@ function formatSpecialDatePeriod(specialDate: SpecialDateConfig) {
 
     const fromDay = String(from.getUTCDate()).padStart(2, '0');
     const toDay = String(to.getUTCDate()).padStart(2, '0');
-    const month = monthFormatter.format(from).replace('.', '');
+    const month = monthFormatter.format(from).replace('.', '').toUpperCase();
+
     if (fromDay === toDay) return `${fromDay} ${month}`;
-    return `${fromDay}-${toDay} ${month}`;
+    return `${fromDay} - ${toDay} ${month}`;
+}
+
+function getSpecialDateHref(specialDate: SpecialDateConfig) {
+    return specialDate.useBaseReservarPath
+        ? '/reservar'
+        : buildReservarUrl({
+            checkIn: specialDate.dateFrom,
+            checkOut: specialDate.dateTo,
+            adults: 2,
+            children: 0,
+        });
 }
 
 export default function SpecialDatesSection({ dates, onDateClick }: SpecialDatesSectionProps) {
-    const enabledDates = dates.filter((item) => item.enabled);
-    const sliderRef = useRef<HTMLDivElement | null>(null);
-    const [canScrollPrev, setCanScrollPrev] = useState(false);
-    const [canScrollNext, setCanScrollNext] = useState(enabledDates.length > 1);
+    const enabledDates = useMemo(
+        () => dates.filter((item) => item.enabled).sort((a, b) => a.dateFrom.localeCompare(b.dateFrom)).slice(0, 3),
+        [dates]
+    );
+    const [activeDateId, setActiveDateId] = useState(enabledDates[0]?.id ?? null);
 
-    const updateScrollState = useCallback(() => {
-        const container = sliderRef.current;
-        if (!container) {
-            setCanScrollPrev(false);
-            setCanScrollNext(false);
-            return;
-        }
+    const activeDate = enabledDates.find((item) => item.id === activeDateId) ?? enabledDates[0] ?? null;
 
-        const maxScrollLeft = container.scrollWidth - container.clientWidth;
-        setCanScrollPrev(container.scrollLeft > 4);
-        setCanScrollNext(container.scrollLeft < maxScrollLeft - 4);
-    }, []);
+    if (!activeDate) return null;
 
-    const handleScroll = useCallback((direction: 'prev' | 'next') => {
-        const container = sliderRef.current;
-        if (!container) return;
-        const offset = Math.max(320, Math.round(container.clientWidth * 0.9));
-        container.scrollBy({
-            left: direction === 'next' ? offset : -offset,
-            behavior: 'smooth',
-        });
-    }, []);
-
-    useEffect(() => {
-        const container = sliderRef.current;
-        if (!container) return;
-        const frame = window.requestAnimationFrame(() => {
-            updateScrollState();
-        });
-
-        const onScroll = () => updateScrollState();
-        const onResize = () => updateScrollState();
-
-        container.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', onResize);
-        return () => {
-            window.cancelAnimationFrame(frame);
-            container.removeEventListener('scroll', onScroll);
-            window.removeEventListener('resize', onResize);
-        };
-    }, [enabledDates.length, updateScrollState]);
-
-    if (enabledDates.length === 0) return null;
+    const minNightsLabel = activeDate.minNights
+        ? `Estadia mínima ${activeDate.minNights} noite${activeDate.minNights > 1 ? 's' : ''}`
+        : null;
+    const activeHref = getSpecialDateHref(activeDate);
 
     return (
-        <section className="border-b border-border/60 bg-slate-50/80 py-12 md:py-14">
-            <div className="container space-y-8">
-                <div className="space-y-4 text-center">
-                    <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border/70 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-sm">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <CalendarDays className="h-3.5 w-3.5" />
-                        </span>
-                        Datas especiais
+        <section className="border-b border-primary/10 bg-background py-14 md:py-20">
+            <div className="container">
+                <div className="mx-auto max-w-[1180px]">
+                    <div className="mb-8 flex justify-center md:mb-10">
+                        <div className="inline-flex items-center gap-3 rounded-full border border-secondary/80 bg-white/70 px-5 py-2 font-sans text-[0.78rem] font-medium uppercase tracking-[0.16em] text-primary/80">
+                            <CalendarDays className="h-4 w-4 text-secondary" strokeWidth={1.8} />
+                            Datas especiais
+                        </div>
                     </div>
-                    <h2 className="text-2xl font-bold font-heading text-slate-900 md:text-3xl">Próximas Datas Especiais</h2>
-                    <p className="mx-auto max-w-2xl text-sm text-muted-foreground md:text-base">
-                        Alta procura para os próximos feriados. Garanta sua hospedagem.
-                    </p>
-                    <Separator />
-                </div>
 
-                <div className="flex items-center justify-end gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleScroll('prev')}
-                        disabled={!canScrollPrev}
-                        aria-label="Ver datas anteriores"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleScroll('next')}
-                        disabled={!canScrollNext}
-                        aria-label="Ver próximas datas"
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
+                    <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.55fr)] lg:items-center lg:gap-14">
+                        <div className="max-w-[23rem] space-y-6 xl:max-w-[24rem]">
+                            <h2 className="max-w-[11ch] font-display text-[2.55rem] font-medium leading-[0.93] text-primary sm:text-[3.05rem] lg:text-[3.6rem] xl:text-[3.85rem]">
+                                Próximos feriados com disponibilidade
+                            </h2>
+                            <div className="h-1 w-20 rounded-full bg-secondary" />
+                            <p className="max-w-[21rem] font-sans text-[1.04rem] leading-8 text-foreground/72">
+                                Planeje sua estadia nos próximos feriados e garanta momentos inesquecíveis em Serra Negra.
+                            </p>
+                        </div>
 
-                <div
-                    ref={sliderRef}
-                    className="flex items-stretch snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                >
-                    {enabledDates.map((specialDate) => {
-                        const href = specialDate.useBaseReservarPath
-                            ? '/reservar'
-                            : buildReservarUrl({
-                                checkIn: specialDate.dateFrom,
-                                checkOut: specialDate.dateTo,
-                                adults: 2,
-                                children: 0,
-                            });
-                        const minNightsLabel = specialDate.minNights
-                            ? `Estadia mínima ${specialDate.minNights} noite${specialDate.minNights > 1 ? 's' : ''}`
-                            : null;
+                        <div className="relative overflow-hidden rounded-lg bg-secondary/12 shadow-[0_24px_60px_rgba(56,44,20,0.12)] lg:max-w-[52rem]">
+                            {activeDate.image ? (
+                                <div className="relative aspect-[1.3/1] min-h-[320px] w-full lg:aspect-[1.38/1]">
+                                    <Image
+                                        src={activeDate.image}
+                                        alt={activeDate.title}
+                                        fill
+                                        sizes="(max-width: 1024px) 100vw, 62vw"
+                                        className="object-cover"
+                                        quality={82}
+                                    />
+                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,9,9,0.04)_0%,rgba(9,9,9,0.16)_100%)]" />
+                                </div>
+                            ) : (
+                                <div className="flex min-h-[320px] items-center justify-center bg-[radial-gradient(circle_at_top,rgba(187,184,99,0.24),transparent_45%),linear-gradient(180deg,rgba(187,184,99,0.16)_0%,rgba(187,184,99,0.08)_100%)]">
+                                    <CalendarDays className="h-14 w-14 text-secondary" strokeWidth={1.5} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
-                        return (
-                            <article
-                                key={specialDate.id}
-                                className="relative h-[500px] w-[84%] shrink-0 snap-start rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg sm:h-[520px] sm:w-[66%] md:w-[48%] lg:h-[540px] lg:w-[32%]"
-                            >
-                                {specialDate.image ? (
-                                    <div className="relative w-full h-44 overflow-hidden rounded-t-xl sm:h-52 lg:h-56">
-                                        <Image
-                                            src={specialDate.image}
-                                            alt={specialDate.title}
-                                            width={1200}
-                                            height={675}
-                                            className="h-full w-full object-cover"
-                                            sizes="(max-width: 768px) 100vw, 33vw"
-                                        />
-                                    </div>
-                                ) : null}
+                    <div className="mt-10 overflow-hidden rounded-lg border border-primary/10 bg-white/88 shadow-[0_16px_40px_rgba(56,44,20,0.08)]">
+                        <div className="grid md:grid-cols-3">
+                            {enabledDates.map((specialDate, index) => {
+                                const isActive = specialDate.id === activeDate.id;
 
-                                <div className="p-4 pb-24">
-                                    <Badge variant="secondary" className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-700">
-                                        <CalendarDays className="h-3.5 w-3.5" />
-                                        {formatSpecialDatePeriod(specialDate)}
-                                    </Badge>
-                                    <h3 className="min-h-[3.25rem] text-lg font-semibold text-slate-900 line-clamp-2">{specialDate.title}</h3>
-                                    <p className="mt-2 min-h-[3rem] overflow-hidden text-sm text-slate-600 line-clamp-2">{specialDate.description}</p>
+                                return (
+                                    <button
+                                        key={specialDate.id}
+                                        type="button"
+                                        onClick={() => setActiveDateId(specialDate.id)}
+                                        aria-label={`${formatSpecialDatePeriod(specialDate)} ${specialDate.title}`}
+                                        className={`flex w-full items-center gap-5 px-6 py-7 text-left transition-colors duration-200 md:px-7 ${
+                                            isActive ? 'bg-secondary/10' : 'bg-transparent hover:bg-secondary/5'
+                                        } ${index < enabledDates.length - 1 ? 'border-b border-primary/10 md:border-b-0 md:border-r md:border-primary/10' : ''}`}
+                                    >
+                                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-secondary/12 text-secondary">
+                                            <CalendarDays className="h-7 w-7" strokeWidth={1.6} />
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span className="block font-sans text-[0.88rem] font-semibold uppercase tracking-[0.12em] text-primary/75">
+                                                {formatSpecialDatePeriod(specialDate)}
+                                            </span>
+                                            <span className="mt-1 block font-display text-[1.15rem] font-medium leading-[1.15] text-foreground">
+                                                {specialDate.title}
+                                            </span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="mt-6 rounded-lg bg-primary px-6 py-6 text-primary-foreground shadow-[0_24px_56px_rgba(25,36,30,0.2)] md:px-10 md:py-8">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-4">
+                                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-secondary/40 bg-white/5 text-secondary">
+                                    <CalendarDays className="h-7 w-7" strokeWidth={1.7} />
+                                </span>
+                                <div className="space-y-1.5">
+                                    <p className="font-display text-[1.7rem] font-medium leading-tight text-white">
+                                        Consulte disponibilidade para essas datas
+                                    </p>
+                                    <p className="font-sans text-[1rem] leading-7 text-white/78">
+                                        {activeDate.bannerLabel || activeDate.description}
+                                    </p>
                                     {minNightsLabel ? (
-                                        <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                                            <MoonStar className="h-3.5 w-3.5" />
+                                        <div className="inline-flex items-center gap-2 pt-1 font-sans text-sm text-white/78">
+                                            <MoonStar className="h-4 w-4 text-secondary" strokeWidth={1.8} />
                                             <span>{minNightsLabel}</span>
                                         </div>
                                     ) : null}
                                 </div>
+                            </div>
 
-                                <div className="absolute left-4 right-4 bottom-4">
-                                    <Button asChild className="h-11 w-full rounded-xl focus-visible:ring-2 focus-visible:ring-offset-2">
-                                        <Link href={href} onClick={() => onDateClick?.(specialDate)}>
-                                            Ver disponibilidade
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </article>
-                        );
-                    })}
+                            <Link
+                                href={activeHref}
+                                onClick={() => onDateClick?.(activeDate)}
+                                className="inline-flex h-16 items-center justify-center gap-4 rounded-md border border-secondary/60 px-8 font-sans text-[0.95rem] font-semibold uppercase tracking-[0.12em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/5 hover:shadow-[0_18px_32px_rgba(0,0,0,0.14)] lg:min-w-[320px]"
+                            >
+                                Ver disponibilidade
+                                <ArrowRight className="h-5 w-5 text-secondary" strokeWidth={1.8} />
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
