@@ -8,7 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
-import { Trees, Coffee, Waves, ShieldCheck, UtensilsCrossed, ArrowRight } from "lucide-react";
+import { Waves, Coffee, Trees, ShieldCheck, UtensilsCrossed, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   gaEvent,
@@ -43,6 +43,24 @@ const siteImages = {
   breakfast: {
     src: "/fotos/restaurante/DSC_0056.jpg",
     alt: "Café da manhã da pousada",
+  },
+  experiences: {
+    pool: {
+      src: "/fotos/piscina-aptos/DJI_0863.jpg",
+      alt: "Piscina da Pousada Delplata",
+    },
+    breakfast: {
+      src: "/fotos/restaurante/IMG_0025.webp",
+      alt: "Mesa de café da manhã da Pousada Delplata",
+    },
+    family: {
+      src: "/fotos/jardim-aptos/DJI_0904.jpg",
+      alt: "Área verde da Pousada Delplata para famílias",
+    },
+    nature: {
+      src: "/fotos/jardim-aptos/DSC_0267.jpg",
+      alt: "Jardins da Pousada Delplata em Serra Negra",
+    },
   },
   cta: {
     src: "/fotos/piscina-aptos/DJI_0908.jpg",
@@ -95,12 +113,32 @@ export default function HomeContent() {
     }
   ];
 
-  const quickBenefits = [
-    "Piscina",
-    "Café da manhã diário",
-    "Ambiente familiar",
-    "Melhor tarifa garantida",
-  ];
+  const experienceCards = [
+    {
+      title: "Piscina",
+      description: "Adulto e infantil, para todos os momentos da estadia.",
+      image: siteImages.experiences.pool,
+      icon: Waves,
+    },
+    {
+      title: "Café da manhã",
+      description: "Completo, fresco e feito com carinho todos os dias.",
+      image: siteImages.experiences.breakfast,
+      icon: Coffee,
+    },
+    {
+      title: "Lazer em família",
+      description: "Espaços acolhedores para relaxar e aproveitar juntos.",
+      image: siteImages.experiences.family,
+      icon: Trees,
+    },
+    {
+      title: "Contato com a natureza",
+      description: "Ar puro, jardins amplos e o clima tranquilo da serra.",
+      image: siteImages.experiences.nature,
+      icon: ShieldCheck,
+    },
+  ] as const;
 
   const WHATSAPP_PHONE = "5519999654866";
   const WHATSAPP_MESSAGE = "Olá! Tenho uma dúvida sobre a hospedagem. Já consultei no site, pode me ajudar?";
@@ -233,37 +271,48 @@ export default function HomeContent() {
       {/* Quick Benefits Section */}
       <section id="sobre" className="bg-background py-10 md:py-12 border-b border-border/60">
         <div className="container">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 lg:gap-8 max-w-6xl mx-auto">
-            {quickBenefits.map((benefit) => (
-              <div
-                key={benefit}
-                className="group flex items-center justify-center gap-4 text-left"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center text-[#b58b58] transition-colors group-hover:text-[#a97b42]">
-                  {benefit === "Piscina" ? (
-                    <Waves className="h-10 w-10" aria-hidden="true" />
-                  ) : benefit === "Café da manhã diário" ? (
-                    <Coffee className="h-10 w-10" aria-hidden="true" />
-                  ) : benefit === "Ambiente familiar" ? (
-                    <Trees className="h-10 w-10" aria-hidden="true" />
-                  ) : (
-                    <ShieldCheck className="h-10 w-10" aria-hidden="true" />
-                  )}
-                </span>
-                <div className="min-w-0">
-                  <p className="font-sans text-[1.03rem] font-semibold leading-6 text-[#1d1b19]">{benefit}</p>
-                  <p className="mt-1 font-sans text-[0.98rem] leading-6 text-[#1d1b19]/72">
-                    {benefit === "Piscina"
-                      ? "Piscina para adultos e crianças, com conforto para toda a família."
-                      : benefit === "Café da manhã diário"
-                        ? "Completo, fresco e servido com carinho todos os dias."
-                        : benefit === "Ambiente familiar"
-                          ? "Uma estadia acolhedora para relaxar e aproveitar juntos."
-                          : "Melhor tarifa garantida com reserva direta e atendimento próximo."}
-                  </p>
-                </div>
-              </div>
-            ))}
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-8 text-center">
+              <p className="font-accent text-[0.62rem] font-medium uppercase tracking-[0.28em] text-[#b58b58]">
+                Experiências
+              </p>
+              <h2 className="mt-2 font-display text-[2rem] leading-tight text-[#1d1b19]">
+                Momentos para viver e lembrar
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+              {experienceCards.map((card) => (
+                <article
+                  key={card.title}
+                  className="group"
+                >
+                  <div className="relative aspect-[1.5/1] overflow-hidden rounded-[18px]">
+                    <Image
+                      src={card.image.src}
+                      alt={card.image.alt}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+                      quality={76}
+                      className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/28 via-transparent to-transparent" />
+                  </div>
+                  <div className="relative z-10 -mt-5 mb-3 flex justify-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2a271f] shadow-[0_10px_22px_rgba(17,16,13,0.28)] ring-4 ring-[#f7f3ec]">
+                      <card.icon className="h-[18px] w-[18px] text-[#d1b07c]" strokeWidth={1.8} />
+                    </div>
+                  </div>
+                  <div className="space-y-2 px-1 text-left">
+                    <h3 className="font-sans text-[1.03rem] font-semibold leading-6 text-[#1d1b19]">
+                      {card.title}
+                    </h3>
+                    <p className="font-sans text-[0.92rem] leading-6 text-[#1d1b19]/72">
+                      {card.description}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
