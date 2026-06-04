@@ -7,10 +7,15 @@ export const SOCIAL_PROOF_RATINGS = {
     score: 8.6,
     reviews: 1378,
   },
+  tripadvisor: {
+    score: 4.3,
+    reviews: 84,
+  },
 } as const;
 
 const TOTAL_REVIEWS_ROUNDED_TO_HUNDREDS =
   Math.floor((SOCIAL_PROOF_RATINGS.google.reviews + SOCIAL_PROOF_RATINGS.booking.reviews) / 100) * 100;
 
 export const SOCIAL_PROOF_TOTAL_LABEL = `+${new Intl.NumberFormat("pt-BR").format(TOTAL_REVIEWS_ROUNDED_TO_HUNDREDS)} avaliações reais`;
+export const HOTEL_EXPERIENCE_LABEL = "+15 anos de história";
 export const BEST_RATE_GUARANTEE_LABEL = "Melhor tarifa garantida no site oficial";

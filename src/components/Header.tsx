@@ -46,6 +46,8 @@ export default function Header() {
 
     if (pathname.startsWith('/admin')) return null;
 
+    const isHomeHero = pathname === "/" && isTransparent;
+
     return (
         <motion.header
             initial={{ y: -100 }}
@@ -57,12 +59,12 @@ export default function Header() {
                 }`}
         >
             <div className="container">
-                <div className="flex items-center justify-between h-24">
+                <div className={`flex items-center justify-between ${isHomeHero ? "h-28 lg:h-32" : "h-24"}`}>
                     {/* Logo */}
                     <Link
                         href="/"
                         onClick={handleHomeClick}
-                        className="relative h-24 w-80 transition-opacity hover:opacity-90"
+                        className={`relative transition-opacity hover:opacity-90 ${isHomeHero ? "h-20 w-44 sm:h-24 sm:w-56 lg:h-28 lg:w-64" : "h-24 w-80"}`}
                     >
                         <Image
                             src="/fotos/logo.png"
@@ -75,20 +77,30 @@ export default function Header() {
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center gap-8">
+                    <nav className={`hidden md:flex items-center ${isHomeHero ? "gap-5 lg:gap-9" : "gap-8"}`}>
                         {navLinks.map((link) => (
                             <Link
-                                key={link.href}
+                                key={`${link.href}-${link.label}`}
                                 href={link.href}
-                                className={`font-medium transition-colors duration-300 hover:text-secondary ${!isTransparent ? "text-primary" : "text-white"
+                                className={`transition-colors duration-300 hover:text-secondary ${isHomeHero
+                                    ? "font-sans text-[11px] font-medium uppercase tracking-[0.28em] text-[#d6c089] drop-shadow-[0_1px_6px_rgba(0,0,0,0.45)]"
+                                    : !isTransparent
+                                        ? "font-sans font-medium text-primary"
+                                        : "font-sans font-medium text-white"
                                     }`}
                             >
                                 {link.label}
                             </Link>
                         ))}
-                        <Button asChild variant={!isTransparent ? "default" : "secondary"}>
+                        <Button
+                            asChild
+                            variant={!isTransparent ? "default" : "secondary"}
+                            className={isHomeHero
+                                ? "h-14 rounded-sm border border-secondary/70 bg-transparent px-6 font-sans text-[11px] font-semibold uppercase tracking-[0.28em] text-white shadow-none transition-all duration-300 hover:-translate-y-0.5 hover:border-secondary hover:bg-secondary/12 hover:text-white hover:shadow-[0_10px_24px_rgba(187,184,99,0.12)]"
+                                : ""}
+                        >
                             <Link href="/reservar" onClick={() => trackClickReservar('header_desktop')}>
-                                Reservar
+                                Reservas
                             </Link>
                         </Button>
                     </nav>
@@ -112,7 +124,7 @@ export default function Header() {
                     >
                         {navLinks.map((link) => (
                             <Link
-                                key={link.href}
+                                key={`${link.href}-${link.label}`}
                                 href={link.href}
                                 className="block text-primary font-medium hover:text-secondary transition-colors"
                                 onClick={() => setIsMobileMenuOpen(false)}

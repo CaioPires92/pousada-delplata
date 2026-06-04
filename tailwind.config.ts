@@ -16,12 +16,12 @@ const config: Config = {
     			'2xl': '1400px'
     		}
     	},
-    	extend: {
-    		colors: {
-    			primary: {
-    				DEFAULT: '#283223',
-    				foreground: '#FFFFFF'
-    			},
+    		extend: {
+    			colors: {
+    				primary: {
+    					DEFAULT: '#283223',
+    					foreground: '#FFFFFF'
+    				},
     			secondary: {
     				DEFAULT: '#BBB863',
     				foreground: '#283223'
@@ -63,25 +63,29 @@ const config: Config = {
     				'5': 'hsl(var(--chart-5))'
     			}
     		},
-    		borderRadius: {
-    			lg: 'var(--radius)',
-    			md: 'calc(var(--radius) - 2px)',
-    			sm: 'calc(var(--radius) - 4px)'
-    		},
-    		fontFamily: {
-    			sans: [
-    				'var(--font-open-sans)',
-    				'sans-serif'
+    			borderRadius: {
+    				lg: '24px',
+    				md: '16px',
+    				sm: '8px'
+    			},
+    			fontFamily: {
+    				sans: [
+    					'var(--font-inter)',
+    					'sans-serif'
+    				],
+    				heading: [
+    					'var(--font-inter)',
+    					'sans-serif'
+    				],
+    			display: [
+    				'var(--font-playfair-display)',
+    				'serif'
     			],
-    			heading: [
-    				'var(--font-raleway)',
-    				'sans-serif'
-    			],
-    			accent: [
-    				'var(--font-poppins)',
-    				'sans-serif'
-    			]
-    		},
+    				accent: [
+    					'var(--font-inter)',
+    					'sans-serif'
+    				]
+    			},
     		keyframes: {
     			'accordion-down': {
     				from: {

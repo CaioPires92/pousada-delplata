@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Open_Sans, Raleway, Poppins } from "next/font/google";
+import { Inter, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 
 import Footer from "@/components/Footer";
@@ -15,22 +15,16 @@ import {
 
 import "./globals.css";
 
-const openSans = Open_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-open-sans",
+  variable: "--font-inter",
   display: "swap",
 });
 
-const raleway = Raleway({
+const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
-  variable: "--font-raleway",
-  display: "swap",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-poppins",
+  weight: ["500", "600", "700"],
+  variable: "--font-playfair-display",
   display: "swap",
 });
 
@@ -84,7 +78,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${openSans.variable} ${raleway.variable} ${poppins.variable} font-sans antialiased`}
+        className={`${inter.variable} ${playfairDisplay.variable} font-sans antialiased`}
       >
         <script
           type="application/ld+json"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { motion } from "framer-motion";
 
@@ -9,11 +9,10 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SearchWidget from "@/components/SearchWidget";
-import { BadgeCheck, Waves, UtensilsCrossed, ArrowRight, Coffee, Users, X } from "lucide-react";
+import { BadgeCheck, Waves, UtensilsCrossed, Coffee, Users, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   gaEvent,
-  trackClickReservarHero,
   trackClickReservarFinal,
   trackClickWhatsAppFinal,
 } from "@/lib/analytics";
@@ -107,17 +106,10 @@ export default function HomeContent() {
   const WHATSAPP_PHONE = "5519999654866";
   const WHATSAPP_MESSAGE = "Olá! Tenho uma dúvida sobre a hospedagem. Já consultei no site, pode me ajudar?";
   const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-  const HERO_RESERVA_MICROCOPY = "Consulte disponibilidade em tempo real e garanta a melhor tarifa.";
-  const RESERVA_INTERACTION_EVENT = "reservar-cta-interaction";
   const enabledSpecialDates = useMemo(
     () => SPECIAL_DATES.filter((specialDate) => specialDate.enabled),
     []
   );
-
-  const handleHeroPrimaryCtaClick = () => {
-    trackClickReservarHero("hero");
-    window.dispatchEvent(new CustomEvent(RESERVA_INTERACTION_EVENT));
-  };
 
   const handleSpecialDateClick = (specialDateId: string) => {
     gaEvent("home_special_dates_click", { special_date_id: specialDateId });
@@ -127,7 +119,7 @@ export default function HomeContent() {
     <main className="min-h-screen">
 
       {/* Hero Section with Background Image */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative flex h-screen w-full items-end overflow-hidden bg-[#090909]">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
@@ -135,61 +127,108 @@ export default function HomeContent() {
             alt={siteImages.hero.alt}
             fill
             sizes="100vw"
-            className="object-cover"
-            quality={82}
+            className="object-cover object-center"
+            quality={88}
             priority
           />
-          <div className="absolute inset-0 bg-black/45" />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-primary/40 to-primary/50" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,5,5,0.9)_0%,rgba(8,8,8,0.72)_30%,rgba(10,9,8,0.46)_56%,rgba(4,4,4,0.7)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_34%,rgba(181,126,57,0.22),transparent_34%),radial-gradient(circle_at_76%_72%,rgba(203,149,79,0.14),transparent_32%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,3,3,0.78)_0%,rgba(3,3,3,0.38)_30%,rgba(3,3,3,0.44)_62%,rgba(3,3,3,0.82)_100%)]" />
         </div>
 
-        {/* Animated background pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 2px 2px, white 1px, transparent 0)`,
-            backgroundSize: '40px 40px'
-          }} />
+        <div className="absolute inset-0 opacity-[0.16] mix-blend-screen">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.75) 1px, transparent 0)",
+              backgroundSize: "34px 34px",
+            }}
+          />
         </div>
 
         <motion.div
-          className="container relative z-10 text-center space-y-7 pt-28 pb-28 md:py-20"
+          className="container relative z-10 flex h-screen flex-col justify-center pb-12 pt-28 sm:pb-14 lg:pb-16 lg:pt-32"
           initial="hidden"
           animate="visible"
           variants={containerVariants}
         >
-          <motion.h1 variants={itemVariants} className="text-4xl md:text-6xl font-bold font-heading leading-tight text-white">
-            Pousada familiar em <span className="text-secondary">Serra Negra</span>
-          </motion.h1>
+          <div className="grid gap-8 lg:min-h-[64vh] lg:grid-cols-[minmax(0,620px)_1fr] lg:items-center">
+            <motion.div
+              variants={containerVariants}
+              className="max-w-[34rem] space-y-6 pb-2 text-left sm:space-y-7"
+            >
+              <motion.p
+                variants={itemVariants}
+                className="font-accent text-[0.7rem] font-medium uppercase tracking-[0.42em] text-secondary/90"
+              >
+                Serra Negra · SP
+              </motion.p>
 
-          <motion.p variants={itemVariants} className="text-xl md:text-3xl font-medium text-white max-w-3xl mx-auto">
-            Conforto, lazer e ótima localização para sua família.
-          </motion.p>
+              <motion.h1
+                variants={itemVariants}
+                className="max-w-[12ch] font-display text-[3.4rem] font-medium leading-[0.9] text-white sm:text-[4.7rem] lg:text-[5.8rem]"
+              >
+                Seu refúgio em Serra Negra
+              </motion.h1>
 
-          <motion.div variants={itemVariants}>
-            <SocialProofBadges className="mt-1" />
-          </motion.div>
+              <motion.p
+                variants={itemVariants}
+                className="max-w-xl text-base leading-8 text-[#e6d9bc] drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:text-lg"
+              >
+                Conforto, natureza e hospitalidade em um só lugar para você viver momentos inesquecíveis.
+              </motion.p>
 
-          <motion.div variants={itemVariants} className="max-w-7xl mx-auto mt-8 mb-8 md:mb-0">
-            <SearchWidget
-              ctaMicrocopy={HERO_RESERVA_MICROCOPY}
-              onPrimaryCtaClick={handleHeroPrimaryCtaClick}
-            />
-          </motion.div>
+              <motion.div variants={itemVariants} className="flex flex-wrap gap-3 pt-2">
+                <Button asChild className="h-12 rounded-2xl bg-[#d1b07c] px-6 font-sans text-sm font-semibold text-[#241910] hover:bg-[#d8b98a]">
+                  <Link href="/reservar">
+                    Ver disponibilidade
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="h-12 rounded-2xl border-white/25 bg-white/5 px-6 font-sans text-sm font-medium text-white backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/12 hover:text-white hover:shadow-[0_10px_24px_rgba(255,255,255,0.08)]">
+                  <Link href="/acomodacoes">
+                    Conheça a pousada
+                  </Link>
+                </Button>
+              </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 1 }}
-            className="absolute bottom-10 left-1/2 transform -translate-x-1/2 hidden md:block"
-          >
-            <div className="animate-bounce">
-              <svg className="w-6 h-6 text-white/60" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-                <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-              </svg>
-            </div>
-          </motion.div>
+            </motion.div>
+
+            <motion.div
+              variants={itemVariants}
+              className="hidden h-full items-end justify-end lg:flex"
+            >
+              <div className="flex h-full w-full items-end justify-end">
+                <div className="flex items-center gap-4 self-end pb-28 [writing-mode:vertical-rl]">
+                  <span className="font-accent text-[0.62rem] uppercase tracking-[0.35em] text-white/55">
+                    Scroll
+                  </span>
+                  <span className="h-16 w-px bg-white/28" />
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
         </motion.div>
 
+      </section>
+
+      <section className="bg-[#f7f3ec] py-10 md:py-12">
+        <div className="container">
+          <SocialProofBadges variant="light" className="max-w-5xl" />
+        </div>
+      </section>
+
+      <section id="booking" className="bg-[#f7f3ec] pb-16 md:pb-20">
+        <div className="container">
+          <div className="mx-auto max-w-6xl">
+            <SearchWidget
+              uiPreset="hero"
+              submitLabel="Ver disponibilidade"
+              submitLabelMobile="Buscar"
+              collapsible={false}
+            />
+          </div>
+        </div>
       </section>
 
       <SpecialDatesSection
@@ -198,7 +237,7 @@ export default function HomeContent() {
       />
 
       {/* Quick Benefits Section */}
-      <section className="bg-background py-10 md:py-12 border-b border-border/60">
+      <section id="sobre" className="bg-background py-10 md:py-12 border-b border-border/60">
         <div className="container">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto">
             {quickBenefits.map((benefit) => (
@@ -388,7 +427,7 @@ export default function HomeContent() {
                     Fazer reserva agora
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="h-12 text-lg px-8 bg-white/10 border-white text-white hover:bg-white hover:text-primary">
+                <Button asChild size="lg" variant="outline" className="h-12 border-white bg-white/10 px-8 text-lg text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white hover:text-primary hover:shadow-[0_12px_28px_rgba(255,255,255,0.12)]">
                   <Link
                     href={WHATSAPP_URL}
                     target="_blank"

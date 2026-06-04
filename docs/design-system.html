@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delplata Design System</title>
+  <style>
+    :root {
+      --forest: #283223;
+      --olive-gold: #bbb863;
+      --sand-gold: #d6c089;
+      --sand-gold-soft: #e6d9bc;
+      --cream: #f5f5f5;
+      --ink: #090909;
+      --card: #ffffff;
+      --muted: #f1f5f9;
+      --muted-foreground: #64748b;
+      --danger: #ef4444;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-xl: 28px;
+      --shadow-soft: 0 16px 40px rgba(15, 23, 42, 0.08);
+      --shadow-hero: 0 24px 70px rgba(7, 6, 4, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Open Sans", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(187, 184, 99, 0.18), transparent 30%),
+        linear-gradient(180deg, #f7f4ef 0%, #f3f1eb 100%);
+      color: var(--forest);
+    }
+
+    .page {
+      width: min(1200px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 48px 0 80px;
+    }
+
+    .hero {
+      padding: 48px;
+      border-radius: 32px;
+      background:
+        linear-gradient(135deg, rgba(12, 10, 8, 0.94), rgba(27, 22, 18, 0.88)),
+        radial-gradient(circle at top right, rgba(214, 192, 137, 0.18), transparent 35%);
+      color: white;
+      box-shadow: var(--shadow-hero);
+      margin-bottom: 32px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 0);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+
+    .hero > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--sand-gold);
+      margin: 0 0 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(48px, 7vw, 84px);
+      line-height: 0.92;
+      font-weight: 500;
+      max-width: 9ch;
+    }
+
+    .hero p {
+      max-width: 52ch;
+      color: var(--sand-gold-soft);
+      font-size: 20px;
+      line-height: 1.7;
+      margin: 20px 0 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 24px;
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(40, 50, 35, 0.08);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(12px);
+    }
+
+    .sidebar h2,
+    .content h2 {
+      margin: 0 0 16px;
+      font-family: "Raleway", Arial, sans-serif;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .sidebar a {
+      display: block;
+      color: var(--forest);
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .sidebar a:hover {
+      background: rgba(187, 184, 99, 0.14);
+    }
+
+    .content section {
+      margin-bottom: 24px;
+      padding: 28px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(40, 50, 35, 0.08);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .content section > p {
+      margin: 0 0 18px;
+      color: var(--muted-foreground);
+      line-height: 1.65;
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 16px;
+    }
+
+    .swatch {
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(40, 50, 35, 0.08);
+      background: white;
+    }
+
+    .swatch-color {
+      height: 110px;
+    }
+
+    .swatch-meta {
+      padding: 14px 16px;
+    }
+
+    .swatch-meta strong,
+    .token strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .swatch-meta span,
+    .token span {
+      color: var(--muted-foreground);
+      font-size: 14px;
+    }
+
+    .type-stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .type-card {
+      padding: 20px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(245,245,245,0.65), rgba(255,255,255,0.95));
+      border: 1px solid rgba(40, 50, 35, 0.08);
+    }
+
+    .type-card small {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 11px;
+    }
+
+    .display-font {
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(42px, 5vw, 64px);
+      line-height: 0.95;
+    }
+
+    .heading-font {
+      font-family: "Raleway", Arial, sans-serif;
+      font-size: 34px;
+      font-weight: 700;
+    }
+
+    .body-font {
+      font-family: "Open Sans", Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.7;
+    }
+
+    .accent-font {
+      font-family: "Poppins", Arial, sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .tokens {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .token {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fff, #faf9f6);
+      border: 1px solid rgba(40, 50, 35, 0.08);
+    }
+
+    .components {
+      display: grid;
+      gap: 18px;
+    }
+
+    .component-card {
+      padding: 22px;
+      border-radius: 24px;
+      border: 1px solid rgba(40, 50, 35, 0.08);
+      background: #fff;
+    }
+
+    .component-label {
+      font-family: "Poppins", Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin-bottom: 14px;
+    }
+
+    .button-row,
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font: 600 14px/1 "Poppins", Arial, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: default;
+    }
+
+    .btn-primary {
+      background: var(--forest);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--olive-gold);
+      color: var(--forest);
+    }
+
+    .btn-hero {
+      background: #d1b07c;
+      color: #241910;
+      border: 1px solid #d8bb8e;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.22);
+    }
+
+    .field {
+      display: grid;
+      gap: 10px;
+      max-width: 320px;
+    }
+
+    .field label {
+      font-family: "Poppins", Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+
+    .input {
+      height: 54px;
+      border-radius: 16px;
+      border: 1px solid rgba(40, 50, 35, 0.12);
+      padding: 0 16px;
+      font: 600 16px/1 "Open Sans", Arial, sans-serif;
+      color: var(--forest);
+      background: #fff;
+    }
+
+    .input-hero {
+      color: white;
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .hero-panel {
+      padding: 24px;
+      border-radius: var(--radius-xl);
+      background: rgba(12, 10, 8, 0.9);
+      border: 1px solid rgba(108, 87, 54, 0.75);
+      box-shadow: var(--shadow-hero);
+    }
+
+    .hero-panel .field label {
+      color: rgba(255,255,255,0.58);
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 8px 12px;
+      font: 600 13px/1 "Open Sans", Arial, sans-serif;
+    }
+
+    .chip-neutral {
+      background: rgba(40, 50, 35, 0.08);
+      color: var(--forest);
+    }
+
+    .chip-highlight {
+      background: rgba(187, 184, 99, 0.16);
+      color: var(--forest);
+    }
+
+    .note {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(214, 192, 137, 0.12);
+      color: #6a5638;
+      font-size: 14px;
+    }
+
+    @media (max-width: 960px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+
+      .page {
+        width: min(100vw - 24px, 1200px);
+        padding-top: 24px;
+      }
+
+      .hero,
+      .content section {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <p class="eyebrow">Pousada Delplata · Serra Negra</p>
+      <h1>Design System visual do site</h1>
+      <p>Este guia traduz as cores, tipografias e componentes já usados no projeto para uma referência mais clara, consultável e alinhada com a identidade premium da marca.</p>
+    </section>
+
+    <div class="grid">
+      <aside class="sidebar">
+        <h2>Navegação</h2>
+        <a href="#cores">Cores</a>
+        <a href="#tipografia">Tipografia</a>
+        <a href="#tokens">Tokens</a>
+        <a href="#componentes">Componentes</a>
+      </aside>
+
+      <main class="content">
+        <section id="cores">
+          <h2>Paleta</h2>
+          <p>O sistema combina uma base institucional em verde oliva com acentos dourados suaves e extensões mais quentes para a hero premium.</p>
+          <div class="palette">
+            <article class="swatch">
+              <div class="swatch-color" style="background:#283223;"></div>
+              <div class="swatch-meta">
+                <strong>Primary</strong>
+                <span>#283223 · verde floresta</span>
+              </div>
+            </article>
+            <article class="swatch">
+              <div class="swatch-color" style="background:#BBB863;"></div>
+              <div class="swatch-meta">
+                <strong>Secondary</strong>
+                <span>#BBB863 · oliva dourado</span>
+              </div>
+            </article>
+            <article class="swatch">
+              <div class="swatch-color" style="background:#d6c089;"></div>
+              <div class="swatch-meta">
+                <strong>Hero Gold</strong>
+                <span>#D6C089 · destaque da hero</span>
+              </div>
+            </article>
+            <article class="swatch">
+              <div class="swatch-color" style="background:#e6d9bc;"></div>
+              <div class="swatch-meta">
+                <strong>Hero Gold Soft</strong>
+                <span>#E6D9BC · texto secundário</span>
+              </div>
+            </article>
+            <article class="swatch">
+              <div class="swatch-color" style="background:#F5F5F5;"></div>
+              <div class="swatch-meta">
+                <strong>Background</strong>
+                <span>#F5F5F5 · fundo principal</span>
+              </div>
+            </article>
+            <article class="swatch">
+              <div class="swatch-color" style="background:#090909;"></div>
+              <div class="swatch-meta">
+                <strong>Hero Ink</strong>
+                <span>#090909 · base da hero</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="tipografia">
+          <h2>Tipografia</h2>
+          <p>O site usa quatro famílias com papéis bem definidos. O segredo da consistência aqui é não usar a serifada editorial em números, datas e UI funcional.</p>
+          <div class="type-stack">
+            <article class="type-card">
+              <small>Font Display · Playfair Display</small>
+              <div class="display-font">Seu refúgio em Serra Negra</div>
+            </article>
+            <article class="type-card">
+              <small>Font Heading · Raleway</small>
+              <div class="heading-font">Nossas acomodações e experiências</div>
+            </article>
+            <article class="type-card">
+              <small>Font Sans · Open Sans</small>
+              <div class="body-font">Conforto, natureza e hospitalidade em um só lugar para você viver momentos inesquecíveis, com leitura limpa e estável em qualquer contexto funcional.</div>
+            </article>
+            <article class="type-card">
+              <small>Font Accent · Poppins</small>
+              <div class="accent-font">Check-in · Reservas · Cupom · Explorar</div>
+            </article>
+          </div>
+        </section>
+
+        <section id="tokens">
+          <h2>Tokens principais</h2>
+          <p>Estes são os tokens mais relevantes para manter coerência na expansão do produto.</p>
+          <div class="tokens">
+            <article class="token">
+              <strong>Container</strong>
+              <span>Centralizado, `padding: 2rem`, máximo `1400px` no `2xl`</span>
+            </article>
+            <article class="token">
+              <strong>Radius</strong>
+              <span>`8px`, `12px`, `18px`, `28px` para UI premium</span>
+            </article>
+            <article class="token">
+              <strong>Shadow Soft</strong>
+              <span>Cards claros e superfícies institucionais</span>
+            </article>
+            <article class="token">
+              <strong>Shadow Hero</strong>
+              <span>Barra de reserva e popovers premium</span>
+            </article>
+            <article class="token">
+              <strong>Border padrão</strong>
+              <span>Suave, baixa opacidade, sem excesso de contraste</span>
+            </article>
+            <article class="token">
+              <strong>Glass Light</strong>
+              <span>Fundos translúcidos claros com blur e borda quente</span>
+            </article>
+          </div>
+        </section>
+
+        <section id="componentes">
+          <h2>Componentes</h2>
+          <p>Exemplos visuais dos padrões mais representativos que já aparecem no site.</p>
+          <div class="components">
+            <article class="component-card">
+              <div class="component-label">Botões</div>
+              <div class="button-row">
+                <button class="btn btn-primary">Reservar</button>
+                <button class="btn btn-secondary">Ver detalhes</button>
+                <button class="btn btn-hero">Ver disponibilidade</button>
+              </div>
+            </article>
+
+            <article class="component-card">
+              <div class="component-label">Inputs claros</div>
+              <div class="field">
+                <label>Nome completo</label>
+                <input class="input" value="Caio Ferreira" />
+              </div>
+            </article>
+
+            <article class="component-card" style="background:linear-gradient(135deg, rgba(12,10,8,0.96), rgba(27,22,18,0.9)); color:white;">
+              <div class="component-label" style="color:rgba(255,255,255,0.55);">Hero booking bar</div>
+              <div class="hero-panel">
+                <div class="field">
+                  <label>Check-in</label>
+                  <input class="input input-hero" value="03 jun 2026" />
+                </div>
+                <div class="note">Use valores com `font-sans`, labels com `font-accent` e CTA em dourado quente.</div>
+              </div>
+            </article>
+
+            <article class="component-card">
+              <div class="component-label">Chips e apoio visual</div>
+              <div class="chip-row">
+                <span class="chip chip-neutral">Piscina adulto + infantil</span>
+                <span class="chip chip-highlight">Melhor tarifa garantida</span>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
