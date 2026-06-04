@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Libre_Baskerville } from "next/font/google";
 import Script from "next/script";
 
 import Footer from "@/components/Footer";
@@ -21,9 +21,9 @@ const inter = Inter({
   display: "swap",
 });
 
-const playfairDisplay = Playfair_Display({
+const displaySerif = Libre_Baskerville({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["400", "700"],
   variable: "--font-playfair-display",
   display: "swap",
 });
@@ -78,7 +78,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${inter.variable} ${playfairDisplay.variable} font-sans antialiased`}
+        className={`${inter.variable} ${displaySerif.variable} font-sans antialiased`}
       >
         <script
           type="application/ld+json"

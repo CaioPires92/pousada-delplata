@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 :root {
+  --brand-forest: #283223;
+  --brand-gold: #bbb863;
+  --brand-cream: #f5f5f5;
+  --brand-white: #ffffff;
+  --brand-black: #090909;
+  --brand-whatsapp: #00e676;
+  --ink-soft: rgba(9, 9, 9, 0.82);
+  --forest-soft: rgba(40, 50, 35, 0.72);
+  --gold-soft: rgba(187, 184, 99, 0.18);
+  --line-light: rgba(255, 255, 255, 0.16);
+  --line-dark: rgba(40, 50, 35, 0.12);
   --background: 0 0% 96%;
   --foreground: 97 18% 17%;
   --card: 0 0% 100%;
@@ -56,9 +67,26 @@ body {
   background: hsl(var(--background));
 }
 @layer utilities {
+  .section-space-sm {
+    @apply py-14 md:py-20;
+  }
+
+  .section-space-md {
+    @apply py-16 md:py-24;
+  }
+
+  .section-space-lg {
+    @apply py-20 md:py-28;
+  }
+
+  .section-space-overlap {
+    @apply pb-16 pt-20 md:pb-24 md:pt-24;
+  }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

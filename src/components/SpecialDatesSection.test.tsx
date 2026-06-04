@@ -24,12 +24,12 @@ const baseDate: SpecialDateConfig = {
 describe('SpecialDatesSection', () => {
     it('não renderiza seção quando não há itens habilitados', () => {
         render(<SpecialDatesSection dates={[{ ...baseDate, enabled: false }]} />);
-        expect(screen.queryByText(/Próximos feriados com disponibilidade/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Próximos feriados/i)).not.toBeInTheDocument();
     });
 
     it('renderiza a versão editorial com CTA único', () => {
         render(<SpecialDatesSection dates={[baseDate]} />);
-        expect(screen.getByText(/Próximos feriados com disponibilidade/i)).toBeInTheDocument();
+        expect(screen.getByText(/Próximos feriados/i)).toBeInTheDocument();
         expect(screen.getByText('Corpus Christi')).toBeInTheDocument();
         expect(screen.getByAltText('Corpus Christi')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Ver disponibilidade/i })).toHaveAttribute(

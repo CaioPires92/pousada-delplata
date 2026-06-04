@@ -131,7 +131,7 @@ Usar somente duas famílias tipográficas.
 
 ### 4.1 Display Font
 
-`Playfair Display`
+`Libre Baskerville`
 
 Uso:
 
@@ -141,8 +141,7 @@ Uso:
 
 Pesos permitidos:
 
-- `500`
-- `600`
+- `400`
 - `700`
 
 Nunca usar para:
@@ -177,16 +176,16 @@ Pesos permitidos:
 
 #### Hero Display
 
-- família: `Playfair Display`
-- peso: `500`
+- família: `Libre Baskerville`
+- peso: `400`
 - tamanho: `56px` a `92px`
 - line-height: `0.9` a `0.98`
 - tracking: levemente negativo ou neutro
 
 #### Editorial Headline
 
-- família: `Playfair Display`
-- peso: `600`
+- família: `Libre Baskerville`
+- peso: `400`
 - tamanho: `40px` a `64px`
 - line-height: `1.0`
 
@@ -557,7 +556,7 @@ Formato oficial:
 
 - usar bloco editorial horizontal, não carrossel de cards genéricos
 - selo discreto no topo com `UI Label`
-- headline editorial à esquerda com `Playfair Display`
+- headline editorial à esquerda com `Libre Baskerville`
 - imagem principal destacada à direita
 - faixa branca inferior com até `3` datas clicáveis
 - CTA final escuro integrado à seção
@@ -568,7 +567,7 @@ Tokens e linguagem:
 - bloco final em `forest`
 - acentos e ícones em `gold`
 - textos funcionais em `Inter`
-- títulos editoriais em `Playfair Display`
+- títulos editoriais em `Libre Baskerville`
 - usar apenas raios do sistema: `16px` e `24px`
 
 Regras:
@@ -633,6 +632,9 @@ Botões:
 - UI font `Inter`
 - peso `600`
 - raio `16px`
+- hover com micro elevação (`-1px`)
+- hover com sombra suave e perceptível
+- hover nunca deve parecer agressivo ou “ecommerce”
 
 #### Secondary
 
@@ -647,6 +649,44 @@ Botões:
 - fundo `gold`
 - texto `forest` ou `black`
 - sensação de peça refinada, não botão agressivo
+- hover com escurecimento muito leve ou redução sutil de brilho
+- pode usar micro elevação desde que discreta
+
+#### Dark Surface CTA
+
+Uso:
+
+- navbar transparente sobre hero
+- CTA secundário sobre imagem
+- ações sobre fundos escuros ou fotografia
+
+Estilo:
+
+- fundo em `forest-soft`
+- texto `white`
+- borda em `gold` suave ou `line-light`
+- sem preto puro como base padrão
+
+Hover:
+
+- micro elevação (`-1px`)
+- fundo em `forest`
+- borda mais clara e perceptível
+- manter contraste alto sem parecer brilho artificial
+
+#### Button Motion Rules
+
+- todos os botões clicáveis devem ter estado `hover`
+- resposta visual mínima obrigatória:
+  - `translateY(-1px)` ou equivalente
+  - mudança sutil de fundo, borda ou sombra
+- duração recomendada: `200ms` a `300ms`
+- evitar:
+  - zoom perceptível
+  - bounce
+  - glow chamativo
+  - hover apenas por mudança quase imperceptível de opacidade
+- componentes com o mesmo contexto visual devem reutilizar o mesmo padrão de botão; não criar um hover diferente para cada seção sem motivo funcional
 
 ### Inputs
 
@@ -777,6 +817,39 @@ Depois:
 
 ## 18. Implementation Tokens
 
+### 18.1 Section Spacing Rules
+
+O espaçamento vertical entre seções deve ser padronizado por tokens semânticos.
+
+Nunca definir `py-*`, `pt-*` e `pb-*` de forma arbitrária em cada seção quando o caso de uso já existir abaixo.
+
+Tokens oficiais:
+
+- `section-space-sm`
+  - uso: seções compactas de apoio editorial
+  - mobile: `56px`
+  - desktop: `80px`
+- `section-space-md`
+  - uso: padrão para seções principais de conteúdo
+  - mobile: `64px`
+  - desktop: `96px`
+- `section-space-lg`
+  - uso: blocos emocionais de fechamento ou grandes CTAs
+  - mobile: `80px`
+  - desktop: `112px`
+- `section-space-overlap`
+  - uso: seção logo abaixo do hero com widget sobreposto
+  - mobile: `padding-top 80px`, `padding-bottom 64px`
+  - desktop: `padding-top 96px`, `padding-bottom 96px`
+
+Regras:
+
+- `section-space-md` é o padrão da home
+- não misturar espaçamentos diferentes entre seções equivalentes sem motivo funcional
+- seções com fotografia e CTA final podem subir para `section-space-lg`
+- blocos operacionais ou editoriais compactos podem usar `section-space-sm`
+- quando houver sobreposição de widget com hero, usar `section-space-overlap`
+
 Sugestão de tokens de marca:
 
 ```ts
@@ -796,9 +869,24 @@ export const radius = {
 };
 
 export const spacing = {
-  sectionSm: "120px",
-  sectionMd: "160px",
-  sectionLg: "220px",
+  sectionSm: {
+    mobile: "56px",
+    desktop: "80px",
+  },
+  sectionMd: {
+    mobile: "64px",
+    desktop: "96px",
+  },
+  sectionLg: {
+    mobile: "80px",
+    desktop: "112px",
+  },
+  sectionOverlap: {
+    paddingTopMobile: "80px",
+    paddingBottomMobile: "64px",
+    paddingTopDesktop: "96px",
+    paddingBottomDesktop: "96px",
+  },
 };
 ```
 
@@ -806,7 +894,7 @@ Sugestão de tipografia:
 
 ```ts
 export const typography = {
-  display: "Playfair Display",
+  display: "Libre Baskerville",
   ui: "Inter",
 };
 ```
