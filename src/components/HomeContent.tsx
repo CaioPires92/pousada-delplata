@@ -7,9 +7,8 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import SearchWidget from "@/components/SearchWidget";
-import { BadgeCheck, Waves, UtensilsCrossed, Coffee, Users, ArrowRight } from "lucide-react";
+import { Trees, Coffee, Waves, ShieldCheck, UtensilsCrossed, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   gaEvent,
@@ -97,7 +96,7 @@ export default function HomeContent() {
   ];
 
   const quickBenefits = [
-    "Piscina adulto + infantil",
+    "Piscina",
     "Café da manhã diário",
     "Ambiente familiar",
     "Melhor tarifa garantida",
@@ -231,38 +230,48 @@ export default function HomeContent() {
         </div>
       </section>
 
-      <SpecialDatesSection
-        dates={enabledSpecialDates}
-        onDateClick={(specialDate) => handleSpecialDateClick(specialDate.id)}
-      />
-
       {/* Quick Benefits Section */}
       <section id="sobre" className="bg-background py-10 md:py-12 border-b border-border/60">
         <div className="container">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 lg:gap-8 max-w-6xl mx-auto">
             {quickBenefits.map((benefit) => (
-              <Badge
-                variant="secondary"
+              <div
                 key={benefit}
-                className="group flex h-auto w-full items-center justify-start gap-2.5 rounded-full border border-border/60 bg-card/80 px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-card hover:shadow-md"
+                className="group flex items-center justify-center gap-4 text-left"
               >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
-                  {benefit === "Piscina adulto + infantil" ? (
-                    <Waves className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center text-[#b58b58] transition-colors group-hover:text-[#a97b42]">
+                  {benefit === "Piscina" ? (
+                    <Waves className="h-10 w-10" aria-hidden="true" />
                   ) : benefit === "Café da manhã diário" ? (
-                    <Coffee className="h-3.5 w-3.5" aria-hidden="true" />
+                    <Coffee className="h-10 w-10" aria-hidden="true" />
                   ) : benefit === "Ambiente familiar" ? (
-                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                    <Trees className="h-10 w-10" aria-hidden="true" />
                   ) : (
-                    <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    <ShieldCheck className="h-10 w-10" aria-hidden="true" />
                   )}
                 </span>
-                <span>{benefit}</span>
-              </Badge>
+                <div className="min-w-0">
+                  <p className="font-sans text-[1.03rem] font-semibold leading-6 text-[#1d1b19]">{benefit}</p>
+                  <p className="mt-1 font-sans text-[0.98rem] leading-6 text-[#1d1b19]/72">
+                    {benefit === "Piscina"
+                      ? "Piscina para adultos e crianças, com conforto para toda a família."
+                      : benefit === "Café da manhã diário"
+                        ? "Completo, fresco e servido com carinho todos os dias."
+                        : benefit === "Ambiente familiar"
+                          ? "Uma estadia acolhedora para relaxar e aproveitar juntos."
+                          : "Melhor tarifa garantida com reserva direta e atendimento próximo."}
+                  </p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
+
+      <SpecialDatesSection
+        dates={enabledSpecialDates}
+        onDateClick={(specialDate) => handleSpecialDateClick(specialDate.id)}
+      />
 
       {/* Accommodations Section */}
       <section className="py-16 md:py-20 bg-background">
