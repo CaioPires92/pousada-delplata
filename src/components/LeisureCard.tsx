@@ -51,7 +51,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
     return (
         <Fragment key={pathname}>
             <Card
-                className="group overflow-hidden border-none shadow-lg rounded-3xl h-full flex flex-col cursor-pointer transition-transform hover:-translate-y-1"
+                className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-none border border-primary/10 bg-white shadow-none transition-colors duration-200 hover:border-primary/20"
                 onClick={openGallery}
             >
                 <div className="relative h-72 overflow-hidden bg-gray-100">
@@ -70,27 +70,25 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                                 fill
                                 sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 420px"
                                 quality={74}
-                                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                className="object-cover"
                             />
                         </motion.div>
                     </AnimatePresence>
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(24,38,26,0.88)_0%,rgba(24,38,26,0.35)_42%,rgba(24,38,26,0.08)_72%,transparent_100%)]" />
 
-                    {/* Expand Icon Hint */}
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="bg-black/40 backdrop-blur-sm p-2 rounded-full text-white">
+                    <div className="absolute top-4 right-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        <div className="border border-white/20 bg-black/40 p-2 text-white backdrop-blur-sm">
                             <Maximize2 className="w-5 h-5" />
                         </div>
                     </div>
 
-                    {/* Navigation Arrows (Card) */}
                     {images.length > 1 && (
-                        <div className="absolute inset-0 flex items-center justify-between p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="absolute inset-0 flex items-center justify-between p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="bg-black/20 hover:bg-black/40 text-white rounded-full h-8 w-8 backdrop-blur-sm"
+                                className="h-8 w-8 rounded-none border border-white/20 bg-black/20 text-white backdrop-blur-sm hover:bg-black/40"
                                 onClick={prevImage}
                             >
                                 <ChevronLeft className="h-5 w-5" />
@@ -98,7 +96,7 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="bg-black/20 hover:bg-black/40 text-white rounded-full h-8 w-8 backdrop-blur-sm"
+                                className="h-8 w-8 rounded-none border border-white/20 bg-black/20 text-white backdrop-blur-sm hover:bg-black/40"
                                 onClick={nextImage}
                             >
                                 <ChevronRight className="h-5 w-5" />
@@ -106,7 +104,6 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                         </div>
                     )}
 
-                    {/* Dots Indicators */}
                     {images.length > 1 && (
                         <div className="absolute top-4 left-0 right-0 flex justify-center gap-1.5 pointer-events-none z-10">
                             {images.map((_, idx) => (
@@ -121,9 +118,9 @@ export function LeisureCard({ title, description, images }: LeisureCardProps) {
                         </div>
                     )}
 
-                    <div className="absolute bottom-0 left-0 p-6 text-white w-full pointer-events-none">
-                        <h3 className="text-xl font-bold font-heading mb-2">{title}</h3>
-                        <p className="text-white/90 text-sm leading-relaxed line-clamp-3">{description}</p>
+                    <div className="absolute bottom-0 left-0 z-[2] w-full p-6 text-white pointer-events-none">
+                        <h3 className="mb-2 font-sans text-[1.9rem] font-semibold leading-tight">{title}</h3>
+                        <p className="text-sm leading-relaxed text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.45)] line-clamp-2">{description}</p>
                     </div>
                 </div>
             </Card>

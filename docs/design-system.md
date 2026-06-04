@@ -127,25 +127,25 @@ O fluxo de reserva deve ser:
 
 ## 4. Typography System
 
-Usar somente duas famílias tipográficas.
+Usar `Inter` como base do site inteiro e `Bodoni Moda` apenas no título principal da hero da home.
 
-### 4.1 Display Font
+### 4.1 Hero Display Font
 
-`Libre Baskerville`
+`Bodoni Moda`
 
 Uso:
 
-- hero titles
-- headlines editoriais
-- momentos de sofisticação
+- somente no título principal da hero da home
 
 Pesos permitidos:
 
-- `400`
 - `700`
 
 Nunca usar para:
 
+- headings internos de páginas
+- cards
+- blog
 - datas
 - números de hóspedes
 - labels de formulário
@@ -159,6 +159,8 @@ Nunca usar para:
 Uso:
 
 - navegação
+- títulos de seções
+- títulos de páginas internas
 - botões
 - formulários
 - corpo de texto
@@ -176,16 +178,16 @@ Pesos permitidos:
 
 #### Hero Display
 
-- família: `Libre Baskerville`
-- peso: `400`
+- família: `Bodoni Moda`
+- peso: `700`
 - tamanho: `56px` a `92px`
 - line-height: `0.9` a `0.98`
 - tracking: levemente negativo ou neutro
 
 #### Editorial Headline
 
-- família: `Libre Baskerville`
-- peso: `400`
+- família: `Inter`
+- peso: `600`
 - tamanho: `40px` a `64px`
 - line-height: `1.0`
 
@@ -556,7 +558,7 @@ Formato oficial:
 
 - usar bloco editorial horizontal, não carrossel de cards genéricos
 - selo discreto no topo com `UI Label`
-- headline editorial à esquerda com `Libre Baskerville`
+- headline editorial à esquerda com `Inter`
 - imagem principal destacada à direita
 - faixa branca inferior com até `3` datas clicáveis
 - CTA final escuro integrado à seção
@@ -567,7 +569,7 @@ Tokens e linguagem:
 - bloco final em `forest`
 - acentos e ícones em `gold`
 - textos funcionais em `Inter`
-- títulos editoriais em `Libre Baskerville`
+- títulos editoriais em `Inter`
 - usar apenas raios do sistema: `16px` e `24px`
 
 Regras:
@@ -894,7 +896,7 @@ Sugestão de tipografia:
 
 ```ts
 export const typography = {
-  display: "Libre Baskerville",
+  heroDisplay: "Bodoni Moda",
   ui: "Inter",
 };
 ```

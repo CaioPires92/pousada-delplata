@@ -13,9 +13,7 @@ export default function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
 
-    // Pages that should have a transparent header initially
-    const transparentPaths = ["/", "/acomodacoes", "/lazer", "/restaurante", "/contato"];
-    const isTransparentPath = transparentPaths.includes(pathname);
+    const isTransparentPath = pathname === "/";
 
     useEffect(() => {
         const handleScroll = () => {

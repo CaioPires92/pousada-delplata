@@ -25,7 +25,7 @@ export function BlogCta({
   return (
     <section
       className={cn(
-        "rounded-[28px] border border-primary/10 bg-white shadow-[0_16px_45px_rgba(40,50,35,0.08)]",
+        "border border-primary/10 bg-white",
         compact ? "p-6" : "p-8 md:p-10",
       )}
     >
@@ -36,20 +36,20 @@ export function BlogCta({
         )}
       >
         <div className={cn("space-y-3", compact ? "w-full" : "max-w-2xl")}>
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-secondary-foreground/80">
+          <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
             Reserva direta
           </p>
           <h2
             className={cn(
-              "font-bold font-heading text-primary text-balance",
-              compact ? "max-w-[10ch] text-3xl leading-[1.02]" : "text-2xl md:text-3xl",
+              "font-heading font-semibold text-primary text-balance",
+              compact ? "max-w-[10ch] text-[2.2rem] leading-[0.98]" : "text-[2rem] leading-tight md:text-[2.6rem]",
             )}
           >
             {resolvedTitle}
           </h2>
           <p
             className={cn(
-              "leading-relaxed text-muted-foreground text-pretty",
+              "text-pretty leading-7 text-foreground/72",
               compact ? "max-w-[22ch] text-base" : "text-base",
             )}
           >
@@ -66,7 +66,7 @@ export function BlogCta({
           <Button
             asChild
             size="lg"
-            className={cn("h-11", compact ? "w-full" : "md:min-w-52")}
+            className={cn("h-11 rounded-none", compact ? "w-full" : "md:min-w-52")}
           >
             <Link href="/reservar">{compact ? "Consultar datas" : "Ver disponibilidade"}</Link>
           </Button>
@@ -74,7 +74,7 @@ export function BlogCta({
             asChild
             size="lg"
             variant="outline"
-            className={cn("h-11", compact ? "w-full" : "md:min-w-52")}
+            className={cn("h-11 rounded-none", compact ? "w-full" : "md:min-w-52")}
           >
             <Link href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="h-4 w-4" />

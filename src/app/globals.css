@@ -67,6 +67,10 @@ body {
   background: hsl(var(--background));
 }
 @layer utilities {
+  .font-hero-display {
+    font-family: var(--font-playfair-display), sans-serif;
+  }
+
   .section-space-sm {
     @apply py-14 md:py-20;
   }

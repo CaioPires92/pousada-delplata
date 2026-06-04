@@ -12,12 +12,12 @@ export default function PoliticaDePrivacidadePage() {
         <main className="min-h-screen bg-muted/30 pt-28 pb-16">
             <div className="container mx-auto max-w-4xl px-4">
                 <div className="rounded-xl border border-border/60 bg-white p-6 md:p-8 shadow-sm">
-                    <h1 className="text-2xl md:text-3xl font-bold text-primary">Política de Privacidade</h1>
+                    <h1 className="font-hero-display text-2xl font-semibold text-primary md:text-3xl">Política de Privacidade</h1>
                     <p className="mt-2 text-sm text-muted-foreground">Última atualização: 12/02/2026</p>
 
                     <div className="mt-6 space-y-5 text-sm leading-6 text-foreground">
                         <section>
-                            <h2 className="font-semibold">1. Dados coletados</h2>
+                            <h2 className="font-hero-display font-semibold">1. Dados coletados</h2>
                             <p>
                                 Coletamos dados necessários para atendimento e hospedagem, como nome, e-mail, telefone,
                                 período da reserva, dados de pagamento e informações de navegação.
@@ -25,7 +25,7 @@ export default function PoliticaDePrivacidadePage() {
                         </section>
 
                         <section>
-                            <h2 className="font-semibold">2. Finalidade</h2>
+                            <h2 className="font-hero-display font-semibold">2. Finalidade</h2>
                             <p>
                                 Utilizamos os dados para processar reservas, confirmar pagamentos, enviar comunicações da
                                 hospedagem, atendimento ao cliente e cumprimento de obrigações legais.
@@ -33,7 +33,7 @@ export default function PoliticaDePrivacidadePage() {
                         </section>
 
                         <section>
-                            <h2 className="font-semibold">3. Compartilhamento</h2>
+                            <h2 className="font-hero-display font-semibold">3. Compartilhamento</h2>
                             <p>
                                 Podemos compartilhar dados com provedores estritamente necessários para operação, como
                                 processamento de pagamentos, e-mail transacional e infraestrutura de hospedagem.
@@ -41,7 +41,7 @@ export default function PoliticaDePrivacidadePage() {
                         </section>
 
                         <section>
-                            <h2 className="font-semibold">4. Armazenamento e segurança</h2>
+                            <h2 className="font-hero-display font-semibold">4. Armazenamento e segurança</h2>
                             <p>
                                 Adotamos medidas técnicas e organizacionais para proteger as informações contra acesso não
                                 autorizado, perda, alteração ou divulgação indevida.
@@ -49,7 +49,7 @@ export default function PoliticaDePrivacidadePage() {
                         </section>
 
                         <section>
-                            <h2 className="font-semibold">5. Direitos do titular</h2>
+                            <h2 className="font-hero-display font-semibold">5. Direitos do titular</h2>
                             <p>
                                 Você pode solicitar confirmação de tratamento, acesso, correção e exclusão dos dados, quando
                                 aplicável, pelos canais oficiais de contato.
@@ -57,7 +57,7 @@ export default function PoliticaDePrivacidadePage() {
                         </section>
 
                         <section>
-                            <h2 className="font-semibold">6. Contato</h2>
+                            <h2 className="font-hero-display font-semibold">6. Contato</h2>
                             <p>
                                 Para dúvidas sobre privacidade, fale com a Pousada Delplata em{' '}
                                 <a className="text-primary underline" href="mailto:contato@pousadadelplata.com.br">

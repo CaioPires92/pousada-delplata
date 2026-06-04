@@ -177,13 +177,13 @@ export default function ConfirmacaoPage() {
                         {statusToast}
                     </div>
                 ) : null}
-                <h1 style={{ color: accentColor, marginBottom: '1.5rem' }}>
+                <h1 style={{ color: accentColor, marginBottom: '1.5rem', fontFamily: 'var(--font-playfair-display), serif', fontWeight: 700, lineHeight: 1 }}>
                     {isConfirmed ? '✅ Pagamento Aprovado!' : isCancelled ? '❌ Pagamento Não Aprovado' : '⏳ Pagamento Pendente'}
                 </h1>
 
                 {booking && (
                     <div style={{ textAlign: 'left', background: '#fff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #eee' }}>
-                        <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem', borderBottom: '1px solid #eee' }}>Sua Reserva</h2>
+                        <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem', borderBottom: '1px solid #eee', fontFamily: 'var(--font-playfair-display), serif', fontWeight: 700 }}>Sua Reserva</h2>
                         <p>
                             <strong>Quarto:</strong> {booking.roomType?.name}
                         </p>

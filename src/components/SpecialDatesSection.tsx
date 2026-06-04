@@ -71,7 +71,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
 
                     <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.7fr)] lg:items-center lg:gap-12">
                         <div className="max-w-[20rem] space-y-5 xl:max-w-[21rem]">
-                            <h2 className="max-w-[10ch] font-display text-[2.25rem] font-medium leading-[0.95] text-primary sm:text-[2.75rem] lg:text-[3.15rem] xl:text-[3.35rem]">
+                            <h2 className="font-hero-display max-w-[10ch] text-[2.25rem] font-semibold leading-[0.95] text-primary sm:text-[2.75rem] lg:text-[3.15rem] xl:text-[3.35rem]">
                                 Próximos feriados
                             </h2>
                             <div className="h-px w-20 bg-secondary/70" />
@@ -122,7 +122,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                                             <span className="block font-sans text-[0.88rem] font-semibold uppercase tracking-[0.12em] text-primary/90">
                                                 {formatSpecialDatePeriod(specialDate)}
                                             </span>
-                                            <span className="mt-1 block font-display text-[1.15rem] font-medium leading-[1.15] text-foreground">
+                                            <span className="mt-1 block font-sans text-[1.15rem] font-semibold leading-[1.15] text-foreground">
                                                 {specialDate.title}
                                             </span>
                                         </span>
@@ -139,7 +139,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                                     <CalendarDays className="h-7 w-7" strokeWidth={1.7} />
                                 </span>
                                 <div className="space-y-1.5">
-                                    <p className="font-display text-[1.7rem] font-medium leading-tight text-primary">
+                                    <p className="font-sans text-[1.7rem] font-semibold leading-tight text-primary">
                                         Consulte disponibilidade para essas datas
                                     </p>
                                     <p className="font-sans text-[1rem] leading-7 text-primary/84">

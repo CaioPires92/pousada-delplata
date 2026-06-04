@@ -46,7 +46,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   ]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-stone-50 pb-20 pt-32">
+    <main className="relative min-h-screen overflow-hidden bg-[color:var(--brand-cream)] pb-20 pt-32">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.05]"
         aria-hidden="true"
@@ -76,26 +76,26 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           <div className="space-y-6">
             <div className="flex items-center gap-4">
               <span className="h-px w-14 bg-secondary" aria-hidden="true" />
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-secondary-foreground/80">
+              <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
                 Blog Delplata
               </p>
             </div>
             <div className="space-y-4 border-l-2 border-secondary pl-5">
-              <h1 className="max-w-4xl text-4xl font-bold font-heading leading-tight text-primary md:text-5xl">
+              <h1 className="max-w-4xl font-heading text-[2.9rem] font-semibold leading-[0.98] text-primary md:text-[4rem]">
                 Conteúdo útil para planejar sua viagem para Serra Negra com mais segurança
               </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-muted-foreground">
+              <p className="max-w-3xl text-lg leading-8 text-foreground/72">
                 Descubra o que fazer, onde ficar e como aproveitar melhor a estadia em Serra Negra.
               </p>
             </div>
           </div>
 
-          <div className="relative rounded-[28px] border border-primary/10 bg-white p-6 shadow-[0_16px_45px_rgba(40,50,35,0.08)]">
-            <div className="absolute left-0 top-6 h-16 w-1 rounded-r-full bg-secondary" aria-hidden="true" />
+          <div className="relative border border-primary/10 bg-[color:var(--brand-white)] p-6">
+            <div className="absolute left-0 top-6 h-16 w-px bg-secondary" aria-hidden="true" />
             <p className="pl-3 text-sm font-semibold uppercase tracking-[0.12em] text-primary/80">
               Planeje melhor a viagem
             </p>
-            <p className="mt-4 pl-3 text-sm leading-7 text-muted-foreground">
+            <p className="mt-4 pl-3 text-sm leading-7 text-foreground/72">
               {selectedCategory
                 ? selectedCategory.description
                 : "Guias práticos para montar o roteiro, escolher a hospedagem e chegar com mais clareza à viagem."}
@@ -120,10 +120,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold font-heading text-primary md:text-3xl">
+              <h2 className="font-heading text-[2rem] font-semibold leading-tight text-primary md:text-[2.6rem]">
                 {selectedCategory ? selectedCategory.label : "Todos os artigos"}
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-foreground/72">
                 {postCountLabel} sobre roteiro, hospedagem e planejamento da viagem.
               </p>
             </div>
@@ -136,7 +136,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               ))}
             </div>
           ) : (
-            <div className="rounded-[28px] border border-dashed border-primary/20 bg-white p-6 text-sm leading-7 text-muted-foreground">
+            <div className="border border-dashed border-primary/20 bg-[color:var(--brand-white)] p-6 text-sm leading-7 text-foreground/72">
               No momento, esta seleção reúne apenas o artigo em destaque.
             </div>
           )}

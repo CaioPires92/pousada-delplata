@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Libre_Baskerville } from "next/font/google";
+import { Bodoni_Moda, Inter } from "next/font/google";
 import Script from "next/script";
 
 import Footer from "@/components/Footer";
@@ -21,9 +21,9 @@ const inter = Inter({
   display: "swap",
 });
 
-const displaySerif = Libre_Baskerville({
+const displaySerif = Bodoni_Moda({
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["700"],
   variable: "--font-playfair-display",
   display: "swap",
 });

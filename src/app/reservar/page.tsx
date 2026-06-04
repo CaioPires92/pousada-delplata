@@ -807,30 +807,32 @@ function ReservarContent() {
 
     if (!checkIn || !checkOut) {
         return (
-            <main className="min-h-screen relative flex items-center justify-center">
-                {/* Background Image */}
+            <main className="relative flex min-h-screen items-center justify-center bg-[color:var(--brand-black)]">
                 <div className="absolute inset-0 z-0">
                     <Image
                         src="/fotos/piscina-aptos/DJI_0845.jpg"
                         alt="Background"
                         fill
-                        className="object-cover"
+                        className="object-cover object-center"
                         priority
                     />
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.78)_0%,rgba(40,50,35,0.52)_42%,rgba(9,9,9,0.24)_100%)] backdrop-blur-[2px]" />
                 </div>
 
                 <div className="container relative z-10 max-w-7xl mx-auto px-4">
                     <div className="text-center mb-8 text-white">
-                        <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4 drop-shadow-lg">
+                        <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+                            Reservas
+                        </p>
+                        <h1 className="font-hero-display mb-4 mt-4 text-[2.9rem] font-semibold leading-[0.98] md:text-[4rem]">
                             Planeje sua Estadia
                         </h1>
-                        <p className="text-lg md:text-xl text-white/90 font-light drop-shadow-md max-w-2xl mx-auto">
+                        <p className="mx-auto max-w-2xl text-lg leading-8 text-white/88">
                             Selecione as datas da sua viagem para conferir nossas acomodações exclusivas e garantir o melhor preço.
                         </p>
                     </div>
 
-                    <div className="w-full bg-white/95 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-2xl border border-white/20">
+                    <div className="w-full border border-white/20 bg-white/95 p-6 backdrop-blur-sm md:p-8">
                         <SearchWidget variant="light" />
                     </div>
                 </div>
@@ -840,21 +842,24 @@ function ReservarContent() {
 
     if (isInvalidAdults) {
         return (
-            <main className="min-h-screen pt-32 container text-center bg-muted/30">
-                <div className="bg-amber-50 text-amber-900 p-6 rounded-xl inline-flex flex-col items-center gap-4 max-w-md mx-auto border border-amber-200">
-                    <AlertCircle className="w-12 h-12" />
-                    <p className="text-lg font-medium">Selecione ao menos 1 adulto para continuar.</p>
-                    <Button onClick={() => window.location.href = '/reservar'}>Alterar Busca</Button>
-                </div>
-            </main>
+        <main className="min-h-screen bg-[color:var(--brand-cream)] pt-32">
+            <div className="container text-center">
+            <div className="inline-flex max-w-md flex-col items-center gap-4 border border-amber-200 bg-amber-50 p-6 text-amber-900">
+                <AlertCircle className="w-12 h-12" />
+                <p className="text-lg font-medium">Selecione ao menos 1 adulto para continuar.</p>
+                <Button onClick={() => window.location.href = '/reservar'}>Alterar Busca</Button>
+            </div>
+            </div>
+        </main>
         );
     }
 
     if (isOverCapacity) {
         const whatsappUrl = getWhatsAppUrl();
         return (
-            <main className="min-h-screen pt-32 container text-center bg-muted/30">
-                <div className="bg-amber-50 text-amber-900 p-6 rounded-xl inline-flex flex-col items-center gap-4 max-w-md mx-auto border border-amber-200">
+            <main className="min-h-screen bg-[color:var(--brand-cream)] pt-32">
+                <div className="container text-center">
+                <div className="inline-flex max-w-md flex-col items-center gap-4 border border-amber-200 bg-amber-50 p-6 text-amber-900">
                     <AlertCircle className="w-12 h-12" />
                     <p className="text-lg font-medium">
                         Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
@@ -864,6 +869,7 @@ function ReservarContent() {
                             Falar com a pousada no WhatsApp
                         </a>
                     </Button>
+                </div>
                 </div>
             </main>
         );
@@ -906,11 +912,13 @@ function ReservarContent() {
 
     if (error) {
         return (
-            <main className="min-h-screen pt-32 container text-center bg-muted/30">
-                <div className="bg-destructive/10 text-destructive p-6 rounded-xl inline-flex flex-col items-center gap-4 max-w-md mx-auto border border-destructive/20">
+            <main className="min-h-screen bg-[color:var(--brand-cream)] pt-32">
+                <div className="container text-center">
+                <div className="inline-flex max-w-md flex-col items-center gap-4 border border-destructive/20 bg-destructive/10 p-6 text-destructive">
                     <AlertCircle className="w-12 h-12" />
                     <p className="text-lg font-medium">{error}</p>
                     <Button onClick={() => window.location.href = '/reservar'} variant="destructive">Tentar Novamente</Button>
+                </div>
                 </div>
             </main>
         );
@@ -964,7 +972,7 @@ function ReservarContent() {
 
                 {!selectedRoom ? (
                     <div className="space-y-6">
-                        <h2 className="text-2xl font-bold font-heading text-primary pl-1">Escolha sua Acomodação</h2>
+                        <h2 className="font-hero-display pl-1 text-2xl font-semibold text-primary">Escolha sua Acomodação</h2>
                         {couponCode && !promoAppliedInResults && !promoAlertDismissed ? (
                             <div className="relative flex items-center justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                 <p className="pr-8">
@@ -1011,7 +1019,7 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <h2 className="text-lg font-semibold text-foreground">
+                                <h2 className="font-hero-display text-lg font-semibold text-foreground">
                                     {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
                                 </h2>
                                 <div className="grid grid-cols-1 gap-6">
@@ -1058,7 +1066,7 @@ function ReservarContent() {
                                             <div className="md:col-span-8 p-6 flex flex-col justify-between">
                                                 <div>
                                                     <div className="flex justify-between items-start mb-2">
-                                                        <h3 className="text-2xl font-bold font-heading text-primary">{room.name}</h3>
+                                                        <h3 className="font-sans text-2xl font-semibold text-primary">{room.name}</h3>
                                                         <div className="text-right hidden md:block">
                                                             <span className="text-xs text-muted-foreground uppercase tracking-wider">TOTAL DA ESTADIA</span>
                                                             {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
@@ -1098,7 +1106,11 @@ function ReservarContent() {
                                                         ) : null}
                                                         <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
                                                     </div>
-                                                    <Button size="lg" onClick={() => handleSelectRoom(room)} className="w-auto md:ml-auto shadow-lg shadow-primary/20 h-10 px-4 text-sm">
+                                                    <Button
+                                                        size="lg"
+                                                        onClick={() => handleSelectRoom(room)}
+                                                        className="h-11 w-auto rounded-none px-5 text-sm font-semibold shadow-none md:ml-auto hover:shadow-[0_8px_18px_rgba(9,9,9,0.08)]"
+                                                    >
                                                         Selecionar e Continuar
                                                     </Button>
                                                 </div>

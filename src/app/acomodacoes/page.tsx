@@ -65,57 +65,63 @@ export default async function RoomsPage() {
 
     return (
         <main className="min-h-screen bg-background">
-            {/* Compact Hero Section */}
-            <section className="relative h-[40vh] min-h-[300px] flex items-center justify-center overflow-hidden">
+            <section className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
                 <div className="absolute inset-0">
                     <Image
                         src="/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp"
                         alt="Acomodações Pousada Delplata"
                         fill
-                        className="object-cover"
+                        className="object-cover object-center"
                         priority
                     />
-                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.78)_0%,rgba(40,50,35,0.52)_42%,rgba(9,9,9,0.24)_100%)]" />
                 </div>
 
-                <div className="container relative z-10 text-center text-white space-y-4">
-                    <h1 className="text-4xl md:text-5xl font-bold font-heading">
+                <div className="container relative z-10 py-24 text-center text-white md:py-28">
+                    <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+                        Hospedagem
+                    </p>
+                    <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] md:text-[4rem]">
                         Nossas Acomodações
                     </h1>
-                    <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light">
+                    <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/88 md:text-lg">
                         Conforto e aconchego preparados especialmente para o seu descanso.
                         Escolha o ambiente ideal para sua estadia.
                     </p>
                 </div>
             </section>
 
-            <div className="space-y-16 py-16">
+            <div className="space-y-0">
                 {/* Ala Principal Section */}
-                <section className="container">
-                    <div className="mb-10 border-b pb-4">
-                        <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary">Ala Principal</h2>
-                        <p className="text-lg text-muted-foreground mt-2">
+                <section className="section-space-md bg-[color:var(--brand-cream)]">
+                    <div className="container">
+                    <div className="mb-10 border-b border-primary/10 pb-4">
+                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Principal</h2>
+                        <p className="mt-2 text-[1.02rem] leading-7 text-foreground/72">
                             Acomodações proximas a todas as dependências.
                         </p>
                     </div>
                     {renderRoomGrid(mainWingRooms)}
+                    </div>
                 </section>
 
                 {/* Ala Anexo Section */}
-                <section className="container">
-                    <div className="mb-10 border-b pb-4">
-                        <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary">Ala Chalés e Anexos</h2>
-                        <p className="text-lg text-muted-foreground mt-2 flex items-center gap-2">
+                <section className="section-space-md bg-background">
+                    <div className="container">
+                    <div className="mb-10 border-b border-primary/10 pb-4">
+                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Chalés e Anexos</h2>
+                        <p className="mt-2 flex items-center gap-2 text-[1.02rem] leading-7 text-foreground/72">
                             <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
                             Localizada a 70 metros da ala principal
                         </p>
                     </div>
                     {renderRoomGrid(annexWingRooms)}
+                    </div>
                 </section>
             </div>
 
             {rooms.length === 0 && (
-                <div className="container py-12 text-center">
+                <div className="container section-space-sm text-center">
                     <p className="text-xl text-muted-foreground">
                         Nenhuma acomodação encontrada no momento.
                     </p>

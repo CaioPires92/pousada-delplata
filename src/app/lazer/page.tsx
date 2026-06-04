@@ -23,7 +23,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'piscina-principal',
         title: 'Piscina Adulto e Infantil',
-        description: 'ideais para momentos de lazer durante a estadia.',
+        description: 'Lazer para todas as idades.',
 
         images: [
             '/fotos/piscina-aptos/DJI_0845.jpg',
@@ -40,7 +40,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'snack-bar',
         title: 'Snack Bar',
-        description: 'Drinks refrescantes e petiscos deliciosos para acompanhar seu dia de piscina.',
+        description: 'Drinks e petiscos ao lado da piscina.',
         images: [
             '/fotos/bar-principal/DSC_0276.jpg',
             '/fotos/bar-principal/DSC_0351.jpg',
@@ -56,7 +56,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'sala-jogos',
         title: 'Sala de Jogos e TV',
-        description: 'Espaço de convivência com TV a cabo, sofás, mesa de sinuca, pebolim e mesa de carteado.',
+        description: 'Sinuca, pebolim, TV e tempo de descanso.',
         images: [
             '/fotos/Sala de jogos/DSC_0228.jpg',
             '/fotos/Sala de jogos/DSC_0232.jpg',
@@ -73,7 +73,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'jardim-redes',
         title: 'Jardim com Redes',
-        description: 'Área verde tranquila com redes para leitura e descanso, além de um mini playground.',
+        description: 'Verde, redes e descanso sem pressa.',
         images: [
             '/fotos/jardim-aptos/DSC_0258.jpg',
             '/fotos/jardim-aptos/DSC_0262.jpg',
@@ -89,7 +89,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'churrasqueiras-principal',
         title: 'Churrasqueiras',
-        description: 'Espaço com três churrasqueiras e mesas independentes para churrascos em família ou grupo.',
+        description: 'Espaço para reunir a família com calma.',
         images: [
             '/fotos/churrasqueira-aptos/DSC_0269.jpg',
             '/fotos/churrasqueira-aptos/DSC_0273.jpg',
@@ -102,7 +102,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'piscina-anexo',
         title: 'Piscina',
-        description: 'Para momentos de lazer na ala dos chalés e anexos.',
+        description: 'Piscina da ala dos chalés e anexos.',
         images: [
             '/fotos/piscina-chale/DJI_0916.jpg',
             '/fotos/piscina-chale/DJI_0917.jpg',
@@ -119,7 +119,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'churrasqueira-anexo',
         title: 'Churrasqueira',
-        description: 'Espaço gourmet reservado para os hóspedes da ala anexo.',
+        description: 'Churrasqueira reservada para a ala anexo.',
         images: [
             '/fotos/churrasqueira-chale/DJI_0920.jpg',
             '/fotos/churrasqueira-chale/DSC_0394.jpg',
@@ -147,51 +147,59 @@ export default function LeisurePage() {
     );
 
     return (
-        <main className="min-h-screen bg-background pb-16">
-            {/* Hero Section */}
-            <section className="relative h-[40vh] min-h-[300px] flex items-center justify-center overflow-hidden mb-16">
+        <main className="min-h-screen bg-background">
+            <section className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
                 <div className="absolute inset-0">
                     <Image
                         src="/fotos/piscina-aptos/DJI_0845.jpg"
                         alt="Lazer Pousada Delplata"
                         fill
-                        className="object-cover"
+                        className="object-cover object-center"
                         priority
                     />
-                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.72)_0%,rgba(40,50,35,0.52)_42%,rgba(9,9,9,0.26)_100%)]" />
                 </div>
-                <div className="container relative z-10 text-center text-white space-y-4">
-                    <h1 className="text-4xl md:text-5xl font-bold font-heading">
-                        Lazer e Diversão
-                    </h1>
-                    <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light">
-                        Estrutura completa para o seu descanso em todas as alas.
-                    </p>
+                <div className="container relative z-10 py-24 text-center text-white md:py-28">
+                    <div className="mx-auto max-w-3xl px-6 py-8 md:px-10">
+                        <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)] [text-shadow:0_2px_12px_rgba(0,0,0,0.45)]">
+                            Lazer
+                        </p>
+                        <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] text-white [text-shadow:0_2px_22px_rgba(0,0,0,0.58)] md:text-[4rem]">
+                            Lazer e Diversão
+                        </h1>
+                        <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.52)] md:text-lg">
+                            Estrutura completa para o seu descanso em todas as alas.
+                        </p>
+                    </div>
                 </div>
             </section>
 
-            <div className="space-y-16">
+            <div className="space-y-0">
                 {/* Ala Principal Section */}
-                <section className="container">
-                    <div className="mb-10 border-b pb-4">
-                        <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary">Ala Principal</h2>
-                        <p className="text-lg text-muted-foreground mt-2">
+                <section className="section-space-md bg-[color:var(--brand-cream)]">
+                    <div className="container">
+                    <div className="mb-10 border-b border-primary/10 pb-4">
+                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Principal</h2>
+                        <p className="mt-2 text-[1.02rem] leading-7 text-foreground/72">
                             Piscina adulto e infantil, bar, jogos e muito verde.
                         </p>
                     </div>
                     {renderLeisureGrid(principalItems)}
+                    </div>
                 </section>
 
                 {/* Ala Anexo Section */}
-                <section className="container">
-                    <div className="mb-10 border-b pb-4">
-                        <h2 className="text-3xl md:text-4xl font-bold font-heading text-primary">Ala Chalés e Anexos</h2>
-                        <p className="text-lg text-muted-foreground mt-2 flex items-center gap-2">
+                <section className="section-space-md bg-background">
+                    <div className="container">
+                    <div className="mb-10 border-b border-primary/10 pb-4">
+                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Chalés e Anexos</h2>
+                        <p className="mt-2 flex items-center gap-2 text-[1.02rem] leading-7 text-foreground/72">
                             <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
                             Privacidade com piscina e churrasqueira.
                         </p>
                     </div>
                     {renderLeisureGrid(annexItems)}
+                    </div>
                 </section>
             </div>
         </main>

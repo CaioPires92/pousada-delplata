@@ -78,8 +78,8 @@ const config: Config = {
     					'sans-serif'
     				],
     			display: [
-    				'var(--font-playfair-display)',
-    				'serif'
+    				'var(--font-inter)',
+    				'sans-serif'
     			],
     				accent: [
     					'var(--font-inter)',

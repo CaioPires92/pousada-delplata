@@ -72,7 +72,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   ]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-stone-50 pb-20 pt-32">
+    <main className="relative min-h-screen overflow-hidden bg-[color:var(--brand-cream)] pb-20 pt-32">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.045]"
         aria-hidden="true"
@@ -110,28 +110,28 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
           <header className="mt-6 space-y-6">
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="secondary" className="rounded-full px-3 py-1">
+              <Badge variant="secondary" className="rounded-none px-3 py-1">
                 {category.shortLabel}
               </Badge>
-              <Badge variant="outline" className="rounded-full px-3 py-1">
+              <Badge variant="outline" className="rounded-none px-3 py-1">
                 {formatBlogDate(post.publishedAt)}
               </Badge>
-              <Badge variant="outline" className="rounded-full px-3 py-1">
+              <Badge variant="outline" className="rounded-none px-3 py-1">
                 {post.readingTime}
               </Badge>
             </div>
 
             <div className="space-y-4">
-              <h1 className="max-w-4xl border-l-2 border-secondary pl-5 text-4xl font-bold font-heading leading-tight text-primary md:text-5xl">
+              <h1 className="max-w-4xl border-l-2 border-secondary pl-5 font-heading text-[2.9rem] font-semibold leading-[0.98] text-primary md:text-[4rem]">
                 {post.title}
               </h1>
-              <p className="max-w-3xl text-lg leading-relaxed text-muted-foreground">
+              <p className="max-w-3xl text-lg leading-8 text-foreground/72">
                 {post.excerpt}
               </p>
             </div>
           </header>
 
-          <div className="mt-8 overflow-hidden rounded-[32px] border border-primary/10 bg-white shadow-[0_18px_50px_rgba(40,50,35,0.08)]">
+          <div className="mt-8 overflow-hidden border border-primary/10 bg-[color:var(--brand-white)]">
             <div className="relative aspect-[16/8] bg-primary/5">
               <Image
                 src={post.coverImage.src}
@@ -149,10 +149,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
                 <div className="flex flex-wrap gap-2 border-t border-primary/10 pt-6">
                   {post.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-primary/5 px-3 py-1 text-xs font-medium text-primary"
-                    >
+                    <span key={tag} className="bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
                       {tag}
                     </span>
                   ))}
@@ -160,11 +157,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               </div>
 
               <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-                <div className="rounded-[28px] border border-primary/10 bg-stone-50 p-6">
+                <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-6">
                   <p className="text-sm font-semibold uppercase tracking-[0.12em] text-primary/80">
                     Resumo rápido
                   </p>
-                  <p className="mt-3 text-sm leading-7 text-muted-foreground">{post.summary}</p>
+                  <p className="mt-3 text-sm leading-7 text-foreground/72">{post.summary}</p>
                 </div>
 
                 <BlogCta compact />
@@ -182,7 +179,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary/80">
                   Continue navegando
                 </p>
-                <h2 className="mt-2 text-3xl font-bold font-heading text-primary">
+                <h2 className="mt-2 font-heading text-[2.2rem] font-semibold leading-tight text-primary">
                   Conteúdos relacionados
                 </h2>
               </div>

@@ -50,37 +50,40 @@ const restaurantImages = [
 
 export default function RestaurantPage() {
     return (
-        <main className="min-h-screen bg-white">
-            {/* Hero Section */}
-            <section className="relative h-[40vh] min-h-[300px] flex items-center justify-center overflow-hidden">
+        <main className="min-h-screen bg-background">
+            <section className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
                 <div className="absolute inset-0">
                     <Image
                         src="/fotos/restaurante/DSC_0002.jpg"
                         alt="Restaurante Pousada Delplata"
                         fill
-                        className="object-cover"
+                        className="object-cover object-center"
                         priority
                     />
-                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.78)_0%,rgba(40,50,35,0.52)_42%,rgba(9,9,9,0.24)_100%)]" />
                 </div>
 
-                <div className="container relative z-10 text-center text-white space-y-4">
-                    <h1 className="text-4xl md:text-5xl font-bold font-heading">
+                <div className="container relative z-10 py-24 text-center text-white md:py-28">
+                    <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+                        Restaurante
+                    </p>
+                    <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] md:text-[4rem]">
                         Restaurante e Café da Manhã
                     </h1>
-                    <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto font-light">
+                    <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/88 md:text-lg">
                         Comece seu dia com nosso delicioso café da manhã servido em um ambiente aconchegante e acolhedor.
                     </p>
                 </div>
             </section>
 
-            <div className="container mx-auto px-4 py-16">
-                <div className="text-center mb-12 space-y-4">
-                    <p className="text-xl md:text-2xl text-gray-700 font-light italic">
+            <section className="section-space-md bg-[color:var(--brand-cream)]">
+            <div className="container">
+                <div className="mb-12 space-y-4 text-center md:mb-16">
+                    <p className="font-sans text-[1.9rem] font-semibold leading-tight text-primary md:text-[2.4rem]">
                         &ldquo;Preparados tudo com muito carinho para você e sua família.&rdquo;
                     </p>
-                    <div className="inline-block bg-primary/5 px-6 py-3 rounded-full">
-                        <p className="text-primary font-medium">
+                    <div className="inline-block border border-primary/10 bg-[color:var(--brand-white)] px-6 py-3">
+                        <p className="font-sans font-medium text-primary">
                             Horário: das 8:30h às 10:30h na Ala Principal
                         </p>
                     </div>
@@ -88,6 +91,7 @@ export default function RestaurantPage() {
 
                 <RestaurantGallery images={restaurantImages} />
             </div>
+            </section>
         </main>
     );
 }

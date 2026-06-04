@@ -17,7 +17,7 @@ export function BlogCategoryFilter({
       <Link href="/blog">
         <Badge
           variant={!activeCategory ? "default" : "outline"}
-          className="rounded-full border-primary/15 px-4 py-2 text-sm font-medium"
+          className="rounded-none border-primary/15 px-4 py-2 text-sm font-medium"
         >
           Todos os conteúdos
         </Badge>
@@ -30,7 +30,7 @@ export function BlogCategoryFilter({
           <Link key={category.slug} href={`/blog?category=${category.slug}`}>
             <Badge
               variant={isActive ? "secondary" : "outline"}
-              className="rounded-full border-primary/15 px-4 py-2 text-sm font-medium"
+              className="rounded-none border-primary/15 px-4 py-2 text-sm font-medium"
             >
               {category.shortLabel}
             </Badge>

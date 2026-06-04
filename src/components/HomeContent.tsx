@@ -258,7 +258,7 @@ export default function HomeContent() {
 
               <motion.h1
                 variants={itemVariants}
-                className="max-w-[9ch] font-display text-[3rem] font-medium leading-[0.94] text-white sm:text-[4.2rem] lg:text-[5rem]"
+                className="font-hero-display max-w-[9ch] text-[3rem] font-bold leading-[0.94] text-white sm:text-[4.2rem] lg:text-[5rem]"
               >
                 Seu refúgio em Serra Negra
               </motion.h1>
@@ -316,7 +316,7 @@ export default function HomeContent() {
             <p className="mb-4 font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)] md:text-[0.8rem]">
               Hospedagem
             </p>
-            <motion.h2 variants={itemVariants} className="font-display text-[2.4rem] leading-tight text-[#1d1b19] md:text-[3.2rem]">
+            <motion.h2 variants={itemVariants} className="font-hero-display text-[2.4rem] leading-tight text-[#1d1b19] md:text-[3.2rem]">
               Nossas Acomodações
             </motion.h2>
           </motion.div>
@@ -386,7 +386,7 @@ export default function HomeContent() {
               <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)] md:text-[0.8rem]">
                 Experiências
               </p>
-              <h2 className="mt-4 font-display text-[2.4rem] leading-tight text-[#1d1b19] md:text-[3.2rem]">
+              <h2 className="font-hero-display mt-4 text-[2.4rem] leading-tight text-[#1d1b19] md:text-[3.2rem]">
                 O que torna a estadia especial
               </h2>
             </div>
@@ -424,7 +424,7 @@ export default function HomeContent() {
               <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)] md:text-[0.8rem]">
                 Galeria
               </p>
-              <h2 className="mt-4 font-display text-[2.4rem] leading-tight md:text-[3.2rem]">
+              <h2 className="font-hero-display mt-4 text-[2.4rem] leading-tight md:text-[3.2rem]">
                 Nossa pousada em imagens
               </h2>
               <p className="mt-3 font-sans text-[0.98rem] leading-7 text-primary/72">
@@ -503,7 +503,7 @@ export default function HomeContent() {
             className="mx-auto max-w-3xl space-y-8"
           >
             <div className="space-y-4">
-              <h2 className="font-display text-4xl font-medium md:text-5xl lg:text-6xl">
+              <h2 className="font-hero-display text-4xl font-medium md:text-5xl lg:text-6xl">
                 Planeje um fim de semana tranquilo na serra
               </h2>
               <p className="text-lg leading-8 text-white/88 md:text-xl">

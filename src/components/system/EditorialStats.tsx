@@ -25,7 +25,7 @@ const editorialStatsStyles = {
   iconWrapper: "flex shrink-0 items-center justify-center text-[#b58b58]",
   icon: "h-10 w-10",
   content: "min-w-0",
-  value: "font-display text-[2.05rem] leading-[1.1] text-[#1d1b19]",
+  value: "font-sans text-[2.05rem] font-semibold leading-[1.1] text-[#1d1b19]",
   label: "mt-2 font-sans text-[1.03rem] font-semibold leading-6 text-[#1d1b19]",
   description: "mt-1 max-w-[24ch] font-sans text-[0.98rem] leading-6 text-[#1d1b19]/72",
   footer: "mt-8 text-center text-sm font-normal text-[#1d1b19]/68",
