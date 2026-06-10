@@ -89,7 +89,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'churrasqueiras-principal',
         title: 'Churrasqueiras',
-        description: 'Espaço para reunir a família com calma.',
+        description: 'Área comum da pousada para reunir a família com calma.',
         images: [
             '/fotos/churrasqueira-aptos/DSC_0269.jpg',
             '/fotos/churrasqueira-aptos/DSC_0273.jpg',
@@ -119,7 +119,7 @@ const leisureItems: LeisureItem[] = [
     {
         id: 'churrasqueira-anexo',
         title: 'Churrasqueira',
-        description: 'Churrasqueira reservada para a ala anexo.',
+        description: 'Área comum de churrasqueira da ala dos chalés e anexos.',
         images: [
             '/fotos/churrasqueira-chale/DJI_0920.jpg',
             '/fotos/churrasqueira-chale/DSC_0394.jpg',
@@ -195,7 +195,7 @@ export default function LeisurePage() {
                         <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Chalés e Anexos</h2>
                         <p className="mt-2 flex items-center gap-2 text-[1.02rem] leading-7 text-foreground/72">
                             <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
-                            Privacidade com piscina e churrasqueira.
+                            Privacidade com piscina e área comum de churrasqueira.
                         </p>
                     </div>
                     {renderLeisureGrid(annexItems)}

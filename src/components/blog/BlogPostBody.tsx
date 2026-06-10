@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { BlogContentBlock } from "@/types/blog";
 
 interface BlogPostBodyProps {
@@ -45,6 +46,29 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
             <h2 key={index} className={className}>
               {block.content}
             </h2>
+          );
+        }
+
+        if (block.type === "image") {
+          return (
+            <figure key={index} className="space-y-3">
+              <div className="relative overflow-hidden border border-primary/10 bg-primary/5">
+                <div className="relative aspect-[16/10]">
+                  <Image
+                    src={block.src}
+                    alt={block.alt}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 720px"
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+              {block.caption ? (
+                <figcaption className="text-sm leading-6 text-foreground/62">
+                  {block.caption}
+                </figcaption>
+              ) : null}
+            </figure>
           );
         }
 

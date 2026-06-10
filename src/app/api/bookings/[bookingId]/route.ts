@@ -12,7 +12,13 @@ export async function GET(
             where: { id: bookingId },
             include: {
                 guest: true,
-                roomType: true,
+                roomType: {
+                    include: {
+                        photos: {
+                            orderBy: { position: 'asc' },
+                        },
+                    },
+                },
                 payment: true,
             },
         });

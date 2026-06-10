@@ -24,6 +24,7 @@ export default async function CrmEventsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const now = new Date();
   const action = typeof params.action === "string" ? params.action.trim() : "";
   const contactId = typeof params.contactId === "string" ? params.contactId.trim() : "";
   const conversationId = typeof params.conversationId === "string" ? params.conversationId.trim() : "";
@@ -51,22 +52,22 @@ export default async function CrmEventsPage({
 
   const [recentSendFails, recentN8nFails, recentWebhookFails, stuckQueue] = await Promise.all([
     prisma.internalActionLog.findMany({
-      where: { action: "WhatsAppSendFailed", createdAt: { gte: new Date(Date.now() - 15 * 60 * 1000) } },
+      where: { action: "WhatsAppSendFailed", createdAt: { gte: new Date(now.getTime() - 15 * 60 * 1000) } },
       orderBy: { createdAt: "desc" },
       take: 1,
     }),
     prisma.internalActionLog.findMany({
-      where: { action: "N8NEmitFailed", createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
+      where: { action: "N8NEmitFailed", createdAt: { gte: new Date(now.getTime() - 30 * 60 * 1000) } },
       orderBy: { createdAt: "desc" },
       take: 1,
     }),
     prisma.internalActionLog.findMany({
-      where: { action: "WebhookProcessingFailed", createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } },
+      where: { action: "WebhookProcessingFailed", createdAt: { gte: new Date(now.getTime() - 30 * 60 * 1000) } },
       orderBy: { createdAt: "desc" },
       take: 1,
     }),
     prisma.automationQueueJob.findMany({
-      where: { status: "processing", startedAt: { lt: new Date(Date.now() - 5 * 60 * 1000) } },
+      where: { status: "processing", startedAt: { lt: new Date(now.getTime() - 5 * 60 * 1000) } },
       orderBy: { startedAt: "asc" },
       take: 1,
     }),

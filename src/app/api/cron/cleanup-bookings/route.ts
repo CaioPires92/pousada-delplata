@@ -68,6 +68,9 @@ export async function GET(request: Request) {
             },
             data: {
                 status: 'EXPIRED',
+                funnelStage: 'EXPIRED_UNPAID',
+                funnelUpdatedAt: new Date(),
+                lastErrorMessage: 'expired_after_pending_timeout',
             },
         });
 

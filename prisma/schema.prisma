@@ -109,6 +109,9 @@ model Booking {
   discountAmount     Decimal?
   appliedCouponCode  String?
   status             String
+  funnelStage        String?
+  funnelUpdatedAt    DateTime?
+  lastErrorMessage   String?
   pendingEmailSentAt DateTime?
   expiredEmailSentAt DateTime?
   createdAt          DateTime          @default(now())

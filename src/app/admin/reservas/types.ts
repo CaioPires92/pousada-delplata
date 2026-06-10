@@ -7,6 +7,9 @@ export interface Booking {
     checkOut?: string | null;
     totalPrice: number;
     status: string;
+    funnelStage?: string | null;
+    funnelUpdatedAt?: string | null;
+    lastErrorMessage?: string | null;
     createdAt?: string | null;
     guest: {
         name: string;

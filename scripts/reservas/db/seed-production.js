@@ -53,7 +53,7 @@ async function safeSeed() {
             capacity: 4,
             totalUnits: 3,
             basePrice: 499.00,
-            amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
+            amenities: 'Ar-condicionado, Ventilador de teto, TV, WiFi, Tomadas 220v',
             photos: [
                 '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp',
                 '/fotos/ala-principal/apartamentos/superior/DSC_0076-1200.webp',
@@ -76,7 +76,7 @@ async function safeSeed() {
             capacity: 3,
             totalUnits: 8,
             basePrice: 499.00,
-            amenities: 'Ventilador de teto, TV, WiFi, Acessível',
+            amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi, Tomadas 220v',
             photos: [
                 '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp',
                 '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0006-1200.webp',
@@ -102,7 +102,7 @@ async function safeSeed() {
             capacity: 3,
             totalUnits: 6,
             basePrice: 499.00,
-            amenities: 'Varanda, WiFi, Contato com natureza, Churrasqueira',
+            amenities: 'Varanda, TV, WiFi, Ventilador de teto, Tomadas 110v',
             photos: [
                 '/fotos/ala-chales/chales/IMG_0125-1200.webp',
                 '/fotos/ala-chales/chales/IMG_0122-1200.webp',

@@ -48,7 +48,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         dateTo: '2026-06-07',
         image: '/fotos/piscina-chale/DJI_0918.jpg',
         minNights: 3,
-        enabled: true,
+        enabled: false,
         bannerLabel: 'Corpus Christi com alta procura. Consulte disponibilidade.',
     },
     {

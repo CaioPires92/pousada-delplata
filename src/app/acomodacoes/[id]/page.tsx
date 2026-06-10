@@ -8,6 +8,7 @@ import { serializePrismaEntity } from "@/lib/serialize-prisma";
 import { notFound } from "next/navigation";
 import styles from "./room-details.module.css";
 import { buildPageMetadata, stripHtml } from "@/lib/seo";
+import { getRoomAmenitiesList } from "@/lib/rooms";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -70,6 +71,8 @@ export default async function RoomDetailsPage({
     if (!room) {
         notFound();
     }
+
+    const amenities = getRoomAmenitiesList(room.amenities);
 
     return (
         <main className="container section">
@@ -134,9 +137,8 @@ export default async function RoomDetailsPage({
                     <div className={styles.amenities}>
                         <h3>Comodidades</h3>
                         <ul>
-                            {/* Assuming amenities is a comma-separated string for now as per schema comment */}
-                            {room.amenities.split(',').map((amenity, index) => (
-                                <li key={index}>{amenity.trim()}</li>
+                            {amenities.map((amenity, index) => (
+                                <li key={index}>{amenity}</li>
                             ))}
                         </ul>
                     </div>

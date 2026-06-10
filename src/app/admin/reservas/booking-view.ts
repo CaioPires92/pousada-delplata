@@ -69,6 +69,25 @@ export function getStatusText(status: string) {
     return texts[normalized] || normalized || '-';
 }
 
+export function formatFunnelStage(stage?: string | null) {
+    const normalized = String(stage || '').trim().toUpperCase();
+    if (!normalized) return 'Etapa não registrada';
+
+    const texts: Record<string, string> = {
+        BOOKING_CREATED: 'Reserva criada',
+        PAYMENT_ATTEMPT_STARTED: 'Pagamento iniciado',
+        PAYMENT_PENDING: 'Pagamento pendente',
+        PAYMENT_APPROVED: 'Pagamento aprovado',
+        PAYMENT_REJECTED: 'Pagamento rejeitado',
+        PAYMENT_ERROR: 'Erro no pagamento',
+        BOOKING_CONFIRMED: 'Reserva confirmada',
+        BOOKING_CANCELLED: 'Reserva cancelada',
+        EXPIRED_UNPAID: 'Expirou sem concluir',
+    };
+
+    return texts[normalized] || normalized.replace(/_/g, ' ');
+}
+
 export function getBookingOperationalDate(booking: Booking) {
     return booking.checkIn || booking.createdAt || null;
 }

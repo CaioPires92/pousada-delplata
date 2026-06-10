@@ -72,40 +72,20 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       />
 
       <section className="container relative">
-        <div className="grid gap-8 pb-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <span className="h-px w-14 bg-secondary" aria-hidden="true" />
-              <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
-                Blog Delplata
-              </p>
-            </div>
-            <div className="space-y-4 border-l-2 border-secondary pl-5">
-              <h1 className="max-w-4xl font-heading text-[2.9rem] font-semibold leading-[0.98] text-primary md:text-[4rem]">
-                Conteúdo útil para planejar sua viagem para Serra Negra com mais segurança
-              </h1>
-              <p className="max-w-3xl text-lg leading-8 text-foreground/72">
-                Descubra o que fazer, onde ficar e como aproveitar melhor a estadia em Serra Negra.
-              </p>
-            </div>
+        <div className="max-w-4xl space-y-6 pb-10">
+          <div className="flex items-center gap-4">
+            <span className="h-px w-14 bg-secondary" aria-hidden="true" />
+            <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+              Blog Delplata
+            </p>
           </div>
-
-          <div className="relative border border-primary/10 bg-[color:var(--brand-white)] p-6">
-            <div className="absolute left-0 top-6 h-16 w-px bg-secondary" aria-hidden="true" />
-            <p className="pl-3 text-sm font-semibold uppercase tracking-[0.12em] text-primary/80">
-              Planeje melhor a viagem
+          <div className="space-y-4 border-l-2 border-secondary pl-5">
+            <h1 className="max-w-4xl font-heading text-[2.9rem] font-semibold leading-[0.98] text-primary md:text-[4rem]">
+              Conteúdo para planejar melhor sua viagem a Serra Negra
+            </h1>
+            <p className="max-w-3xl text-lg leading-8 text-foreground/72">
+              Roteiros, hospedagem, datas e eventos em uma leitura mais direta e sem excesso de informação.
             </p>
-            <p className="mt-4 pl-3 text-sm leading-7 text-foreground/72">
-              {selectedCategory
-                ? selectedCategory.description
-                : "Guias práticos para montar o roteiro, escolher a hospedagem e chegar com mais clareza à viagem."}
-            </p>
-            <Link
-              href="/reservar"
-              className="mt-5 inline-flex pl-3 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
-            >
-              Consultar datas
-            </Link>
           </div>
         </div>
 
@@ -116,7 +96,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         </div>
       </section>
 
-      <section className="container mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="container mt-10">
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -141,10 +121,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
             </div>
           )}
         </div>
+      </section>
 
-        <div className="lg:sticky lg:top-28 lg:self-start">
-          <BlogCta compact />
-        </div>
+      <section className="container mt-10">
+        <BlogCta compact />
       </section>
     </main>
   );

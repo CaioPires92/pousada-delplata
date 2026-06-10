@@ -4,7 +4,6 @@ import React from 'react';
 import { OccupancyRing } from './OccupancyRing';
 import { InventoryControl } from './InventoryControl';
 import { ToggleButton } from './ToggleButton';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import styles from '../mapa.module.css';
 
@@ -60,7 +59,10 @@ export const RateCard: React.FC<RateCardProps> = ({
 
   // Sync local price when prop changes from outside (e.g. after save or fetch)
   React.useEffect(() => {
-    setLocalPrice(price ? price.toString() : '');
+    const timeoutId = window.setTimeout(() => {
+      setLocalPrice(price ? price.toString() : '');
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [price]);
 
   const handlePriceBlur = () => {

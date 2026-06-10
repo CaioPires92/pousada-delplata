@@ -29,7 +29,7 @@ describe('SpecialDatesSection', () => {
 
     it('renderiza a versão editorial com CTA único', () => {
         render(<SpecialDatesSection dates={[baseDate]} />);
-        expect(screen.getByText(/Próximos feriados/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Próximos feriados/i })).toBeInTheDocument();
         expect(screen.getByText('Corpus Christi')).toBeInTheDocument();
         expect(screen.getByAltText('Corpus Christi')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /Ver disponibilidade/i })).toHaveAttribute(
@@ -93,5 +93,22 @@ describe('SpecialDatesSection', () => {
         expect(screen.getByText('Independência')).toBeInTheDocument();
         expect(screen.getByText('Aparecida')).toBeInTheDocument();
         expect(screen.queryByText('Finados')).not.toBeInTheDocument();
+    });
+
+    it('mostra os dois meses quando o período cruza de um mês para outro', () => {
+        render(
+            <SpecialDatesSection
+                dates={[{
+                    ...baseDate,
+                    id: 'finados',
+                    title: 'Finados',
+                    dateFrom: '2026-10-30',
+                    dateTo: '2026-11-02',
+                }]}
+            />
+        );
+
+        expect(screen.getByRole('button', { name: /30 OUT - 02 NOV finados/i })).toBeInTheDocument();
+        expect(screen.getByText('30 OUT - 02 NOV')).toBeInTheDocument();
     });
 });

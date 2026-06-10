@@ -22,10 +22,6 @@ export default function ChatbotSettingsPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editRule, setEditRule] = useState({ trigger: "", response: "" });
 
-    useEffect(() => {
-        fetchRules();
-    }, []);
-
     async function fetchRules() {
         try {
             const response = await fetch("/api/admin/chatbot/rules");
@@ -37,6 +33,13 @@ export default function ChatbotSettingsPage() {
             setIsLoading(false);
         }
     }
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            void fetchRules();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, []);
 
     async function handleAddRule() {
         if (!newRule.trigger || !newRule.response) return;

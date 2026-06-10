@@ -167,15 +167,24 @@ export default function AdminReservasPage() {
     }, [filter, periodMode, periodAnchor, rangeFrom, rangeTo, router]);
 
     useEffect(() => {
-        fetchBookings();
+        const timeoutId = window.setTimeout(() => {
+            void fetchBookings();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [fetchBookings]);
 
     useEffect(() => {
         try {
             const storedValue = localStorage.getItem(ANALYTICS_TEST_MODE_KEY);
-            setAnalyticsTestMode(storedValue === 'true');
+            const timeoutId = window.setTimeout(() => {
+                setAnalyticsTestMode(storedValue === 'true');
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         } catch {
-            setAnalyticsTestMode(false);
+            const timeoutId = window.setTimeout(() => {
+                setAnalyticsTestMode(false);
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         }
     }, []);
 

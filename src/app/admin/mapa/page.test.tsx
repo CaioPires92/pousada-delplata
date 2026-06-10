@@ -427,8 +427,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
         });
 
-        const startCell = screen.getByTestId('inventory-cell-room-1-2026-03-11');
-        const endCell = screen.getByTestId('inventory-cell-room-1-2026-03-12');
+        const startCell = await screen.findByTestId('inventory-cell-room-1-2026-03-11');
+        const endCell = await screen.findByTestId('inventory-cell-room-1-2026-03-12');
 
         fireEvent.mouseDown(startCell, { button: 0 });
         fireEvent.mouseEnter(endCell);
@@ -496,8 +496,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
         });
 
-        const startCell = screen.getByTestId('inventory-cell-room-1-2026-03-11');
-        const endCell = screen.getByTestId('inventory-cell-room-1-2026-03-12');
+        const startCell = await screen.findByTestId('inventory-cell-room-1-2026-03-11');
+        const endCell = await screen.findByTestId('inventory-cell-room-1-2026-03-12');
 
         fireEvent.mouseDown(startCell, { button: 0 });
         fireEvent.mouseEnter(endCell);
@@ -578,8 +578,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
         });
 
-        const startCell = screen.getByTestId('price-cell-room-1-2026-03-11');
-        const endCell = screen.getByTestId('price-cell-room-1-2026-03-12');
+        const startCell = await screen.findByTestId('price-cell-room-1-2026-03-11');
+        const endCell = await screen.findByTestId('price-cell-room-1-2026-03-12');
 
         fireEvent.mouseDown(startCell, { button: 0 });
         fireEvent.mouseEnter(endCell);
@@ -669,8 +669,8 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByText('Mapa de Tarifas')).toBeInTheDocument();
         });
 
-        const startCell = screen.getByTestId('cta-cell-room-1-2026-03-11');
-        const endCell = screen.getByTestId('cta-cell-room-1-2026-03-12');
+        const startCell = await screen.findByTestId('cta-cell-room-1-2026-03-11');
+        const endCell = await screen.findByTestId('cta-cell-room-1-2026-03-12');
 
         fireEvent.mouseDown(startCell, { button: 0 });
         fireEvent.mouseEnter(endCell);

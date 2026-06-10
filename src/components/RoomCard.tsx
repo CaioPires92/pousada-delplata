@@ -7,9 +7,11 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { gaEvent, trackClickReservar } from '@/lib/analytics';
+import { getRoomAmenitiesList } from '@/lib/rooms';
  
 
 interface RoomPhoto {
@@ -23,6 +25,7 @@ interface Room {
     description: string;
     capacity: number;
     basePrice: number;
+    amenities?: string;
     photos: RoomPhoto[];
 }
 
@@ -91,6 +94,23 @@ export function RoomCard({ room }: RoomCardProps) {
         });
     };
 
+    const amenityList = getRoomAmenitiesList(room.amenities);
+
+    const amenityIconMap: Array<{ icon: LucideIcon; match: (amenity: string) => boolean }> = [
+        { icon: Wifi, match: (amenity) => amenity.includes('wifi') || amenity.includes('wi-fi') || amenity.includes('internet') },
+        { icon: Tv, match: (amenity) => amenity.includes('tv') || amenity.includes('televis') },
+        { icon: Wind, match: (amenity) => amenity.includes('ar-condicionado') || amenity.includes('ar condicionado') },
+        { icon: Fan, match: (amenity) => amenity.includes('ventilador') },
+    ];
+
+    const amenityIcons = amenityList
+        .map((amenity) => {
+            const normalized = amenity.toLowerCase();
+            const matched = amenityIconMap.find(({ match }) => match(normalized));
+            return matched ? { amenity, Icon: matched.icon } : null;
+        })
+        .filter((item): item is { amenity: string; Icon: LucideIcon } => Boolean(item));
+
     return (
         <Fragment key={pathname}>
             <Card className="group flex h-full flex-col overflow-hidden rounded-none border border-primary/10 bg-white shadow-none transition-colors duration-200 hover:border-primary/20">
@@ -138,15 +158,18 @@ export function RoomCard({ room }: RoomCardProps) {
                             <span>Até {room.capacity} pessoas</span>
                         </div>
                     </div>
-                    <div className="flex gap-3 text-[color:var(--brand-gold)]">
-                        <Wifi className="w-4 h-4" />
-                        <Tv className="w-4 h-4" />
-                        {room.name === "Chalé" || room.name === "Apartamento Anexo" ? (
-                            <Fan className="w-4 h-4" />
-                        ) : (
-                            <Wind className="w-4 h-4" />
-                        )}
-                    </div>
+                    {amenityIcons.length > 0 ? (
+                        <div className="mb-3 flex flex-wrap gap-3 text-[color:var(--brand-gold)]">
+                            {amenityIcons.map(({ amenity, Icon }) => (
+                                <Icon key={`${room.id}-${amenity}`} className="w-4 h-4" aria-label={amenity} />
+                            ))}
+                        </div>
+                    ) : null}
+                    {amenityList.length > 0 ? (
+                        <p className="text-sm leading-6 text-foreground/72">
+                            {amenityList.join(' • ')}
+                        </p>
+                    ) : null}
                 </CardContent>
 
                 <CardFooter className="mt-auto flex items-center justify-between border-t border-primary/10 bg-[color:var(--brand-cream)] pt-4">

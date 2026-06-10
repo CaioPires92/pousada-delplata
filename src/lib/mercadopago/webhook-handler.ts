@@ -204,6 +204,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
         }
 
         const mapped = mapPaymentStatus(mpStatus);
+        const normalizedMpStatus = String(mpStatus || '').toLowerCase();
 
         const result = await prisma.$transaction(async (tx) => {
             const booking = await tx.booking.findUnique({
@@ -240,7 +241,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 if (currentBookingStatus === 'PENDING') {
                     const update = await tx.booking.updateMany({
                         where: { id: bookingId, status: 'PENDING' },
-                        data: { status: 'CONFIRMED' },
+                        data: {
+                            status: 'CONFIRMED',
+                            funnelStage: 'BOOKING_CONFIRMED',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: null,
+                        },
                     });
                     if (update.count === 1) {
                         bookingStatus = 'CONFIRMED';
@@ -256,7 +262,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 if (currentBookingStatus === 'PENDING') {
                     const update = await tx.booking.updateMany({
                         where: { id: bookingId, status: 'PENDING' },
-                        data: { status: 'CANCELLED' },
+                        data: {
+                            status: 'CANCELLED',
+                            funnelStage: 'PAYMENT_REJECTED',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: normalizedMpStatus || 'cancelled',
+                        },
                     });
                     if (update.count === 1) {
                         bookingStatus = 'CANCELLED';
@@ -276,7 +287,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 if (mapped.paymentStatus === 'REFUNDED' && currentBookingStatus === 'CONFIRMED') {
                     const update = await tx.booking.updateMany({
                         where: { id: bookingId, status: 'CONFIRMED' },
-                        data: { status: 'CANCELLED' },
+                        data: {
+                            status: 'CANCELLED',
+                            funnelStage: 'BOOKING_CANCELLED',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: normalizedMpStatus || 'refunded',
+                        },
                     });
                     if (update.count === 1) {
                         bookingStatus = 'CANCELLED';
@@ -332,6 +348,14 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     }
                     paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                     paymentStatus = 'APPROVED';
+                    await tx.booking.updateMany({
+                        where: { id: bookingId },
+                        data: {
+                            funnelStage: 'BOOKING_CONFIRMED',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: null,
+                        },
+                    });
                 } else if (mapped.paymentStatus === 'REJECTED') {
                     if (booking.payment.status !== 'APPROVED' && booking.payment.status !== 'REJECTED') {
                         await tx.payment.updateMany({
@@ -349,6 +373,14 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         paymentStatus = booking.payment.status;
                     }
                     paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
+                    await tx.booking.updateMany({
+                        where: { id: bookingId },
+                        data: {
+                            funnelStage: 'PAYMENT_REJECTED',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: normalizedMpStatus || 'rejected',
+                        },
+                    });
                 } else if (mapped.paymentStatus === 'REFUNDED') {
                     if (booking.payment.status !== 'REFUNDED') {
                         await tx.payment.updateMany({
@@ -364,6 +396,14 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     }
                     paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                     paymentStatus = 'REFUNDED';
+                    await tx.booking.updateMany({
+                        where: { id: bookingId },
+                        data: {
+                            funnelStage: 'BOOKING_CANCELLED',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: normalizedMpStatus || 'refunded',
+                        },
+                    });
                 } else {
                     if (booking.payment.providerId !== paymentId) {
                         await tx.payment.updateMany({
@@ -378,6 +418,14 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     }
                     paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
                     paymentStatus = booking.payment.status;
+                    await tx.booking.updateMany({
+                        where: { id: bookingId },
+                        data: {
+                            funnelStage: 'PAYMENT_PENDING',
+                            funnelUpdatedAt: new Date(),
+                            lastErrorMessage: null,
+                        },
+                    });
                 }
             } else {
                 const initialStatus = mapped.paymentStatus;
@@ -396,6 +444,18 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 paymentInstallmentsValue = paymentInstallments;
                 paymentStatus = initialStatus;
                 purchaseEventQueued = initialStatus === 'APPROVED';
+                await tx.booking.updateMany({
+                    where: { id: bookingId },
+                    data: {
+                        funnelStage: initialStatus === 'APPROVED'
+                            ? 'BOOKING_CONFIRMED'
+                            : initialStatus === 'REJECTED'
+                                ? 'PAYMENT_REJECTED'
+                                : 'PAYMENT_PENDING',
+                        funnelUpdatedAt: new Date(),
+                        lastErrorMessage: initialStatus === 'REJECTED' ? (normalizedMpStatus || 'rejected') : null,
+                    },
+                });
             }
 
             if (mapped.paymentStatus === 'APPROVED') {
@@ -512,7 +572,6 @@ export async function handleMercadoPagoWebhook(request: Request) {
             }
         }
 
-        const normalizedMpStatus = String(mpStatus || '').toLowerCase();
         const shouldSendAdminAlert =
             (normalizedMpStatus === 'approved' && result.emailQueued) ||
             ['rejected', 'refunded', 'cancelled', 'charged_back'].includes(normalizedMpStatus);

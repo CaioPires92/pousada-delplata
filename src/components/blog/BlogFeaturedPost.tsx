@@ -26,28 +26,18 @@ export function BlogFeaturedPost({ post }: BlogFeaturedPostProps) {
             className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/10 to-transparent" />
-          <div className="absolute left-5 top-5 border border-white/20 bg-black/15 px-4 py-3 text-white backdrop-blur-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70">
-              Caderno de Serra Negra
-            </p>
-            <p className="mt-1 text-sm font-medium">Ideias práticas para organizar a viagem</p>
-          </div>
         </Link>
 
         <div className="flex flex-col justify-between p-6 md:p-8">
           <div className="space-y-4">
             <div className="space-y-4 border-l-2 border-secondary pl-4">
               <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="secondary" className="rounded-none px-3 py-1">
-                  Destaque
-                </Badge>
                 {category ? (
                   <Badge variant="outline" className="rounded-none px-3 py-1">
                     {category.shortLabel}
                   </Badge>
                 ) : null}
               </div>
-
               <div className="space-y-3">
                 <p className="text-sm text-foreground/72">
                   {formatBlogDate(post.publishedAt)} • {post.readingTime}
@@ -63,12 +53,6 @@ export function BlogFeaturedPost({ post }: BlogFeaturedPostProps) {
           </div>
 
           <div className="mt-8 space-y-4">
-            <div className="bg-[color:var(--brand-cream)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/60">
-                Resumo rápido
-              </p>
-              <p className="mt-2 max-w-md text-sm leading-7 text-foreground/72">{post.summary}</p>
-            </div>
             <Link
               href={`/blog/${post.slug}`}
               className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-transform hover:translate-x-1"

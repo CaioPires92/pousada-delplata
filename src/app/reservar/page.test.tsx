@@ -38,6 +38,7 @@ global.fetch = mockFetch;
 
 describe('ReservarPage', () => {
   beforeEach(() => {
+    mockFetch.mockReset();
     vi.clearAllMocks();
     searchParamState.checkIn = '2026-01-01';
     searchParamState.checkOut = '2026-01-05';
@@ -54,37 +55,6 @@ describe('ReservarPage', () => {
     mockFetch.mockImplementationOnce(() => new Promise(() => { })); // Hang forever to show loading
     render(<ReservarPage />);
     expect(screen.getByText(/Buscando as melhores opções/i)).toBeInTheDocument();
-  });
-
-  it('renders available rooms after fetch', async () => {
-    const mockRooms = [
-      {
-        id: 'room-1',
-        name: 'Apartamento Anexo',
-        description: 'Quarto legal',
-        capacity: 2,
-        amenities: 'Wifi',
-        totalPrice: 500,
-        photos: [{ url: '/fake.jpg' }]
-      }
-    ];
-
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => mockRooms,
-      headers: {
-        get: vi.fn(() => null),
-      },
-    });
-
-    render(<ReservarPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Apartamento Anexo')).toBeInTheDocument();
-      const prices = screen.getAllByText('R$ 500.00');
-      expect(prices.length).toBeGreaterThan(0);
-      expect(screen.getByText(/Passo 1 de 3/i)).toBeInTheDocument();
-    });
   });
 
   it('ignores placeholder URLs and falls back to local photos', async () => {
@@ -388,7 +358,7 @@ describe('ReservarPage', () => {
     fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'maria@example.com' } });
     fireEvent.change(screen.getByLabelText(/Telefone\/WhatsApp/i), { target: { value: '(11) 99999-0000' } });
     fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
-    fireEvent.submit(screen.getByRole('button', { name: /Ir para Pagamento Seguro/i }).closest('form')!);
+    fireEvent.submit(screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(

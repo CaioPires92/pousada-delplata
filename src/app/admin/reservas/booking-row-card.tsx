@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { Booking } from './types';
 import {
+    formatFunnelStage,
     formatCurrency,
     formatDateSafe,
     formatInstallments,
@@ -207,6 +208,16 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                     </div>
                     <span className={styles.metaSub}>
                         {formatInstallments(booking.payment)} | {formatPaymentBrand(booking.payment)}
+                    </span>
+                </div>
+
+                <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}>Última etapa</span>
+                    <span className={styles.metaValue}>{formatFunnelStage(booking.funnelStage)}</span>
+                    <span className={styles.metaSub}>
+                        {booking.lastErrorMessage
+                            ? `Ocorrência: ${booking.lastErrorMessage}`
+                            : `Atualizado em ${formatDateSafe(booking.funnelUpdatedAt || booking.createdAt)}`}
                     </span>
                 </div>
 

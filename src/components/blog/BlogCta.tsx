@@ -18,9 +18,13 @@ export function BlogCta({
   description,
   compact = false,
 }: BlogCtaProps) {
-  const resolvedTitle = title ?? (compact ? "Consultar datas" : "Consulte as datas da sua viagem");
+  const resolvedTitle =
+    title ?? (compact ? "Consulte as datas da sua viagem" : "Consulte as datas da sua viagem");
   const resolvedDescription =
-    description ?? (compact ? "Ou fale com a equipe pelo WhatsApp." : "Veja a disponibilidade ou fale com a equipe pelo WhatsApp.");
+    description ??
+    (compact
+      ? "Veja a disponibilidade e, se preferir, fale com a equipe pelo WhatsApp."
+      : "Veja a disponibilidade ou fale com a equipe pelo WhatsApp.");
 
   return (
     <section
@@ -42,7 +46,9 @@ export function BlogCta({
           <h2
             className={cn(
               "font-heading font-semibold text-primary text-balance",
-              compact ? "max-w-[10ch] text-[2.2rem] leading-[0.98]" : "text-[2rem] leading-tight md:text-[2.6rem]",
+              compact
+                ? "max-w-[18ch] text-[1.9rem] leading-tight md:text-[2.2rem]"
+                : "text-[2rem] leading-tight md:text-[2.6rem]",
             )}
           >
             {resolvedTitle}
@@ -50,7 +56,7 @@ export function BlogCta({
           <p
             className={cn(
               "text-pretty leading-7 text-foreground/72",
-              compact ? "max-w-[22ch] text-base" : "text-base",
+              compact ? "max-w-[46ch] text-base" : "text-base",
             )}
           >
             {resolvedDescription}
@@ -59,8 +65,8 @@ export function BlogCta({
 
         <div
           className={cn(
-            "flex w-full flex-col gap-3",
-            compact ? "items-stretch" : "md:w-auto",
+            "flex w-full gap-3",
+            compact ? "flex-col items-stretch md:w-auto md:flex-row" : "flex-col md:w-auto",
           )}
         >
           <Button

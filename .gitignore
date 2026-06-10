@@ -34,6 +34,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.env.local
+.env.production
+.env.development
+.env*.local
 
 # vercel
 .vercel
@@ -54,3 +58,7 @@ deploy-hostinger-lean
 *.db-journal
 /db
 /db-wal
+
+
+
+

@@ -7,7 +7,7 @@ import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar, type CalendarProps } from '@/components/ui/calendar';
 import {
     Select,
     SelectContent,
@@ -28,6 +28,12 @@ const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
 function deferStateUpdate(callback: () => void) {
     queueMicrotask(callback);
 }
+
+type SearchFieldErrors = {
+    dates?: string;
+    guests?: string;
+    childrenAges?: string;
+};
 
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
@@ -72,6 +78,7 @@ export default function SearchWidget({
     const [couponFeedback, setCouponFeedback] = useState('');
     const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'warning' | ''>('');
     const [isHeroExpanded, setIsHeroExpanded] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<SearchFieldErrors>({});
 
     const maxGuests = 4;
     const numAdults = Number.parseInt(adults, 10) || 0;
@@ -111,6 +118,9 @@ export default function SearchWidget({
 
     const handleCheckInSelect = (date: Date | undefined) => {
         setCheckIn(date);
+        if (date && checkOut) {
+            setFieldErrors((prev) => ({ ...prev, dates: undefined }));
+        }
         setIsCheckInOpen(false); // Fecha o calendário após selecionar
 
         // Automatizar Check-out
@@ -132,6 +142,9 @@ export default function SearchWidget({
 
     const handleCheckOutSelect = (date: Date | undefined) => {
         setCheckOut(date);
+        if (checkIn && date) {
+            setFieldErrors((prev) => ({ ...prev, dates: undefined }));
+        }
         setIsCheckOutOpen(false);
     };
 
@@ -150,6 +163,7 @@ export default function SearchWidget({
     };
 
     const handleAdultsChange = (value: string) => {
+        setFieldErrors((prev) => ({ ...prev, guests: undefined, childrenAges: undefined }));
         const parsed = Number.parseInt(value, 10);
         const nextAdults = Number.isFinite(parsed) ? parsed : 1;
         const normalizedAdults = Math.min(Math.max(nextAdults, 1), maxGuests);
@@ -170,6 +184,7 @@ export default function SearchWidget({
     };
 
     const handleChildrenChange = (value: string) => {
+        setFieldErrors((prev) => ({ ...prev, guests: undefined, childrenAges: undefined }));
         const parsed = Number.parseInt(value, 10);
         const nextChildren = Number.isFinite(parsed) ? parsed : 0;
         const normalizedChildren = Math.min(Math.max(nextChildren, 0), maxChildren);
@@ -189,6 +204,7 @@ export default function SearchWidget({
         setSearchMessage('');
         setCouponFeedback('');
         setCouponFeedbackType('');
+        setFieldErrors({});
         trackSearch({
             checkIn: checkIn ? format(checkIn, 'yyyy-MM-dd') : undefined,
             checkOut: checkOut ? format(checkOut, 'yyyy-MM-dd') : undefined,
@@ -197,17 +213,17 @@ export default function SearchWidget({
         });
 
         if (numAdults < 1) {
-            alert('Selecione ao menos 1 adulto.');
+            setFieldErrors({ guests: 'Selecione ao menos 1 adulto para continuar.' });
             return;
         }
 
         if (numChildren > 0) {
             if (childrenAges.length !== numChildren || childrenAges.some((age) => age === null)) {
-                alert('Informe a idade de todas as crianças.');
+                setFieldErrors({ childrenAges: 'Informe a idade de todas as crianças para calcular a tarifa corretamente.' });
                 return;
             }
             if (childrenAges.some((age) => typeof age !== 'number' || !Number.isFinite(age) || age < 0 || age > 17)) {
-                alert('Idade de criança inválida.');
+                setFieldErrors({ childrenAges: 'Revise as idades informadas. Aceitamos crianças de 0 a 17 anos.' });
                 return;
             }
         }
@@ -221,17 +237,18 @@ export default function SearchWidget({
         const effectiveTotalGuests = effectiveAdults + childrenUnder12;
 
         if (effectiveTotalGuests > maxGuests) {
+            setFieldErrors({ guests: 'Cada acomodação recebe até 4 hóspedes. Se precisar de mais espaço, fale com a pousada para montar a melhor combinação.' });
             setShowCapacityFallback(true);
             return;
         }
 
         if (!checkIn || !checkOut) {
-            alert('Por favor, selecione as datas de check-in e check-out.');
+            setFieldErrors({ dates: 'Selecione check-in e check-out para ver a disponibilidade.' });
             return;
         }
 
         if (isSameDay(checkIn, checkOut) || isBefore(checkOut, checkIn)) {
-            alert('A data de check-out deve ser posterior ao check-in.');
+            setFieldErrors({ dates: 'A saída deve ser pelo menos 1 dia após o check-in.' });
             return;
         }
 
@@ -322,15 +339,15 @@ export default function SearchWidget({
     } satisfies CalendarProps['classNames'] : undefined;
     const heroSelectContentClass = 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-2 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
     const heroSelectItemClass = 'rounded-none py-3 pl-10 pr-4 font-accent text-sm font-medium uppercase tracking-[0.14em] text-[color:var(--brand-forest)] focus:bg-[color:var(--brand-white)] focus:text-[color:var(--brand-forest)]';
-    const heroBarClass = 'mx-auto w-full max-w-[1180px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-6 shadow-[0_12px_28px_rgba(40,50,35,0.08)]';
-    const heroFieldClass = 'flex h-full items-center px-7';
-    const heroFieldInnerClass = 'flex h-[58px] w-full flex-col justify-center gap-2';
-    const heroGuestsInnerClass = 'flex h-[58px] w-full max-w-[172px] flex-col justify-center gap-2';
+    const heroBarClass = 'mx-auto w-full max-w-[1180px] overflow-hidden rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-0 shadow-[0_12px_28px_rgba(40,50,35,0.08)]';
+    const heroFieldClass = 'flex h-full min-h-[88px] items-center px-7';
+    const heroFieldInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
+    const heroGuestsInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroDividerClass = 'lg:border-r lg:border-[color:var(--line-dark)]';
     const heroLabelClass = 'flex items-center gap-2 text-[0.56rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-forest)]/75';
     const heroValueClass = 'flex h-auto w-full cursor-pointer items-center justify-between rounded-none border-0 bg-transparent px-0 py-0 text-left font-sans text-[0.98rem] font-semibold text-[color:var(--brand-forest)] transition-colors duration-300 hover:text-primary';
     const heroTriggerClass = 'h-auto w-full rounded-none border-0 bg-transparent px-0 font-sans text-[0.98rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 focus:ring-0 focus:ring-offset-0';
-    const heroButtonColumnClass = 'flex h-full items-center justify-center px-7';
+    const heroButtonColumnClass = 'flex h-full min-h-[88px] items-center justify-center px-0';
     const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
 
     const labelClass = isInlinePreset
@@ -359,6 +376,9 @@ export default function SearchWidget({
     const searchMessageClass = variant === 'light'
         ? 'mt-4 rounded-none border border-destructive/20 bg-destructive/10 p-4 text-destructive'
         : 'mt-4 rounded-none border border-[#d8cfbf] bg-[#f8f3ea] p-4 text-primary';
+    const inlineErrorClass = isHeroPreset
+        ? 'mt-3 rounded-none border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900'
+        : 'mt-2 rounded-none border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive';
     const loadingLabel = 'Buscando...';
     const mobileLabel = submitLabelMobile || submitLabel;
     const hasResponsiveLabel = Boolean(submitLabelMobile && submitLabelMobile !== submitLabel);
@@ -439,8 +459,6 @@ export default function SearchWidget({
         return () => window.removeEventListener(RESERVA_INTERACTION_EVENT, handleExpandRequest);
     }, [collapsible, isHeroPreset]);
 
-
-
     return (
         <div className="w-full">
             {shouldShowHeroCompact ? (
@@ -478,7 +496,7 @@ export default function SearchWidget({
             <form onSubmit={handleSearch} className={cn(
                 "grid grid-cols-1 gap-4 items-end md:grid-cols-2",
                 isHeroPreset
-                    ? "gap-y-4 lg:h-[100px] lg:grid-cols-[1fr_1fr_1.1fr_420px] lg:items-center lg:content-center lg:gap-x-0 lg:gap-y-0 xl:grid-cols-[1fr_1fr_1.1fr_420px]"
+                    ? "gap-y-4 lg:min-h-[88px] lg:grid-cols-[1fr_1fr_1fr_280px] lg:items-stretch lg:content-stretch lg:gap-x-0 lg:gap-y-0 xl:grid-cols-[1fr_1fr_1fr_280px]"
                     : "xl:grid-cols-[repeat(16,minmax(0,1fr))]"
             )}>
                 {/* Check-in */}
@@ -520,6 +538,9 @@ export default function SearchWidget({
                             />
                         </PopoverContent>
                     </Popover>
+                    {fieldErrors.dates ? (
+                        <p className={inlineErrorClass}>{fieldErrors.dates}</p>
+                    ) : null}
                     </div>
                 </div>
 
@@ -679,6 +700,7 @@ export default function SearchWidget({
                                                         value={age === null ? "" : String(age)}
                                                         onValueChange={(value) => {
                                                             const nextAge = value === "" ? null : Number.parseInt(value, 10);
+                                                            setFieldErrors((prev) => ({ ...prev, childrenAges: undefined }));
                                                             setChildrenAges((prev) => prev.map((v, i) => (i === idx ? nextAge : v)));
                                                         }}
                                                     >
@@ -707,6 +729,7 @@ export default function SearchWidget({
                             <div className="mb-4 relative">
                                 <select
                                     id="adults"
+                                    aria-label="Adultos"
                                     value={adults}
                                     onChange={(e) => handleAdultsChange(e.target.value)}
                                     className={selectClass}
@@ -720,6 +743,7 @@ export default function SearchWidget({
                             <div className="relative">
                                 <select
                                     id="children"
+                                    aria-label="Crianças"
                                     value={children}
                                     onChange={(e) => handleChildrenChange(e.target.value)}
                                     className={selectClass}
@@ -732,6 +756,12 @@ export default function SearchWidget({
                             </div>
                         </>
                     )}
+                    {fieldErrors.guests ? (
+                        <p className={inlineErrorClass}>{fieldErrors.guests}</p>
+                    ) : null}
+                    {fieldErrors.childrenAges ? (
+                        <p className={inlineErrorClass}>{fieldErrors.childrenAges}</p>
+                    ) : null}
                     </div>
                 </div>
 
@@ -764,7 +794,7 @@ export default function SearchWidget({
                         className={isInlinePreset
                             ? 'w-full h-11 min-w-[170px] px-4 text-sm font-semibold flex items-center justify-center gap-2'
                             : isHeroPreset
-                                ? 'mx-auto flex h-[62px] w-[320px] max-w-full items-center justify-center gap-2 rounded-none border border-[color:var(--brand-gold)] bg-[color:var(--brand-gold)] px-8 font-sans text-[14px] font-semibold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-[color:var(--brand-gold)]/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
+                                ? 'mx-auto flex h-16 w-[90%] items-center justify-center gap-2 self-center rounded-none border border-[#c5a06a] bg-[#D1B07C] px-6 font-sans text-[0.82rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-forest)] shadow-none transition-all duration-300 hover:bg-[#c9a66f] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0 lg:max-w-[252px]'
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
                         aria-label={submitLabel}
                         onClick={() => {
@@ -772,15 +802,15 @@ export default function SearchWidget({
                         }}
                         disabled={searchDisabled}
                     >
-                        {loading ? (
+                        {loading && !isHeroPreset ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
+                        ) : !isHeroPreset ? (
                             <Search className="h-4 w-4" />
-                        )}
+                        ) : null}
                         {isHeroPreset ? (
-                            <span className="flex flex-col items-center justify-center leading-none">
-                                <span className="whitespace-nowrap">{loading ? loadingLabel : submitLabel}</span>
-                                <span className="mt-1 text-[0.58rem] tracking-[0.12em] text-[#6f5a43]">
+                            <span className="flex flex-col items-center justify-center text-center leading-none">
+                                <span className="whitespace-nowrap">{loading ? loadingLabel : 'Ver disponibilidade'}</span>
+                                <span className="mt-1 text-[0.58rem] tracking-[0.14em] text-[#6f5a43]">
                                     Melhor tarifa
                                 </span>
                             </span>
@@ -802,46 +832,25 @@ export default function SearchWidget({
                         <div className="flex flex-wrap gap-3">
                             {childrenAges.map((age, idx) => (
                                 <div key={idx} className="relative min-w-[140px] flex-1 md:flex-none md:basis-1/6">
-                                    {isHeroPreset ? (
-                                        <Select
-                                            value={age === null ? "" : String(age)}
-                                            onValueChange={(value) => {
-                                                const nextAge = value === "" ? null : Number.parseInt(value, 10);
+                                    <>
+                                        <select
+                                            aria-label={`Idade da criança ${idx + 1}`}
+                                            className={selectClass}
+                                            value={age ?? ""}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const nextAge = val === "" ? null : Number.parseInt(val, 10);
+                                                setFieldErrors((prev) => ({ ...prev, childrenAges: undefined }));
                                                 setChildrenAges((prev) => prev.map((v, i) => (i === idx ? nextAge : v)));
                                             }}
                                         >
-                                            <SelectTrigger className={cn(heroSelectTriggerClass, "rounded-none border border-white/12 bg-white/[0.03] px-4 text-[0.98rem]")}>
-                                                <SelectValue aria-label={age === null ? `Idade ${idx + 1}` : `${age} anos`}>
-                                                    {age === null ? `Idade ${idx + 1}` : String(age)}
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent className={heroSelectContentClass} position="popper" sideOffset={12}>
-                                                {Array.from({ length: 18 }, (_, ageOpt) => (
-                                                    <SelectItem key={ageOpt} value={String(ageOpt)} className={heroSelectItemClass}>
-                                                        {ageOpt} {ageOpt === 1 ? 'ano' : 'anos'}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <>
-                                            <select
-                                                className={selectClass}
-                                                value={age ?? ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    const nextAge = val === "" ? null : Number.parseInt(val, 10);
-                                                    setChildrenAges((prev) => prev.map((v, i) => (i === idx ? nextAge : v)));
-                                                }}
-                                            >
-                                                <option value="" disabled>Idade</option>
-                                                {Array.from({ length: 18 }, (_, ageOpt) => (
-                                                    <option key={ageOpt} value={ageOpt}>{ageOpt}</option>
-                                                ))}
-                                            </select>
-                                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
-                                        </>
-                                    )}
+                                            <option value="" disabled>Idade</option>
+                                            {Array.from({ length: 18 }, (_, ageOpt) => (
+                                                <option key={ageOpt} value={ageOpt}>{ageOpt}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+                                    </>
                                 </div>
                             ))}
                         </div>

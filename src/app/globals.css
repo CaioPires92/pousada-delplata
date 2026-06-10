@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  --font-inter: "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-playfair-display: "Bodoni Moda", "Times New Roman", Georgia, serif;
   --brand-forest: #283223;
   --brand-gold: #bbb863;
   --brand-cream: #f5f5f5;
@@ -63,6 +65,7 @@
 }
 
 body {
+  font-family: var(--font-inter);
   color: hsl(var(--foreground));
   background: hsl(var(--background));
 }

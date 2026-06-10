@@ -84,7 +84,10 @@ export default function AdminQuartosPage() {
     }, [router]);
 
     useEffect(() => {
-        fetchRooms();
+        const timeoutId = window.setTimeout(() => {
+            void fetchRooms();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [fetchRooms]);
 
     const handleEdit = (room: RoomType) => {

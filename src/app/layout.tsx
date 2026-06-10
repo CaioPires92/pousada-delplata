@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Bodoni_Moda, Inter } from "next/font/google";
 import Script from "next/script";
 
 import Footer from "@/components/Footer";
@@ -14,19 +13,6 @@ import {
 } from "@/lib/seo";
 
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const displaySerif = Bodoni_Moda({
-  subsets: ["latin"],
-  weight: ["700"],
-  variable: "--font-playfair-display",
-  display: "swap",
-});
 
 const structuredData = [buildWebSiteSchema(), buildLodgingBusinessSchema()];
 
@@ -77,9 +63,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body
-        className={`${inter.variable} ${displaySerif.variable} font-sans antialiased`}
-      >
+      <body className="font-sans antialiased">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

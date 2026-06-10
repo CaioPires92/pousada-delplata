@@ -2,23 +2,20 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    LayoutDashboard, 
-    Calendar, 
-    Home, 
-    CreditCard, 
-    Clock, 
-    CheckCircle2, 
-    Globe, 
+import {
+    LayoutDashboard,
+    Calendar,
+    Home,
+    CreditCard,
+    Clock,
+    CheckCircle2,
+    Globe,
     ArrowRight,
     Loader2,
     TrendingUp,
-    Users,
     ChevronRight,
     Activity
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import styles from './dashboard.module.css';
 
@@ -53,7 +50,10 @@ export default function AdminDashboard() {
     }, [router]);
 
     useEffect(() => {
-        fetchStats();
+        const timeoutId = window.setTimeout(() => {
+            void fetchStats();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [fetchStats]);
 
     if (loading) {

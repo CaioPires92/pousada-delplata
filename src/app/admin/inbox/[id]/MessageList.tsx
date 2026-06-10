@@ -82,7 +82,10 @@ export default function MessageList({ initialMessages, conversationId }: Message
 
     // Sincronizar com props iniciais
     useEffect(() => {
-        setMessages(initialMessages);
+        const timeoutId = window.setTimeout(() => {
+            setMessages(initialMessages);
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [initialMessages]);
 
     useEffect(() => {

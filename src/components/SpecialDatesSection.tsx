@@ -25,10 +25,12 @@ function formatSpecialDatePeriod(specialDate: SpecialDateConfig) {
 
     const fromDay = String(from.getUTCDate()).padStart(2, '0');
     const toDay = String(to.getUTCDate()).padStart(2, '0');
-    const month = monthFormatter.format(from).replace('.', '').toUpperCase();
+    const fromMonth = monthFormatter.format(from).replace('.', '').toUpperCase();
+    const toMonth = monthFormatter.format(to).replace('.', '').toUpperCase();
 
-    if (fromDay === toDay) return `${fromDay} ${month}`;
-    return `${fromDay} - ${toDay} ${month}`;
+    if (fromDay === toDay && fromMonth === toMonth) return `${fromDay} ${fromMonth}`;
+    if (fromMonth === toMonth) return `${fromDay} - ${toDay} ${fromMonth}`;
+    return `${fromDay} ${fromMonth} - ${toDay} ${toMonth}`;
 }
 
 function getSpecialDateHref(specialDate: SpecialDateConfig) {

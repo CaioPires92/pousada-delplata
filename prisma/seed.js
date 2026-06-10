@@ -40,7 +40,7 @@ async function seed() {
 
         {
             name: 'Apartamento Térreo',
-            description: 'TV Smart 32, Frigobar e Ar-condicionado.',
+            description: 'Apartamento na ala principal, próximo ao café da manhã, com Smart TV, frigobar, ventilador de teto e ar-condicionado.',
             capacity: 3,
             maxGuests: 4,
             inventoryFor4Guests: 2,
@@ -49,12 +49,12 @@ async function seed() {
             child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 599.00,
-            amenities: 'Ventilador, TV, WiFi',
+            amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
         },
 
         {
             name: 'Apartamento Superior',
-            description: 'Televisão LCD 39, Frigobar, Ar condicionado.',
+            description: 'Apartamento na ala principal, próximo ao café da manhã, com TV, frigobar, ventilador de teto e ar-condicionado.',
             capacity: 3,
             maxGuests: 4,
             inventoryFor4Guests: 2,
@@ -63,12 +63,12 @@ async function seed() {
             child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 699.00,
-            amenities: 'Ar-condicionado, Smart TV, WiFi',
+            amenities: 'Ar-condicionado, Ventilador de teto, TV, WiFi',
         },
 
         {
             name: 'Chalé',
-            description: 'Privacidade e contato com a natureza.',
+            description: 'Chalé com varanda e café da manhã a 70 metros da ala principal. Não possui ar-condicionado.',
             capacity: 3,
             maxGuests: 4,
             inventoryFor4Guests: 2,
@@ -77,11 +77,11 @@ async function seed() {
             child6To11Fee: 50,
             totalUnits: 6,
             basePrice: 499.00,
-            amenities: 'Varanda, WiFi, Churrasqueira',
+            amenities: 'Varanda, TV, WiFi, Ventilador de teto, Tomadas 110v',
         },
         {
             name: 'Apartamento Anexo',
-            description: 'Privacidade e contato com a natureza.',
+            description: 'Apartamento anexo com Smart TV, mais privacidade e apoio de micro-ondas no bar. Não possui varanda nem copa.',
             capacity: 3,
             maxGuests: 3,
             inventoryFor4Guests: 0,
@@ -90,7 +90,7 @@ async function seed() {
             child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 399.00,
-            amenities: 'Varanda, WiFi, Churrasqueira',
+            amenities: 'Smart TV, WiFi',
         }
     ];
 

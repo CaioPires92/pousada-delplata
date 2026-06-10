@@ -44,6 +44,16 @@ export type PurchasePayload = {
     items?: GaItem[];
 };
 
+export type ReservationFunnelPayload = {
+    step: string;
+    status?: 'success' | 'error' | 'pending';
+    bookingId?: string;
+    roomId?: string;
+    roomName?: string;
+    value?: number | string | null;
+    message?: string;
+};
+
 declare global {
     interface Window {
         dataLayer?: unknown[];
@@ -187,5 +197,17 @@ export function trackClickWhatsAppFloating(position: CtaPosition = 'floating') {
 
 export function trackClickWhatsAppFinal(position: CtaPosition = 'final') {
     gaEvent('click_whatsapp_final', buildCtaParams(position));
+}
+
+export function trackReservationFunnel(payload: ReservationFunnelPayload) {
+    gaEvent('reservation_funnel', {
+        step: payload.step,
+        status: payload.status || 'success',
+        booking_id: payload.bookingId || undefined,
+        room_id: payload.roomId || undefined,
+        room_name: payload.roomName || undefined,
+        value: payload.value != null ? toNumber(payload.value, 0) : undefined,
+        message: payload.message || undefined,
+    });
 }
 

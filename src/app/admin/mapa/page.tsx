@@ -165,7 +165,10 @@ const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) 
     const [currentValue, setCurrentValue] = useState(value);
 
     useEffect(() => {
-        setCurrentValue(value);
+        const timeoutId = window.setTimeout(() => {
+            setCurrentValue(value);
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [value]);
 
     return (
@@ -245,18 +248,17 @@ export default function MapaReservas() {
 
     useEffect(() => {
         const saved = localStorage.getItem('hospedin_last_sync');
-        if (saved) {
-            try {
-                setLastSync(JSON.parse(saved));
-            } catch (e) {}
-        }
+        if (!saved) return;
+        try {
+            const parsed = JSON.parse(saved);
+            const timeoutId = window.setTimeout(() => {
+                setLastSync(parsed);
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
+        } catch {}
     }, []);
 
-    useEffect(() => {
-        fetchRoomTypes();
-    }, [router]);
-
-    const fetchRoomTypes = async () => {
+    async function fetchRoomTypes() {
         try {
             const res = await fetch('/api/rooms');
             const data = await res.json();
@@ -275,7 +277,14 @@ export default function MapaReservas() {
         } finally {
             setLoading(false);
         }
-    };
+    }
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            void fetchRoomTypes();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, [router]);
 
     const fetchCalendarForRoom = useCallback(async (roomTypeId: string, startKey: string, endKey: string) => {
         const res = await fetch(`/api/admin/calendar?roomTypeId=${roomTypeId}&startDate=${startKey}&endDate=${endKey}&_t=${Date.now()}`, {
@@ -396,7 +405,10 @@ export default function MapaReservas() {
 
     useEffect(() => {
         if (selectedRoomId) {
-            void fetchRates();
+            const timeoutId = window.setTimeout(() => {
+                void fetchRates();
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         }
     }, [selectedRoomId, fetchRates]);
 

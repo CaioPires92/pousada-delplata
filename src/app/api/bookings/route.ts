@@ -244,6 +244,9 @@ export async function POST(request: Request) {
                     appliedCouponCode,
                     totalPrice: Math.max(0, subtotalPrice - discountAmount),
                     status: 'PENDING',
+                    funnelStage: 'BOOKING_CREATED',
+                    funnelUpdatedAt: new Date(),
+                    lastErrorMessage: null,
                 },
                 include: {
                     guest: true,

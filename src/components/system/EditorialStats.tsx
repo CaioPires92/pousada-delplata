@@ -41,7 +41,7 @@ export default function EditorialStats({ className, footer, items }: EditorialSt
             className={index === 0 ? editorialStatsStyles.item : editorialStatsStyles.itemWithDivider}
           >
             <div className={editorialStatsStyles.iconWrapper}>
-              <Icon className={editorialStatsStyles.icon} aria-hidden="true" />
+              <Icon className={editorialStatsStyles.icon} aria-hidden />
             </div>
             <div className={editorialStatsStyles.content}>
               <h3 className={editorialStatsStyles.value}>{value}</h3>

@@ -178,13 +178,17 @@ export default function ReservaManualPage() {
         let cancelled = false;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
         if (!publicKey) {
-            setPaymentError('Chave pública do Mercado Pago não configurada.');
-            return;
+            const timeoutId = window.setTimeout(() => {
+                setPaymentError('Chave pública do Mercado Pago não configurada.');
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         }
 
         if (paymentAmount <= 0) {
-            setPaymentError('Nao foi possivel carregar o formulario de pagamento: valor da reserva deve ser maior que zero.');
-            return;
+            const timeoutId = window.setTimeout(() => {
+                setPaymentError('Nao foi possivel carregar o formulario de pagamento: valor da reserva deve ser maior que zero.');
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         }
 
         const loadSdk = () => new Promise<void>((resolve, reject) => {

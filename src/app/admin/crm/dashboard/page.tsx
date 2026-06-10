@@ -15,6 +15,8 @@ export default async function CrmDashboardPage({
   const params = await searchParams;
   const scope = params.scope === "daily" ? "daily" : "weekly";
   const since = periodStart(scope);
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
   const [cardsCreated, cardsConfirmed, cardsLost, bySource, byLostReason, byStage, quoteSent, reservationStarted, alerts] = await Promise.all([
     prisma.pipelineCard.count({ where: { createdAt: { gte: since } } }),
@@ -28,7 +30,7 @@ export default async function CrmDashboardPage({
     prisma.internalActionLog.findMany({
       where: {
         action: { in: ["WhatsAppSendFailed", "N8NEmitFailed", "WebhookProcessingFailed"] },
-        createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+        createdAt: { gte: oneHourAgo },
       },
       orderBy: { createdAt: "desc" },
       take: 10,

@@ -41,6 +41,10 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  typescript: {
+    tsconfigPath: './tsconfig.build.json',
+  },
+
 
   // Server-side packages that should not be bundled
   serverExternalPackages: [

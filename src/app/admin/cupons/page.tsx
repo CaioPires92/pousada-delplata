@@ -9,8 +9,6 @@ import {
     Plus, 
     ShieldCheck, 
     BarChart3, 
-    History, 
-    Search, 
     Filter, 
     Trash2, 
     Edit3, 
@@ -223,15 +221,17 @@ export default function AdminCuponsPage() {
             if (!rawDraft) return;
             const parsed = JSON.parse(rawDraft) as Partial<CouponFormDraft>;
             if (!parsed || typeof parsed !== 'object' || !parsed.form || typeof parsed.form !== 'object') return;
-
-            setForm({
-                ...emptyForm(),
-                ...parsed.form,
-                currentCodePrefix: typeof parsed.form.currentCodePrefix === 'string' ? parsed.form.currentCodePrefix : '',
-                allowedRoomTypeIds: Array.isArray(parsed.form.allowedRoomTypeIds) ? parsed.form.allowedRoomTypeIds : [],
-            });
-            setCreatedCode(typeof parsed.createdCode === 'string' ? parsed.createdCode : '');
-            setFormOpen(Boolean(parsed.formOpen));
+            const parsedForm = parsed.form as Partial<CouponForm>;
+            window.setTimeout(() => {
+                setForm({
+                    ...emptyForm(),
+                    ...parsedForm,
+                    currentCodePrefix: typeof parsedForm.currentCodePrefix === 'string' ? parsedForm.currentCodePrefix : '',
+                    allowedRoomTypeIds: Array.isArray(parsedForm.allowedRoomTypeIds) ? parsedForm.allowedRoomTypeIds : [],
+                });
+                setCreatedCode(typeof parsed.createdCode === 'string' ? parsed.createdCode : '');
+                setFormOpen(Boolean(parsed.formOpen));
+            }, 0);
         } catch {
             window.localStorage.removeItem(COUPON_FORM_DRAFT_KEY);
         } finally {
@@ -300,8 +300,20 @@ export default function AdminCuponsPage() {
         }
     }, [router]);
 
-    useEffect(() => { void loadData(); }, [loadData]);
-    useEffect(() => { if (activeTab === 'auditoria') void loadAttempts(); }, [activeTab, loadAttempts]);
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            void loadData();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, [loadData]);
+
+    useEffect(() => {
+        if (activeTab !== 'auditoria') return;
+        const timeoutId = window.setTimeout(() => {
+            void loadAttempts();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, [activeTab, loadAttempts]);
 
     const openCreate = () => {
         setForm(emptyForm());

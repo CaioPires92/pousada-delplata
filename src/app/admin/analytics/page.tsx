@@ -53,7 +53,10 @@ export default function CRMAnalyticsPage() {
   }
 
   useEffect(() => {
-    loadStats();
+    const timeoutId = window.setTimeout(() => {
+      void loadStats();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   if (loading) {

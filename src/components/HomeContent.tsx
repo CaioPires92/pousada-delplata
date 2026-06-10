@@ -20,6 +20,7 @@ import SpecialDatesSection from "@/components/SpecialDatesSection";
 import {
   SPECIAL_DATES,
 } from "@/constants/specialDates";
+import type { RoomWingSummary } from "@/lib/rooms";
 
 const siteImages = {
   hero: {
@@ -136,9 +137,11 @@ const siteImages = {
   ],
 } as const;
 
+interface HomeContentProps {
+  wingSummaries: RoomWingSummary[];
+}
 
-
-export default function HomeContent() {
+export default function HomeContent({ wingSummaries }: HomeContentProps) {
   /* Removed GSAP refs and effects to fix re-render flash */
   /* Using purely Framer Motion for stable SSR/Hydration */
 
@@ -164,24 +167,13 @@ export default function HomeContent() {
     },
   };
 
-  const wings = [
-    {
-      id: 'ala-principal',
-      title: 'Ala Principal',
-      description: 'Praticidade e ótimo custo-benefício. Perfeito para famílias e casais.',
-      highlights: ['Apartamentos térreo e superior', 'Até 4 hóspedes'],
-      image: siteImages.accommodations.mainWing,
-      link: '/acomodacoes'
-    },
-    {
-      id: 'ala-anexo',
-      title: 'Ala Chalés e Anexos',
-      description: 'Mais privacidade em meio à natureza. Espaço ideal para relaxar.',
-      highlights: ['Chalés e apartamentos anexos', 'Até 5 hóspedes'],
-      image: siteImages.accommodations.annexWing,
-      link: '/acomodacoes'
-    }
-  ] as const;
+  const wings = wingSummaries.map((wing) => ({
+    ...wing,
+    image: wing.id === "ala-principal"
+      ? siteImages.accommodations.mainWing
+      : siteImages.accommodations.annexWing,
+    link: "/acomodacoes",
+  }));
 
   const experienceBenefits = [
     {

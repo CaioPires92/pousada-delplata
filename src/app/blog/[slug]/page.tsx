@@ -143,8 +143,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               />
             </div>
 
-            <div className="grid gap-10 px-6 py-8 md:px-10 md:py-10 lg:grid-cols-[minmax(0,1fr)_280px]">
-              <div className="space-y-10">
+            <div className="px-6 py-8 md:px-10 md:py-10">
+              <div className="mx-auto max-w-3xl space-y-10">
                 <BlogPostBody content={post.content} />
 
                 <div className="flex flex-wrap gap-2 border-t border-primary/10 pt-6">
@@ -154,18 +154,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                     </span>
                   ))}
                 </div>
-              </div>
-
-              <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-                <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-6">
-                  <p className="text-sm font-semibold uppercase tracking-[0.12em] text-primary/80">
-                    Resumo rápido
-                  </p>
-                  <p className="mt-3 text-sm leading-7 text-foreground/72">{post.summary}</p>
-                </div>
 
                 <BlogCta compact />
-              </aside>
+              </div>
             </div>
           </div>
         </div>

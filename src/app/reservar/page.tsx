@@ -2,18 +2,46 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCallback, useEffect, useState, Suspense, useRef, useMemo } from 'react';
+import { useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
 import AvailabilityBar from './components/AvailabilityBar';
+import { SiGoogle } from 'react-icons/si';
 
-import { Check, AlertCircle, ArrowLeft, CreditCard, User, Mail, Phone, Camera, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+    Check,
+    AlertCircle,
+    ArrowLeft,
+    ArrowRight,
+    BadgeCheck,
+    Camera,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    Coffee,
+    CreditCard,
+    History,
+    Mail,
+    Phone,
+    ShieldCheck,
+    Snowflake,
+    Tv,
+    User,
+    Wifi,
+    Wind,
+    X,
+    Flame,
+    LoaderCircle,
+    PlugZap,
+} from 'lucide-react';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
+import { trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
  
 
 interface Room {
@@ -68,6 +96,111 @@ interface RoomGalleryState {
     currentIndex: number;
 }
 
+function RoomListSkeleton() {
+    return (
+        <div className="space-y-6 animate-pulse">
+            {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm border border-border/50 overflow-hidden">
+                    <div className="grid md:grid-cols-12">
+                        <div className="md:col-span-4 bg-muted h-64 md:h-80 relative">
+                            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
+                                <Camera className="w-12 h-12" />
+                            </div>
+                        </div>
+                        <div className="md:col-span-8 p-6 space-y-4">
+                            <div className="h-8 bg-muted rounded w-48" />
+                            <div className="space-y-2">
+                                <div className="h-4 bg-muted rounded w-full" />
+                                <div className="h-4 bg-muted rounded w-5/6" />
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                                {[1, 2, 3, 4].map((j) => (
+                                    <div key={j} className="h-6 bg-muted rounded-full w-20" />
+                                ))}
+                            </div>
+                            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+                                <div className="h-8 bg-muted rounded w-32" />
+                                <div className="h-10 bg-muted rounded w-48" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+const RESERVATION_BENEFITS = [
+    'Café da manhã incluso',
+    'Melhor tarifa garantida no site',
+    'Pagamento via Pix ou cartão',
+    'Atendimento direto da pousada',
+];
+
+const PAGE_TRUST_ITEMS = [
+    {
+        value: 'Direto',
+        label: 'Atendimento da pousada',
+        description: 'Fale conosco pelo WhatsApp',
+        icon: Phone,
+    },
+    {
+        value: '4,8/5',
+        label: 'Google',
+        description: 'Mais de 500 avaliações',
+        icon: SiGoogle,
+    },
+    {
+        value: '15+ anos',
+        label: 'Recebendo hóspedes',
+        description: 'Tradição e hospitalidade',
+        icon: History,
+    },
+];
+
+const MP_TEST_CARDS = [
+    { label: 'Mastercard credito', number: '5031 4332 1540 6351', securityCode: '123', expiry: '11/30' },
+    { label: 'Visa credito', number: '4235 6477 2802 5682', securityCode: '123', expiry: '11/30' },
+    { label: 'Amex credito', number: '3753 651535 56885', securityCode: '1234', expiry: '11/30' },
+    { label: 'Elo debito', number: '5067 7667 8388 8311', securityCode: '123', expiry: '11/30' },
+];
+
+const MP_TEST_SCENARIOS = [
+    { status: 'Aprovado', holderName: 'APRO', document: '12345678909' },
+    { status: 'Pendente', holderName: 'CONT', document: 'Nao exige CPF' },
+    { status: 'Saldo insuficiente', holderName: 'FUND', document: 'Nao exige CPF' },
+    { status: 'Codigo invalido', holderName: 'SECU', document: 'Nao exige CPF' },
+];
+
+const PAYMENT_LOADING_STEPS = [
+    'Validando dados do pagamento',
+    'Enviando ao Mercado Pago',
+    'Preparando a confirmacao',
+];
+
+function getAmenityIcon(amenity: string) {
+    const normalized = String(amenity || '').toLowerCase();
+
+    if (normalized.includes('wifi')) return Wifi;
+    if (normalized.includes('ar-condicionado') || normalized.includes('ar condicionado')) return Snowflake;
+    if (normalized.includes('smart tv') || normalized.includes('tv')) return Tv;
+    if (normalized.includes('ventilador')) return Wind;
+    if (normalized.includes('churrasqueira')) return Flame;
+    if (normalized.includes('tomadas')) return PlugZap;
+    return Check;
+}
+
+function normalizePaymentUiErrorMessage(message: unknown) {
+    const raw = String(message || '').trim();
+    const normalized = raw.toLowerCase();
+
+    if (!raw || normalized === 'internal_error' || normalized === 'unknown error') {
+        return 'Nao foi possivel processar o pagamento agora. Tente novamente em instantes ou fale com a pousada no WhatsApp.';
+    }
+
+    return raw;
+}
+
 function ReservarContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -92,10 +225,10 @@ function ReservarContent() {
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
     const [couponCode, setCouponCode] = useState('');
-    const [couponMessage, setCouponMessage] = useState('');
+    const [, setCouponMessage] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
     const [formMessage, setFormMessage] = useState('');
-    const [promoAppliedInResults, setPromoAppliedInResults] = useState(false);
+    const [, setPromoAppliedInResults] = useState(false);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -105,6 +238,9 @@ function ReservarContent() {
     const [paymentError, setPaymentError] = useState<string>('');
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'approved' | 'rejected' | 'pending' | 'error'>('idle');
     const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
+    const [paymentRetryNonce, setPaymentRetryNonce] = useState(0);
+    const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+    const [testDataCopied, setTestDataCopied] = useState<string | null>(null);
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
@@ -139,7 +275,7 @@ function ReservarContent() {
         return placeholderDomains.some((domain) => normalizedUrl.includes(domain));
     };
 
-    const getRoomDisplayPhotos = useCallback((room: Room) => {
+    const getRoomDisplayPhotos = (room: Room) => {
         const backendUrls = (room.photos ?? [])
             .map((p) => p?.url?.trim())
             .filter((url): url is string => Boolean(url))
@@ -149,14 +285,14 @@ function ReservarContent() {
 
         const localPhotos = getLocalRoomPhotos(room.name);
         return localPhotos ?? [];
-    }, []);
+    };
 
-    const getRoomPrimaryImageSrc = useCallback((room: Room) => {
+    const getRoomPrimaryImageSrc = (room: Room) => {
         const photos = getRoomDisplayPhotos(room);
         return photos[0] ?? null;
-    }, [getRoomDisplayPhotos]);
+    };
 
-    const openRoomGallery = useCallback((room: Room, startIndex = 0) => {
+    const openRoomGallery = (room: Room, startIndex = 0) => {
         const photos = getRoomDisplayPhotos(room);
         if (photos.length === 0) return;
         const normalizedIndex = Math.min(Math.max(startIndex, 0), photos.length - 1);
@@ -165,13 +301,13 @@ function ReservarContent() {
             photos,
             currentIndex: normalizedIndex,
         });
-    }, [getRoomDisplayPhotos]);
+    };
 
-    const closeRoomGallery = useCallback(() => {
+    const closeRoomGallery = () => {
         setRoomGallery(null);
-    }, []);
+    };
 
-    const showNextGalleryPhoto = useCallback(() => {
+    const showNextGalleryPhoto = () => {
         setRoomGallery((prev) => {
             if (!prev || prev.photos.length <= 1) return prev;
             return {
@@ -179,9 +315,9 @@ function ReservarContent() {
                 currentIndex: (prev.currentIndex + 1) % prev.photos.length,
             };
         });
-    }, []);
+    };
 
-    const showPrevGalleryPhoto = useCallback(() => {
+    const showPrevGalleryPhoto = () => {
         setRoomGallery((prev) => {
             if (!prev || prev.photos.length <= 1) return prev;
             return {
@@ -189,7 +325,7 @@ function ReservarContent() {
                 currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length,
             };
         });
-    }, []);
+    };
 
     useEffect(() => {
         if (!roomGallery) return;
@@ -207,7 +343,7 @@ function ReservarContent() {
             document.body.style.overflow = previousOverflow;
             window.removeEventListener('keydown', handleEscape);
         };
-    }, [roomGallery, closeRoomGallery]);
+    }, [roomGallery]);
 
     const formatDate = (dateString: string) => {
         if (!dateString) return '';
@@ -226,6 +362,8 @@ function ReservarContent() {
         return Number.isFinite(parsed) ? parsed : Number.NaN;
     };
 
+    const formatCurrencyBRL = (value: number) => `R$ ${Number(value).toFixed(2)}`;
+
     const stayNights = useMemo(() => {
         if (!checkIn || !checkOut) return 0;
         const diff = Math.ceil(
@@ -240,9 +378,41 @@ function ReservarContent() {
     const bookingTotal = appliedCoupon
         ? Number(appliedCoupon.total || Math.max(0, bookingSubtotal - bookingDiscount))
         : (selectedRoom ? Number(selectedRoom.totalPrice) : 0);
+    const handleRetryPayment = async () => {
+        setPaymentError('');
+        setPaymentStatus('idle');
+        setPaymentStatusMessage('');
+        setIsSubmittingPayment(false);
+        setPixData(null);
+
+        if (paymentBrickRef.current) {
+            try {
+                await paymentBrickRef.current.unmount();
+            } catch {
+                // Ignora falhas de desmontagem para permitir nova tentativa
+            } finally {
+                paymentBrickRef.current = null;
+            }
+        }
+
+        setPaymentRetryNonce((prev) => prev + 1);
+    };
     const currentStep = paymentBookingId ? 3 : selectedRoom ? 2 : 1;
     const totalSteps = 3;
     const progressPercent = Math.round((currentStep / totalSteps) * 100);
+    const showPaymentTestHelper = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true'
+        || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY?.startsWith('TEST-');
+
+    const copyTestValue = async (key: string, value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setTestDataCopied(key);
+            setTimeout(() => setTestDataCopied((current) => current === key ? null : current), 1800);
+        } catch {
+            // noop
+        }
+    };
+    const paymentLoadingStepIndex = isSubmittingPayment ? 1 : 0;
 
     useEffect(() => {
         selectedRoomRef.current = selectedRoom;
@@ -250,37 +420,46 @@ function ReservarContent() {
 
     useEffect(() => {
         if (promoFromQuery) {
-            setCouponCode(promoFromQuery);
-            return;
+            const timeoutId = window.setTimeout(() => {
+                setCouponCode(promoFromQuery);
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         }
         if (!selectedRoom) {
-            setCouponCode('');
-            setCouponMessage('');
-            setPromoAppliedInResults(false);
+            const timeoutId = window.setTimeout(() => {
+                setCouponCode('');
+                setCouponMessage('');
+                setPromoAppliedInResults(false);
+            }, 0);
+            return () => window.clearTimeout(timeoutId);
         }
     }, [promoFromQuery, selectedRoom]);
 
     useEffect(() => {
-        setSearchEditorOpen(false);
+        const timeoutId = window.setTimeout(() => {
+            setSearchEditorOpen(false);
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [checkIn, checkOut, adults, children, childrenAgesKey]);
 
-    const getWhatsAppUrl = () => {
+    const getWhatsAppUrl = (context?: 'error_form' | 'error_payment') => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
         const checkOutStr = checkOut ? formatDate(checkOut) : 'DATA INDEFINIDA';
-        const message = `Olá! Gostaria de cotar hospedagem para *${numAdults} adultos* e *${numChildren} crianças*.\n` +
-            `Datas: ${checkInStr} a ${checkOutStr}.\n` +
-            `Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.`;
+        const contextLine = context === 'error_form'
+            ? 'Tive um problema ao continuar minha reserva no preenchimento dos dados.'
+            : context === 'error_payment'
+                ? 'Tive um problema ao finalizar o pagamento da reserva.'
+                : 'Gostaria de cotar hospedagem.';
+        const bookingLine = paymentBookingId ? `Reserva: ${paymentBookingId}\n` : '';
+        const message = `Olá! ${contextLine}\n` +
+            bookingLine +
+            `Hospedagem para *${numAdults} adultos* e *${numChildren} crianças*.\n` +
+            `Datas: ${checkInStr} a ${checkOutStr}.`;
         const whatsappPhone = '5519999654866';
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
 
-    const buildPayerData = useCallback(
-        () => buildPaymentBrickInitializationPayer(guest.email),
-        [guest.email]
-    );
-
-
-    const fetchAvailability = useCallback(async (signal?: AbortSignal) => {
+    const fetchAvailability = useEffectEvent(async (signal?: AbortSignal) => {
         if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) {
             // Early return for invalid inputs - ensure loading is false
             if (mountedRef.current) {
@@ -378,19 +557,32 @@ function ReservarContent() {
         } finally {
             if (mountedRef.current) setLoading(false);
         }
-    }, [adults, checkIn, checkOut, children, childrenAgesKey, childrenAges, promoFromQuery, isInvalidAdults, isOverCapacity]);
+    });
 
     useEffect(() => {
         const controller = new AbortController();
-        mountedRef.current = true;
-        fetchAvailability(controller.signal);
+        const timeoutId = window.setTimeout(() => {
+            mountedRef.current = true;
+            void fetchAvailability(controller.signal);
+        }, 0);
         return () => {
+            window.clearTimeout(timeoutId);
             mountedRef.current = false;
             controller.abort();
         };
-    }, [fetchAvailability]);
+    }, [adults, checkIn, checkOut, children, childrenAgesKey, promoFromQuery, isInvalidAdults, isOverCapacity]);
 
-    const releaseCouponReservation = useCallback(async (reservationId?: string) => {
+    useEffect(() => {
+        if (!Array.isArray(availableRooms) || availableRooms.length === 0) return;
+        trackViewItemList(availableRooms);
+        trackReservationFunnel({
+            step: 'availability_loaded',
+            status: 'success',
+            value: availableRooms.length,
+        });
+    }, [availableRooms]);
+
+    const releaseCouponReservation = async (reservationId?: string) => {
         if (!reservationId) return;
         try {
             await fetch('/api/coupons/release', {
@@ -404,15 +596,15 @@ function ReservarContent() {
         } catch {
             // best-effort release
         }
-    }, [guest.email]);
+    };
 
-    const clearCouponState = useCallback((withRelease: boolean) => {
+    const clearCouponState = (withRelease: boolean) => {
         if (withRelease && appliedCoupon?.reservationId) {
             void releaseCouponReservation(appliedCoupon.reservationId);
         }
         setAppliedCoupon(null);
         setFormMessage('');
-    }, [appliedCoupon?.reservationId, releaseCouponReservation]);
+    };
 
     const applyCoupon = async (room: Room): Promise<AppliedCoupon | null> => {
         const normalizedCode = couponCode.trim().toUpperCase();
@@ -498,10 +690,19 @@ function ReservarContent() {
     useEffect(() => {
         return () => {
             if (appliedCoupon?.reservationId) {
-                void releaseCouponReservation(appliedCoupon.reservationId);
+                void fetch('/api/coupons/release', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        reservationId: appliedCoupon.reservationId,
+                        guest: { email: guest.email },
+                    }),
+                }).catch(() => {
+                    // best-effort release on unmount
+                });
             }
         };
-    }, [appliedCoupon?.reservationId, releaseCouponReservation]);
+    }, [appliedCoupon, guest.email]);
 
     const handleSelectRoom = async (room: Room) => {
         if (appliedCoupon?.reservationId) {
@@ -526,6 +727,13 @@ function ReservarContent() {
         setFormMessage('');
         setMobileSummaryExpanded(false);
         setSelectedRoom(nextRoom);
+        trackSelectItem(nextRoom);
+        trackReservationFunnel({
+            step: 'room_selected',
+            roomId: nextRoom.id,
+            roomName: nextRoom.name,
+            value: nextRoom.totalPrice,
+        });
         setTimeout(() => {
             document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
@@ -567,6 +775,25 @@ function ReservarContent() {
                 };
             }
 
+            trackBeginCheckout({
+                value: bookingTotal,
+                items: [
+                    {
+                        item_id: selectedRoom.id,
+                        item_name: selectedRoom.name,
+                        item_category: 'Hospedagem',
+                        price: Number(bookingTotal),
+                        quantity: 1,
+                    },
+                ],
+            });
+            trackReservationFunnel({
+                step: 'guest_form_submitted',
+                roomId: selectedRoom.id,
+                roomName: selectedRoom.name,
+                value: bookingTotal,
+            });
+
             const bookingResponse = await fetch('/api/bookings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -597,6 +824,13 @@ function ReservarContent() {
             setPaymentBookingId(booking.id);
             setPaymentAmount(parsedAmount);
             setPixData(null);
+            trackReservationFunnel({
+                step: 'payment_started',
+                bookingId: booking.id,
+                roomId: selectedRoom.id,
+                roomName: selectedRoom.name,
+                value: parsedAmount,
+            });
 
             if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
                 setPaymentStatus('error');
@@ -629,6 +863,14 @@ function ReservarContent() {
             } else {
                 setFormMessage(message);
             }
+            trackReservationFunnel({
+                step: 'guest_form_submitted',
+                status: 'error',
+                roomId: selectedRoom?.id,
+                roomName: selectedRoom?.name,
+                value: bookingTotal,
+                message,
+            });
         } finally {
             setProcessing(false);
         }
@@ -640,13 +882,31 @@ function ReservarContent() {
         let cancelled = false;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
         if (!publicKey) {
-            setPaymentError('Chave pública do Mercado Pago não configurada.');
-            return;
+            const timeoutId = window.setTimeout(() => {
+                setPaymentError('Chave pública do Mercado Pago não configurada.');
+            }, 0);
+            trackReservationFunnel({
+                step: 'payment_started',
+                status: 'error',
+                bookingId: paymentBookingId,
+                value: paymentAmount,
+                message: 'public_key_missing',
+            });
+            return () => window.clearTimeout(timeoutId);
         }
 
         if (paymentAmount <= 0) {
-            setPaymentError('Nao foi possivel carregar o formulario de pagamento: valor da reserva deve ser maior que zero.');
-            return;
+            const timeoutId = window.setTimeout(() => {
+                setPaymentError('Nao foi possivel carregar o formulario de pagamento: valor da reserva deve ser maior que zero.');
+            }, 0);
+            trackReservationFunnel({
+                step: 'payment_started',
+                status: 'error',
+                bookingId: paymentBookingId,
+                value: paymentAmount,
+                message: 'invalid_payment_amount',
+            });
+            return () => window.clearTimeout(timeoutId);
         }
 
         const loadSdk = () => new Promise<void>((resolve, reject) => {
@@ -672,7 +932,7 @@ function ReservarContent() {
                     await paymentBrickRef.current.unmount();
                 }
 
-                const payerData = buildPayerData();
+                const payerData = buildPaymentBrickInitializationPayer(guest.email);
 
                 paymentBrickRef.current = await bricksBuilder.create('payment', paymentContainerId, {
                     initialization: {
@@ -690,29 +950,38 @@ function ReservarContent() {
                         onReady: () => {
                             // Brick pronto
                         },
-                        onSubmit: ({ formData }: any) => {
+                        onSubmit: async ({ formData }: any) => {
+                            setIsSubmittingPayment(true);
+                            setPaymentError('');
+                            setPaymentStatus('idle');
+                            setPaymentStatusMessage('');
+
                             const normalizedPayer = normalizePaymentBrickPayer({
                                 payerFromBrick: formData?.payer,
                                 guestName: guest.name,
                                 guestEmail: guest.email,
                             });
 
-                            return fetch('/api/mercadopago/payment', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    ...formData,
-                                    payer: normalizedPayer,
-                                    bookingId: paymentBookingId,
-                                    description: `Reserva ${paymentBookingId}`,
-                                    transaction_amount: paymentAmount,
-                                }),
-                            }).then(async (res) => {
+                            let keepOverlayUntilRedirect = false;
+
+                            try {
+                                const res = await fetch('/api/mercadopago/payment', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        ...formData,
+                                        payer: normalizedPayer,
+                                        bookingId: paymentBookingId,
+                                        description: `Reserva ${paymentBookingId}`,
+                                        transaction_amount: paymentAmount,
+                                    }),
+                                });
                                 const data = await res.json().catch(() => ({}));
                                 if (!res.ok) {
-                                    const msg = data?.message || data?.error || 'Erro ao processar pagamento';
+                                    const msg = normalizePaymentUiErrorMessage(data?.message || data?.error || 'Erro ao processar pagamento');
                                     setPaymentStatus('error');
-                                    setPaymentStatusMessage(msg);
+                                    setPaymentStatusMessage('');
+                                    setPaymentError(msg);
                                     throw new Error(msg);
                                 }
 
@@ -720,41 +989,90 @@ function ReservarContent() {
                                 const pix = data?.pix;
                                 if (pix) setPixData(pix);
                                 if (status === 'approved') {
+                                    keepOverlayUntilRedirect = true;
                                     setPaymentStatus('approved');
                                     setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
-                                    window.location.href = `/reservar/confirmacao/${paymentBookingId}`;
+                                    trackReservationFunnel({
+                                        step: 'payment_result',
+                                        status: 'success',
+                                        bookingId: paymentBookingId,
+                                        value: paymentAmount,
+                                        message: 'approved',
+                                    });
+                                    router.push(`/reservar/confirmacao/${paymentBookingId}`);
                                     return;
                                 }
 
                                 if (status === 'rejected') {
                                     setPaymentStatus('rejected');
-                                    setPaymentStatusMessage('Pagamento recusado. Tente outro método.');
+                                    setPaymentStatusMessage('Pagamento não aprovado. Você pode revisar os dados ou tentar outro método com segurança.');
+                                    trackReservationFunnel({
+                                        step: 'payment_result',
+                                        status: 'error',
+                                        bookingId: paymentBookingId,
+                                        value: paymentAmount,
+                                        message: 'rejected',
+                                    });
                                     return;
                                 }
 
                                 setPaymentStatus('pending');
                                 if (pix?.qr_code || pix?.qr_code_base64) {
-                                    setPaymentStatusMessage('Pix gerado. Escaneie o QR Code ou copie o código.');
+                                    setPaymentStatusMessage('Pix gerado com sucesso. Use o QR Code ou copie o código abaixo para concluir sua reserva.');
                                 } else {
-                                    setPaymentStatusMessage('Pagamento em análise. Você verá a confirmação em breve.');
+                                    setPaymentStatusMessage('Pagamento em análise. Assim que houver confirmação, sua reserva será atualizada automaticamente.');
                                 }
-                            });
+                                trackReservationFunnel({
+                                    step: 'payment_result',
+                                    status: 'pending',
+                                    bookingId: paymentBookingId,
+                                    value: paymentAmount,
+                                    message: pix?.qr_code || pix?.qr_code_base64 ? 'pix_pending' : 'analysis_pending',
+                                });
+                            } finally {
+                                if (!keepOverlayUntilRedirect) {
+                                    setIsSubmittingPayment(false);
+                                }
+                            }
                         },
                         onError: (err: any) => {
+                            setIsSubmittingPayment(false);
                             console.error('Mercado Pago Brick Error:', err);
                             setPaymentStatus('error');
                             const errorMessage = String(err?.message || err?.error || '');
                             if (/dado obrigat[oó]rio|required/i.test(errorMessage)) {
                                 setPaymentError('Preencha o nome do titular manualmente (sem auto preenchimento) e tente novamente.');
+                                trackReservationFunnel({
+                                    step: 'payment_result',
+                                    status: 'error',
+                                    bookingId: paymentBookingId,
+                                    value: paymentAmount,
+                                    message: 'required_field_error',
+                                });
                                 return;
                             }
                             setPaymentError('Nao foi possivel carregar o formulario de pagamento. Atualize a pagina e tente sem bloqueadores de anuncio.');
+                            trackReservationFunnel({
+                                step: 'payment_result',
+                                status: 'error',
+                                bookingId: paymentBookingId,
+                                value: paymentAmount,
+                                message: 'brick_error',
+                            });
                         },
                     },
                 });
             } catch (err) {
+                setIsSubmittingPayment(false);
                 console.error(err);
                 setPaymentError('Nao foi possivel inicializar o pagamento. Verifique sua conexao e tente sem bloqueadores de anuncio.');
+                trackReservationFunnel({
+                    step: 'payment_started',
+                    status: 'error',
+                    bookingId: paymentBookingId,
+                    value: paymentAmount,
+                    message: 'sdk_init_error',
+                });
             }
         };
 
@@ -763,7 +1081,7 @@ function ReservarContent() {
             cancelled = true;
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [buildPayerData, guest.email, guest.name, paymentAmount, paymentBookingId]);
+    }, [guest.email, guest.name, paymentAmount, paymentBookingId, paymentRetryNonce, router]);
 
     useEffect(() => {
         if (!paymentBookingId) return;
@@ -777,18 +1095,32 @@ function ReservarContent() {
                 if (data?.status === 'CONFIRMED') {
                     setPaymentStatus('approved');
                     setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
+                    trackReservationFunnel({
+                        step: 'payment_result',
+                        status: 'success',
+                        bookingId: paymentBookingId,
+                        value: paymentAmount,
+                        message: 'confirmed_polling',
+                    });
                     if (pollRef.current) clearInterval(pollRef.current);
-                    window.location.href = `/reservar/confirmacao/${paymentBookingId}`;
+                    router.push(`/reservar/confirmacao/${paymentBookingId}`);
                 } else if (data?.status === 'CANCELLED') {
                     setPaymentStatus('rejected');
-                    setPaymentStatusMessage('Pagamento recusado. Tente novamente.');
+                    setPaymentStatusMessage('Pagamento não aprovado. Revise os dados ou tente outro método.');
+                    trackReservationFunnel({
+                        step: 'payment_result',
+                        status: 'error',
+                        bookingId: paymentBookingId,
+                        value: paymentAmount,
+                        message: 'cancelled_polling',
+                    });
                     if (pollRef.current) clearInterval(pollRef.current);
                 }
             } catch {
                 // ignora falhas de rede temporárias
             }
         }, 10000);
-    }, [paymentBookingId]);
+    }, [paymentAmount, paymentBookingId, router]);
 
     if (!checkIn || !checkOut) {
         return (
@@ -838,7 +1170,7 @@ function ReservarContent() {
             <div className="inline-flex max-w-md flex-col items-center gap-4 border border-amber-200 bg-amber-50 p-6 text-amber-900">
                 <AlertCircle className="w-12 h-12" />
                 <p className="text-lg font-medium">Selecione ao menos 1 adulto para continuar.</p>
-                <Button onClick={() => window.location.href = '/reservar'}>Alterar Busca</Button>
+                <Button onClick={() => router.push('/reservar')}>Alterar Busca</Button>
             </div>
             </div>
         </main>
@@ -855,6 +1187,9 @@ function ReservarContent() {
                     <p className="text-lg font-medium">
                         Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
+                    <p className="text-sm leading-6 text-amber-900/80">
+                        Assim conseguimos sugerir a melhor combinação de acomodações para a sua viagem.
+                    </p>
                     <Button asChild>
                         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                             Falar com a pousada no WhatsApp
@@ -866,41 +1201,6 @@ function ReservarContent() {
         );
     }
 
-    /* Removed if(loading) block to allow inline skeleton rendering */
-
-    /* Inline Skeleton Component */
-    const RoomListSkeleton = () => (
-        <div className="space-y-6 animate-pulse">
-            {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-xl shadow-sm border border-border/50 overflow-hidden">
-                    <div className="grid md:grid-cols-12">
-                        <div className="md:col-span-4 bg-muted h-64 md:h-80 relative">
-                            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
-                                <Camera className="w-12 h-12" />
-                            </div>
-                        </div>
-                        <div className="md:col-span-8 p-6 space-y-4">
-                            <div className="h-8 bg-muted rounded w-48" />
-                            <div className="space-y-2">
-                                <div className="h-4 bg-muted rounded w-full" />
-                                <div className="h-4 bg-muted rounded w-5/6" />
-                            </div>
-                            <div className="flex gap-2 mt-4">
-                                {[1, 2, 3, 4].map((j) => (
-                                    <div key={j} className="h-6 bg-muted rounded-full w-20" />
-                                ))}
-                            </div>
-                            <div className="flex justify-between items-center mt-6 pt-4 border-t">
-                                <div className="h-8 bg-muted rounded w-32" />
-                                <div className="h-10 bg-muted rounded w-48" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-
     if (error) {
         return (
             <main className="min-h-screen bg-[color:var(--brand-cream)] pt-32">
@@ -908,7 +1208,17 @@ function ReservarContent() {
                 <div className="inline-flex max-w-md flex-col items-center gap-4 border border-destructive/20 bg-destructive/10 p-6 text-destructive">
                     <AlertCircle className="w-12 h-12" />
                     <p className="text-lg font-medium">{error}</p>
-                    <Button onClick={() => window.location.href = '/reservar'} variant="destructive">Tentar Novamente</Button>
+                    <p className="text-sm leading-6 text-destructive/80">
+                        Atualize a busca ou tente novamente em instantes. Se preferir, fale com a pousada para confirmar a disponibilidade.
+                    </p>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <Button onClick={() => router.push('/reservar')} variant="destructive">Tentar Novamente</Button>
+                        <Button variant="outline" asChild className="rounded-none">
+                            <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer">
+                                Falar com a pousada
+                            </a>
+                        </Button>
+                    </div>
                 </div>
                 </div>
             </main>
@@ -927,7 +1237,7 @@ function ReservarContent() {
                         <Button
                             type="button"
                             size="sm"
-                            className="h-9 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                            className="h-9 rounded-none font-medium bg-primary text-primary-foreground hover:bg-primary/90"
                             onClick={() => setSearchEditorOpen((prev) => !prev)}
                         >
                             {searchEditorOpen ? 'Fechar busca' : 'Alterar busca'}
@@ -974,27 +1284,55 @@ function ReservarContent() {
                             </div>
                         ) : availableRooms.length === 0 ? (
                             <div className="border border-dashed border-primary/20 bg-[color:var(--brand-white)] py-16 text-center">
-                                <p className="text-xl text-muted-foreground mb-4">Nenhum quarto disponível para as datas selecionadas.</p>
-                                <Button onClick={() => window.location.href = '/reservar'}>
-                                    Buscar Outras Datas
-                                </Button>
+                                <p className="mb-3 text-xl text-muted-foreground">Nenhum quarto disponível para as datas selecionadas.</p>
+                                <p className="mx-auto mb-6 max-w-2xl text-sm leading-7 text-muted-foreground">
+                                    Tente ajustar as datas ou a ocupação. Em feriados e fins de semana, a disponibilidade muda rápido.
+                                </p>
+                                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                                    <Button onClick={() => router.push('/reservar')}>
+                                        Buscar Outras Datas
+                                    </Button>
+                                    <Button variant="outline" asChild className="rounded-none">
+                                        <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer">
+                                            Falar com a pousada
+                                        </a>
+                                    </Button>
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <h2 className="font-sans text-lg font-semibold text-foreground">
-                                    {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
-                                </h2>
+                                <div className="space-y-2">
+                                    <h2 className="font-sans text-[2rem] font-semibold tracking-[-0.02em] text-foreground md:text-[2.35rem]">
+                                        Escolha sua Acomodação
+                                    </h2>
+                                    <p className="text-lg text-foreground/82">
+                                        {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
+                                    </p>
+                                </div>
                                 <div className="grid grid-cols-1 gap-6">
                                     {availableRooms.map((room) => {
                                         const roomPhotos = getRoomDisplayPhotos(room);
                                         const roomPrimaryImage = roomPhotos[0] ?? null;
                                         const canOpenGallery = roomPhotos.length > 0;
-
+                                        const roomAmenities = room.amenities
+                                            .split(',')
+                                            .map((amenity) => amenity.trim())
+                                            .filter(Boolean);
+                                        const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
+                                        const originalNightlyRate = room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) && stayNights > 0
+                                            ? Number(room.priceOriginal) / stayNights
+                                            : null;
+                                        const hasSavings = room.promoApplied && Number(room.discountAmount || 0) > 0;
+                                        const roomDescription = room.description?.trim()
+                                            || 'Acomodação privativa com conforto, praticidade e contato direto com a natureza.';
                                         return (
-                                        <Card key={room.id} className="group overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-colors duration-200 hover:border-primary/20">
-                                        <div className="grid md:grid-cols-12 gap-0">
+                                        <Card
+                                            key={room.id}
+                                            className="group overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-all duration-300 hover:border-primary/20"
+                                        >
+                                        <div className="grid gap-0 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(260px,0.58fr)]">
                                             <div
-                                                className={`md:col-span-4 relative h-64 md:h-auto overflow-hidden ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
+                                                className={`relative h-[14rem] overflow-hidden bg-[color:var(--brand-cream)] md:h-[16rem] lg:h-full lg:min-h-[288px] ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
                                                 role={canOpenGallery ? 'button' : undefined}
                                                 tabIndex={canOpenGallery ? 0 : undefined}
                                                 onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
@@ -1011,7 +1349,7 @@ function ReservarContent() {
                                                         src={roomPrimaryImage}
                                                         alt={room.name}
                                                         fill
-                                                        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                                                        className="object-cover transition-transform duration-700 group-hover:scale-[1.035]"
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -1019,67 +1357,158 @@ function ReservarContent() {
                                                     </div>
                                                 )}
                                                 {canOpenGallery ? (
-                                                    <div className="absolute bottom-3 right-3 bg-black/55 px-2.5 py-1 text-xs font-medium text-white flex items-center gap-1.5">
-                                                        <Camera className="w-3.5 h-3.5" />
+                                                    <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 bg-black/58 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+                                                        <Camera className="h-3.5 w-3.5" />
                                                         <span>Ver fotos ({roomPhotos.length})</span>
                                                     </div>
                                                 ) : null}
                                             </div>
-                                            <div className="md:col-span-8 p-6 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <h3 className="font-sans text-2xl font-semibold text-primary">{room.name}</h3>
-                                                        <div className="text-right hidden md:block">
-                                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">TOTAL DA ESTADIA</span>
-                                                            {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
-                                                                <p className="text-sm text-muted-foreground line-through">R$ {Number(room.priceOriginal).toFixed(2)}</p>
-                                                            ) : null}
-                                                            <p className="text-2xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
-                                                            <p className="text-xs text-muted-foreground">Valores variam conforme ocupação.</p>
-                                                            {room.promoApplied && Number(room.discountAmount || 0) > 0 ? (
-                                                                <p className="text-xs font-medium text-emerald-700">Você economiza R$ {Number(room.discountAmount).toFixed(2)}</p>
-                                                            ) : null}
-                                                            <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
+                                            <div className="border-t border-primary/10 p-4 md:p-5 lg:border-l lg:border-t-0">
+                                                <div className="flex h-full flex-col justify-between gap-4">
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-2">
+                                                            <h3 className="font-sans text-[1.5rem] font-semibold leading-tight tracking-[-0.02em] text-primary md:text-[1.8rem]">
+                                                                {room.name}
+                                                            </h3>
+                                                            <p
+                                                                className="max-w-3xl text-sm leading-6 text-foreground/78"
+                                                                style={{
+                                                                    whiteSpace: 'pre-line',
+                                                                    display: '-webkit-box',
+                                                                    WebkitLineClamp: 2,
+                                                                    WebkitBoxOrient: 'vertical',
+                                                                    overflow: 'hidden',
+                                                                }}
+                                                            >
+                                                                {roomDescription}
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {roomAmenities.map((amenity, i) => {
+                                                                const AmenityIcon = getAmenityIcon(amenity);
+                                                                return (
+                                                                    <span
+                                                                        key={i}
+                                                                        className="inline-flex items-center gap-1.5 border border-primary/10 bg-white px-2.5 py-1.5 text-xs font-medium text-primary"
+                                                                    >
+                                                                        <AmenityIcon className="h-3.5 w-3.5 text-primary/78" />
+                                                                        {amenity}
+                                                                    </span>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
-                                                    <p className="text-muted-foreground mb-4" style={{ whiteSpace: 'pre-line' }}>
-                                                        {room.description}
-                                                    </p>
 
-                                                    <div className="flex flex-wrap gap-2 mb-6">
-                                                        {room.amenities.split(',').map((amenity, i) => (
-                                                            <span key={i} className="inline-flex items-center gap-1.5 border border-primary/10 bg-[color:var(--brand-cream)] px-3 py-1 text-xs font-medium text-primary">
-                                                                <Check className="w-3 h-3" /> {amenity.trim()}
-                                                            </span>
-                                                        ))}
+                                                    <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-3 py-3 md:grid-cols-3 md:px-4">
+                                                        <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
+                                                            <Coffee className="h-4.5 w-4.5 shrink-0 text-primary/85" />
+                                                            <span className="font-medium leading-5">Café da manhã incluso</span>
+                                                        </div>
+                                                        <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
+                                                            <BadgeCheck className="h-4.5 w-4.5 shrink-0 text-primary/85" />
+                                                            <span className="font-medium leading-5">Melhor tarifa garantida</span>
+                                                        </div>
+                                                        <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
+                                                            <ShieldCheck className="h-4.5 w-4.5 shrink-0 text-primary/85" />
+                                                            <span className="font-medium leading-5">Pagamento via Pix ou cartão</span>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                            </div>
+                                            <div className="border-t border-primary/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,244,234,0.95))] p-4 md:p-5 lg:border-l lg:border-t-0">
+                                                <div className="flex h-full flex-col gap-4">
+                                                    <div className="space-y-3">
+                                                        <div className="space-y-2 border-b border-primary/10 pb-3">
+                                                            <p className="text-[0.78rem] font-semibold uppercase tracking-[0.14em] text-foreground/58">
+                                                                Total da estadia
+                                                            </p>
+                                                            {originalNightlyRate ? (
+                                                                <p className="text-sm text-muted-foreground line-through">
+                                                                    {formatCurrencyBRL(originalNightlyRate * stayNights)}
+                                                                </p>
+                                                            ) : null}
+                                                            <span className="sr-only">{formatCurrencyBRL(room.totalPrice)}</span>
+                                                            <p className="text-[2rem] font-semibold leading-none tracking-[-0.03em] text-primary md:text-[2.25rem]">
+                                                                {formatCurrencyBRL(room.totalPrice)}
+                                                            </p>
+                                                            <p className="text-sm font-semibold text-primary/82">
+                                                                para {stayNights} {stayNights === 1 ? 'noite' : 'noites'}
+                                                            </p>
+                                                            <div className="inline-flex w-fit border border-primary/10 bg-white px-3 py-1.5 text-xs text-foreground/72 md:text-sm">
+                                                                {formatCurrencyBRL(nightlyRate)} por noite
+                                                            </div>
+                                                            {hasSavings ? (
+                                                                <p className="text-xs font-medium text-emerald-700 md:text-sm">
+                                                                    Economia de {formatCurrencyBRL(Number(room.discountAmount))}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
 
-                                                <div className="mt-4 border-t pt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                                    <div className="md:hidden">
-                                                        <span className="text-xs text-muted-foreground uppercase tracking-wider">TOTAL DA ESTADIA</span>
-                                                        {room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) ? (
-                                                            <p className="text-xs text-muted-foreground line-through">R$ {Number(room.priceOriginal).toFixed(2)}</p>
-                                                        ) : null}
-                                                        <p className="text-xl font-bold text-primary">R$ {room.totalPrice.toFixed(2)}</p>
-                                                        <p className="text-xs text-muted-foreground">Valores variam conforme ocupação.</p>
-                                                        {room.promoApplied && Number(room.discountAmount || 0) > 0 ? (
-                                                            <p className="text-xs font-medium text-emerald-700">Economia de R$ {Number(room.discountAmount).toFixed(2)}</p>
-                                                        ) : null}
-                                                        <p className="text-xs text-muted-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</p>
+                                                        <div className="space-y-2 text-sm text-foreground/82">
+                                                            {RESERVATION_BENEFITS.slice(0, 3).map((benefit) => (
+                                                                <div key={benefit} className="flex items-start gap-3">
+                                                                    <span className="mt-0.5 inline-flex h-4 w-4 items-center justify-center bg-emerald-600 text-white">
+                                                                        <Check className="h-3 w-3" />
+                                                                    </span>
+                                                                    <span>{benefit}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                    <Button
-                                                        size="lg"
-                                                        onClick={() => handleSelectRoom(room)}
-                                                        className="h-11 w-auto rounded-none px-5 text-sm font-semibold shadow-none md:ml-auto hover:shadow-[0_8px_18px_rgba(9,9,9,0.08)]"
-                                                    >
-                                                        Selecionar e Continuar
-                                                    </Button>
+
+                                                    <div className="mt-auto space-y-3">
+                                                        <Button
+                                                            size="lg"
+                                                            onClick={() => handleSelectRoom(room)}
+                                                            className="h-[52px] w-full rounded-none bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-none hover:bg-primary/95"
+                                                        >
+                                                            <span className="flex items-center justify-center gap-3">
+                                                                Selecionar e Continuar
+                                                                <ArrowRight className="h-4 w-4" />
+                                                            </span>
+                                                        </Button>
+                                                        <div className="flex items-start gap-3 border border-primary/10 bg-white px-3 py-2.5 text-xs text-foreground/72 md:text-sm">
+                                                            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary md:h-5 md:w-5" />
+                                                            <div>
+                                                                <p className="font-semibold text-primary">Reserva 100% Segura</p>
+                                                                <p>Seus dados protegidos por criptografia SSL.</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </Card>
                                     )})}
+                                </div>
+
+                                <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 shadow-none md:px-5">
+                                    <div className="grid gap-4 md:grid-cols-3 md:gap-0">
+                                        {PAGE_TRUST_ITEMS.map((item, index) => (
+                                            <div
+                                                key={`${item.label}-${item.value}`}
+                                                className={`flex items-center gap-3 py-1 ${index === 0 ? '' : 'md:border-l md:border-primary/10 md:pl-5'} ${index < PAGE_TRUST_ITEMS.length - 1 ? 'md:pr-5' : ''}`}
+                                            >
+                                                <div className="flex shrink-0 items-center justify-center text-primary/78">
+                                                    <item.icon className="h-7 w-7" aria-hidden />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-lg font-semibold leading-none text-primary">
+                                                        {item.value}
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold leading-5 text-foreground">
+                                                        {item.label}
+                                                    </p>
+                                                    {item.description ? (
+                                                        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                                                            {item.description}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1098,9 +1527,36 @@ function ReservarContent() {
                                         <strong className="text-lg font-bold text-primary">R$ {Number(paymentAmount || 0).toFixed(2)}</strong>
                                     </div>
                                 ) : null}
+                                <div className="mb-4 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 text-sm text-foreground/76">
+                                    Seus dados já foram enviados com segurança. Agora falta apenas concluir o pagamento para confirmar a reserva.
+                                </div>
                                 {paymentError ? (
-                                    <div className="border border-destructive/20 bg-destructive/10 p-4 text-destructive">
-                                        {paymentError}
+                                    <div className="space-y-3 border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+                                        <p>{paymentError}</p>
+                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => void handleRetryPayment()}
+                                                className="h-11 rounded-none border-destructive/30 bg-transparent text-destructive hover:bg-destructive/5"
+                                            >
+                                                Tentar novamente
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                asChild
+                                                className="h-11 rounded-none border-destructive/30 bg-transparent text-destructive hover:bg-destructive/5"
+                                            >
+                                                <a
+                                                    href={getWhatsAppUrl('error_payment')}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    onClick={() => trackClickWhatsApp('reserva_erro_pagamento')}
+                                                >
+                                                    Falar com a pousada no WhatsApp
+                                                </a>
+                                            </Button>
+                                        </div>
                                     </div>
                                 ) : null}
 
@@ -1110,16 +1566,125 @@ function ReservarContent() {
                                     </div>
                                 ) : null}
 
+                                {showPaymentTestHelper ? (
+                                    <div className="mt-4 border border-amber-200 bg-amber-50 p-4 text-amber-950">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                                                    Modo teste Mercado Pago
+                                                </p>
+                                                <p className="mt-1 text-sm text-amber-900/80">
+                                                    Os campos do brick nao podem ser preenchidos automaticamente, mas os dados de teste ficam acessiveis aqui.
+                                                </p>
+                                            </div>
+                                            <Badge variant="outline" className="rounded-none border-amber-300 bg-amber-100 text-amber-900">
+                                                Sandbox
+                                            </Badge>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                            <div className="space-y-3">
+                                                <p className="text-xs font-semibold uppercase tracking-widest text-amber-800">
+                                                    Cartoes
+                                                </p>
+                                                {MP_TEST_CARDS.map((card) => (
+                                                    <div key={card.label} className="border border-amber-200 bg-white/70 p-3">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="space-y-1 text-sm">
+                                                                <p className="font-medium text-foreground">{card.label}</p>
+                                                                <p className="font-mono text-foreground/80">{card.number}</p>
+                                                                <p className="text-foreground/72">CVV {card.securityCode} • Validade {card.expiry}</p>
+                                                            </div>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="rounded-none border-amber-300 bg-transparent"
+                                                                onClick={() => void copyTestValue(`card:${card.label}`, `${card.number} | CVV ${card.securityCode} | ${card.expiry}`)}
+                                                            >
+                                                                {testDataCopied === `card:${card.label}` ? 'Copiado' : 'Copiar'}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <p className="text-xs font-semibold uppercase tracking-widest text-amber-800">
+                                                    Cenarios
+                                                </p>
+                                                {MP_TEST_SCENARIOS.map((scenario) => (
+                                                    <div key={scenario.status} className="border border-amber-200 bg-white/70 p-3 text-sm">
+                                                        <p className="font-medium text-foreground">{scenario.status}</p>
+                                                        <div className="mt-2 flex items-center justify-between gap-3">
+                                                            <div>
+                                                                <p className="text-foreground/75">Titular: <span className="font-mono">{scenario.holderName}</span></p>
+                                                                <p className="text-foreground/75">CPF: <span className="font-mono">{scenario.document}</span></p>
+                                                            </div>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="rounded-none border-amber-300 bg-transparent"
+                                                                onClick={() => void copyTestValue(`scenario:${scenario.status}`, `Titular ${scenario.holderName} | CPF ${scenario.document}`)}
+                                                            >
+                                                                {testDataCopied === `scenario:${scenario.status}` ? 'Copiado' : 'Copiar'}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+
                                 <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
                                     <div>
                                         <h3 className="text-xs font-semibold text-primary uppercase tracking-widest mb-3">
                                             Meios de pagamento
                                         </h3>
                                         <p className="text-xs text-muted-foreground mb-3">
-                                            Parcelamento aparece após preencher os primeiros dígitos do cartão.
+                                            Parcelamento e opções disponíveis aparecem automaticamente conforme o método escolhido.
                                         </p>
-                                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-4">
-                                            <div id={paymentContainerId} />
+                                        <div className="relative border border-primary/10 bg-[color:var(--brand-white)] p-4">
+                                            {isSubmittingPayment ? (
+                                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-6">
+                                                    <div className="w-full max-w-md border border-white/10 bg-zinc-900 p-6 shadow-2xl">
+                                                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/10">
+                                                            <LoaderCircle className="h-7 w-7 animate-spin text-white" />
+                                                        </div>
+                                                        <div className="mt-4 space-y-2 text-center">
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/72">
+                                                                Mercado Pago
+                                                            </p>
+                                                            <p className="text-lg font-semibold text-white">
+                                                                Enviando seu pagamento
+                                                            </p>
+                                                            <p className="text-sm leading-6 text-white/78">
+                                                                Isso pode levar alguns segundos. Nao feche esta pagina ate a confirmacao.
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="mt-5 space-y-3">
+                                                            {PAYMENT_LOADING_STEPS.map((step, index) => {
+                                                                const isActive = index === paymentLoadingStepIndex;
+                                                                const isComplete = index < paymentLoadingStepIndex;
+                                                                return (
+                                                                    <div key={step} className="flex items-center gap-3 text-sm">
+                                                                        <div className={`h-2.5 w-2.5 rounded-full ${isComplete ? 'bg-white' : isActive ? 'bg-[color:var(--brand-gold)] animate-pulse' : 'bg-white/25'}`} />
+                                                                        <span className={isActive || isComplete ? 'text-white' : 'text-white/52'}>
+                                                                            {step}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                            <div className={isSubmittingPayment ? 'pointer-events-none opacity-40 transition-opacity' : 'transition-opacity'}>
+                                                <div id={paymentContainerId} />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1172,7 +1737,7 @@ function ReservarContent() {
                                                         </div>
                                                         <textarea
                                                             readOnly
-                                                            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                                                            className="mt-1 w-full rounded-none border border-input bg-background px-3 py-2 text-xs"
                                                             rows={3}
                                                             value={pixData.qr_code}
                                                         />
@@ -1181,7 +1746,7 @@ function ReservarContent() {
                                             </div>
                                         ) : (
                                             <div className="text-sm text-muted-foreground">
-                                                O QR Code aparecerá aqui após gerar o Pix.
+                                                Assim que o Pix for gerado, o QR Code aparecerá aqui para você concluir a reserva.
                                             </div>
                                         )}
                                     </div>
@@ -1250,7 +1815,7 @@ function ReservarContent() {
                                         </div>
                                         <div>
                                             <CardTitle className="text-xl">Dados do Hóspede Principal</CardTitle>
-                                            <CardDescription>Informações para contato e voucher</CardDescription>
+                                            <CardDescription>Preencha seus dados para receber contato, voucher e confirmação da reserva.</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
@@ -1265,7 +1830,7 @@ function ReservarContent() {
                                                     type="text"
                                                     id="name"
                                                     required
-                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    className="flex h-10 w-full rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                     placeholder="Digite seu nome completo"
                                                     value={guest.name}
                                                     onChange={(e) => setGuest({ ...guest, name: e.target.value })}
@@ -1281,7 +1846,7 @@ function ReservarContent() {
                                                         type="email"
                                                         id="email"
                                                         required
-                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="flex h-10 w-full rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                         placeholder="seu@email.com"
                                                         value={guest.email}
                                                         onChange={(e) => setGuest({ ...guest, email: e.target.value })}
@@ -1296,7 +1861,7 @@ function ReservarContent() {
                                                         type="tel"
                                                         id="phone"
                                                         required
-                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="flex h-10 w-full rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                         placeholder="(00) 00000-0000"
                                                         value={guest.phone}
                                                         onChange={(e) => setGuest({ ...guest, phone: e.target.value })}
@@ -1340,7 +1905,7 @@ function ReservarContent() {
                                                     checked={termsAccepted}
                                                     onChange={(e) => setTermsAccepted(e.target.checked)}
                                                     disabled={processing}
-                                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                    className="mt-1 h-4 w-4 rounded-none border-gray-300 text-primary focus:ring-primary"
                                                 />
                                                 <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
                                                     Declaro que li e aceito os{' '}
@@ -1354,8 +1919,22 @@ function ReservarContent() {
                                         </div>
 
                                         {formMessage ? (
-                                            <div role="alert" className="border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                                                {formMessage}
+                                            <div role="alert" className="space-y-3 border border-destructive/30 bg-destructive/10 px-3 py-3 text-sm text-destructive">
+                                                <p>{formMessage}</p>
+                                                <Button
+                                                    variant="outline"
+                                                    asChild
+                                                    className="h-11 rounded-none border-destructive/30 bg-transparent text-destructive hover:bg-destructive/5"
+                                                >
+                                                    <a
+                                                        href={getWhatsAppUrl('error_form')}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={() => trackClickWhatsApp('reserva_erro_formulario')}
+                                                    >
+                                                        Falar com a pousada no WhatsApp
+                                                    </a>
+                                                </Button>
                                             </div>
                                         ) : null}
 
@@ -1367,7 +1946,7 @@ function ReservarContent() {
                                                 </span>
                                             ) : (
                                                 <span className="flex items-center gap-2">
-                                                    <CreditCard className="w-5 h-5" /> Ir para Pagamento Seguro
+                                                    <CreditCard className="w-5 h-5" /> Continuar para o pagamento
                                                 </span>
                                             )}
                                         </Button>
@@ -1375,6 +1954,32 @@ function ReservarContent() {
                                         <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
                                             <span className="w-2 h-2 bg-green-500 rounded-full"></span> Ambiente seguro e criptografado
                                         </p>
+
+                                        <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4 sm:grid-cols-3">
+                                            <div className="flex items-center gap-2 text-sm text-primary">
+                                                <Check className="h-4 w-4" />
+                                                <span>Café da manhã incluso</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-primary">
+                                                <Check className="h-4 w-4" />
+                                                <span>Sem taxas extras</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm text-primary">
+                                                <Check className="h-4 w-4" />
+                                                <span>Atendimento direto da pousada</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 md:grid-cols-2">
+                                            <div>
+                                                <p className="text-sm font-semibold text-primary">4,8/5 no Google</p>
+                                                <p className="mt-1 text-xs text-foreground/72">Mais de 500 hóspedes avaliando</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-primary">Reserva direta e segura</p>
+                                                <p className="mt-1 text-xs text-foreground/72">Pagamento processado com proteção via Mercado Pago.</p>
+                                            </div>
+                                        </div>
                                     </form>
                                 </CardContent>
                             </Card>
@@ -1383,7 +1988,8 @@ function ReservarContent() {
                         <div className="hidden lg:block lg:col-span-1">
                             <Card className="sticky top-28 overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
                                 <div className="bg-primary p-4 text-center text-white">
-                                    <h3 className="font-bold text-lg">Resumo da Reserva</h3>
+                                    <h3 className="font-bold text-lg">Sua reserva está quase confirmada</h3>
+                                    <p className="mt-1 text-xs text-white/80">Revise seus dados para finalizar a reserva</p>
                                 </div>
                                 <div className="aspect-video relative">
                                     {getRoomPrimaryImageSrc(selectedRoom) && (
@@ -1399,6 +2005,24 @@ function ReservarContent() {
                                     </div>
                                 </div>
                                 <CardContent className="space-y-4 pt-6">
+                                    <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3 sm:grid-cols-2">
+                                        <div className="flex items-center gap-2 text-sm text-primary">
+                                            <Check className="h-4 w-4" />
+                                            <span>Café da manhã incluso</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-primary">
+                                            <Check className="h-4 w-4" />
+                                            <span>Melhor tarifa garantida</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-primary">
+                                            <Check className="h-4 w-4" />
+                                            <span>Pagamento seguro</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-primary">
+                                            <Check className="h-4 w-4" />
+                                            <span>Atendimento direto da pousada</span>
+                                        </div>
+                                    </div>
                                     <div className="space-y-3 text-sm">
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Check-in</span>
@@ -1421,14 +2045,19 @@ function ReservarContent() {
                                     </div>
 
                                     <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-sm text-muted-foreground">{bookingDiscount > 0 ? 'Total com desconto' : 'Total'}</span>
-                                            <span className="text-2xl font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total da estadia</p>
+                                        <div className="mt-2">
+                                            <span className="text-[2.2rem] font-bold leading-none text-primary">R$ {bookingTotal.toFixed(2)}</span>
                                         </div>
+                                        <div className="mt-2 flex items-center justify-between text-sm text-primary/82">
+                                            <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
+                                            <span>{adults} Adultos, {children} Crianças</span>
+                                        </div>
+                                        <p className="mt-2 text-xs font-medium text-emerald-700">Sem taxas extras</p>
                                         {selectedRoom.priceBreakdown ? (
                                             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                                                 <div className="flex justify-between">
-                                                    <span>Base</span>
+                                                    <span>Base ({stayNights} {stayNights === 1 ? 'diária' : 'diárias'})</span>
                                                     <span>R$ {Number(selectedRoom.priceBreakdown.baseTotal).toFixed(2)}</span>
                                                 </div>
                                                 {appliedCoupon ? (
@@ -1461,7 +2090,12 @@ function ReservarContent() {
                                         )}
                                     </div>
 
-                                    <Button variant="outline" className="w-full border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>
+                                    <div className="space-y-2 border-t border-primary/10 pt-4 text-xs text-foreground/72">
+                                        <p>Pagamento com Pix ou cartão.</p>
+                                        <p>Ambiente seguro e criptografado via Mercado Pago.</p>
+                                    </div>
+
+                                    <Button variant="outline" className="w-full rounded-none border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>
                                         Trocar Quarto
                                     </Button>
                                 </CardContent>

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SearchWidget from './SearchWidget';
 
 vi.mock('next/navigation', () => ({
@@ -11,24 +11,28 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('SearchWidget', () => {
-  it('desabilita Buscar quando faltam idades das crianças', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('desabilita Buscar quando faltam idades das crianças', async () => {
     render(<SearchWidget />);
-    const adults = screen.getByLabelText('Adultos') as HTMLSelectElement;
-    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
+    const adults = screen.getByLabelText('Hóspedes') as HTMLSelectElement;
+    const children = document.getElementById('children') as HTMLSelectElement;
     fireEvent.change(adults, { target: { value: '2' } });
     fireEvent.change(children, { target: { value: '1' } });
     const button = screen.getByRole('button', { name: /Buscar/i });
-    expect(button).toBeDisabled();
+    await waitFor(() => expect(button).toBeDisabled());
   });
 
-  it('habilita Buscar quando entradas são válidas', () => {
+  it('habilita Buscar quando entradas são válidas', async () => {
     render(<SearchWidget />);
-    const adults = screen.getByLabelText('Adultos') as HTMLSelectElement;
-    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
+    const adults = screen.getByLabelText('Hóspedes') as HTMLSelectElement;
+    const children = document.getElementById('children') as HTMLSelectElement;
     fireEvent.change(adults, { target: { value: '2' } });
     fireEvent.change(children, { target: { value: '0' } });
     const button = screen.getByRole('button', { name: /Buscar/i });
-    expect(button).not.toBeDisabled();
+    await waitFor(() => expect(button).not.toBeDisabled());
   });
 
   it('faz fetch com parâmetros corretos ao buscar', async () => {
@@ -38,13 +42,24 @@ describe('SearchWidget', () => {
     });
     global.fetch = mockFetch;
     render(<SearchWidget />);
-    const adults = screen.getByLabelText('Adultos') as HTMLSelectElement;
-    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
+    const adults = screen.getByLabelText('Hóspedes') as HTMLSelectElement;
+    const children = document.getElementById('children') as HTMLSelectElement;
     fireEvent.change(adults, { target: { value: '2' } });
     fireEvent.change(children, { target: { value: '0' } });
     const button = screen.getByRole('button', { name: /Buscar/i });
-    expect(button).not.toBeDisabled();
+    await waitFor(() => expect(button).not.toBeDisabled());
     fireEvent.click(button);
-    expect(mockFetch).toHaveBeenCalled();
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+  });
+
+  it('mostra aviso inline quando faltam idades das crianças', async () => {
+    render(<SearchWidget />);
+    const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
+
+    fireEvent.change(children, { target: { value: '1' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Informe a idade para continuar/i)).toBeInTheDocument();
+    });
   });
 });

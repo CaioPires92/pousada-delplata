@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { RoomCard } from "@/components/RoomCard";
 import { serializePrismaArray } from "@/lib/serialize-prisma";
 import { buildPageMetadata } from "@/lib/seo";
+import { isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
 
 
 // Revalidate data every 60 seconds (ISR)
@@ -42,15 +43,8 @@ async function getRooms() {
 export default async function RoomsPage() {
     const rooms = await getRooms();
 
-    const mainWingRooms = rooms.filter((r: any) => {
-        const n = r.name.toLowerCase();
-        return n.includes('superior') || n.includes('terreo') || n.includes('térreo');
-    });
-
-    const annexWingRooms = rooms.filter((r: any) => {
-        const n = r.name.toLowerCase();
-        return n.includes('chale') || n.includes('chalé') || n.includes('anexo');
-    });
+    const mainWingRooms = rooms.filter((r: any) => isMainWingRoom(r.name));
+    const annexWingRooms = rooms.filter((r: any) => isAnnexWingRoom(r.name));
 
     const renderRoomGrid = (roomsList: typeof rooms) => (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

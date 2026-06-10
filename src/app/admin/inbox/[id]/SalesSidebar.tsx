@@ -76,9 +76,11 @@ export default function SalesSidebar({ conversationId, initialCard }: SalesSideb
     }, [conversationId]);
 
     useEffect(() => {
-        fetchNotes();
-        // Reset erro ao mudar de conversa
-        setUiError(null);
+        const timeoutId = window.setTimeout(() => {
+            setUiError(null);
+            void fetchNotes();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [conversationId, fetchNotes]);
 
     async function handleUpdateCard(updates: any) {

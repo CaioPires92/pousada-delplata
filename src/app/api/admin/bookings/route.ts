@@ -142,6 +142,9 @@ function normalizeBooking(booking: Row, guest?: Row, roomType?: Row, payment?: R
         checkOut: booking.checkOut ?? null,
         totalPrice: toNumber(booking.totalPrice, 0),
         status: String(booking.status || ''),
+        funnelStage: booking.funnelStage ? String(booking.funnelStage) : null,
+        funnelUpdatedAt: booking.funnelUpdatedAt ?? null,
+        lastErrorMessage: booking.lastErrorMessage ? String(booking.lastErrorMessage) : null,
         createdAt: booking.createdAt ?? null,
         guest: {
             name: String(guest?.name || 'Não informado'),
@@ -215,6 +218,9 @@ async function fetchBookingsViaPrisma(filters: BookingQueryFilters) {
                 checkOut: true,
                 totalPrice: true,
                 status: true,
+                funnelStage: true,
+                funnelUpdatedAt: true,
+                lastErrorMessage: true,
                 createdAt: true,
                 guest: {
                     select: {
@@ -313,6 +319,9 @@ async function fetchBookingsViaRawSql(filters: BookingQueryFilters) {
         'checkOut',
         'totalPrice',
         'status',
+        'funnelStage',
+        'funnelUpdatedAt',
+        'lastErrorMessage',
         'createdAt',
     ];
     const selectedBookingColumns = pickColumns(wantedBookingColumns, bookingColumns);

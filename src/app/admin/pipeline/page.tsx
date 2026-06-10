@@ -101,7 +101,10 @@ export default function AdminPipelinePage() {
     }, []);
 
     useEffect(() => {
-        loadPipeline();
+        const timeoutId = window.setTimeout(() => {
+            void loadPipeline();
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
     }, [loadPipeline]);
 
     async function handleStageChange(cardId: string, nextStage: string, reason?: string) {

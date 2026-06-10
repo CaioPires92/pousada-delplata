@@ -13,6 +13,12 @@ export type BlogContentBlock =
       content: string;
     }
   | {
+      type: "image";
+      src: string;
+      alt: string;
+      caption?: string;
+    }
+  | {
       type: "heading";
       content: string;
       level?: 2 | 3;
