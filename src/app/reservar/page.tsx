@@ -2074,7 +2074,7 @@ function ReservarContent() {
                                                 ) : null}
                                                 {selectedRoom.priceBreakdown.extraAdultTotal > 0 ? (
                                                     <div className="flex justify-between">
-                                                        <span>Adulto extra</span>
+                                                        <span>Hóspedes adicionais</span>
                                                         <span>R$ {Number(selectedRoom.priceBreakdown.extraAdultTotal).toFixed(2)}</span>
                                                     </div>
                                                 ) : null}

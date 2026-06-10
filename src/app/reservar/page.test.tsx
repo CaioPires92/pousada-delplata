@@ -183,7 +183,7 @@ describe('ReservarPage', () => {
       const totals = screen.getAllByText(/R\$ 760\.00/);
       expect(totals.length).toBeGreaterThan(0);
       expect(screen.getByText(/Base/i)).toBeInTheDocument();
-      expect(screen.getByText(/Adulto extra/i)).toBeInTheDocument();
+      expect(screen.getByText(/Hóspedes adicionais/i)).toBeInTheDocument();
       expect(screen.getByText(/Crianças 6–11/i)).toBeInTheDocument();
     });
   });
