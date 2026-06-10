@@ -88,6 +88,19 @@ function detectInvalidTransactionAmount(error: any) {
     return status === 400 && (message.includes('transaction_amount') || causeMentionsAmount);
 }
 
+function detectPayerEmailForbidden(error: any) {
+    const status = Number(error?.status || 0);
+    const message = String(error?.message || '').toLowerCase();
+    const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
+
+    const hasForbiddenCause = causes.some((cause) => {
+        const description = String(cause?.description || '').toLowerCase();
+        return description.includes('payer email forbidden');
+    });
+
+    return status === 403 && (message.includes('payer email forbidden') || hasForbiddenCause);
+}
+
 function getMercadoPagoErrorMessage(error: any) {
     const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
     const firstCause = causes.find((c) => String(c?.description || '').trim().length > 0);
@@ -97,9 +110,76 @@ function getMercadoPagoErrorMessage(error: any) {
     return message || 'Erro ao processar pagamento';
 }
 
+function isMercadoPagoTestMode(accessToken: string) {
+    return accessToken.startsWith('TEST-');
+}
+
+function isMercadoPagoTestUserEmail(email: unknown) {
+    return String(email || '').trim().toLowerCase().endsWith('@testuser.com');
+}
+
+function resolveMercadoPagoPayerEmail(params: {
+    accessToken: string;
+    payerEmail: string;
+}) {
+    const normalizedPayerEmail = String(params.payerEmail || '').trim();
+    const overrideEmail = String(process.env.MP_TEST_PAYER_EMAIL || '').trim();
+
+    if (normalizedPayerEmail) {
+        return normalizedPayerEmail;
+    }
+
+    if (
+        process.env.NODE_ENV !== 'production' &&
+        isMercadoPagoTestMode(params.accessToken) &&
+        overrideEmail
+    ) {
+        return overrideEmail;
+    }
+
+    return normalizedPayerEmail;
+}
+
+function getMercadoPagoClientFacingMessage(error: any) {
+    const raw = getMercadoPagoErrorMessage(error);
+    const normalized = raw.toLowerCase();
+    const status = Number(error?.status || 0);
+
+    if (status >= 500 || normalized === 'internal_error' || normalized === 'unknown error') {
+        return 'Nao foi possivel processar o pagamento agora. Tente novamente em instantes ou fale com a pousada no WhatsApp.';
+    }
+
+    return raw;
+}
+
+async function updateBookingFunnelStatus(params: {
+    bookingId?: string;
+    stage: string;
+    message?: string | null;
+}) {
+    if (!params.bookingId) return;
+
+    try {
+        await prisma.booking.updateMany({
+            where: { id: params.bookingId },
+            data: {
+                funnelStage: params.stage,
+                funnelUpdatedAt: new Date(),
+                lastErrorMessage: params.message ?? null,
+            },
+        });
+    } catch (error) {
+        console.error('[MP Payment] Failed to update booking funnel status', error);
+    }
+}
+
 export async function POST(request: Request) {
     let ctxBookingId: string | undefined;
     let ctxRequestedAmount: number | undefined;
+    let ctxPaymentMethodId: string | undefined;
+    let ctxPaymentTypeId: string | undefined;
+    let ctxInstallments: number | null | undefined;
+    let ctxPayerEmail: string | undefined;
 
     try {
         const accessToken = process.env.MP_ACCESS_TOKEN;
@@ -129,10 +209,18 @@ export async function POST(request: Request) {
             installments: normalizedInstallments,
         });
         const payerEmail = formData?.payer?.email;
+        ctxPaymentMethodId = typeof paymentMethodId === 'string' ? paymentMethodId : undefined;
+        ctxPaymentTypeId = paymentTypeId;
+        ctxInstallments = normalizedInstallments;
+        const resolvedPayerEmail = resolveMercadoPagoPayerEmail({
+            accessToken,
+            payerEmail: typeof payerEmail === 'string' ? payerEmail : '',
+        });
+        ctxPayerEmail = resolvedPayerEmail || (typeof payerEmail === 'string' ? payerEmail : undefined);
         if (!paymentMethodId || typeof paymentMethodId !== 'string') {
             return NextResponse.json({ error: 'payment_method_id ausente' }, { status: 400 });
         }
-        if (!payerEmail || typeof payerEmail !== 'string') {
+        if (!resolvedPayerEmail) {
             return NextResponse.json({ error: 'payer.email ausente' }, { status: 400 });
         }
 
@@ -150,10 +238,16 @@ export async function POST(request: Request) {
                 paymentMethodId,
                 paymentTypeId,
                 installments: normalizedInstallments,
-                payerEmail,
+                payerEmail: resolvedPayerEmail,
             });
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
         }
+
+        await updateBookingFunnelStatus({
+            bookingId,
+            stage: 'PAYMENT_ATTEMPT_STARTED',
+            message: null,
+        });
 
         if (booking.payment?.status === 'APPROVED' || booking.payment?.status === 'PENDING') {
             opsLog('warn', 'MP_PAYMENT_DUPLICATE_BLOCK', {
@@ -207,7 +301,7 @@ export async function POST(request: Request) {
                 paymentMethodId,
                 paymentTypeId,
                 installments: normalizedInstallments,
-                payerEmail,
+                payerEmail: resolvedPayerEmail,
             });
             return NextResponse.json({ error: 'Valor divergente da reserva' }, { status: 400 });
         }
@@ -218,6 +312,10 @@ export async function POST(request: Request) {
         const result = await payment.create({
             body: {
                 ...formData,
+                payer: {
+                    ...(formData?.payer || {}),
+                    email: resolvedPayerEmail,
+                },
                 transaction_amount: requestedAmount,
                 description: description || `Reserva ${bookingId}`,
                 external_reference: bookingId,
@@ -253,10 +351,27 @@ export async function POST(request: Request) {
             console.error('Aviso: erro ao registrar pagamento', e);
         }
 
+        await updateBookingFunnelStatus({
+            bookingId,
+            stage: normalizedStatus === 'APPROVED'
+                ? 'PAYMENT_APPROVED'
+                : ['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)
+                    ? 'PAYMENT_REJECTED'
+                    : 'PAYMENT_PENDING',
+            message: ['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)
+                ? normalizedStatus.toLowerCase()
+                : null,
+        });
+
         if (normalizedStatus === 'APPROVED') {
             await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
-                data: { status: 'CONFIRMED' },
+                data: {
+                    status: 'CONFIRMED',
+                    funnelStage: 'BOOKING_CONFIRMED',
+                    funnelUpdatedAt: new Date(),
+                    lastErrorMessage: null,
+                },
             });
 
             if (!skipGuestEmail) {
@@ -350,7 +465,12 @@ export async function POST(request: Request) {
         } else if (['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)) {
             await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
-                data: { status: 'CANCELLED' },
+                data: {
+                    status: 'CANCELLED',
+                    funnelStage: 'PAYMENT_REJECTED',
+                    funnelUpdatedAt: new Date(),
+                    lastErrorMessage: normalizedStatus.toLowerCase(),
+                },
             });
         }
 
@@ -368,6 +488,11 @@ export async function POST(request: Request) {
         });
     } catch (error: any) {
         if (detectPixKeyNotEnabled(error)) {
+            await updateBookingFunnelStatus({
+                bookingId: ctxBookingId,
+                stage: 'PAYMENT_ERROR',
+                message: 'pix_not_enabled',
+            });
             opsLog('warn', 'MP_PIX_KEY_NOT_ENABLED', {
                 status: error?.status,
                 cause: error?.cause,
@@ -383,6 +508,11 @@ export async function POST(request: Request) {
 
         if (detectInvalidTransactionAmount(error)) {
             const mpMessage = getMercadoPagoErrorMessage(error);
+            await updateBookingFunnelStatus({
+                bookingId: ctxBookingId,
+                stage: 'PAYMENT_ERROR',
+                message: mpMessage,
+            });
             opsLog('warn', 'MP_PAYMENT_INVALID_TRANSACTION_AMOUNT', {
                 bookingId: ctxBookingId,
                 requestedAmount: ctxRequestedAmount,
@@ -400,15 +530,79 @@ export async function POST(request: Request) {
             );
         }
 
+        if (detectPayerEmailForbidden(error)) {
+            await updateBookingFunnelStatus({
+                bookingId: ctxBookingId,
+                stage: 'PAYMENT_ERROR',
+                message: 'payer_email_forbidden',
+            });
+            opsLog('warn', 'MP_PAYMENT_PAYER_EMAIL_FORBIDDEN', {
+                bookingId: ctxBookingId,
+                requestedAmount: ctxRequestedAmount,
+                paymentMethodId: ctxPaymentMethodId,
+                paymentTypeId: ctxPaymentTypeId,
+                installments: ctxInstallments,
+                payerEmail: ctxPayerEmail,
+                status: error?.status,
+                message: error?.message,
+                cause: error?.cause,
+            });
+            return NextResponse.json(
+                {
+                    error: 'MP_PAYER_EMAIL_FORBIDDEN',
+                    message:
+                        'O Mercado Pago recusou o comprador de teste configurado para este ambiente. Gere um novo test user comprador no painel do Mercado Pago ou atualize MP_TEST_PAYER_EMAIL no .env.',
+                },
+                { status: 400 }
+            );
+        }
+
+        const clientFacingMessage = getMercadoPagoClientFacingMessage(error);
+        const isLikelyTestBuyerMismatch =
+            ctxPayerEmail &&
+            isMercadoPagoTestMode(String(process.env.MP_ACCESS_TOKEN || '')) &&
+            !isMercadoPagoTestUserEmail(ctxPayerEmail) &&
+            !String(process.env.MP_TEST_PAYER_EMAIL || '').trim() &&
+            ['internal_error', 'unknown error'].includes(
+                getMercadoPagoErrorMessage(error).trim().toLowerCase(),
+            );
+
+        await updateBookingFunnelStatus({
+            bookingId: ctxBookingId,
+            stage: 'PAYMENT_ERROR',
+            message: isLikelyTestBuyerMismatch
+                ? 'test_mode_requires_test_user_email'
+                : getMercadoPagoErrorMessage(error),
+        });
         opsLog('error', 'MP_PAYMENT_CREATE_FAILED', {
             bookingId: ctxBookingId,
             requestedAmount: ctxRequestedAmount,
+            paymentMethodId: ctxPaymentMethodId,
+            paymentTypeId: ctxPaymentTypeId,
+            installments: ctxInstallments,
+            payerEmail: ctxPayerEmail,
             status: error?.status,
             message: error?.message,
             cause: error?.cause,
         });
         console.error('Erro Mercado Pago:', error);
-        return NextResponse.json({ error: 'Erro ao processar pagamento', message: error?.message || 'Unknown error' }, { status: 500 });
+        if (isLikelyTestBuyerMismatch) {
+            return NextResponse.json(
+                {
+                    error: 'MP_TEST_USER_REQUIRED',
+                    message:
+                        'Ambiente local com credenciais TEST do Mercado Pago. Use um comprador de teste (@testuser.com) ou configure MP_TEST_PAYER_EMAIL no .env.',
+                },
+                { status: 400 }
+            );
+        }
+        return NextResponse.json(
+            {
+                error: 'Erro ao processar pagamento',
+                message: clientFacingMessage,
+            },
+            { status: 500 }
+        );
     }
 }
 

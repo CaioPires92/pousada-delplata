@@ -19,6 +19,7 @@ vi.mock('@/lib/prisma', () => ({
     default: {
         booking: {
             findUnique: vi.fn(),
+            updateMany: vi.fn(),
         },
         payment: {
             upsert: vi.fn(),
@@ -36,7 +37,7 @@ import { POST } from './route';
 describe('POST /api/mercadopago/payment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env.MP_ACCESS_TOKEN = 'test-token';
+        process.env.MP_ACCESS_TOKEN = 'TEST-test-token';
 
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
@@ -124,6 +125,54 @@ describe('POST /api/mercadopago/payment', () => {
 
         expect(res.status).toBe(400);
         expect(data.error).toBe('INVALID_TRANSACTION_AMOUNT');
+    });
+    it('returns 400 when Mercado Pago forbids the fallback test payer email', async () => {
+        process.env.MP_TEST_PAYER_EMAIL = 'buyer@testuser.com';
+        mockCreate.mockRejectedValue({
+            status: 403,
+            message: 'Payer email forbidden',
+            cause: [{ description: 'Payer email forbidden' }],
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'pix',
+                payment_type_id: 'bank_transfer',
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(400);
+        expect(data.error).toBe('MP_PAYER_EMAIL_FORBIDDEN');
+    });
+    it('returns 400 with clear guidance when TEST credentials are used with a real payer email', async () => {
+        delete process.env.MP_TEST_PAYER_EMAIL;
+        mockCreate.mockRejectedValue({
+            status: 500,
+            message: 'internal_error',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'master',
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(400);
+        expect(data.error).toBe('MP_TEST_USER_REQUIRED');
+        expect(String(data.message)).toContain('MP_TEST_PAYER_EMAIL');
     });
     it('returns 500 for unknown MP errors', async () => {
         mockCreate.mockRejectedValue(new Error('boom'));
