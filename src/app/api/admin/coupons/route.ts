@@ -5,8 +5,6 @@ import {
     getCouponCodePrefix,
     hashCouponCode,
     normalizeCouponCode,
-    normalizeGuestEmail,
-    normalizeGuestPhone,
 } from '@/lib/coupons/hash';
 
 function parseDate(value: unknown): Date | null {
@@ -105,7 +103,6 @@ export async function POST(request: Request) {
         const maxDiscountAmount = parseNumber(body?.maxDiscountAmount);
         const minBookingValue = parseNumber(body?.minBookingValue);
         const maxGlobalUses = parseIntNullable(body?.maxGlobalUses);
-        const maxUsesPerGuest = parseIntNullable(body?.maxUsesPerGuest);
         const startsAt = parseDate(body?.startsAt);
         const endsAt = parseDate(body?.endsAt);
 
@@ -113,8 +110,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Periodo invalido' }, { status: 400 });
         }
 
-        const allowedRoomTypeIds = parseStringArray(body?.allowedRoomTypeIds);
-        const allowedSources = parseStringArray(body?.allowedSources).map((s) => s.toLowerCase());
 
         const coupon = await prisma.coupon.create({
             data: {
@@ -129,13 +124,6 @@ export async function POST(request: Request) {
                 startsAt,
                 endsAt,
                 maxGlobalUses,
-                maxUsesPerGuest,
-                bindEmail: normalizeGuestEmail(body?.bindEmail) || null,
-                bindPhone: normalizeGuestPhone(body?.bindPhone) || null,
-                allowedRoomTypeIds: allowedRoomTypeIds.length ? JSON.stringify(allowedRoomTypeIds) : null,
-                allowedSources: allowedSources.length ? JSON.stringify(allowedSources) : null,
-                singleUse: body?.singleUse !== undefined ? Boolean(body.singleUse) : true,
-                stackable: body?.stackable !== undefined ? Boolean(body.stackable) : false,
             },
         });
 

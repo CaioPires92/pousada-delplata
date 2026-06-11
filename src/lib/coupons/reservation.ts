@@ -65,57 +65,7 @@ export async function reserveCouponUsage(input: CouponValidationInput): Promise<
             }
         }
 
-        if (coupon.maxUsesPerGuest !== null && guestEmail) {
-            const confirmedGuestCount = await tx.couponRedemption.count({
-                where: {
-                    couponId: coupon.id,
-                    status: 'CONFIRMED',
-                    guestEmail,
-                },
-            });
-            const reservedGuestCount = await tx.couponRedemption.count({
-                where: {
-                    ...activeReservedFilter,
-                    guestEmail,
-                },
-            });
 
-            if (confirmedGuestCount + reservedGuestCount >= coupon.maxUsesPerGuest) {
-                return {
-                    valid: false,
-                    reason: 'GUEST_USAGE_LIMIT_REACHED',
-                    couponId: coupon.id,
-                };
-            }
-        }
-
-        if (coupon.singleUse && (guestEmail || guestPhone)) {
-            const guestIdentityFilters = [
-                ...(guestEmail ? [{ guestEmail }] : []),
-                ...(guestPhone ? [{ guestPhone }] : []),
-            ];
-
-            const existingReserved = await tx.couponRedemption.findFirst({
-                where: {
-                    couponId: coupon.id,
-                    status: 'RESERVED',
-                    bookingId: null,
-                    AND: [
-                        { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-                        { OR: guestIdentityFilters },
-                    ],
-                },
-                orderBy: { createdAt: 'desc' },
-            });
-
-            if (existingReserved) {
-                return {
-                    ...validation,
-                    reservationId: existingReserved.id,
-                    reservationExpiresAt: existingReserved.expiresAt?.toISOString(),
-                };
-            }
-        }
 
         const expiresAt = new Date(now.getTime() + ttlMinutes() * 60_000);
 

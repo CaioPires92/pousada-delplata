@@ -5,8 +5,6 @@ import {
     getCouponCodePrefix,
     hashCouponCode,
     normalizeCouponCode,
-    normalizeGuestEmail,
-    normalizeGuestPhone,
 } from '@/lib/coupons/hash';
 
 function parseDate(value: unknown): Date | null {
@@ -25,11 +23,6 @@ function parseIntNullable(value: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
     const n = Number.parseInt(String(value), 10);
     return Number.isFinite(n) ? n : null;
-}
-
-function parseStringArray(value: unknown): string[] {
-    if (!Array.isArray(value)) return [];
-    return value.map((v) => String(v || '').trim()).filter(Boolean);
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -80,16 +73,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const maxDiscountAmount = parseNumber(body?.maxDiscountAmount);
         const minBookingValue = parseNumber(body?.minBookingValue);
         const maxGlobalUses = parseIntNullable(body?.maxGlobalUses);
-        const maxUsesPerGuest = parseIntNullable(body?.maxUsesPerGuest);
         const startsAt = parseDate(body?.startsAt);
         const endsAt = parseDate(body?.endsAt);
 
         if (startsAt && endsAt && startsAt > endsAt) {
             return NextResponse.json({ error: 'Periodo invalido' }, { status: 400 });
         }
-
-        const allowedRoomTypeIds = parseStringArray(body?.allowedRoomTypeIds);
-        const allowedSources = parseStringArray(body?.allowedSources).map((s) => s.toLowerCase());
 
         const updated = await prisma.coupon.update({
             where: { id },
@@ -104,13 +93,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 startsAt,
                 endsAt,
                 maxGlobalUses,
-                maxUsesPerGuest,
-                bindEmail: normalizeGuestEmail(body?.bindEmail) || null,
-                bindPhone: normalizeGuestPhone(body?.bindPhone) || null,
-                allowedRoomTypeIds: allowedRoomTypeIds.length ? JSON.stringify(allowedRoomTypeIds) : null,
-                allowedSources: allowedSources.length ? JSON.stringify(allowedSources) : null,
-                singleUse: body?.singleUse !== undefined ? Boolean(body.singleUse) : current.singleUse,
-                stackable: body?.stackable !== undefined ? Boolean(body.stackable) : current.stackable,
             },
         });
 

@@ -32,15 +32,8 @@ type Coupon = {
     startsAt: string | null;
     endsAt: string | null;
     maxGlobalUses: number | null;
-    maxUsesPerGuest: number | null;
     minBookingValue: number | string | null;
     maxDiscountAmount: number | string | null;
-    bindEmail: string | null;
-    bindPhone: string | null;
-    allowedRoomTypeIds: string | null;
-    allowedSources: string | null;
-    singleUse: boolean;
-    stackable: boolean;
     _count?: {
         redemptions: number;
         attemptLogs: number;
@@ -64,13 +57,6 @@ type CouponTemplate = {
         startsAt: string | null;
         endsAt: string | null;
         maxGlobalUses: number | null;
-        maxUsesPerGuest: number | null;
-        bindEmail: string | null;
-        bindPhone: string | null;
-        allowedSources: string[];
-        allowedRoomTypeIds: string[];
-        singleUse: boolean;
-        stackable: boolean;
         active: boolean;
     };
 };
@@ -127,13 +113,6 @@ type CouponForm = {
     startsAt: string;
     endsAt: string;
     maxGlobalUses: string;
-    maxUsesPerGuest: string;
-    bindEmail: string;
-    bindPhone: string;
-    allowedSources: string;
-    allowedRoomTypeIds: string[];
-    singleUse: boolean;
-    stackable: boolean;
     active: boolean;
 };
 
@@ -157,13 +136,6 @@ const emptyForm = (): CouponForm => ({
     startsAt: '',
     endsAt: '',
     maxGlobalUses: '',
-    maxUsesPerGuest: '',
-    bindEmail: '',
-    bindPhone: '',
-    allowedSources: 'direct',
-    allowedRoomTypeIds: [],
-    singleUse: true,
-    stackable: false,
     active: true,
 });
 
@@ -227,7 +199,6 @@ export default function AdminCuponsPage() {
                     ...emptyForm(),
                     ...parsedForm,
                     currentCodePrefix: typeof parsedForm.currentCodePrefix === 'string' ? parsedForm.currentCodePrefix : '',
-                    allowedRoomTypeIds: Array.isArray(parsedForm.allowedRoomTypeIds) ? parsedForm.allowedRoomTypeIds : [],
                 });
                 setCreatedCode(typeof parsed.createdCode === 'string' ? parsed.createdCode : '');
                 setFormOpen(Boolean(parsed.formOpen));
@@ -336,13 +307,6 @@ export default function AdminCuponsPage() {
             startsAt: toDateInputValue(payload.startsAt),
             endsAt: toDateInputValue(payload.endsAt),
             maxGlobalUses: payload.maxGlobalUses == null ? '' : String(payload.maxGlobalUses),
-            maxUsesPerGuest: payload.maxUsesPerGuest == null ? '' : String(payload.maxUsesPerGuest),
-            bindEmail: payload.bindEmail || '',
-            bindPhone: payload.bindPhone || '',
-            allowedSources: Array.isArray(payload.allowedSources) ? payload.allowedSources.join(', ') : '',
-            allowedRoomTypeIds: Array.isArray(payload.allowedRoomTypeIds) ? payload.allowedRoomTypeIds : [],
-            singleUse: payload.singleUse,
-            stackable: payload.stackable,
             active: payload.active,
         });
         setCreatedCode('');
@@ -364,13 +328,6 @@ export default function AdminCuponsPage() {
             startsAt: toDateInputValue(coupon.startsAt),
             endsAt: toDateInputValue(coupon.endsAt),
             maxGlobalUses: coupon.maxGlobalUses == null ? '' : String(coupon.maxGlobalUses),
-            maxUsesPerGuest: coupon.maxUsesPerGuest == null ? '' : String(coupon.maxUsesPerGuest),
-            bindEmail: coupon.bindEmail || '',
-            bindPhone: coupon.bindPhone || '',
-            allowedSources: parseJsonArray(coupon.allowedSources).join(', '),
-            allowedRoomTypeIds: parseJsonArray(coupon.allowedRoomTypeIds),
-            singleUse: coupon.singleUse,
-            stackable: coupon.stackable,
             active: coupon.active,
         });
         setFormOpen(true);
@@ -389,13 +346,6 @@ export default function AdminCuponsPage() {
             startsAt: form.startsAt || null,
             endsAt: form.endsAt || null,
             maxGlobalUses: form.maxGlobalUses === '' ? null : Number(form.maxGlobalUses),
-            maxUsesPerGuest: form.maxUsesPerGuest === '' ? null : Number(form.maxUsesPerGuest),
-            bindEmail: form.bindEmail || null,
-            bindPhone: form.bindPhone || null,
-            allowedSources: form.allowedSources.split(',').map((s) => s.trim()).filter(Boolean),
-            allowedRoomTypeIds: form.allowedRoomTypeIds,
-            singleUse: form.singleUse,
-            stackable: form.stackable,
             active: form.active,
         };
 
@@ -820,17 +770,6 @@ export default function AdminCuponsPage() {
                                     />
                                 </div>
 
-                                <div className={styles.field}>
-                                    <label>Máx. Usos por Hóspede</label>
-                                    <input
-                                        className={styles.input}
-                                        type="number"
-                                        min="0"
-                                        placeholder="1"
-                                        value={form.maxUsesPerGuest}
-                                        onChange={(e) => setForm({ ...form, maxUsesPerGuest: e.target.value })}
-                                    />
-                                </div>
 
                                 {/* Restrições */}
                                 <div className={styles.formSection}>
@@ -861,59 +800,6 @@ export default function AdminCuponsPage() {
                                     />
                                 </div>
 
-                                <div className={styles.formSection}>
-                                    <h4><Users size={14} className="inline mr-1" /> Restrições e Segurança</h4>
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Email Específico</label>
-                                    <input
-                                        className={styles.input}
-                                        placeholder="ex@email.com"
-                                        value={form.bindEmail}
-                                        onChange={(e) => setForm({ ...form, bindEmail: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Telefone Específico</label>
-                                    <input
-                                        className={styles.input}
-                                        placeholder="(00) 00000-0000"
-                                        value={form.bindPhone}
-                                        onChange={(e) => setForm({ ...form, bindPhone: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Canais Permitidos</label>
-                                    <input
-                                        className={styles.input}
-                                        value={form.allowedSources}
-                                        onChange={(e) => setForm({ ...form, allowedSources: e.target.value })}
-                                        placeholder="direct, instagram, facebook"
-                                    />
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Acomodações Permitidas</label>
-                                    <select
-                                        multiple
-                                        className={styles.input + " h-24"}
-                                        value={form.allowedRoomTypeIds}
-                                        onChange={(e) => {
-                                            const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-                                            setForm({ ...form, allowedRoomTypeIds: values });
-                                        }}
-                                    >
-                                        {rooms.map((room) => (
-                                            <option key={room.id} value={room.id}>
-                                                {room.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <span className="text-[10px] text-slate-400">Pressione Ctrl/Cmd para selecionar múltiplos</span>
-                                </div>
 
                                 <div className={styles.formSection}>
                                     <h4><ShieldCheck size={14} className="inline mr-1" /> Comportamento</h4>
@@ -932,28 +818,7 @@ export default function AdminCuponsPage() {
                                                 <span className="text-[10px] text-slate-500">Pode ser usado no motor</span>
                                             </div>
                                         </label>
-                                        <label className={styles.checkboxItem}>
-                                            <input
-                                                type="checkbox"
-                                                checked={form.singleUse}
-                                                onChange={(e) => setForm({ ...form, singleUse: e.target.checked })}
-                                            />
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold">Uso Único</span>
-                                                <span className="text-[10px] text-slate-500">Inativa após primeiro uso</span>
-                                            </div>
-                                        </label>
-                                        <label className={styles.checkboxItem}>
-                                            <input
-                                                type="checkbox"
-                                                checked={form.stackable}
-                                                onChange={(e) => setForm({ ...form, stackable: e.target.checked })}
-                                            />
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold">Acumulável</span>
-                                                <span className="text-[10px] text-slate-500">Usa com outros cupons</span>
-                                            </div>
-                                        </label>
+
                                     </div>
                                 </div>
                             </div>

@@ -160,13 +160,6 @@ model Coupon {
   startsAt           DateTime?
   endsAt             DateTime?
   maxGlobalUses      Int?
-  maxUsesPerGuest    Int?
-  bindEmail          String?
-  bindPhone          String?
-  allowedRoomTypeIds String?
-  allowedSources     String?
-  singleUse          Boolean            @default(true)
-  stackable          Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   attemptLogs        CouponAttemptLog[]
