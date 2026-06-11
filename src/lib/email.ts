@@ -975,7 +975,7 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     <div class="container">
         <!-- Logo -->
         <div class="logo-section">
-            <img src="https://www.pousadadelplata.com.br/fotos/logo.png" alt="Delplata Pousada" />
+            <img src="https://pousada-delplata.vercel.app/fotos/logo.png" alt="Delplata Pousada" />
             <div class="logo-divider"></div>
         </div>
 
@@ -988,10 +988,10 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
         <!-- Value Box -->
         <table class="value-box" width="100%" cellpadding="0" cellspacing="0">
             <tr>
-                <td style="vertical-align: middle;">
+                <td style="vertical-align: middle;" align="left" width="50%">
                     <div class="value-label">💰 Valor potencial da reserva</div>
                 </td>
-                <td style="vertical-align: middle; text-align: right;">
+                <td style="vertical-align: middle; text-align: right;" align="right" width="50%">
                     <div class="value-amount">R$ ${totalPrice.toFixed(2).replace('.', ',')}</div>
                 </td>
             </tr>
