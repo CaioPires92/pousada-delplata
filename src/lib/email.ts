@@ -738,10 +738,15 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingPendingEmailHtml(data);
 
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
+    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
+
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
+            bcc: bccRecipients,
             subject: `💬 Precisa de ajuda com sua reserva? - ${roomName}`,
             html: htmlContent,
         });
