@@ -514,12 +514,12 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
 </head>
 <body>
     <div class="header">
-        <h1>💬 Estamos aqui para ajudar</h1>
+        <h1>⛰️ Falta pouco para garantir seus dias em Serra Negra!</h1>
         <p>${HOTEL_NAME}</p>
     </div>
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
-        <p>Vimos que sua reserva foi iniciada e queremos te ajudar no que for preciso para finalizar com tranquilidade.</p>
+        <p>Vimos que você iniciou sua reserva e parou no meio do caminho. Tivemos algum problema com o pagamento ou cartão? Queremos muito te receber e estamos à disposição para ajudar no que for preciso para finalizar com tranquilidade.</p>
 
         <div class="booking-details">
             <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
@@ -632,7 +632,7 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
     </div>
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
-        <p>O prazo para pagamento expirou e sua reserva não foi confirmada.</p>
+        <p>O tempo da sua reserva esgotou, mas <strong>ainda queremos te receber!</strong> O quarto foi liberado no site, mas você pode nos chamar no WhatsApp para verificar se ainda há disponibilidade ou tentar novamente.</p>
 
         <div class="booking-details">
             <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
@@ -677,7 +677,11 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
         </div>
 
         <div class="notice">
-            Se quiser, você pode fazer uma nova reserva no nosso site.
+            Acesse nosso site para fazer uma nova reserva ou clique abaixo para falar conosco.
+        </div>
+
+        <div class="cta-wrapper" style="text-align: center; margin: 20px 0;">
+            <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #22c55e; color: #ffffff !important; text-decoration: none; font-weight: bold; padding: 12px 18px; border-radius: 8px;">Falar no WhatsApp do Hotel</a>
         </div>
 
         <p>Em caso de dúvidas, fale conosco:</p>
@@ -890,3 +894,61 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
 
 
 
+
+
+export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
+    const { guestName, guestEmail, roomName, totalPrice, bookingId } = data;
+    const rawWhatsApp = guestEmail.split('@')[0]; // Simple fallback if phone isn't directly passed, though guestEmail is used here
+    
+    // In our case we don't have phone directly in data easily, but we'll try to extract from DB later. For now just standard text.
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #ef4444; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .cta { display: inline-block; background: #22c55e; color: #fff; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; margin-top: 15px;}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>🚨 Oportunidade de Venda Abandonada</h2>
+    </div>
+    <div class="content">
+        <p>O hóspede <strong>${guestName}</strong> não completou o pagamento e a reserva expirou agora.</p>
+        <ul>
+            <li><strong>Acomodação:</strong> ${roomName}</li>
+            <li><strong>Valor:</strong> R$ ${totalPrice.toFixed(2)}</li>
+            <li><strong>Email do Hóspede:</strong> ${guestEmail}</li>
+        </ul>
+        <p><strong>Ação Sugerida:</strong> Chame-o no WhatsApp para tentar recuperar a venda!</p>
+    </div>
+</body>
+</html>
+    `;
+}
+
+export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { phone?: string }) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        return { success: false, error: 'SMTP not configured' };
+    }
+
+    const htmlContent = buildAdminRecoveryAlertEmailHtml(data);
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || 'contato@pousadadelplata.com.br';
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Sistema Admin" <${process.env.SMTP_USER}>`,
+            to: adminEmail,
+            subject: `🚨 Oportunidade de Recuperação: ${data.guestName} (${data.roomName})`,
+            html: htmlContent,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        return { success: false, error };
+    }
+}

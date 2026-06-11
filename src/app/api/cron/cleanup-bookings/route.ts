@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
+import { sendBookingExpiredEmail, sendBookingPendingEmail, sendAdminRecoveryAlertEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +108,22 @@ export async function GET(request: Request) {
                     if (r && (r as any).success) expiredEmailCount++;
                 })
                 .catch(() => {});
+
+            // Send alert to admin
+            sendAdminRecoveryAlertEmail({
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+                paymentMethod: booking.payment?.method || null,
+                paymentInstallments: booking.payment?.installments ?? null,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
+            }).catch(() => {});
 
             await prisma.booking.update({
                 where: { id: booking.id },
