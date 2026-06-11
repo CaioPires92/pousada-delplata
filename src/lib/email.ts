@@ -897,10 +897,30 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
 
 
 export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
-    const { guestName, guestEmail, roomName, totalPrice, bookingId } = data;
-    const rawWhatsApp = guestEmail.split('@')[0]; // Simple fallback if phone isn't directly passed, though guestEmail is used here
+    const { guestName, guestEmail, guestPhone, roomName, totalPrice, checkIn, checkOut, adults, children } = data;
     
-    // In our case we don't have phone directly in data easily, but we'll try to extract from DB later. For now just standard text.
+    const checkInDate = new Date(checkIn).toLocaleDateString('pt-BR');
+    const checkOutDate = new Date(checkOut).toLocaleDateString('pt-BR');
+    const adultsCount = adults || 0;
+    const childrenCount = children || 0;
+    const guestsLabel = `${adultsCount + childrenCount} hóspedes (${adultsCount} adultos, ${childrenCount} crianças)`;
+    
+    // Configuração do WhatsApp
+    const rawPhone = (guestPhone || guestEmail.split('@')[0]).replace(/\D/g, '');
+    const normalizedPhone = rawPhone.length >= 10 ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : '';
+    
+    let whatsappSection = `<p><strong>Telefone/WhatsApp:</strong> ${guestPhone || 'Não informado'}</p>`;
+    
+    if (normalizedPhone) {
+        const textMessage = encodeURIComponent(`Olá ${guestName}, sou da Pousada Delplata! Vi que você tentou reservar o ${roomName} de ${checkInDate} a ${checkOutDate}, mas a reserva acabou expirando. Tivemos algum problema no site? Ainda tenho disponibilidade e posso tentar fechar com você por aqui!`);
+        whatsappSection = `
+            <p><strong>Telefone/WhatsApp:</strong> ${guestPhone || normalizedPhone}</p>
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="https://wa.me/${normalizedPhone}?text=${textMessage}" target="_blank" style="display: inline-block; background: #22c55e; color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">💬 Chamar Hóspede no WhatsApp</a>
+            </div>
+        `;
+    }
+
     return `
 <!DOCTYPE html>
 <html>
@@ -911,7 +931,10 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: #ef4444; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-        .cta { display: inline-block; background: #22c55e; color: #fff; padding: 10px 15px; border-radius: 5px; text-decoration: none; font-weight: bold; margin-top: 15px;}
+        .details-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444; }
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { padding: 8px 0; border-bottom: 1px solid #eee; }
+        li:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -920,12 +943,20 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     </div>
     <div class="content">
         <p>O hóspede <strong>${guestName}</strong> não completou o pagamento e a reserva expirou agora.</p>
-        <ul>
-            <li><strong>Acomodação:</strong> ${roomName}</li>
-            <li><strong>Valor:</strong> R$ ${totalPrice.toFixed(2)}</li>
-            <li><strong>Email do Hóspede:</strong> ${guestEmail}</li>
-        </ul>
-        <p><strong>Ação Sugerida:</strong> Chame-o no WhatsApp para tentar recuperar a venda!</p>
+        
+        <div class="details-box">
+            <ul>
+                <li><strong>Acomodação:</strong> ${roomName}</li>
+                <li><strong>Check-in:</strong> ${checkInDate}</li>
+                <li><strong>Check-out:</strong> ${checkOutDate}</li>
+                <li><strong>Hóspedes:</strong> ${guestsLabel}</li>
+                <li><strong>Valor Total:</strong> R$ ${totalPrice.toFixed(2)}</li>
+                <li><strong>Email do Hóspede:</strong> ${guestEmail}</li>
+            </ul>
+            ${whatsappSection}
+        </div>
+        
+        <p style="font-size: 0.9em; color: #666; text-align: center;">Dica: Clique no botão verde pelo celular ou pelo WhatsApp Web para abrir a conversa já com um texto pronto de recuperação.</p>
     </div>
 </body>
 </html>

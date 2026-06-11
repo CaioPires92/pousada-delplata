@@ -113,6 +113,7 @@ export async function GET(request: Request) {
             sendAdminRecoveryAlertEmail({
                 guestName: booking.guest.name,
                 guestEmail: booking.guest.email,
+                guestPhone: booking.guest.phone,
                 bookingId: booking.id,
                 roomName: booking.roomType.name,
                 checkIn: booking.checkIn,
