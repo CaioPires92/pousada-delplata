@@ -901,6 +901,12 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     
     const checkInDate = new Date(checkIn).toLocaleDateString('pt-BR');
     const checkOutDate = new Date(checkOut).toLocaleDateString('pt-BR');
+    
+    // Calculate nights
+    const diffTime = Math.abs(new Date(checkOut).getTime() - new Date(checkIn).getTime());
+    const nightsCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const nightsText = nightsCount === 1 ? '1 noite' : `${nightsCount} noites`;
+
     const adultsCount = adults || 0;
     const childrenCount = children || 0;
     const guestsLabel = `${adultsCount + childrenCount} hóspedes (${adultsCount} adultos, ${childrenCount} crianças)`;
@@ -909,16 +915,10 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     const rawPhone = (guestPhone || guestEmail.split('@')[0]).replace(/\D/g, '');
     const normalizedPhone = rawPhone.length >= 10 ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : '';
     
-    let whatsappSection = `<p><strong>Telefone/WhatsApp:</strong> ${guestPhone || 'Não informado'}</p>`;
-    
+    let whatsappLink = '';
     if (normalizedPhone) {
         const textMessage = encodeURIComponent(`Olá ${guestName}, sou da Pousada Delplata! Vi que você tentou reservar o ${roomName} de ${checkInDate} a ${checkOutDate}, mas a reserva acabou expirando. Tivemos algum problema no site? Ainda tenho disponibilidade e posso tentar fechar com você por aqui!`);
-        whatsappSection = `
-            <p><strong>Telefone/WhatsApp:</strong> ${guestPhone || normalizedPhone}</p>
-            <div style="margin-top: 20px; text-align: center;">
-                <a href="https://wa.me/${normalizedPhone}?text=${textMessage}" target="_blank" style="display: inline-block; background: #22c55e; color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">💬 Chamar Hóspede no WhatsApp</a>
-            </div>
-        `;
+        whatsappLink = `https://wa.me/${normalizedPhone}?text=${textMessage}`;
     }
 
     return `
@@ -928,35 +928,144 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #ef4444; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
-        .details-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444; }
-        ul { list-style: none; padding: 0; margin: 0; }
-        li { padding: 8px 0; border-bottom: 1px solid #eee; }
-        li:last-child { border-bottom: none; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #333; margin: 0; padding: 20px; background-color: #f7f9f6; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 12px; border: 1px solid #e2e8e0; }
+        
+        .logo-section { text-align: center; margin-bottom: 30px; }
+        .logo-section img { max-width: 200px; }
+        .logo-divider { border-bottom: 1px solid #e2e8e0; margin-top: 15px; margin-bottom: 30px; }
+
+        .header-section { text-align: center; margin-bottom: 30px; }
+        .header-section h2 { color: #16462c; font-size: 24px; margin: 0 0 10px 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .header-section p { color: #555; margin: 0; font-size: 15px; }
+
+        .value-box { background: #f0f4ec; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .value-label { color: #333; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .value-amount { color: #16462c; font-size: 28px; font-weight: bold; margin: 0; text-align: right; }
+
+        .section-title { font-weight: bold; color: #16462c; font-size: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        
+        .grid-container { display: table; width: 100%; margin-bottom: 30px; }
+        .grid-row { display: table-row; }
+        .grid-col { display: table-cell; width: 50%; padding: 10px 0; vertical-align: top; }
+        .info-label { font-size: 12px; color: #777; margin: 0 0 2px 0; display: flex; align-items: center; gap: 5px; }
+        .info-value { font-size: 14px; color: #333; margin: 0; font-weight: 500; }
+
+        .contact-box { border: 1px solid #e2e8e0; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
+
+        .recommendation-box { background: #fdf6e3; border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 10px; border-left: 4px solid #f5a623; }
+        .recommendation-text { margin: 0; font-size: 13px; color: #555; }
+        .recommendation-text strong { color: #8a6d3b; }
+
+        .btn-container { text-align: center; margin-top: 10px; margin-bottom: 40px; }
+        .btn-primary { display: inline-block; background: #1a3626; color: #ffffff !important; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; width: 80%; }
+        .btn-subtitle { display: block; font-size: 11px; font-weight: normal; margin-top: 5px; opacity: 0.9; }
+
+        .footer { text-align: center; border-top: 1px solid #e2e8e0; padding-top: 20px; color: #666; font-size: 12px; }
+        .footer-amenities { color: #555; margin-bottom: 15px; font-size: 11px; }
+        .footer-brand { color: #333; font-weight: bold; margin-bottom: 5px; }
+        .footer-slogan { font-style: italic; color: #666; display: flex; align-items: center; justify-content: center; gap: 5px;}
+        
+        /* Table resets for email */
+        table { border-collapse: collapse; width: 100%; }
+        td { vertical-align: top; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h2>🚨 Oportunidade de Venda Abandonada</h2>
-    </div>
-    <div class="content">
-        <p>O hóspede <strong>${guestName}</strong> não completou o pagamento e a reserva expirou agora.</p>
-        
-        <div class="details-box">
-            <ul>
-                <li><strong>Acomodação:</strong> ${roomName}</li>
-                <li><strong>Check-in:</strong> ${checkInDate}</li>
-                <li><strong>Check-out:</strong> ${checkOutDate}</li>
-                <li><strong>Hóspedes:</strong> ${guestsLabel}</li>
-                <li><strong>Valor Total:</strong> R$ ${totalPrice.toFixed(2)}</li>
-                <li><strong>Email do Hóspede:</strong> ${guestEmail}</li>
-            </ul>
-            ${whatsappSection}
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo-section">
+            <img src="https://www.pousadadelplata.com.br/fotos/logo.png" alt="Delplata Pousada" />
+            <div class="logo-divider"></div>
         </div>
-        
-        <p style="font-size: 0.9em; color: #666; text-align: center;">Dica: Clique no botão verde pelo celular ou pelo WhatsApp Web para abrir a conversa já com um texto pronto de recuperação.</p>
+
+        <!-- Header -->
+        <div class="header-section">
+            <h2>🔔 Reserva não concluída</h2>
+            <p>Um hóspede demonstrou interesse na Pousada Delplata, mas não concluiu o pagamento dentro do prazo.</p>
+        </div>
+
+        <!-- Value Box -->
+        <table class="value-box" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td style="vertical-align: middle;">
+                    <div class="value-label">💰 Valor potencial da reserva</div>
+                </td>
+                <td style="vertical-align: middle; text-align: right;">
+                    <div class="value-amount">R$ ${totalPrice.toFixed(2).replace('.', ',')}</div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Details -->
+        <div class="section-title">📅 Detalhes da hospedagem</div>
+        <table class="grid-container" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="grid-col" style="padding-bottom: 15px;">
+                    <p class="info-label">🛏️ Acomodação</p>
+                    <p class="info-value">${roomName}</p>
+                </td>
+                <td class="grid-col" style="padding-bottom: 15px;">
+                    <p class="info-label">📅 Período</p>
+                    <p class="info-value">${checkInDate} → ${checkOutDate}</p>
+                </td>
+            </tr>
+            <tr>
+                <td class="grid-col">
+                    <p class="info-label">🌙 Noites</p>
+                    <p class="info-value">${nightsText}</p>
+                </td>
+                <td class="grid-col">
+                    <p class="info-label">👥 Hóspedes</p>
+                    <p class="info-value">${guestsLabel}</p>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Contact Box -->
+        <div class="contact-box">
+            <div class="section-title" style="border:none; margin-bottom:10px;">👤 Contato do hóspede</div>
+            <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="grid-col">
+                        <p class="info-label">✉️ Email</p>
+                        <p class="info-value">${guestEmail}</p>
+                    </td>
+                    <td class="grid-col">
+                        <p class="info-label">💬 Telefone/WhatsApp</p>
+                        <p class="info-value">${guestPhone || 'Não informado'}</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        ${whatsappLink ? `
+        <!-- Recommendation -->
+        <div class="recommendation-box">
+            <span style="font-size: 18px;">⭐</span>
+            <p class="recommendation-text">
+                <strong>Ação recomendada:</strong> entrar em contato o quanto antes.<br>
+                Reservas em Serra Negra costumam ter maior taxa de recuperação quando o contato acontece nas primeiras horas após a expiração.
+            </p>
+        </div>
+
+        <!-- Button -->
+        <div class="btn-container">
+            <a href="${whatsappLink}" target="_blank" class="btn-primary">
+                💬 RECUPERAR RESERVA
+                <span class="btn-subtitle">Abrir conversa no WhatsApp com mensagem pronta</span>
+            </a>
+        </div>
+        ` : ''}
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-amenities">
+                🏊 Piscinas &nbsp;|&nbsp; ☕ Café da manhã &nbsp;|&nbsp; 🏡 Chalés e Apartamentos &nbsp;|&nbsp; 📶 Wi-Fi &nbsp;|&nbsp; 🚗 Estacionamento
+            </div>
+            <div class="footer-brand">Pousada Delplata • Serra Negra • SP</div>
+            <div class="footer-slogan">🌿 Hospitalidade que acolhe, natureza que encanta.</div>
+        </div>
     </div>
 </body>
 </html>
