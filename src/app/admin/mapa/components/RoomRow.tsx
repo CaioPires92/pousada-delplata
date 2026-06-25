@@ -61,6 +61,16 @@ export const RoomRow: React.FC<RoomRowProps> = ({
     scrollRef.current.scrollLeft = scrollLeft - walk;
   };
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const newScrollLeft = target.scrollLeft;
+    document.querySelectorAll('.sync-scroll-container').forEach((el) => {
+      if (el !== target && el.scrollLeft !== newScrollLeft) {
+        el.scrollLeft = newScrollLeft;
+      }
+    });
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
       {/* Room Header Banner */}
@@ -112,8 +122,9 @@ export const RoomRow: React.FC<RoomRowProps> = ({
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
+          onScroll={handleScroll}
           className={cn(
-            "flex overflow-x-auto select-none transition-all scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400",
+            "flex overflow-x-auto select-none transition-all scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 sync-scroll-container",
             isDragging ? "cursor-grabbing" : "cursor-grab"
           )}
         >

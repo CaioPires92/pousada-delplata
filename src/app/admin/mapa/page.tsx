@@ -831,7 +831,7 @@ export default function MapaReservas() {
                 throw new Error(message);
             }
 
-            setBulkModalOpen(false);
+            // setBulkModalOpen(false);
             await fetchRates();
             showToast('success', 'Atualização em lote concluída!');
             
@@ -1681,6 +1681,8 @@ export default function MapaReservas() {
                     >
                         <BulkEditPanel 
                             roomTypes={roomTypes}
+                            initialStartDate={format(listVisibleStart, 'yyyy-MM-dd')}
+                            initialEndDate={format(listQueryInterval.end, 'yyyy-MM-dd')}
                             onSave={handleBulkApply}
                             onCancel={() => setBulkModalOpen(false)}
                         />
