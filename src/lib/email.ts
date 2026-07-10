@@ -455,6 +455,8 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
 export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     const {
         guestName,
+        guestPhone,
+        guestEmail,
         bookingId,
         roomName,
         checkIn,
@@ -526,6 +528,18 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
             <div class="detail-row">
                 <span class="detail-label">Número da Reserva:</span>
                 <span class="detail-value">${bookingCode}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Nome:</span>
+                <span class="detail-value">${guestName}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">E-mail:</span>
+                <span class="detail-value">${guestEmail}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">WhatsApp/Telefone:</span>
+                <span class="detail-value">${String(guestPhone || 'Não informado')}</span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">Acomodação:</span>
@@ -1086,6 +1100,55 @@ export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { pho
             to: adminEmail,
             subject: `🚨 Oportunidade de Recuperação: ${data.guestName} (${data.roomName})`,
             html: htmlContent,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        return { success: false, error };
+    }
+}
+
+export async function sendDifficultyAlertEmail(data: { guestName: string, guestEmail: string, guestPhone?: string, step: string, reason: string, bookingId?: string }) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        return { success: false, error: 'SMTP not configured' };
+    }
+
+    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || 'contato@pousadadelplata.com.br';
+    
+    let whatsappLink = '';
+    if (data.guestPhone) {
+        const cleanPhone = data.guestPhone.replace(/\D/g, '');
+        const text = encodeURIComponent(`Olá ${data.guestName.split(' ')[0]}, vi que você tentou fazer uma reserva no nosso site mas encontrou dificuldades. Posso te ajudar com a reserva?`);
+        whatsappLink = `https://wa.me/55${cleanPhone}?text=${text}`;
+    }
+
+    const html = `
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
+      <h2 style="margin-top:0; color:#dc2626;">Alerta de Dificuldade na Reserva</h2>
+      <div style="background:#fef2f2; border:1px solid #fca5a5; padding:16px; border-radius:8px;">
+        <p><strong>Hóspede:</strong> ${data.guestName} (${data.guestEmail})</p>
+        <p><strong>WhatsApp:</strong> ${data.guestPhone || 'Não informado'}</p>
+        <p><strong>Etapa:</strong> ${data.step}</p>
+        <p><strong>Motivo/Detalhes:</strong> ${data.reason}</p>
+        ${data.bookingId ? `<p><strong>ID da Reserva:</strong> ${data.bookingId.slice(0,8).toUpperCase()}</p>` : ''}
+        ${whatsappLink ? `
+        <div style="margin-top: 15px;">
+            <a href="${whatsappLink}" target="_blank" style="background-color: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Chamar no WhatsApp
+            </a>
+        </div>
+        ` : ''}
+      </div>
+      <p style="margin-top:20px; font-size:14px;">Recomendamos entrar em contato com o cliente para auxiliar no fechamento da reserva.</p>
+    </body>
+    </html>`;
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Sistema Admin" <${process.env.SMTP_USER}>`,
+            to: adminEmail,
+            subject: `⚠️ Dificuldade de Pagamento: ${data.guestName}`,
+            html,
         });
         return { success: true, messageId: info.messageId };
     } catch (error) {
