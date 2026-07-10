@@ -40,11 +40,12 @@ export async function POST(
             return NextResponse.json({ error: 'BOOKING_NOT_FOUND' }, { status: 404 });
         }
 
-        if (String(booking.status || '').toUpperCase() !== 'PENDING') {
+        const currentStatus = String(booking.status || '').toUpperCase();
+        if (['CONFIRMED', 'PAID', 'COMPLETED'].includes(currentStatus)) {
             return NextResponse.json(
                 {
-                    error: 'BOOKING_NOT_PENDING',
-                    message: 'Email de ajuda so pode ser enviado para reserva pendente.',
+                    error: 'BOOKING_ALREADY_CONFIRMED',
+                    message: 'Email de ajuda não pode ser enviado para reservas já confirmadas ou concluídas.',
                 },
                 { status: 409 }
             );

@@ -224,6 +224,8 @@ export async function GET(request: Request) {
                     const couponResult = await validateCoupon({
                         code: promoCode,
                         subtotal: breakdown.total,
+                        roomTypeId: room.id,
+                        source: 'direct',
                     });
 
                     if (couponResult.valid) {

@@ -1,11 +1,42 @@
 import prisma from '@/lib/prisma';
 import { calculateCouponDiscount } from '@/lib/coupons/discount';
-import { hashCouponCode, normalizeCouponCode } from '@/lib/coupons/hash';
+import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail, normalizeGuestPhone } from '@/lib/coupons/hash';
 import { CouponValidationInput, CouponValidationResult } from '@/lib/coupons/types';
+
+type CouponPolicyFields = {
+    bindEmail?: string | null;
+    bindPhone?: string | null;
+    allowedRoomTypeIds?: unknown;
+    allowedSources?: unknown;
+    maxUsesPerGuest?: number | null;
+};
+
+function parseList(value: unknown) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                return parsed.map((item) => String(item).trim()).filter(Boolean);
+            }
+        } catch {
+            // Fall back to comma-separated values below.
+        }
+        return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+    return [];
+}
 
 export async function validateCoupon(input: CouponValidationInput): Promise<CouponValidationResult> {
     const now = input.now ?? new Date();
     const code = normalizeCouponCode(input.code);
+    const guestEmail = normalizeGuestEmail(input.guestEmail);
+    const guestPhone = normalizeGuestPhone(input.guestPhone);
+    const source = String(input.source || '').trim().toLowerCase();
+    const roomTypeId = String(input.roomTypeId || '').trim();
 
     if (!Number.isFinite(input.subtotal)) {
         return { valid: false, reason: 'MISSING_SUBTOTAL' };
@@ -39,6 +70,27 @@ export async function validateCoupon(input: CouponValidationInput): Promise<Coup
     }
 
 
+    const policy = coupon as typeof coupon & CouponPolicyFields;
+    const bindEmail = normalizeGuestEmail(policy.bindEmail);
+    if (bindEmail && bindEmail !== guestEmail) {
+        return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+    }
+
+    const bindPhone = normalizeGuestPhone(policy.bindPhone);
+    if (bindPhone && bindPhone !== guestPhone) {
+        return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+    }
+
+    const allowedRoomTypeIds = parseList(policy.allowedRoomTypeIds);
+    if (allowedRoomTypeIds.length > 0 && !allowedRoomTypeIds.includes(roomTypeId)) {
+        return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+    }
+
+    const allowedSources = parseList(policy.allowedSources).map((item) => item.toLowerCase());
+    if (allowedSources.length > 0 && !allowedSources.includes(source)) {
+        return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+    }
+
 
     if (coupon.minBookingValue !== null && subtotal < Number(coupon.minBookingValue)) {
         return { valid: false, reason: 'MIN_BOOKING_NOT_REACHED', couponId: coupon.id };
@@ -57,6 +109,20 @@ export async function validateCoupon(input: CouponValidationInput): Promise<Coup
         }
     }
 
+
+    if (policy.maxUsesPerGuest !== null && policy.maxUsesPerGuest !== undefined && (guestEmail || guestPhone)) {
+        const perGuestConfirmedCount = await prisma.couponRedemption.count({
+            where: {
+                couponId: coupon.id,
+                status: 'CONFIRMED',
+                ...(guestEmail ? { guestEmail } : { guestPhone }),
+            },
+        });
+
+        if (perGuestConfirmedCount >= policy.maxUsesPerGuest) {
+            return { valid: false, reason: 'USAGE_LIMIT_REACHED', couponId: coupon.id };
+        }
+    }
 
 
     const couponType = String(coupon.type || '').toUpperCase();

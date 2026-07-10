@@ -167,6 +167,7 @@ function normalizeBooking(booking: Row, guest?: Row, roomType?: Row, payment?: R
     };
 }
 
+
 async function tableExists(table: string) {
     const rows = await prisma.$queryRawUnsafe<Row[]>(
         `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
@@ -193,6 +194,20 @@ function pickColumns(wanted: string[], existing: Set<string>) {
 }
 
 async function fetchBookingsViaPrisma(filters: BookingQueryFilters) {
+    try {
+        const startOfToday = new Date();
+        startOfToday.setUTCHours(0, 0, 0, 0);
+        await prisma.booking.updateMany({
+            where: {
+                status: 'PENDING',
+                checkIn: { lt: startOfToday },
+            },
+            data: { status: 'EXPIRED' },
+        });
+    } catch (err) {
+        console.error('[Admin Bookings] Failed to auto-expire bookings:', err);
+    }
+
     const where: Prisma.BookingWhereInput = {};
     if (filters.status) where.status = filters.status;
     if (filters.dateFrom && filters.dateTo) {

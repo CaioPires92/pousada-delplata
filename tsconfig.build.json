@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": ".artifacts/tsbuildinfo/tsconfig.build.tsbuildinfo"
+  },
   "include": [
     "next-env.d.ts",
     "src/**/*.ts",

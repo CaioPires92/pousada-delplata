@@ -113,12 +113,30 @@ async function migrate() {
         { name: 'occupiedUnits', ddl: 'ALTER TABLE InventoryAdjustment ADD COLUMN occupiedUnits INTEGER NOT NULL DEFAULT 0' },
     ];
 
+    const pipelineCardDefs = [
+        { name: 'bookingId', ddl: 'ALTER TABLE PipelineCard ADD COLUMN bookingId TEXT' },
+        { name: 'estimatedValue', ddl: 'ALTER TABLE PipelineCard ADD COLUMN estimatedValue REAL' },
+        { name: 'intendedArrival', ddl: 'ALTER TABLE PipelineCard ADD COLUMN intendedArrival DATETIME' },
+        { name: 'lossReason', ddl: 'ALTER TABLE PipelineCard ADD COLUMN lossReason TEXT' },
+        { name: 'intendedCheckin', ddl: 'ALTER TABLE PipelineCard ADD COLUMN intendedCheckin DATETIME' },
+        { name: 'intendedCheckout', ddl: 'ALTER TABLE PipelineCard ADD COLUMN intendedCheckout DATETIME' },
+        { name: 'adults', ddl: 'ALTER TABLE PipelineCard ADD COLUMN adults INTEGER' },
+        { name: 'children', ddl: 'ALTER TABLE PipelineCard ADD COLUMN children INTEGER' },
+        { name: 'roomTypeInterest', ddl: 'ALTER TABLE PipelineCard ADD COLUMN roomTypeInterest TEXT' },
+        { name: 'lostReason', ddl: 'ALTER TABLE PipelineCard ADD COLUMN lostReason TEXT' },
+        { name: 'tags', ddl: 'ALTER TABLE PipelineCard ADD COLUMN tags TEXT' },
+        { name: 'followUpAt', ddl: 'ALTER TABLE PipelineCard ADD COLUMN followUpAt DATETIME' },
+        { name: 'quoteStatus', ddl: 'ALTER TABLE PipelineCard ADD COLUMN quoteStatus TEXT' },
+        { name: 'upsellStatus', ddl: 'ALTER TABLE PipelineCard ADD COLUMN upsellStatus TEXT' },
+    ];
+
     const addedRoomType = await ensureColumns('RoomType', roomTypeDefs);
     const addedRate = await ensureColumns('Rate', rateDefs);
     const addedRateIndexes = await ensureRateUniqueIndex();
     const addedInventoryAdjustment = await ensureColumns('InventoryAdjustment', inventoryAdjustmentDefs);
+    const addedPipelineCard = await ensureColumns('PipelineCard', pipelineCardDefs);
 
-    const totalAdded = addedRoomType + addedRate + addedRateIndexes + addedInventoryAdjustment;
+    const totalAdded = addedRoomType + addedRate + addedRateIndexes + addedInventoryAdjustment + addedPipelineCard;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');

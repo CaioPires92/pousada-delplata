@@ -50,14 +50,9 @@ export default async function CrmEventsPage({
     }))
     .filter(item => (severity ? item.severity === severity : true));
 
-  const [recentSendFails, recentN8nFails, recentWebhookFails, stuckQueue] = await Promise.all([
+  const [recentSendFails, recentWebhookFails, stuckQueue] = await Promise.all([
     prisma.internalActionLog.findMany({
       where: { action: "WhatsAppSendFailed", createdAt: { gte: new Date(now.getTime() - 15 * 60 * 1000) } },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    }),
-    prisma.internalActionLog.findMany({
-      where: { action: "N8NEmitFailed", createdAt: { gte: new Date(now.getTime() - 30 * 60 * 1000) } },
       orderBy: { createdAt: "desc" },
       take: 1,
     }),
@@ -75,7 +70,6 @@ export default async function CrmEventsPage({
 
   const alerts = [
     recentSendFails[0] ? { code: "EVOLUTION_OFFLINE", text: "Falhas recentes na Evolution API", level: "critical" } : null,
-    recentN8nFails[0] ? { code: "N8N_OFFLINE", text: "Falhas recentes de emissão para n8n", level: "warning" } : null,
     recentWebhookFails[0] ? { code: "WEBHOOK_FAILING", text: "Falhas recentes no webhook", level: "critical" } : null,
     stuckQueue[0] ? { code: "QUEUE_STUCK", text: "Fila de automação possivelmente travada", level: "warning" } : null,
   ].filter(Boolean) as Array<{ code: string; text: string; level: "warning" | "critical" }>;

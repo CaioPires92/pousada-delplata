@@ -1,0 +1,26 @@
+{
+  "files.exclude": {
+    ".agent": true,
+    ".artifacts": true,
+    ".codex": true,
+    ".env": true,
+    ".env.*": true,
+    ".next": true,
+    ".vercel": true,
+    "components.json": true,
+    "eslint.config.mjs": true,
+    "next-env.d.ts": true,
+    "next.config.ts": true,
+    "package-lock.json": true,
+    "postcss.config.js": true,
+    "sentry.client.config.ts": true,
+    "sentry.edge.config.ts": true,
+    "sentry.server.config.ts": true,
+    "tailwind.config.ts": true,
+    "tsconfig.build.json": true,
+    "tsconfig.json": true,
+    "vercel.json": true,
+    "vitest.config.ts": true,
+    "vitest.setup.tsx": true
+  }
+}

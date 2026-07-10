@@ -31,6 +31,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
 # env files (can opt-in for committing if needed)
 .env*
@@ -53,11 +54,26 @@ deploy-hostinger-lean
 
 .artifacts/
 
+# raw photos (optimized versions in /public/fotos)
+/assets/FOTOS/
+
+# local Evolution API clone/runtime
+/evolution-api/
+
 # local sqlite artifacts
 *.db
 *.db-journal
 /db
 /db-wal
+
+/scratch/evolution-bridge.log
+/scratch/evolution-bridge.pid
+/scratch/crm/
+/scratch/evolution/
+
+/trash/for-review/email-patches/
+/trash/for-review/sensitive-db-scripts/
+/trash/for-review/*.log*
 
 
 

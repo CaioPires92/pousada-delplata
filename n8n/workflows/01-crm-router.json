@@ -1,0 +1,112 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "6c72e23a-b4cb-43be-93e0-44536bc66509",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6935f5b1-780b-407a-b555-7a72b24523cb",
+      "name": "Webhook",
+      "webhookId": "6c72e23a-b4cb-43be-93e0-44536bc66509"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "d8a7b1b8-9e41-4abf-8c5d-49edbd61369e",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "LeadCreated",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Novo Lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "785375b2-2785-4c0b-9d08-b59fe123d0dc",
+                    "leftValue": "={{ $json.body.event }}",
+                    "rightValue": "MessageReceived",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Mensagem Recebida"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c64ad903-6897-475a-a17b-9c61face0355",
+      "name": "Switch"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8a1dd256-35b5-4b63-9ca9-4ebbddd54b75",
+  "meta": {
+    "instanceId": "a66a830cf5b564f7503aff9a67e823706047dbaa64804719a322d2afc568f5e7"
+  },
+  "nodeGroups": [],
+  "id": "ZdIvHxjwgevOZ2in",
+  "tags": []
+}

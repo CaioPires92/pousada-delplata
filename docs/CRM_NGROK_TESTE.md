@@ -20,37 +20,11 @@ Se fechar o terminal do ngrok, apertar `Ctrl+C`, reiniciar o PC ou a internet ca
 
 Para produção definitiva, troque o ngrok por uma Evolution hospedada em servidor/VPS com HTTPS fixo.
 
-## n8n local
-
-Quando o n8n estiver rodando localmente em `http://localhost:5678`, a Vercel tambem precisa de uma URL publica para chamar o webhook.
-
-Como o ngrok ja costuma ficar ocupado com a Evolution, use Cloudflare Tunnel para o n8n:
-
-```bash
-docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://host.docker.internal:5678
-```
-
-Se `host.docker.internal` nao funcionar no WSL, use:
-
-```bash
-docker run --rm -it --network host cloudflare/cloudflared:latest tunnel --url http://localhost:5678
-```
-
-A URL final do webhook fica:
-
-```text
-N8N_WEBHOOK_URL=https://exemplo.trycloudflare.com/webhook/crm-events
-```
-
-O workflow do n8n precisa estar ativo. A URL `/webhook-test/crm-events` serve apenas para teste depois de clicar em `Execute workflow`; a Vercel deve usar `/webhook/crm-events`.
-
 ## Checklist rapido de terminais abertos
 
-Durante teste local completo, manter aberto:
+Durante teste local do CRM/WhatsApp, manter aberto:
 
 ```text
 Evolution API Docker
-n8n Docker
 ngrok http 8080
-cloudflared tunnel para 5678
 ```
