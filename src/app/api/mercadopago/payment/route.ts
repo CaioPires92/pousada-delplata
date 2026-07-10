@@ -11,6 +11,8 @@ type MercadoPagoCause = {
     data?: string;
 };
 
+const PIX_DISCOUNT_RATE = 0.05;
+
 function normalizeInstallments(value: unknown) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
     if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -86,6 +88,10 @@ function detectInvalidTransactionAmount(error: any) {
     });
 
     return status === 400 && (message.includes('transaction_amount') || causeMentionsAmount);
+}
+
+function applyPixDiscount(amount: number) {
+    return Number((amount * (1 - PIX_DISCOUNT_RATE)).toFixed(2));
 }
 
 function detectPayerEmailForbidden(error: any) {
@@ -263,6 +269,7 @@ export async function POST(request: Request) {
             paymentMethodId: String(paymentMethodId || ''),
             paymentTypeId,
         });
+        const expectedAmount = pixPayment ? applyPixDiscount(bookingAmount) : bookingAmount;
         const minTransactionAmount = getMinTransactionAmount(pixPayment);
 
         ctxRequestedAmount = requestedAmount;
@@ -270,7 +277,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'transaction_amount inválido' }, { status: 400 });
         }
 
-        if (bookingAmount < minTransactionAmount || requestedAmount < minTransactionAmount) {
+        if (expectedAmount < minTransactionAmount || requestedAmount < minTransactionAmount) {
             const minimumMessage = pixPayment
                 ? `Valor minimo para pagamento via Pix e R$ ${formatBrl(minTransactionAmount)}.`
                 : `Este valor nao permite pagamento com cartao. Escolha Pix ou aumente o valor da reserva (minimo R$ ${formatBrl(minTransactionAmount)}).`;
@@ -278,6 +285,7 @@ export async function POST(request: Request) {
             opsLog('warn', 'MP_PAYMENT_AMOUNT_BELOW_MINIMUM', {
                 bookingId,
                 bookingAmount,
+                expectedAmount,
                 requestedAmount,
                 minTransactionAmount,
                 paymentMethodId,
@@ -293,10 +301,11 @@ export async function POST(request: Request) {
             );
         }
 
-        if (Math.abs(bookingAmount - requestedAmount) > 0.01) {
+        if (Math.abs(expectedAmount - requestedAmount) > 0.01) {
             opsLog('warn', 'MP_PAYMENT_AMOUNT_MISMATCH', {
                 bookingId,
                 bookingAmount,
+                expectedAmount,
                 requestedAmount,
                 paymentMethodId,
                 paymentTypeId,

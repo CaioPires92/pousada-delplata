@@ -96,6 +96,18 @@ interface RoomGalleryState {
     currentIndex: number;
 }
 
+const PIX_DISCOUNT_RATE = 0.05;
+
+function applyPixDiscount(amount: number) {
+    return Number((amount * (1 - PIX_DISCOUNT_RATE)).toFixed(2));
+}
+
+function isPixBrickPayment(formData: any) {
+    const paymentMethodId = String(formData?.payment_method_id || '').trim().toLowerCase();
+    const paymentTypeId = String(formData?.payment_type_id || '').trim().toLowerCase();
+    return paymentMethodId === 'pix' || paymentTypeId === 'bank_transfer';
+}
+
 function RoomListSkeleton() {
     return (
         <div className="space-y-6 animate-pulse">
@@ -961,6 +973,9 @@ function ReservarContent() {
                                 guestName: guest.name,
                                 guestEmail: guest.email,
                             });
+                            const finalPaymentAmount = isPixBrickPayment(formData)
+                                ? applyPixDiscount(paymentAmount)
+                                : paymentAmount;
 
                             let keepOverlayUntilRedirect = false;
 
@@ -973,7 +988,7 @@ function ReservarContent() {
                                         payer: normalizedPayer,
                                         bookingId: paymentBookingId,
                                         description: `Reserva ${paymentBookingId}`,
-                                        transaction_amount: paymentAmount,
+                                        transaction_amount: finalPaymentAmount,
                                     }),
                                 });
                                 const data = await res.json().catch(() => ({}));
@@ -996,7 +1011,7 @@ function ReservarContent() {
                                         step: 'payment_result',
                                         status: 'success',
                                         bookingId: paymentBookingId,
-                                        value: paymentAmount,
+                                        value: finalPaymentAmount,
                                         message: 'approved',
                                     });
                                     router.push(`/reservar/confirmacao/${paymentBookingId}`);
@@ -1010,7 +1025,7 @@ function ReservarContent() {
                                         step: 'payment_result',
                                         status: 'error',
                                         bookingId: paymentBookingId,
-                                        value: paymentAmount,
+                                        value: finalPaymentAmount,
                                         message: 'rejected',
                                     });
                                     return;
@@ -1018,7 +1033,7 @@ function ReservarContent() {
 
                                 setPaymentStatus('pending');
                                 if (pix?.qr_code || pix?.qr_code_base64) {
-                                    setPaymentStatusMessage('Pix gerado com sucesso. Use o QR Code ou copie o código abaixo para concluir sua reserva.');
+                                    setPaymentStatusMessage(`Pix gerado com sucesso com 5% de desconto (${formatCurrencyBRL(finalPaymentAmount)}). Use o QR Code ou copie o código abaixo para concluir sua reserva.`);
                                 } else {
                                     setPaymentStatusMessage('Pagamento em análise. Assim que houver confirmação, sua reserva será atualizada automaticamente.');
                                 }
@@ -1026,7 +1041,7 @@ function ReservarContent() {
                                     step: 'payment_result',
                                     status: 'pending',
                                     bookingId: paymentBookingId,
-                                    value: paymentAmount,
+                                    value: finalPaymentAmount,
                                     message: pix?.qr_code || pix?.qr_code_base64 ? 'pix_pending' : 'analysis_pending',
                                 });
                             } finally {
@@ -1522,9 +1537,20 @@ function ReservarContent() {
                             </CardHeader>
                             <CardContent className="pt-6">
                                 {Number(paymentAmount || 0) > 0 ? (
-                                    <div className="mb-4 flex items-center justify-between border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3">
-                                        <span className="text-sm text-muted-foreground">Valor total a pagar</span>
-                                        <strong className="text-lg font-bold text-primary">R$ {Number(paymentAmount || 0).toFixed(2)}</strong>
+                                    <div className="mb-4 space-y-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="text-sm text-muted-foreground">Valor no cartão</span>
+                                            <strong className="text-lg font-bold text-primary">{formatCurrencyBRL(Number(paymentAmount || 0))}</strong>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-4 border-t border-primary/10 pt-3">
+                                            <span className="text-sm font-semibold text-emerald-700">Valor no Pix com 5% de desconto</span>
+                                            <strong className="text-lg font-bold text-emerald-700">{formatCurrencyBRL(applyPixDiscount(Number(paymentAmount || 0)))}</strong>
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {Number(paymentAmount || 0) > 0 ? (
+                                    <div className="mb-4 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                        O desconto é aplicado automaticamente ao escolher Pix. Pagamentos por cartão permanecem no valor integral da reserva.
                                     </div>
                                 ) : null}
                                 <div className="mb-4 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 text-sm text-foreground/76">
