@@ -336,20 +336,6 @@ export default function AdminReservasPage() {
         setActionModal({ booking, action });
     }, [trackAdminEvent]);
 
-    const onToggleAnalyticsTestMode = useCallback((enabled: boolean) => {
-        setAnalyticsTestMode(enabled);
-        try {
-            localStorage.setItem(ANALYTICS_TEST_MODE_KEY, String(enabled));
-        } catch {
-            // no-op
-        }
-        gaEvent('admin_analytics_test_mode_toggled', {
-            section: 'admin_reservas',
-            enabled,
-            ...(enabled ? { test_mode: true, debug_mode: true } : {}),
-        });
-    }, []);
-
     const onChangeStatus = useCallback((nextStatus: StatusFilter) => {
         setFilter(nextStatus);
         trackAdminEvent('admin_booking_status_filter_changed', { status: nextStatus });

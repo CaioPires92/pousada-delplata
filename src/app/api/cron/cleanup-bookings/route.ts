@@ -20,28 +20,6 @@ export async function GET(request: Request) {
             where: {
                 status: 'PENDING',
                 createdAt: { lt: quinzeMinutosAtras },
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { sendBookingExpiredEmail, sendBookingPendingEmail, sendAdminRecoveryAlertEmail } from '@/lib/email';
-
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: Request) {
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
-        return new Response('Unauthorized', { status: 401 });
-    }
-
-    try {
-        const quinzeMinutosAtras = new Date(Date.now() - 15 * 60 * 1000);
-        const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
-        let pendingEmailCount = 0;
-        let expiredEmailCount = 0;
-
-        const pendingToNotify = await prisma.booking.findMany({
-            where: {
-                status: 'PENDING',
-                createdAt: { lt: quinzeMinutosAtras },
                 pendingEmailSentAt: null,
             },
             include: { guest: true, roomType: true, payment: true },
