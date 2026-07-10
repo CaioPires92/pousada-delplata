@@ -10,7 +10,7 @@ import {
     startOfWeek,
 } from 'date-fns';
 
-export type PeriodMode = 'month' | 'week' | 'day' | 'range';
+export type PeriodMode = 'month' | 'week' | 'day' | 'range' | 'all-time';
 export type DateField = 'checkIn' | 'createdAt';
 
 type BuildPeriodRangeParams = {
@@ -51,6 +51,8 @@ function parseYmd(value?: string) {
 export function buildPeriodRange(params: BuildPeriodRangeParams): PeriodRange | null {
     const anchor = isValid(params.anchorDate) ? params.anchorDate : new Date();
 
+    if (params.mode === 'all-time') return null;
+
     if (params.mode === 'month') {
         return {
             from: toYmd(startOfMonth(anchor)),
@@ -83,6 +85,7 @@ export function buildPeriodRange(params: BuildPeriodRangeParams): PeriodRange | 
 
 export function shiftAnchorDate(anchorDate: Date, mode: PeriodMode, direction: -1 | 1) {
     const anchor = isValid(anchorDate) ? anchorDate : new Date();
+    if (mode === 'all-time') return anchor;
     if (mode === 'month') {
         return new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1);
     }
@@ -97,6 +100,7 @@ export function formatPeriodLabel(mode: PeriodMode, anchorDate: Date, range: Per
     if (mode === 'week' && range) return `${range.from} - ${range.to}`;
     if (mode === 'day') return format(anchor, 'dd/MM/yyyy');
     if (mode === 'range' && range) return `${range.from} - ${range.to}`;
+    if (mode === 'all-time') return 'Todo o período';
     return 'Periodo invalido';
 }
 

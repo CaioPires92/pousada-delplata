@@ -11,6 +11,7 @@ import {
     AlertCircle,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     Loader2,
     RefreshCw,
     XCircle,
@@ -40,8 +41,6 @@ type ActionModalState = {
 
 type StatusFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED' | 'EXPIRED';
 
-const ANALYTICS_TEST_MODE_KEY = 'admin_analytics_test_mode';
-
 const STATUS_TABS: Array<{ key: StatusFilter; label: string }> = [
     { key: 'ALL', label: 'Todas' },
     { key: 'PENDING', label: 'Pendentes' },
@@ -52,6 +51,7 @@ const STATUS_TABS: Array<{ key: StatusFilter; label: string }> = [
 ];
 
 const PERIOD_MODES: Array<{ key: PeriodMode; label: string }> = [
+    { key: 'all-time', label: 'Todo o período' },
     { key: 'month', label: 'Mês' },
     { key: 'week', label: 'Semana' },
     { key: 'day', label: 'Dia' },
@@ -103,11 +103,13 @@ export default function AdminReservasPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<StatusFilter>('ALL');
-    const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
+    const [dateField, setDateField] = useState<'createdAt' | 'checkIn'>('createdAt');
+    const [periodMode, setPeriodMode] = useState<PeriodMode>('all-time');
     const [periodAnchor, setPeriodAnchor] = useState(() => new Date());
     const [rangeFrom, setRangeFrom] = useState('');
     const [rangeTo, setRangeTo] = useState('');
-    const [analyticsTestMode, setAnalyticsTestMode] = useState(false);
+    const [isDateFieldOpen, setIsDateFieldOpen] = useState(false);
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [actionBusy, setActionBusy] = useState<{ bookingId: string; action: BookingAction } | null>(null);
     const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
@@ -129,12 +131,8 @@ export default function AdminReservasPage() {
             section: 'admin_reservas',
             ...params,
         };
-        if (analyticsTestMode) {
-            payload.test_mode = true;
-            payload.debug_mode = true;
-        }
         gaEvent(eventName, payload);
-    }, [analyticsTestMode]);
+    }, []);
 
     const fetchBookings = useCallback(async () => {
         setLoading(true);
@@ -145,7 +143,7 @@ export default function AdminReservasPage() {
                 anchorDate: periodAnchor,
                 customFrom: rangeFrom,
                 customTo: rangeTo,
-                dateField: 'checkIn',
+                dateField,
             });
             const endpoint = query ? `/api/admin/bookings?${query}` : '/api/admin/bookings';
             const response = await fetch(endpoint);
@@ -164,7 +162,7 @@ export default function AdminReservasPage() {
         } finally {
             setLoading(false);
         }
-    }, [filter, periodMode, periodAnchor, rangeFrom, rangeTo, router]);
+    }, [filter, periodMode, periodAnchor, rangeFrom, rangeTo, dateField, router]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -172,21 +170,6 @@ export default function AdminReservasPage() {
         }, 0);
         return () => window.clearTimeout(timeoutId);
     }, [fetchBookings]);
-
-    useEffect(() => {
-        try {
-            const storedValue = localStorage.getItem(ANALYTICS_TEST_MODE_KEY);
-            const timeoutId = window.setTimeout(() => {
-                setAnalyticsTestMode(storedValue === 'true');
-            }, 0);
-            return () => window.clearTimeout(timeoutId);
-        } catch {
-            const timeoutId = window.setTimeout(() => {
-                setAnalyticsTestMode(false);
-            }, 0);
-            return () => window.clearTimeout(timeoutId);
-        }
-    }, []);
 
     useEffect(() => {
         if (!actionModal) return;
@@ -417,30 +400,89 @@ export default function AdminReservasPage() {
                         </span>
                     </div>
 
-                    <div className={styles.headerControls}>
-                        <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Filtrar por Status</span>
-                            <div className={styles.statusTabs}>
-                                {STATUS_TABS.map((tab) => (
-                                    <button
-                                        key={tab.key}
-                                        className={filter === tab.key ? styles.filterActive : styles.filter}
-                                        onClick={() => onChangeStatus(tab.key)}
-                                    >
-                                        {tab.label}
-                                    </button>
-                                ))}
+                    <div className="flex flex-wrap items-end gap-x-8 gap-y-5 w-full mt-4">
+                        {/* Status Filter */}
+                        <div className="flex flex-col gap-1.5 min-w-[170px]">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 pl-1">Filtrar por Status</span>
+                            <div className="relative">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                                    className={`w-full flex items-center justify-between gap-3 text-[11px] font-bold text-slate-700 bg-white border ${isStatusDropdownOpen ? 'border-blue-400 ring-2 ring-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} rounded-xl px-4 py-2.5 uppercase tracking-wide shadow-sm transition-all outline-none`}
+                                >
+                                    {STATUS_TABS.find(t => t.key === filter)?.label || 'Todas'}
+                                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                                </button>
+                                {isStatusDropdownOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setIsStatusDropdownOpen(false)} />
+                                        <div className="absolute top-full left-0 mt-1.5 w-full min-w-[170px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                            {STATUS_TABS.map((tab) => (
+                                                <button
+                                                    key={tab.key}
+                                                    type="button"
+                                                    className={`w-full text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide transition-colors outline-none ${filter === tab.key ? 'text-blue-700 bg-blue-50' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                                    onClick={() => { 
+                                                        onChangeStatus(tab.key); 
+                                                        setIsStatusDropdownOpen(false); 
+                                                    }}
+                                                >
+                                                    {tab.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
-                        <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Período de Check-in</span>
-                            <div className="flex items-center gap-4">
-                                <div className={styles.periodModeTabs}>
+                        {/* Divider */}
+                        <div className="w-[1px] h-10 bg-slate-200/80 hidden md:block mx-1"></div>
+
+                        {/* Date Filter Block */}
+                        <div className="flex flex-col gap-1.5 flex-1 min-w-[340px]">
+                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 pl-1">Filtro de Datas</span>
+                            <div className="flex flex-wrap items-center gap-3">
+                                
+                                {/* Date Type Selector */}
+                                <div className="relative min-w-[170px]">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsDateFieldOpen(!isDateFieldOpen)}
+                                        className={`w-full flex items-center justify-between gap-3 text-[11px] font-bold text-slate-700 bg-white border ${isDateFieldOpen ? 'border-blue-400 ring-2 ring-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'} rounded-xl px-4 py-2.5 uppercase tracking-wide shadow-sm transition-all outline-none`}
+                                    >
+                                        {dateField === 'createdAt' ? 'Novas Reservas' : 'Por Check-in'}
+                                        <ChevronDown className="w-3 h-3 text-slate-400" />
+                                    </button>
+                                    {isDateFieldOpen && (
+                                        <>
+                                            <div className="fixed inset-0 z-40" onClick={() => setIsDateFieldOpen(false)} />
+                                            <div className="absolute top-full left-0 mt-1.5 w-full min-w-[170px] bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <button 
+                                                    type="button"
+                                                    className={`w-full text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide transition-colors outline-none ${dateField === 'createdAt' ? 'text-blue-700 bg-blue-50' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                                    onClick={() => { setDateField('createdAt'); setIsDateFieldOpen(false); trackAdminEvent('admin_booking_date_field_changed', { field: 'createdAt' }); }}
+                                                >
+                                                    Novas Reservas
+                                                </button>
+                                                <button 
+                                                    type="button"
+                                                    className={`w-full text-left px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide transition-colors outline-none ${dateField === 'checkIn' ? 'text-blue-700 bg-blue-50' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                                    onClick={() => { setDateField('checkIn'); setIsDateFieldOpen(false); trackAdminEvent('admin_booking_date_field_changed', { field: 'checkIn' }); }}
+                                                >
+                                                    Por Check-in
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Period Tabs */}
+                                <div className="flex p-1 bg-slate-100/70 rounded-xl border border-slate-200/50 shadow-inner">
                                     {PERIOD_MODES.map((mode) => (
                                         <button
                                             key={mode.key}
-                                            className={periodMode === mode.key ? styles.modeButtonActive : styles.modeButton}
+                                            className={`outline-none px-3.5 py-1.5 text-[11px] font-bold rounded-lg transition-all ${periodMode === mode.key ? 'bg-white text-blue-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 border border-transparent'}`}
                                             onClick={() => onChangePeriodMode(mode.key)}
                                         >
                                             {mode.label}
@@ -448,64 +490,43 @@ export default function AdminReservasPage() {
                                     ))}
                                 </div>
 
-                                <div className={styles.periodControls}>
-                                    {periodMode !== 'range' ? (
-                                        <div className={styles.periodNavigator}>
-                                            <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(-1)}>
-                                                <ChevronLeft className="w-4 h-4" />
-                                            </button>
-                                            <span className={styles.periodLabel}>{periodLabel}</span>
-                                            <button type="button" className={styles.navButton} onClick={() => onShiftPeriod(1)}>
-                                                <ChevronRight className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className={styles.rangeInputs}>
-                                            <input
-                                                type="date"
-                                                className={styles.dateInput}
-                                                value={rangeFrom}
-                                                onChange={(event) => setRangeFrom(event.target.value)}
-                                            />
-                                            <span className={styles.rangeSeparator}>até</span>
-                                            <input
-                                                type="date"
-                                                className={styles.dateInput}
-                                                value={rangeTo}
-                                                onChange={(event) => setRangeTo(event.target.value)}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Period Navigator / Range Inputs */}
+                                {periodMode !== 'all-time' && (
+                                    <div className="flex items-center ml-1">
+                                        {periodMode !== 'range' ? (
+                                            <div className="flex items-center bg-white border border-slate-200/80 rounded-xl shadow-sm p-1">
+                                                <button type="button" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-500 transition-colors outline-none" onClick={() => onShiftPeriod(-1)}>
+                                                    <ChevronLeft className="w-4 h-4" />
+                                                </button>
+                                                <span className="px-3 min-w-[110px] text-center whitespace-nowrap text-[12px] font-bold text-slate-700">{periodLabel}</span>
+                                                <button type="button" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 text-slate-500 transition-colors outline-none" onClick={() => onShiftPeriod(1)}>
+                                                    <ChevronRight className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-xl shadow-sm p-1.5 px-3">
+                                                <input
+                                                    type="date"
+                                                    className="bg-transparent text-[11px] font-bold text-slate-700 outline-none border-none cursor-pointer"
+                                                    value={rangeFrom}
+                                                    onChange={(event) => setRangeFrom(event.target.value)}
+                                                />
+                                                <span className="text-[10px] font-extrabold uppercase text-slate-300">até</span>
+                                                <input
+                                                    type="date"
+                                                    className="bg-transparent text-[11px] font-bold text-slate-700 outline-none border-none cursor-pointer"
+                                                    value={rangeTo}
+                                                    onChange={(event) => setRangeTo(event.target.value)}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-
                             {isRangeInvalid ? (
                                 <div className="flex items-center gap-1.5 mt-2 text-amber-600">
                                     <AlertCircle className="w-3 h-3" />
                                     <small className="font-bold uppercase text-[10px]">Intervalo inválido</small>
-                                </div>
-                            ) : null}
-                        </div>
-
-                        <div className={styles.controlBlock}>
-                            <span className={styles.controlLabel}>Configurações Avançadas</span>
-                            <label className={styles.toggleLabel}>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={analyticsTestMode}
-                                        onChange={(event) => onToggleAnalyticsTestMode(event.target.checked)}
-                                    />
-                                    <span className="text-sm font-bold text-slate-700">Analytics Debug</span>
-                                </div>
-                                <span className={analyticsTestMode ? styles.modeOnBadge : styles.modeOffBadge}>
-                                    {analyticsTestMode ? 'ATIVO' : 'OFF'}
-                                </span>
-                            </label>
-                            {testPaymentsEnabled ? (
-                                <div className="flex items-center gap-1.5 mt-2 text-blue-600">
-                                    <Info className="w-3 h-3" />
-                                    <small className="font-bold uppercase text-[10px]">Modo Sandbox Ativo</small>
                                 </div>
                             ) : null}
                         </div>
