@@ -50,6 +50,8 @@ export async function reserveCouponUsage(input: CouponValidationInput): Promise<
             OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         };
 
+        const couponPolicy = coupon as typeof coupon & { singleUse?: boolean | null };
+
         if (coupon.maxGlobalUses !== null) {
             const confirmedCount = await tx.couponRedemption.count({
                 where: { couponId: coupon.id, status: 'CONFIRMED' },
@@ -65,6 +67,20 @@ export async function reserveCouponUsage(input: CouponValidationInput): Promise<
             }
         }
 
+
+        if (couponPolicy.singleUse) {
+            const existingReservation = await tx.couponRedemption.findFirst({
+                where: activeReservedFilter,
+            });
+
+            if (existingReservation) {
+                return {
+                    ...validation,
+                    reservationId: existingReservation.id,
+                    reservationExpiresAt: existingReservation.expiresAt?.toISOString(),
+                };
+            }
+        }
 
 
         const expiresAt = new Date(now.getTime() + ttlMinutes() * 60_000);

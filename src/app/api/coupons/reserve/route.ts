@@ -28,6 +28,8 @@ export async function POST(request: Request) {
             subtotal,
             guestEmail,
             guestPhone,
+            roomTypeId,
+            source,
         });
 
         const forwardedFor = request.headers.get('x-forwarded-for') || '';
