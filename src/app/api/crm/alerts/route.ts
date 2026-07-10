@@ -19,19 +19,11 @@ function minutesAgo(minutes: number) {
 
 export async function GET() {
   try {
-    const [recentSendFails, recentN8nFails, recentWebhookFails, stuckQueue] = await Promise.all([
+    const [recentSendFails, recentWebhookFails, stuckQueue] = await Promise.all([
       prisma.internalActionLog.findMany({
         where: {
           action: "WhatsAppSendFailed",
           createdAt: { gte: minutesAgo(15) },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      }),
-      prisma.internalActionLog.findMany({
-        where: {
-          action: "N8NEmitFailed",
-          createdAt: { gte: minutesAgo(30) },
         },
         orderBy: { createdAt: "desc" },
         take: 20,
@@ -64,17 +56,6 @@ export async function GET() {
         detail: "Foram detectadas falhas de envio WhatsApp no período recente.",
         count: recentSendFails.length,
         lastAt: recentSendFails[0].createdAt.toISOString(),
-      });
-    }
-
-    if (recentN8nFails.length > 0) {
-      alerts.push({
-        code: "N8N_OFFLINE",
-        severity: "warning",
-        title: "Falhas recentes de emissão para n8n",
-        detail: "Eventos do CRM não foram entregues ao n8n em algumas tentativas.",
-        count: recentN8nFails.length,
-        lastAt: recentN8nFails[0].createdAt.toISOString(),
       });
     }
 

@@ -1,4 +1,4 @@
-# Escopo do Projeto: CRM e n8n
+# Escopo do Projeto: CRM e automação futura
 
 ## Objetivo
 Centralizar atendimento (WhatsApp/site), pipeline comercial e automações sem quebrar o motor de reservas.
@@ -12,7 +12,7 @@ Centralizar atendimento (WhatsApp/site), pipeline comercial e automações sem q
 - mensagens de resposta;
 - mudanças de estágio no pipeline;
 - logs de auditoria;
-- chamadas para workflows do n8n.
+- chamadas externas de automação quando a nova integração existir.
 
 ## Módulos principais
 - `src/app/admin/inbox/*`
@@ -21,10 +21,9 @@ Centralizar atendimento (WhatsApp/site), pipeline comercial e automações sem q
 - `src/app/api/crm/*`
 - `src/lib/whatsapp/*`
 - `src/lib/crm/*`
-- `n8n/workflows/*`
 
 ## Banco
 - `Contact`, `Conversation`, `Message`, `PipelineCard`, `InternalActionLog` e tabelas auxiliares de automação.
 
 ## Regra operacional
-- n8n não acessa banco diretamente; usa API interna autenticada.
+- integrações externas não acessam banco diretamente; usam API interna autenticada.

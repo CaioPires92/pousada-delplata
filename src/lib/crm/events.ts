@@ -27,7 +27,8 @@ export async function recordCrmEvent(input: CrmEventInput) {
       },
     });
 
-    // Após registrar no banco, emitimos para sistemas externos (n8n)
+    // O CRM continua registrando eventos localmente.
+    // A emissão externa está desativada enquanto o n8n é reconstruído do zero.
     await emitCrmEvent(input);
     crmLog({
       level: "AUTOMATION",
@@ -55,63 +56,53 @@ export async function recordCrmEvent(input: CrmEventInput) {
 }
 
 /**
- * Emite o evento para sistemas externos (n8n, Webhooks, etc).
- * Por enquanto é um placeholder para futura integração.
+ * Emite eventos do CRM para um Webhook externo (n8n).
  */
 export async function emitCrmEvent(input: CrmEventInput) {
-  const n8nUrl = process.env.N8N_WEBHOOK_URL;
-  
-  if (!n8nUrl) {
-    // Silently skip if no URL is configured
+  const webhookUrl = process.env.N8N_WEBHOOK_URL;
+  if (!webhookUrl) {
+    crmLog({
+      level: "INFO",
+      action: input.action,
+      message: "External CRM event emission skipped (N8N_WEBHOOK_URL not set)",
+    });
     return;
   }
 
   try {
-    const response = await fetch(n8nUrl, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        event: input.action,
         timestamp: new Date().toISOString(),
-        ...input,
-      }),
-    });
-
-    if (!response.ok) {
-      crmLog({
-        level: "WARN",
-        action: input.action,
-        message: "n8n responded with non-success status",
-        context: { status: response.status },
-      });
-    }
-  } catch (error) {
-    crmLog({
-      level: "ERROR",
-      action: input.action,
-      message: "Failed to emit CRM event to n8n",
-      context: {
-        error: error instanceof Error ? error.message : String(error),
-      },
-    });
-
-    try {
-      await prisma.internalActionLog.create({
-        data: {
-          action: "N8NEmitFailed",
+        payload: {
           contactId: input.contactId,
           conversationId: input.conversationId,
           bookingId: input.bookingId,
           userId: input.userId,
-          metadataJson: JSON.stringify({
-            originalAction: input.action,
-            error: error instanceof Error ? error.message : String(error),
-          }),
-        },
-      });
-    } catch {
-      // noop
+          metadata: input.metadata,
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
     }
+
+    crmLog({
+      level: "INFO",
+      action: input.action,
+      message: "Emitted CRM event to external webhook successfully",
+    });
+  } catch (error) {
+    crmLog({
+      level: "ERROR",
+      action: input.action,
+      message: "Failed to emit external CRM event",
+      context: { error: error instanceof Error ? error.message : String(error) },
+    });
   }
 }

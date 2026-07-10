@@ -29,7 +29,7 @@ export default async function CrmDashboardPage({
     prisma.internalActionLog.count({ where: { action: "ReservationStarted", createdAt: { gte: since } } }),
     prisma.internalActionLog.findMany({
       where: {
-        action: { in: ["WhatsAppSendFailed", "N8NEmitFailed", "WebhookProcessingFailed"] },
+        action: { in: ["WhatsAppSendFailed", "WebhookProcessingFailed"] },
         createdAt: { gte: oneHourAgo },
       },
       orderBy: { createdAt: "desc" },
