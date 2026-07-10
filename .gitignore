@@ -53,11 +53,20 @@ deploy-hostinger-lean
 
 .artifacts/
 
+# raw photos (optimized versions in /public/fotos)
+/assets/FOTOS/
+
+# local Evolution API clone/runtime
+/evolution-api/
+
 # local sqlite artifacts
 *.db
 *.db-journal
 /db
 /db-wal
+
+/scratch/evolution-bridge.log
+/scratch/evolution-bridge.pid
 
 
 

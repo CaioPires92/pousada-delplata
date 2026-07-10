@@ -1,14 +1,33 @@
-// scripts/setup-webhook.ts
-const API_URL = 'http://localhost:8080';
-const API_KEY = '8129ABA9826B-420A-88E0-6B2DDE20482B';
-const INSTANCE_NAME = 'delplata2026';
+const API_URL = String(process.env.EVOLUTION_API_URL || 'http://localhost:8080').replace(/\/$/, '');
+const API_KEY = process.env.EVOLUTION_API_KEY;
+const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME;
+const WEBHOOK_BASE_URL = String(
+  process.env.CRM_WEBHOOK_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.BASE_URL ||
+    'http://localhost:3001',
+).replace(/\/$/, '');
 
-// URL do seu Next.js (Webhook)
-// Se a Evolution estiver no Docker, usamos host.docker.internal
-// Se estiver fora do Docker, usamos localhost
-const WEBHOOK_URL = 'http://host.docker.internal:3001/api/whatsapp/webhook';
+function resolveWebhookBaseUrl(rawBaseUrl: string) {
+  try {
+    const url = new URL(rawBaseUrl);
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      url.hostname = 'host.docker.internal';
+    }
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return rawBaseUrl;
+  }
+}
+
+const WEBHOOK_URL = process.env.CRM_WEBHOOK_URL || `${resolveWebhookBaseUrl(WEBHOOK_BASE_URL)}/api/whatsapp/webhook`;
 
 async function setupWebhook() {
+  if (!API_KEY || !INSTANCE_NAME) {
+    throw new Error('Missing EVOLUTION_API_KEY or EVOLUTION_INSTANCE_NAME in environment');
+  }
+
   console.log(`🚀 Iniciando configuração do Webhook para instância: ${INSTANCE_NAME}`);
   console.log(`🔗 Alvo: ${WEBHOOK_URL}`);
 
@@ -23,7 +42,8 @@ async function setupWebhook() {
         webhook: {
           enabled: true,
           url: WEBHOOK_URL,
-          webhook_by_events: true,
+          byEvents: true,
+          base64: false,
           events: [
             "MESSAGES_UPSERT",
             "MESSAGES_UPDATE",
@@ -39,8 +59,6 @@ async function setupWebhook() {
     if (response.ok) {
       console.log('✅ Webhook configurado com sucesso!');
       console.log('Resposta da Evolution:', JSON.stringify(data, null, 2));
-      console.log('\n---');
-      console.log('💡 Dica: Se as mensagens ainda não aparecerem e você NÃO usa Docker, rode o script novamente mudando a linha 8 para localhost.');
     } else {
       console.error('❌ Erro da Evolution:', JSON.stringify(data, null, 2));
     }
