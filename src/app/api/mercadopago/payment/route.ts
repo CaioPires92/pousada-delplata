@@ -4,6 +4,12 @@ import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } from '@/lib/email';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
+import {
+    DEFAULT_PARTIAL_PAYMENT_SETTINGS,
+    calculatePaymentPlan,
+    normalizePartialPaymentSettings,
+    type PaymentMode,
+} from '@/lib/partial-payment';
 
 type MercadoPagoCause = {
     code?: number | string;
@@ -12,6 +18,7 @@ type MercadoPagoCause = {
 };
 
 const PIX_DISCOUNT_RATE = 0.05;
+const PARTIAL_PAYMENT_SETTINGS_ID = 'default';
 
 function normalizeInstallments(value: unknown) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -92,6 +99,22 @@ function detectInvalidTransactionAmount(error: any) {
 
 function applyPixDiscount(amount: number) {
     return Number((amount * (1 - PIX_DISCOUNT_RATE)).toFixed(2));
+}
+
+function normalizePaymentMode(value: unknown): PaymentMode {
+    return String(value || '').trim().toUpperCase() === 'PARTIAL' ? 'PARTIAL' : 'FULL';
+}
+
+function serializePartialPaymentSettings(settings: any) {
+    return normalizePartialPaymentSettings({
+        enabled: settings?.enabled ?? DEFAULT_PARTIAL_PAYMENT_SETTINGS.enabled,
+        percentage: settings?.percentage ?? DEFAULT_PARTIAL_PAYMENT_SETTINGS.percentage,
+        minimumBookingAmount: settings?.minimumBookingAmount == null ? null : Number(settings.minimumBookingAmount),
+        minimumLeadTimeDays: settings?.minimumLeadTimeDays ?? null,
+        balanceDueAt: settings?.balanceDueAt ?? DEFAULT_PARTIAL_PAYMENT_SETTINGS.balanceDueAt,
+        balanceDueDaysBeforeCheckIn: settings?.balanceDueDaysBeforeCheckIn ?? null,
+        defaultPaymentMode: settings?.defaultPaymentMode ?? DEFAULT_PARTIAL_PAYMENT_SETTINGS.defaultPaymentMode,
+    });
 }
 
 function detectPayerEmailForbidden(error: any) {
@@ -194,7 +217,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { bookingId, transaction_amount, description, skipGuestEmail, ...formData } = body || {};
+        const { bookingId, transaction_amount, description, skipGuestEmail, paymentMode: rawPaymentMode, ...formData } = body || {};
 
         ctxBookingId = typeof bookingId === 'string' ? bookingId : undefined;
 
@@ -269,7 +292,36 @@ export async function POST(request: Request) {
             paymentMethodId: String(paymentMethodId || ''),
             paymentTypeId,
         });
-        const expectedAmount = pixPayment ? applyPixDiscount(bookingAmount) : bookingAmount;
+        const settingsRow = await prisma.partialPaymentSettings.findUnique({
+            where: { id: PARTIAL_PAYMENT_SETTINGS_ID },
+        });
+        const paymentPlan = calculatePaymentPlan({
+            settings: serializePartialPaymentSettings(settingsRow),
+            totalAmount: bookingAmount,
+            checkIn: booking.checkIn,
+            paymentMode: normalizePaymentMode(rawPaymentMode),
+        });
+
+        if (!paymentPlan.ok) {
+            opsLog('warn', 'MP_PAYMENT_PARTIAL_NOT_ALLOWED', {
+                bookingId,
+                bookingAmount,
+                paymentMode: rawPaymentMode,
+                reasons: paymentPlan.evaluation.reasons,
+            });
+            return NextResponse.json(
+                {
+                    error: 'partial_payment_not_allowed',
+                    message: 'Esta reserva nao permite pagamento parcial. Selecione pagamento integral.',
+                    reasons: paymentPlan.evaluation.reasons,
+                },
+                { status: 400 }
+            );
+        }
+
+        const amountDueNow = paymentPlan.amountDueNow;
+        const remainingAmount = paymentPlan.remainingAmount;
+        const expectedAmount = pixPayment ? applyPixDiscount(amountDueNow) : amountDueNow;
         const minTransactionAmount = getMinTransactionAmount(pixPayment);
 
         ctxRequestedAmount = requestedAmount;
@@ -285,6 +337,8 @@ export async function POST(request: Request) {
             opsLog('warn', 'MP_PAYMENT_AMOUNT_BELOW_MINIMUM', {
                 bookingId,
                 bookingAmount,
+                amountDueNow,
+                remainingAmount,
                 expectedAmount,
                 requestedAmount,
                 minTransactionAmount,
@@ -305,8 +359,11 @@ export async function POST(request: Request) {
             opsLog('warn', 'MP_PAYMENT_AMOUNT_MISMATCH', {
                 bookingId,
                 bookingAmount,
+                amountDueNow,
+                remainingAmount,
                 expectedAmount,
                 requestedAmount,
+                paymentMode: paymentPlan.paymentMode,
                 paymentMethodId,
                 paymentTypeId,
                 installments: normalizedInstallments,
@@ -338,6 +395,11 @@ export async function POST(request: Request) {
                 where: { bookingId },
                 update: {
                     amount: requestedAmount,
+                    totalAmount: bookingAmount,
+                    remainingAmount,
+                    paymentMode: paymentPlan.paymentMode,
+                    balanceDueAt: paymentPlan.balanceDueAt,
+                    balanceDueDate: paymentPlan.balanceDueDate,
                     status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
@@ -348,6 +410,11 @@ export async function POST(request: Request) {
                 create: {
                     bookingId,
                     amount: requestedAmount,
+                    totalAmount: bookingAmount,
+                    remainingAmount,
+                    paymentMode: paymentPlan.paymentMode,
+                    balanceDueAt: paymentPlan.balanceDueAt,
+                    balanceDueDate: paymentPlan.balanceDueDate,
                     status: normalizedStatus,
                     provider: 'MERCADOPAGO',
                     providerId: String(result.id || ''),
@@ -396,6 +463,11 @@ export async function POST(request: Request) {
                         totalPrice: Number(booking.totalPrice),
                         paymentMethod: normalizedPaymentMethod,
                         paymentInstallments: normalizedInstallments,
+                        paymentMode: paymentPlan.paymentMode,
+                        paidAmount: requestedAmount,
+                        remainingAmount,
+                        balanceDueAt: paymentPlan.balanceDueAt,
+                        balanceDueDate: paymentPlan.balanceDueDate,
                         adults: booking.adults,
                         children: booking.children,
                         childrenAges: booking.childrenAges,
@@ -415,6 +487,11 @@ export async function POST(request: Request) {
                         totalPrice: Number(booking.totalPrice),
                         paymentMethod: normalizedPaymentMethod,
                         paymentInstallments: normalizedInstallments,
+                        paymentMode: paymentPlan.paymentMode,
+                        paidAmount: requestedAmount,
+                        remainingAmount,
+                        balanceDueAt: paymentPlan.balanceDueAt,
+                        balanceDueDate: paymentPlan.balanceDueDate,
                         adults: booking.adults,
                         children: booking.children,
                         childrenAges: booking.childrenAges,
@@ -442,6 +519,11 @@ export async function POST(request: Request) {
                         totalPrice: Number(booking.totalPrice),
                         paymentMethod: normalizedPaymentMethod,
                         paymentInstallments: normalizedInstallments,
+                        paymentMode: paymentPlan.paymentMode,
+                        paidAmount: requestedAmount,
+                        remainingAmount,
+                        balanceDueAt: paymentPlan.balanceDueAt,
+                        balanceDueDate: paymentPlan.balanceDueDate,
                         adults: booking.adults,
                         children: booking.children,
                         childrenAges: booking.childrenAges,

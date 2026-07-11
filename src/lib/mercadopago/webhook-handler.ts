@@ -235,6 +235,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let financialSnapshotUpdated = false;
             const paymentMethodValue = paymentMethod || booking.payment?.method || null;
             let paymentInstallmentsValue = paymentInstallments ?? booking.payment?.installments ?? null;
+            const paymentModeValue = booking.payment?.paymentMode || 'FULL';
+            const paidAmountValue = Number(booking.payment?.amount ?? paymentData?.transaction_amount ?? booking.totalPrice);
+            const remainingAmountValue = Number(booking.payment?.remainingAmount ?? 0);
+            const balanceDueAtValue = booking.payment?.balanceDueAt ?? null;
+            const balanceDueDateValue = booking.payment?.balanceDueDate ?? null;
             let purchaseEventQueued = false;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
@@ -433,6 +438,9 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     data: {
                         bookingId,
                         amount: booking.totalPrice,
+                        totalAmount: booking.totalPrice,
+                        remainingAmount: 0,
+                        paymentMode: 'FULL',
                         provider: 'MERCADOPAGO',
                         providerId: paymentId,
                         method: paymentMethod,
@@ -508,6 +516,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 paymentStatus,
                 paymentMethod: paymentMethodValue,
                 paymentInstallments: paymentInstallmentsValue,
+                paymentMode: paymentModeValue,
+                paidAmount: paidAmountValue,
+                remainingAmount: remainingAmountValue,
+                balanceDueAt: balanceDueAtValue,
+                balanceDueDate: balanceDueDateValue,
                 emailQueued,
                 couponReleased,
                 couponConfirmed,
@@ -545,6 +558,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 totalPrice: Number(result.booking.totalPrice),
                 paymentMethod: result.paymentMethod,
                 paymentInstallments: result.paymentInstallments,
+                paymentMode: result.paymentMode,
+                paidAmount: result.paidAmount,
+                remainingAmount: result.remainingAmount,
+                balanceDueAt: result.balanceDueAt,
+                balanceDueDate: result.balanceDueDate,
                 adults: result.booking.adults,
                 children: result.booking.children,
                 childrenAges: result.booking.childrenAges,
@@ -588,6 +606,11 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 totalPrice: Number(result.booking.totalPrice),
                 paymentMethod: result.paymentMethod,
                 paymentInstallments: result.paymentInstallments,
+                paymentMode: result.paymentMode,
+                paidAmount: result.paidAmount,
+                remainingAmount: result.remainingAmount,
+                balanceDueAt: result.balanceDueAt,
+                balanceDueDate: result.balanceDueDate,
                 adults: result.booking.adults,
                 children: result.booking.children,
                 childrenAges: result.booking.childrenAges,

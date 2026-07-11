@@ -96,6 +96,21 @@ interface RoomGalleryState {
     currentIndex: number;
 }
 
+type PaymentMode = 'FULL' | 'PARTIAL';
+
+type PartialPaymentEvaluation = {
+    enabled: boolean;
+    eligible: boolean;
+    reasons: string[];
+    defaultPaymentMode: PaymentMode;
+    percentage: number;
+    fullAmount: number;
+    partialAmount: number;
+    remainingAmount: number;
+    balanceDueAt: 'CHECK_IN' | 'BEFORE_CHECK_IN';
+    balanceDueDate: string | null;
+};
+
 const PIX_DISCOUNT_RATE = 0.05;
 
 function applyPixDiscount(amount: number) {
@@ -247,6 +262,9 @@ function ReservarContent() {
     const [processing, setProcessing] = useState(false);
     const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
+    const [paymentTotalAmount, setPaymentTotalAmount] = useState<number | null>(null);
+    const [paymentMode, setPaymentMode] = useState<PaymentMode>('FULL');
+    const [partialPaymentEvaluation, setPartialPaymentEvaluation] = useState<PartialPaymentEvaluation | null>(null);
     const [paymentError, setPaymentError] = useState<string>('');
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'approved' | 'rejected' | 'pending' | 'error'>('idle');
     const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
@@ -376,6 +394,13 @@ function ReservarContent() {
 
     const formatCurrencyBRL = (value: number) => `R$ ${Number(value).toFixed(2)}`;
 
+    const getPartialPaymentUnavailableMessage = (reasons: string[]) => {
+        if (reasons.includes('disabled')) return 'Pagamento parcial indisponível no momento.';
+        if (reasons.includes('below_minimum_amount')) return 'Esta reserva exige pagamento integral porque não atingiu o valor mínimo configurado.';
+        if (reasons.includes('below_minimum_lead_time')) return 'Esta reserva exige pagamento integral devido à proximidade do check-in.';
+        return 'Esta reserva exige pagamento integral.';
+    };
+
     const stayNights = useMemo(() => {
         if (!checkIn || !checkOut) return 0;
         const diff = Math.ceil(
@@ -402,6 +427,33 @@ function ReservarContent() {
                 await paymentBrickRef.current.unmount();
             } catch {
                 // Ignora falhas de desmontagem para permitir nova tentativa
+            } finally {
+                paymentBrickRef.current = null;
+            }
+        }
+
+        setPaymentRetryNonce((prev) => prev + 1);
+    };
+    const handlePaymentModeChange = async (nextMode: PaymentMode) => {
+        if (!partialPaymentEvaluation || !partialPaymentEvaluation.eligible) return;
+
+        const nextAmount = nextMode === 'PARTIAL'
+            ? Number(partialPaymentEvaluation.partialAmount)
+            : Number(partialPaymentEvaluation.fullAmount);
+
+        setPaymentMode(nextMode);
+        setPaymentAmount(nextAmount);
+        setPaymentError('');
+        setPaymentStatus('idle');
+        setPaymentStatusMessage('');
+        setPixData(null);
+        setIsSubmittingPayment(false);
+
+        if (paymentBrickRef.current) {
+            try {
+                await paymentBrickRef.current.unmount();
+            } catch {
+                // Ignora falhas de desmontagem para recriar o Brick com o novo valor
             } finally {
                 paymentBrickRef.current = null;
             }
@@ -832,16 +884,43 @@ function ReservarContent() {
 
             const booking = await bookingResponse.json();
             const parsedAmount = parseAmount(booking?.totalPrice);
+            let nextPaymentMode: PaymentMode = 'FULL';
+            let nextPaymentAmount = parsedAmount;
+            let nextPartialEvaluation: PartialPaymentEvaluation | null = null;
+
+            if (Number.isFinite(parsedAmount) && parsedAmount > 0) {
+                try {
+                    const params = new URLSearchParams({
+                        totalAmount: String(parsedAmount),
+                        checkIn: String(checkIn),
+                    });
+                    const partialResponse = await fetch(`/api/partial-payment/evaluate?${params.toString()}`);
+                    if (partialResponse.ok) {
+                        const partialData = await partialResponse.json();
+                        nextPartialEvaluation = partialData;
+                        if (partialData?.eligible && partialData?.defaultPaymentMode === 'PARTIAL') {
+                            nextPaymentMode = 'PARTIAL';
+                            nextPaymentAmount = parseAmount(partialData.partialAmount);
+                        }
+                    }
+                } catch {
+                    nextPartialEvaluation = null;
+                }
+            }
 
             setPaymentBookingId(booking.id);
-            setPaymentAmount(parsedAmount);
+            setPaymentTotalAmount(parsedAmount);
+            setPartialPaymentEvaluation(nextPartialEvaluation);
+            setPaymentMode(nextPaymentMode);
+            setPaymentAmount(nextPaymentMode === 'PARTIAL' && Number.isFinite(nextPaymentAmount) ? nextPaymentAmount : parsedAmount);
             setPixData(null);
             trackReservationFunnel({
                 step: 'payment_started',
                 bookingId: booking.id,
                 roomId: selectedRoom.id,
                 roomName: selectedRoom.name,
-                value: parsedAmount,
+                value: nextPaymentMode === 'PARTIAL' && Number.isFinite(nextPaymentAmount) ? nextPaymentAmount : parsedAmount,
+                message: nextPaymentMode === 'PARTIAL' ? 'partial_payment' : 'full_payment',
             });
 
             if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
@@ -989,6 +1068,7 @@ function ReservarContent() {
                                         bookingId: paymentBookingId,
                                         description: `Reserva ${paymentBookingId}`,
                                         transaction_amount: finalPaymentAmount,
+                                        paymentMode,
                                     }),
                                 });
                                 const data = await res.json().catch(() => ({}));
@@ -1096,7 +1176,7 @@ function ReservarContent() {
             cancelled = true;
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [guest.email, guest.name, paymentAmount, paymentBookingId, paymentRetryNonce, router]);
+    }, [guest.email, guest.name, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router]);
 
     useEffect(() => {
         if (!paymentBookingId) return;
@@ -1536,6 +1616,51 @@ function ReservarContent() {
                                 <CardDescription>Escolha o método e finalize sua reserva com segurança.</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-6">
+                                {partialPaymentEvaluation?.eligible ? (
+                                    <div className="mb-4 space-y-3 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-sm font-semibold text-primary">Como deseja pagar?</span>
+                                            <span className="text-xs text-muted-foreground">
+                                                Você pode pagar o total agora ou deixar o saldo restante para {partialPaymentEvaluation.balanceDueAt === 'CHECK_IN' ? 'o check-in' : 'antes do check-in'}.
+                                            </span>
+                                        </div>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => void handlePaymentModeChange('FULL')}
+                                                disabled={isSubmittingPayment}
+                                                className={`border px-4 py-3 text-left transition ${paymentMode === 'FULL' ? 'border-primary bg-[color:var(--brand-cream)]' : 'border-primary/10 bg-white hover:border-primary/40'} disabled:opacity-60`}
+                                            >
+                                                <span className="block text-sm font-bold text-primary">Pagar total</span>
+                                                <span className="mt-1 block text-lg font-black text-primary">{formatCurrencyBRL(partialPaymentEvaluation.fullAmount)}</span>
+                                                <span className="mt-1 block text-xs text-muted-foreground">Reserva quitada no momento da confirmação.</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => void handlePaymentModeChange('PARTIAL')}
+                                                disabled={isSubmittingPayment}
+                                                className={`border px-4 py-3 text-left transition ${paymentMode === 'PARTIAL' ? 'border-emerald-600 bg-emerald-50' : 'border-primary/10 bg-white hover:border-emerald-300'} disabled:opacity-60`}
+                                            >
+                                                <span className="block text-sm font-bold text-emerald-700">Pagar sinal de {partialPaymentEvaluation.percentage}%</span>
+                                                <span className="mt-1 block text-lg font-black text-emerald-700">{formatCurrencyBRL(partialPaymentEvaluation.partialAmount)}</span>
+                                                <span className="mt-1 block text-xs text-muted-foreground">
+                                                    Restante a pagar {partialPaymentEvaluation.balanceDueAt === 'CHECK_IN' ? 'no check-in' : 'antes do check-in'}: {formatCurrencyBRL(partialPaymentEvaluation.remainingAmount)}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : partialPaymentEvaluation?.enabled ? (
+                                    <div className="mb-4 border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                        {getPartialPaymentUnavailableMessage(partialPaymentEvaluation.reasons)}
+                                    </div>
+                                ) : null}
+
+                                {paymentMode === 'PARTIAL' && partialPaymentEvaluation?.eligible ? (
+                                    <div className="mb-4 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                        Restante a pagar {partialPaymentEvaluation.balanceDueAt === 'CHECK_IN' ? 'no check-in' : 'antes do check-in'}: <strong>{formatCurrencyBRL(partialPaymentEvaluation.remainingAmount)}</strong>.
+                                    </div>
+                                ) : null}
+
                                 {Number(paymentAmount || 0) > 0 ? (
                                     <div className="mb-4 space-y-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3">
                                         <div className="flex items-center justify-between gap-4">

@@ -1,8 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildQuoteFlowState } from "./conversationFlow";
 
 describe("buildQuoteFlowState", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T12:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("creates quote flow state from parsed message", () => {
     const result = buildQuoteFlowState("Valor de 15/06 a 17/06 para 2 adultos");
 

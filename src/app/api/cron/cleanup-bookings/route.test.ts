@@ -3,6 +3,7 @@ import { GET } from './route';
 import prisma from '@/lib/prisma';
 
 vi.mock('@/lib/email', () => ({
+    sendAdminRecoveryAlertEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingExpiredEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingPendingEmail: vi.fn().mockResolvedValue({ success: true }),
 }));

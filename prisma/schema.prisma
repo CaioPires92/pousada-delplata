@@ -122,19 +122,37 @@ model Booking {
   payment            Payment?
 }
 
+model PartialPaymentSettings {
+  id                          String   @id
+  enabled                     Boolean  @default(false)
+  percentage                  Int      @default(50)
+  minimumBookingAmount        Decimal?
+  minimumLeadTimeDays         Int?
+  balanceDueAt                String   @default("CHECK_IN")
+  balanceDueDaysBeforeCheckIn Int?
+  defaultPaymentMode          String   @default("FULL")
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
 model Payment {
-  id           String   @id @default(uuid())
-  bookingId    String   @unique
-  amount       Decimal
-  provider     String
-  providerId   String?
-  method       String?
-  cardBrand    String?
-  installments Int?
-  status       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  booking      Booking  @relation(fields: [bookingId], references: [id])
+  id              String   @id @default(uuid())
+  bookingId       String   @unique
+  amount          Decimal
+  totalAmount     Decimal?
+  remainingAmount Decimal  @default(0)
+  paymentMode     String   @default("FULL")
+  balanceDueAt    String?
+  balanceDueDate  DateTime?
+  provider        String
+  providerId      String?
+  method          String?
+  cardBrand       String?
+  installments    Int?
+  status          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  booking         Booking  @relation(fields: [bookingId], references: [id])
 }
 
 model AdminUser {

@@ -196,12 +196,32 @@ interface BookingEmailData {
     totalPrice: number;
     paymentMethod?: string | null;
     paymentInstallments?: number | null;
+    paymentMode?: string | null;
+    paidAmount?: number | null;
+    remainingAmount?: number | null;
+    balanceDueAt?: string | null;
+    balanceDueDate?: Date | null;
     adults?: number | null;
     children?: number | null;
     childrenAges?: string | number[] | null;
     bookingStatus?: string | null;
     paymentStatus?: string | null;
     bookingCreatedAt?: Date;
+}
+
+function isPartialPayment(data: BookingEmailData) {
+    return String(data.paymentMode || '').trim().toUpperCase() === 'PARTIAL'
+        && Number(data.remainingAmount || 0) > 0;
+}
+
+function formatBalanceDueLabel(data: BookingEmailData) {
+    if (String(data.balanceDueAt || '').trim().toUpperCase() === 'BEFORE_CHECK_IN') {
+        return data.balanceDueDate
+            ? `antes do check-in (${formatDatePtBrLong(data.balanceDueDate)})`
+            : 'antes do check-in';
+    }
+
+    return 'no check-in';
 }
 
 export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
@@ -216,6 +236,8 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
         totalPrice,
         paymentMethod,
         paymentInstallments,
+        paidAmount,
+        remainingAmount,
         adults,
         children,
         childrenAges,
@@ -228,6 +250,7 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
     const stayNights = Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
+    const partialPayment = isPartialPayment(data);
 
     return `
 <!DOCTYPE html>
@@ -412,6 +435,19 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Valor Total:</span>
                 <span class="detail-value total">R$ ${totalPrice.toFixed(2)}</span>
             </div>
+            ${partialPayment ? `
+            <div class="detail-row">
+                <span class="detail-label">Valor pago agora:</span>
+                <span class="detail-value">R$ ${Number(paidAmount || 0).toFixed(2)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Saldo restante:</span>
+                <span class="detail-value">R$ ${Number(remainingAmount || 0).toFixed(2)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Pagamento do saldo:</span>
+                <span class="detail-value">${formatBalanceDueLabel(data)}</span>
+            </div>` : ''}
             <div class="detail-row">
                 <span class="detail-label">Tipo de Pagamento:</span>
                 <span class="detail-value">${paymentDetails.paymentTypeLabel}</span>
@@ -867,6 +903,7 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     const paymentDetails = getPaymentReceiptDetails(data.paymentMethod, data.paymentInstallments);
     const guestsLabel = formatGuestCount(data.adults, data.children);
     const childrenAgesLabel = formatChildrenAgesLabel(data.childrenAges, data.children);
+    const partialPayment = isPartialPayment(data);
 
     const html = `
 <html>
@@ -881,6 +918,10 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     <p><strong>Hóspedes:</strong> ${guestsLabel}</p>
     ${childrenAgesLabel ? `<p><strong>Idade(s) das crianças:</strong> ${childrenAgesLabel}</p>` : ''}
     <p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2)}</p>
+    ${partialPayment ? `
+    <p><strong>Valor pago agora:</strong> R$ ${Number(data.paidAmount || 0).toFixed(2)}</p>
+    <p><strong>Saldo restante:</strong> R$ ${Number(data.remainingAmount || 0).toFixed(2)}</p>
+    <p><strong>Pagamento do saldo:</strong> ${formatBalanceDueLabel(data)}</p>` : ''}
     <p><strong>Tipo de pagamento:</strong> ${paymentDetails.paymentTypeLabel}</p>
     ${paymentDetails.showInstallments ? `<p><strong>Parcelas:</strong> ${paymentDetails.installmentsLabel}</p>` : ''}
     <p><strong>Status da reserva:</strong> ${formatBookingStatusLabel(data.bookingStatus)}</p>

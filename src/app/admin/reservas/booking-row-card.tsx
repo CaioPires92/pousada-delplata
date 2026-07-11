@@ -71,6 +71,8 @@ export default function BookingRowCard(props: BookingRowCardProps) {
     const bookingConfirmed = String(booking.status || '').toUpperCase() === 'CONFIRMED';
     const checkIn = formatDateSafe(getBookingOperationalDate(booking));
     const checkOut = formatDateSafe(getBookingCheckOutDate(booking));
+    const partialPayment = String(booking.payment?.paymentMode || '').toUpperCase() === 'PARTIAL'
+        && Number(booking.payment?.remainingAmount || 0) > 0;
 
     const triggerAction = (action: string) => {
         onActionSelect(booking, action);
@@ -206,9 +208,15 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                         <CreditCard className="w-3 h-3 text-slate-300 shrink-0" />
                         <span className={styles.metaValue}>{formatPaymentType(booking.payment?.method)}</span>
                     </div>
-                    <span className={styles.metaSub}>
-                        {formatInstallments(booking.payment)} | {formatPaymentBrand(booking.payment)}
-                    </span>
+                    {partialPayment ? (
+                        <span className={styles.metaSub}>
+                            Sinal pago: {formatCurrency(booking.payment?.amount || 0)} | Saldo: {formatCurrency(booking.payment?.remainingAmount || 0)}
+                        </span>
+                    ) : (
+                        <span className={styles.metaSub}>
+                            {formatInstallments(booking.payment)} | {formatPaymentBrand(booking.payment)}
+                        </span>
+                    )}
                 </div>
 
                 <div className={styles.metaItem}>

@@ -24,6 +24,9 @@ vi.mock('@/lib/prisma', () => ({
         payment: {
             upsert: vi.fn(),
         },
+        partialPaymentSettings: {
+            findUnique: vi.fn(),
+        },
     },
 }));
 
@@ -42,8 +45,10 @@ describe('POST /api/mercadopago/payment', () => {
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
             totalPrice: 100,
+            checkIn: new Date('2026-07-20T12:00:00Z'),
             payment: null,
         });
+        (prisma.partialPaymentSettings.findUnique as any).mockResolvedValue(null);
     });
 
     it('returns 400 with PIX_NOT_ENABLED when MP account has no PIX key for QR', async () => {
@@ -61,7 +66,7 @@ describe('POST /api/mercadopago/payment', () => {
             method: 'POST',
             body: JSON.stringify({
                 bookingId: 'booking-1',
-                transaction_amount: 100,
+                transaction_amount: 95,
                 payment_method_id: 'pix',
                 payer: { email: 'guest@example.com' },
             }),
@@ -75,10 +80,11 @@ describe('POST /api/mercadopago/payment', () => {
         expect(String(data.message)).toContain('Pix indisponível');
     });
 
-    it('allows PIX payment below card minimum when booking total matches', async () => {
+    it('allows PIX payment below card minimum when discounted booking total matches', async () => {
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
             totalPrice: 0.3,
+            checkIn: new Date('2026-07-20T12:00:00Z'),
             payment: null,
         });
 
@@ -91,7 +97,7 @@ describe('POST /api/mercadopago/payment', () => {
             method: 'POST',
             body: JSON.stringify({
                 bookingId: 'booking-1',
-                transaction_amount: 0.3,
+                transaction_amount: 0.29,
                 payment_method_id: 'pix',
                 payment_type_id: 'bank_transfer',
                 payer: { email: 'guest@example.com' },
@@ -103,6 +109,66 @@ describe('POST /api/mercadopago/payment', () => {
         expect(res.status).toBe(200);
         expect(mockCreate).toHaveBeenCalled();
     });
+
+    it('rejects forced partial payment when settings are disabled', async () => {
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 50,
+                payment_method_id: 'master',
+                paymentMode: 'PARTIAL',
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(400);
+        expect(data.error).toBe('partial_payment_not_allowed');
+        expect(mockCreate).not.toHaveBeenCalled();
+    });
+
+    it('accepts partial payment when settings allow it', async () => {
+        (prisma.partialPaymentSettings.findUnique as any).mockResolvedValue({
+            enabled: true,
+            percentage: 50,
+            minimumBookingAmount: null,
+            minimumLeadTimeDays: null,
+            balanceDueAt: 'CHECK_IN',
+            balanceDueDaysBeforeCheckIn: null,
+            defaultPaymentMode: 'FULL',
+        });
+        mockCreate.mockResolvedValue({
+            id: 'mp-1',
+            status: 'pending',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 50,
+                payment_method_id: 'master',
+                paymentMode: 'PARTIAL',
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(prisma.payment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({
+                amount: 50,
+                paymentMode: 'PARTIAL',
+                totalAmount: 100,
+                remainingAmount: 50,
+            }),
+        }));
+    });
+
     it('returns 400 for invalid transaction_amount returned by MP', async () => {
         mockCreate.mockRejectedValue({
             status: 400,
@@ -138,7 +204,7 @@ describe('POST /api/mercadopago/payment', () => {
             method: 'POST',
             body: JSON.stringify({
                 bookingId: 'booking-1',
-                transaction_amount: 100,
+                transaction_amount: 95,
                 payment_method_id: 'pix',
                 payment_type_id: 'bank_transfer',
             }),

@@ -22,6 +22,11 @@ export interface Booking {
     payment?: {
         status: string;
         amount: number;
+        totalAmount?: number | null;
+        remainingAmount?: number | null;
+        paymentMode?: string | null;
+        balanceDueAt?: string | null;
+        balanceDueDate?: string | null;
         method?: string | null;
         cardBrand?: string | null;
         installments?: number | null;

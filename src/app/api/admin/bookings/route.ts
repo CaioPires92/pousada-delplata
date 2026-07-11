@@ -158,6 +158,11 @@ function normalizeBooking(booking: Row, guest?: Row, roomType?: Row, payment?: R
             ? {
                   status: String(payment.status || ''),
                   amount: toNumber(payment.amount, 0),
+                  totalAmount: payment.totalAmount == null ? null : toNumber(payment.totalAmount, 0),
+                  remainingAmount: payment.remainingAmount == null ? null : toNumber(payment.remainingAmount, 0),
+                  paymentMode: payment.paymentMode ?? null,
+                  balanceDueAt: payment.balanceDueAt ?? null,
+                  balanceDueDate: payment.balanceDueDate ?? null,
                   method: payment.method ?? null,
                   cardBrand: payment.cardBrand ?? null,
                   installments: payment.installments == null ? null : Math.max(0, toInt(payment.installments, 0)),
@@ -253,6 +258,11 @@ async function fetchBookingsViaPrisma(filters: BookingQueryFilters) {
                     select: {
                         status: true,
                         amount: true,
+                        totalAmount: true,
+                        remainingAmount: true,
+                        paymentMode: true,
+                        balanceDueAt: true,
+                        balanceDueDate: true,
                         method: true,
                         cardBrand: true,
                         installments: true,
