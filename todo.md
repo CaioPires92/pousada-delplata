@@ -287,7 +287,6 @@ content = """# TODO — Melhorias no Fluxo de Pagamentos
 - [ ] Link do WhatsApp foi validado.
 - [ ] Painel administrativo exibe status correto.
 - [ ] Logs não expõem dados sensíveis.
-- [ ] Variáveis de ambiente necessárias estão documentadas.
-- [ ] Migrações de banco foram criadas e testadas, se aplicável.
-- [ ] Código revisado antes do commit.
-"""
+- [x] Variáveis de ambiente necessárias estão documentadas.
+- [x] Migrações de banco foram criadas e testadas, se aplicável.
+- [x] Código revisado antes do commit.
