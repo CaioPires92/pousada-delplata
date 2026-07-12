@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 
 vi.mock('@/lib/email', () => ({
     sendAdminRecoveryAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendBookingCreatedAlertEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingExpiredEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingPendingEmail: vi.fn().mockResolvedValue({ success: true }),
 }));
@@ -86,7 +87,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(data.success).toBe(true);
         expect(data.couponReleaseCount).toBe(1);
         expect(data.pendingEmailCount).toBeGreaterThanOrEqual(0);
-        expect(prisma.booking.updateMany).toHaveBeenCalledTimes(1);
+        expect(prisma.booking.updateMany).toHaveBeenCalledTimes(2);
         expect(prisma.couponRedemption.updateMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({

@@ -6,6 +6,7 @@ import { parseLocalDate } from '@/lib/date-utils';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/coupons/hash';
 import { compareDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
+import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 export async function POST(request: Request) {
     try {
@@ -277,6 +278,15 @@ export async function POST(request: Request) {
         });
         if (!booking) return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 });
 
+        try {
+            await sendBookingStatusAlertEmail(booking, {
+                bookingStatus: 'PENDING',
+                paymentStatus: 'PENDING',
+            });
+        } catch (emailError) {
+            console.error('[Booking API] Failed to send pending booking alert email:', emailError);
+        }
+
         return NextResponse.json(booking, { status: 201 });
 
     } catch (error: any) {
@@ -291,7 +301,13 @@ export async function POST(request: Request) {
         if (error?.message === 'room_unavailable') {
             return NextResponse.json({ error: 'room_unavailable' }, { status: 409 });
         }
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json(
+            {
+                error: 'booking_create_failed',
+                message: 'Nao foi possivel iniciar sua reserva agora. Fale com a pousada pelo WhatsApp para receber ajuda.',
+            },
+            { status: 500 }
+        );
     }
 }
 

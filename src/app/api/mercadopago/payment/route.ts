@@ -3,6 +3,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
+import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import {
     DEFAULT_PARTIAL_PAYMENT_SETTINGS,
@@ -689,6 +690,25 @@ export async function POST(request: Request) {
                     lastErrorMessage: normalizedStatus.toLowerCase(),
                 },
             });
+            await sendBookingStatusAlertEmail(
+                {
+                    ...booking,
+                    payment: {
+                        method: normalizedPaymentMethod,
+                        installments: normalizedInstallments,
+                        status: normalizedStatus,
+                        paymentMode: paymentPlan.paymentMode,
+                        amount: requestedAmount,
+                        remainingAmount,
+                        balanceDueAt: paymentPlan.balanceDueAt,
+                        balanceDueDate: paymentPlan.balanceDueDate,
+                    },
+                },
+                {
+                    bookingStatus: 'CANCELLED',
+                    paymentStatus: normalizedStatus,
+                }
+            );
             await sendPaymentDifficultyAlert({
                 bookingId,
                 step: 'Retorno do Mercado Pago',

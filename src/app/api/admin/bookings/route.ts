@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { expireStalePendingBookings } from '@/lib/expire-stale-bookings';
 
 export const runtime = 'nodejs';
 
@@ -199,20 +200,6 @@ function pickColumns(wanted: string[], existing: Set<string>) {
 }
 
 async function fetchBookingsViaPrisma(filters: BookingQueryFilters) {
-    try {
-        const startOfToday = new Date();
-        startOfToday.setUTCHours(0, 0, 0, 0);
-        await prisma.booking.updateMany({
-            where: {
-                status: 'PENDING',
-                checkIn: { lt: startOfToday },
-            },
-            data: { status: 'EXPIRED' },
-        });
-    } catch (err) {
-        console.error('[Admin Bookings] Failed to auto-expire bookings:', err);
-    }
-
     const where: Prisma.BookingWhereInput = {};
     if (filters.status) where.status = filters.status;
     if (filters.dateFrom && filters.dateTo) {
@@ -426,6 +413,12 @@ export async function GET(request: Request) {
         if (warnings.length > 0) {
             console.warn('[Admin Bookings] Query warnings:', warnings.join(' | '));
         }
+        await expireStalePendingBookings({
+            source: 'admin_bookings_list',
+            sendAdminAlerts: true,
+        }).catch((error) => {
+            console.error('[Admin Bookings] Failed to expire stale pending bookings:', error);
+        });
 
         try {
             const bookings = await fetchBookingsViaPrisma(filters);

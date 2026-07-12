@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import { opsLog } from '@/lib/ops-log';
+import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 export const runtime = 'nodejs';
 
@@ -114,6 +115,26 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
             ga4Status: ga4.status,
             ga4Skipped: ga4.skipped,
             ga4Error: ga4.error,
+        });
+
+        await sendBookingStatusAlertEmail(
+            {
+                ...booking,
+                payment: {
+                    ...(booking.payment || {}),
+                    method: 'MANUAL_TEST',
+                    status: 'APPROVED',
+                    amount,
+                    remainingAmount: 0,
+                    paymentMode: 'FULL',
+                },
+            },
+            {
+                bookingStatus: 'CONFIRMED',
+                paymentStatus: 'APPROVED',
+            }
+        ).catch((emailError) => {
+            console.error('[Admin Test Payment] Failed to send status alert:', emailError);
         });
 
         return NextResponse.json({

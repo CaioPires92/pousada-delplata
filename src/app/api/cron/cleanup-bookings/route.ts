@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendBookingExpiredEmail, sendBookingPendingEmail, sendAdminRecoveryAlertEmail } from '@/lib/email';
+import { sendBookingPendingEmail } from '@/lib/email';
+import { expireStalePendingBookings } from '@/lib/expire-stale-bookings';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,7 @@ export async function GET(request: Request) {
 
     try {
         const quinzeMinutosAtras = new Date(Date.now() - 15 * 60 * 1000);
-        const trintaMinutosAtras = new Date(Date.now() - 30 * 60 * 1000);
         let pendingEmailCount = 0;
-        let expiredEmailCount = 0;
 
         const pendingToNotify = await prisma.booking.findMany({
             where: {
@@ -51,96 +50,21 @@ export async function GET(request: Request) {
             });
         }
 
-        const pendingBookings = await prisma.booking.findMany({
-            where: {
-                status: 'PENDING',
-                createdAt: { lt: trintaMinutosAtras },
-            },
-            include: { guest: true, roomType: true, payment: true },
+        const expiration = await expireStalePendingBookings({
+            source: 'cron_cleanup_bookings',
+            sendAdminAlerts: true,
+            limit: 200,
         });
-
-        const pendingBookingIds = pendingBookings.map((b) => b.id);
-
-        const result = await prisma.booking.updateMany({
-            where: {
-                status: 'PENDING',
-                createdAt: { lt: trintaMinutosAtras },
-            },
-            data: {
-                status: 'EXPIRED',
-                funnelStage: 'EXPIRED_UNPAID',
-                funnelUpdatedAt: new Date(),
-                lastErrorMessage: 'expired_after_pending_timeout',
-            },
-        });
-
-        let couponReleaseCount = 0;
-        if (pendingBookingIds.length > 0) {
-            const released = await prisma.couponRedemption.updateMany({
-                where: {
-                    bookingId: { in: pendingBookingIds },
-                    status: { in: ['RESERVED', 'CONFIRMED'] },
-                },
-                data: {
-                    status: 'RELEASED',
-                    releasedAt: new Date(),
-                },
-            });
-            couponReleaseCount = released.count;
-        }
-
-        for (const booking of pendingBookings) {
-            await sendBookingExpiredEmail({
-                guestName: booking.guest.name,
-                guestEmail: booking.guest.email,
-                bookingId: booking.id,
-                roomName: booking.roomType.name,
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                totalPrice: Number(booking.totalPrice),
-                paymentMethod: booking.payment?.method || null,
-                paymentInstallments: booking.payment?.installments ?? null,
-                adults: booking.adults,
-                children: booking.children,
-                childrenAges: booking.childrenAges,
-            })
-                .then((r) => {
-                    if (r && (r as any).success) expiredEmailCount++;
-                })
-                .catch(() => {});
-
-            // Send alert to admin
-            await sendAdminRecoveryAlertEmail({
-                guestName: booking.guest.name,
-                guestEmail: booking.guest.email,
-                guestPhone: booking.guest.phone,
-                bookingId: booking.id,
-                roomName: booking.roomType.name,
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                totalPrice: Number(booking.totalPrice),
-                paymentMethod: booking.payment?.method || null,
-                paymentInstallments: booking.payment?.installments ?? null,
-                adults: booking.adults,
-                children: booking.children,
-                childrenAges: booking.childrenAges,
-            }).catch(() => {});
-
-            await prisma.booking.update({
-                where: { id: booking.id },
-                data: { expiredEmailSentAt: new Date() },
-            });
-        }
 
         console.log(
-            `[Cron Cleanup] ${result.count} reservas expiradas. Emails pendentes: ${pendingEmailCount}, emails expirados: ${expiredEmailCount}, cupons liberados: ${couponReleaseCount}.`
+            `[Cron Cleanup] ${expiration.expiredCount} reservas expiradas. Emails pendentes: ${pendingEmailCount}, alertas expirados: ${expiration.alertCount}, cupons liberados: ${expiration.couponReleaseCount}.`
         );
         return NextResponse.json({
             success: true,
-            count: result.count,
+            count: expiration.expiredCount,
             pendingEmailCount,
-            expiredEmailCount,
-            couponReleaseCount,
+            expiredEmailCount: expiration.alertCount,
+            couponReleaseCount: expiration.couponReleaseCount,
         });
     } catch (error) {
         console.error('Erro no Cron:', error);
