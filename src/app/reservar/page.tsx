@@ -464,8 +464,11 @@ function ReservarContent() {
     const currentStep = paymentBookingId ? 3 : selectedRoom ? 2 : 1;
     const totalSteps = 3;
     const progressPercent = Math.round((currentStep / totalSteps) * 100);
-    const showPaymentTestHelper = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true'
-        || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY?.startsWith('TEST-');
+    const showPaymentTestHelper = process.env.NODE_ENV !== 'production'
+        && (
+            process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true'
+            || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY?.startsWith('TEST-')
+        );
 
     const copyTestValue = async (key: string, value: string) => {
         try {
