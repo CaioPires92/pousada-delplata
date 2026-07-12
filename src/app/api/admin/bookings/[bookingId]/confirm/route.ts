@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
+import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 export const runtime = 'nodejs';
 
@@ -20,6 +21,11 @@ export async function POST(
 
         const booking = await prisma.booking.findUnique({
             where: { id: bookingId },
+            include: {
+                guest: true,
+                roomType: true,
+                payment: true,
+            },
         });
 
         if (!booking) {
@@ -63,6 +69,13 @@ export async function POST(
             bookingId,
             adminId: auth.adminId,
             previousStatus: bookingStatus,
+        });
+
+        await sendBookingStatusAlertEmail(booking, {
+            bookingStatus: 'CONFIRMED',
+            paymentStatus: booking.payment?.status || 'APPROVED',
+        }).catch((emailError) => {
+            console.error('[Admin Booking Confirm] Failed to send status alert:', emailError);
         });
 
         return NextResponse.json({ ok: true, bookingId, status: 'CONFIRMED' });

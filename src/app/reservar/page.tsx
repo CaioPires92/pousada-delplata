@@ -228,6 +228,28 @@ function normalizePaymentUiErrorMessage(message: unknown) {
     return raw;
 }
 
+function normalizeReservationUiErrorMessage(message: unknown) {
+    const raw = String(message || '').trim();
+    const normalized = raw.toLowerCase();
+
+    const isTechnicalError =
+        !raw ||
+        normalized.includes('prisma.') ||
+        normalized.includes('sql_') ||
+        normalized.includes('sqlite') ||
+        normalized.includes('database') ||
+        normalized.includes('stack') ||
+        normalized.includes('invocation') ||
+        normalized === 'booking_create_failed' ||
+        normalized === 'internal_server_error';
+
+    if (isTechnicalError) {
+        return 'Nao foi possivel iniciar sua reserva agora. Fale com a pousada pelo WhatsApp para receber ajuda.';
+    }
+
+    return raw;
+}
+
 function ReservarContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -908,7 +930,7 @@ function ReservarContent() {
                 if (errorData?.error === 'room_unavailable') {
                     throw new Error('Essa acomodação não está mais disponível para a ocupação selecionada. Faça uma nova busca.');
                 }
-                throw new Error(errorData.error || 'Erro ao criar reserva');
+                throw new Error(errorData.message || errorData.error || 'Erro ao criar reserva');
             }
 
             const booking = await bookingResponse.json();
@@ -964,7 +986,9 @@ function ReservarContent() {
             setPaymentStatusMessage('');
 
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.';
+            const message = normalizeReservationUiErrorMessage(
+                err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.'
+            );
             const couponErrorMessage = message === 'coupon_reservation_expired'
                 ? 'Seu cupom expirou. Aplique novamente para recalcular o desconto.'
                 : message === 'coupon_reservation_not_found'

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 import prisma from '@/lib/prisma';
 import { hashCouponCode } from '@/lib/coupons/hash';
+import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 vi.mock('@/lib/prisma', () => ({
   default: {
@@ -32,6 +33,10 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
+vi.mock('@/lib/booking-status-alert', () => ({
+  sendBookingStatusAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 describe('Bookings API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -59,6 +64,15 @@ describe('Bookings API', () => {
       appliedCouponCode: null,
       totalPrice: 400,
       status: 'PENDING',
+      adults: 2,
+      children: 0,
+      childrenAges: null,
+      createdAt: new Date('2026-01-01T10:00:00.000Z'),
+      guest: mockGuest,
+      roomType: {
+        id: 'room-1',
+        name: 'Test Room',
+      },
     };
 
     const tx = {
@@ -116,6 +130,7 @@ describe('Bookings API', () => {
       ...mockBooking,
       checkIn: mockBooking.checkIn.toISOString(),
       checkOut: mockBooking.checkOut.toISOString(),
+      createdAt: mockBooking.createdAt.toISOString(),
     });
     expect(prisma.guest.create).toHaveBeenCalledWith({
       data: {
@@ -125,6 +140,20 @@ describe('Bookings API', () => {
       },
     });
     expect(prisma.booking.create).toHaveBeenCalled();
+    expect(sendBookingStatusAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'booking-1',
+      guest: expect.objectContaining({
+        name: 'John Doe',
+        email: 'john@example.com',
+        phone: '123456789',
+      }),
+      roomType: expect.objectContaining({
+        name: 'Test Room',
+      }),
+    }), expect.objectContaining({
+      bookingStatus: 'PENDING',
+      paymentStatus: 'PENDING',
+    }));
   });
 
   it('should apply reserved coupon and create discounted booking', async () => {
@@ -146,6 +175,15 @@ describe('Bookings API', () => {
       appliedCouponCode: 'VIP10',
       totalPrice: 350,
       status: 'PENDING',
+      adults: 2,
+      children: 0,
+      childrenAges: null,
+      createdAt: new Date('2026-01-01T10:00:00.000Z'),
+      guest: mockGuest,
+      roomType: {
+        id: 'room-1',
+        name: 'Test Room',
+      },
     };
 
     const tx = {
@@ -312,6 +350,37 @@ describe('Bookings API', () => {
 
     expect(res.status).toBe(400);
     expect(data.error).toBe('Campos obrigatórios ausentes');
+  });
+
+  it('should not expose internal database errors to the guest', async () => {
+    (prisma.$transaction as any).mockRejectedValue(
+      new Error('Invalid `prisma.booking.create()` invocation: SQL_INPUT_ERROR: no such column')
+    );
+
+    const req = new Request('http://localhost/api/bookings', {
+      method: 'POST',
+      body: JSON.stringify({
+        roomTypeId: 'room-1',
+        checkIn: '2026-01-01',
+        checkOut: '2026-01-05',
+        adults: 2,
+        childrenAges: [],
+        guest: {
+          name: 'John Doe',
+          email: 'john@example.com',
+          phone: '123456789',
+        },
+      }),
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(data.error).toBe('booking_create_failed');
+    expect(data.message).toContain('Fale com a pousada');
+    expect(JSON.stringify(data)).not.toContain('prisma.booking.create');
+    expect(JSON.stringify(data)).not.toContain('SQL_INPUT_ERROR');
   });
 
   it('should return 409 when 4-guest inventory is exhausted', async () => {
