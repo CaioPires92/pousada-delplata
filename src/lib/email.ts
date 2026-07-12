@@ -1148,7 +1148,18 @@ export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { pho
     }
 }
 
-export async function sendDifficultyAlertEmail(data: { guestName: string, guestEmail: string, guestPhone?: string, step: string, reason: string, bookingId?: string }) {
+export async function sendDifficultyAlertEmail(data: {
+    guestName: string;
+    guestEmail: string;
+    guestPhone?: string | null;
+    step: string;
+    reason: string;
+    bookingId?: string;
+    roomName?: string | null;
+    totalPrice?: number | null;
+    error?: string | null;
+    funnelStage?: string | null;
+}) {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
@@ -1172,6 +1183,10 @@ export async function sendDifficultyAlertEmail(data: { guestName: string, guestE
         <p><strong>Etapa:</strong> ${data.step}</p>
         <p><strong>Motivo/Detalhes:</strong> ${data.reason}</p>
         ${data.bookingId ? `<p><strong>ID da Reserva:</strong> ${data.bookingId.slice(0,8).toUpperCase()}</p>` : ''}
+        ${data.roomName ? `<p><strong>Quarto:</strong> ${data.roomName}</p>` : ''}
+        ${typeof data.totalPrice === 'number' ? `<p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2).replace('.', ',')}</p>` : ''}
+        ${data.error ? `<p><strong>Erro ocorrido:</strong> ${data.error}</p>` : ''}
+        ${data.funnelStage ? `<p><strong>Etapa do funil:</strong> ${data.funnelStage}</p>` : ''}
         ${whatsappLink ? `
         <div style="margin-top: 15px;">
             <a href="${whatsappLink}" target="_blank" style="background-color: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">

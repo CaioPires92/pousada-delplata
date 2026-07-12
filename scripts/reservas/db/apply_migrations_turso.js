@@ -130,7 +130,7 @@ async function applyMigration(client, dir, sqlPath) {
     } catch (err) {
       const msg = (err && err.message) ? err.message : String(err);
       // Ignore "already exists" type errors to allow re-runs
-      if (/already exists/i.test(msg)) {
+      if (/already exists|duplicate column name/i.test(msg)) {
         console.log(`  [skip ${i + 1}] ${msg}`);
         continue;
       }
@@ -140,6 +140,38 @@ async function applyMigration(client, dir, sqlPath) {
   }
   await markMigration(client, dir, hash, 'apply');
   console.log(`  ✔ Migration ${dir} applied`);
+}
+
+async function tableExists(client, tableName) {
+  const rows = await client.execute({
+    sql: `
+      SELECT name
+      FROM sqlite_master
+      WHERE type = 'table' AND name = ?
+      LIMIT 1
+    `,
+    args: [tableName],
+  });
+  return (rows.rows || []).length > 0;
+}
+
+async function getTableColumns(client, tableName) {
+  const result = await client.execute(`PRAGMA table_info("${tableName}")`);
+  return new Set((result.rows || []).map((row) => String(row.name ?? row[1] ?? '')));
+}
+
+async function partialPaymentMigrationNeedsRepair(client) {
+  const hasSettingsTable = await tableExists(client, 'PartialPaymentSettings');
+  const paymentColumns = await getTableColumns(client, 'Payment');
+  const requiredPaymentColumns = [
+    'totalAmount',
+    'remainingAmount',
+    'paymentMode',
+    'balanceDueAt',
+    'balanceDueDate',
+  ];
+
+  return !hasSettingsTable || requiredPaymentColumns.some((column) => !paymentColumns.has(column));
 }
 
 async function main() {
@@ -162,6 +194,13 @@ async function main() {
     const appliedHash = applied.get(m.dir);
 
     if (appliedHash) {
+      if (m.dir === '20260710120000_add_partial_payment_settings' && await partialPaymentMigrationNeedsRepair(client)) {
+        console.warn(`\n[repair] Migration ${m.dir} marcada como aplicada, mas colunas/tabela estão ausentes. Reaplicando SQL idempotente.`);
+        await applyMigration(client, m.dir, m.sqlPath);
+        appliedCount++;
+        continue;
+      }
+
       skippedCount++;
       if (appliedHash !== hash) {
         console.warn(`\n[warn] Migration ${m.dir} já marcada, mas checksum difere do arquivo atual.`);

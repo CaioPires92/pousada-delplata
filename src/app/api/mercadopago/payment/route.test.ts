@@ -34,19 +34,40 @@ vi.mock('@/lib/ops-log', () => ({
     opsLog: vi.fn(),
 }));
 
+vi.mock('@/lib/email', () => ({
+    sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendBookingCreatedAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendDifficultyAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock('@/lib/ga4-measurement', () => ({
+    sendGa4PurchaseServerEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 import prisma from '@/lib/prisma';
+import { sendDifficultyAlertEmail } from '@/lib/email';
 import { POST } from './route';
 
 describe('POST /api/mercadopago/payment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.MP_ACCESS_TOKEN = 'TEST-test-token';
+        delete process.env.MP_TEST_PAYER_EMAIL;
 
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
             totalPrice: 100,
             checkIn: new Date('2026-07-20T12:00:00Z'),
             payment: null,
+            guest: {
+                name: 'Maria Silva',
+                email: 'maria@example.com',
+                phone: '11999999999',
+            },
+            roomType: {
+                name: 'Suite',
+            },
+            funnelStage: 'PAYMENT_ATTEMPT_STARTED',
         });
         (prisma.partialPaymentSettings.findUnique as any).mockResolvedValue(null);
     });
@@ -192,6 +213,100 @@ describe('POST /api/mercadopago/payment', () => {
         expect(res.status).toBe(400);
         expect(data.error).toBe('INVALID_TRANSACTION_AMOUNT');
     });
+
+    it('alerts the admin when Mercado Pago rejects a payment', async () => {
+        mockCreate.mockResolvedValue({
+            id: 'mp-1',
+            status: 'rejected',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'master',
+                payer: { email: 'buyer@testuser.com' },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(sendDifficultyAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
+            guestName: 'Maria Silva',
+            guestEmail: 'maria@example.com',
+            guestPhone: '11999999999',
+            bookingId: 'booking-1',
+            roomName: 'Suite',
+            totalPrice: 100,
+            reason: 'Pagamento recusado pelo Mercado Pago',
+            funnelStage: 'PAYMENT_REJECTED',
+        }));
+    });
+
+    it('alerts the admin when the payment amount diverges from the booking', async () => {
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 90,
+                payment_method_id: 'master',
+                payer: { email: 'buyer@testuser.com' },
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(400);
+        expect(data.error).toBe('Valor divergente da reserva');
+        expect(sendDifficultyAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            reason: 'Valor divergente',
+            funnelStage: 'PAYMENT_ERROR',
+        }));
+    });
+
+    it('alerts the admin when duplicate payment is blocked', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue({
+            id: 'booking-1',
+            totalPrice: 100,
+            checkIn: new Date('2026-07-20T12:00:00Z'),
+            payment: { status: 'PENDING' },
+            guest: {
+                name: 'Maria Silva',
+                email: 'maria@example.com',
+                phone: '11999999999',
+            },
+            roomType: {
+                name: 'Suite',
+            },
+            funnelStage: 'PAYMENT_ATTEMPT_STARTED',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'master',
+                payer: { email: 'buyer@testuser.com' },
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(409);
+        expect(data.error).toBe('Pagamento já existe para esta reserva');
+        expect(sendDifficultyAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            reason: 'Pagamento duplicado',
+            funnelStage: 'PAYMENT_DUPLICATE',
+        }));
+    });
+
     it('returns 400 when Mercado Pago forbids the fallback test payer email', async () => {
         process.env.MP_TEST_PAYER_EMAIL = 'buyer@testuser.com';
         mockCreate.mockRejectedValue({

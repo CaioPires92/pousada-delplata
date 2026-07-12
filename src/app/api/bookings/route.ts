@@ -251,7 +251,6 @@ export async function POST(request: Request) {
                 include: {
                     guest: true,
                     roomType: true,
-                    payment: true,
                 },
             });
 

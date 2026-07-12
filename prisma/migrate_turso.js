@@ -1,21 +1,37 @@
 const { createClient } = require('@libsql/client');
+const path = require('path');
 require('dotenv').config({ path: '.env' });
 
 const url = process.env.DATABASE_URL;
 const authToken = process.env.DATABASE_AUTH_TOKEN;
 
 if (!url || !authToken) {
-    console.error('Missing DATABASE_URL or DATABASE_AUTH_TOKEN');
+    if (!url || !url.startsWith('file:')) {
+        console.error('Missing DATABASE_URL or DATABASE_AUTH_TOKEN');
+        process.exit(1);
+    }
+}
+
+if (url.startsWith('file:')) {
+    console.log(`Using local SQLite database: ${url}`);
+} else if (!url.startsWith('libsql:') && !url.startsWith('wss:')) {
+    console.error('DATABASE_URL must point to Turso/LibSQL (libsql:// or wss://) or local SQLite (file:) for this migration script');
     process.exit(1);
 }
 
-if (!url.startsWith('libsql:') && !url.startsWith('wss:')) {
-    console.error('DATABASE_URL must point to Turso (libsql:// or wss://) for this migration script');
-    process.exit(1);
+function resolveDatabaseUrl(databaseUrl) {
+    const [baseUrl] = databaseUrl.split('?');
+    if (!baseUrl.startsWith('file:')) return baseUrl;
+
+    const rawPath = baseUrl.slice('file:'.length);
+    if (!rawPath || path.isAbsolute(rawPath)) return baseUrl;
+
+    const resolvedPath = path.resolve(__dirname, rawPath);
+    return `file:${resolvedPath}`;
 }
 
-const libsqlUrl = url.split('?')[0];
-const client = createClient({ url: libsqlUrl, authToken });
+const libsqlUrl = resolveDatabaseUrl(url);
+const client = createClient(authToken ? { url: libsqlUrl, authToken } : { url: libsqlUrl });
 
 async function getColumns(table) {
     const res = await client.execute(`PRAGMA table_info("${table}")`);
@@ -41,6 +57,27 @@ async function ensureColumns(table, defs) {
         added++;
     }
     return added;
+}
+
+async function ensureTable(tableName, ddl) {
+    const existing = await client.execute({
+        sql: `
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = ?
+            LIMIT 1
+        `,
+        args: [tableName],
+    });
+
+    if ((existing.rows || []).length > 0) {
+        console.log(`OK: table ${tableName}`);
+        return 0;
+    }
+
+    await client.execute(ddl);
+    console.log(`ADDED: table ${tableName}`);
+    return 1;
 }
 
 async function getIndexes(table) {
@@ -113,6 +150,14 @@ async function migrate() {
         { name: 'occupiedUnits', ddl: 'ALTER TABLE InventoryAdjustment ADD COLUMN occupiedUnits INTEGER NOT NULL DEFAULT 0' },
     ];
 
+    const paymentDefs = [
+        { name: 'totalAmount', ddl: 'ALTER TABLE Payment ADD COLUMN totalAmount DECIMAL' },
+        { name: 'remainingAmount', ddl: 'ALTER TABLE Payment ADD COLUMN remainingAmount DECIMAL NOT NULL DEFAULT 0' },
+        { name: 'paymentMode', ddl: "ALTER TABLE Payment ADD COLUMN paymentMode TEXT NOT NULL DEFAULT 'FULL'" },
+        { name: 'balanceDueAt', ddl: 'ALTER TABLE Payment ADD COLUMN balanceDueAt TEXT' },
+        { name: 'balanceDueDate', ddl: 'ALTER TABLE Payment ADD COLUMN balanceDueDate DATETIME' },
+    ];
+
     const pipelineCardDefs = [
         { name: 'bookingId', ddl: 'ALTER TABLE PipelineCard ADD COLUMN bookingId TEXT' },
         { name: 'estimatedValue', ddl: 'ALTER TABLE PipelineCard ADD COLUMN estimatedValue REAL' },
@@ -135,8 +180,29 @@ async function migrate() {
     const addedRateIndexes = await ensureRateUniqueIndex();
     const addedInventoryAdjustment = await ensureColumns('InventoryAdjustment', inventoryAdjustmentDefs);
     const addedPipelineCard = await ensureColumns('PipelineCard', pipelineCardDefs);
+    const addedPartialPaymentSettings = await ensureTable('PartialPaymentSettings', `
+        CREATE TABLE "PartialPaymentSettings" (
+            "id" TEXT NOT NULL PRIMARY KEY,
+            "enabled" BOOLEAN NOT NULL DEFAULT false,
+            "percentage" INTEGER NOT NULL DEFAULT 50,
+            "minimumBookingAmount" DECIMAL,
+            "minimumLeadTimeDays" INTEGER,
+            "balanceDueAt" TEXT NOT NULL DEFAULT 'CHECK_IN',
+            "balanceDueDaysBeforeCheckIn" INTEGER,
+            "defaultPaymentMode" TEXT NOT NULL DEFAULT 'FULL',
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL
+        )
+    `);
+    const addedPayment = await ensureColumns('Payment', paymentDefs);
 
-    const totalAdded = addedRoomType + addedRate + addedRateIndexes + addedInventoryAdjustment + addedPipelineCard;
+    const totalAdded = addedRoomType
+        + addedRate
+        + addedRateIndexes
+        + addedInventoryAdjustment
+        + addedPipelineCard
+        + addedPartialPaymentSettings
+        + addedPayment;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');

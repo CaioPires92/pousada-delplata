@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -523,6 +523,32 @@ function ReservarContent() {
         return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
     };
 
+    const notifyPaymentDifficulty = useCallback((payload: {
+        step: string;
+        reason: string;
+        error?: string;
+        funnelStage?: string;
+    }) => {
+        if (!guest.name || !guest.email) return;
+
+        fetch('/api/notify-difficulty', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                guestName: guest.name,
+                guestEmail: guest.email,
+                guestPhone: guest.phone,
+                bookingId: paymentBookingId || undefined,
+                roomName: selectedRoom?.name,
+                totalPrice: paymentAmount ?? bookingTotal,
+                step: payload.step,
+                reason: payload.reason,
+                error: payload.error,
+                funnelStage: payload.funnelStage,
+            }),
+        }).catch(() => {});
+    }, [bookingTotal, guest.email, guest.name, guest.phone, paymentAmount, paymentBookingId, selectedRoom?.name]);
+
     const fetchAvailability = useEffectEvent(async (signal?: AbortSignal) => {
         if (!checkIn || !checkOut || isOverCapacity || isInvalidAdults) {
             // Early return for invalid inputs - ensure loading is false
@@ -976,6 +1002,12 @@ function ReservarContent() {
             const timeoutId = window.setTimeout(() => {
                 setPaymentError('Chave pública do Mercado Pago não configurada.');
             }, 0);
+            notifyPaymentDifficulty({
+                step: 'Inicializacao do pagamento',
+                reason: 'Brick nao carregou',
+                error: 'NEXT_PUBLIC_MP_PUBLIC_KEY ausente',
+                funnelStage: 'PAYMENT_ERROR',
+            });
             trackReservationFunnel({
                 step: 'payment_started',
                 status: 'error',
@@ -990,6 +1022,12 @@ function ReservarContent() {
             const timeoutId = window.setTimeout(() => {
                 setPaymentError('Nao foi possivel carregar o formulario de pagamento: valor da reserva deve ser maior que zero.');
             }, 0);
+            notifyPaymentDifficulty({
+                step: 'Inicializacao do pagamento',
+                reason: 'Valor invalido para carregar o Brick',
+                error: 'payment_amount_invalid',
+                funnelStage: 'PAYMENT_ERROR',
+            });
             trackReservationFunnel({
                 step: 'payment_started',
                 status: 'error',
@@ -1137,6 +1175,12 @@ function ReservarContent() {
                             const errorMessage = String(err?.message || err?.error || '');
                             if (/dado obrigat[oó]rio|required/i.test(errorMessage)) {
                                 setPaymentError('Preencha o nome do titular manualmente (sem auto preenchimento) e tente novamente.');
+                                notifyPaymentDifficulty({
+                                    step: 'Brick Mercado Pago',
+                                    reason: 'Dados do pagador ausentes',
+                                    error: errorMessage || 'required_field_error',
+                                    funnelStage: 'PAYMENT_ERROR',
+                                });
                                 trackReservationFunnel({
                                     step: 'payment_result',
                                     status: 'error',
@@ -1147,6 +1191,12 @@ function ReservarContent() {
                                 return;
                             }
                             setPaymentError('Nao foi possivel carregar o formulario de pagamento. Atualize a pagina e tente sem bloqueadores de anuncio.');
+                            notifyPaymentDifficulty({
+                                step: 'Brick Mercado Pago',
+                                reason: 'Erro tecnico no Brick',
+                                error: errorMessage || 'brick_error',
+                                funnelStage: 'PAYMENT_ERROR',
+                            });
                             trackReservationFunnel({
                                 step: 'payment_result',
                                 status: 'error',
@@ -1161,6 +1211,12 @@ function ReservarContent() {
                 setIsSubmittingPayment(false);
                 console.error(err);
                 setPaymentError('Nao foi possivel inicializar o pagamento. Verifique sua conexao e tente sem bloqueadores de anuncio.');
+                notifyPaymentDifficulty({
+                    step: 'Inicializacao do pagamento',
+                    reason: 'Falha de comunicacao com o Mercado Pago',
+                    error: err instanceof Error ? err.message : 'sdk_init_error',
+                    funnelStage: 'PAYMENT_ERROR',
+                });
                 trackReservationFunnel({
                     step: 'payment_started',
                     status: 'error',
@@ -1176,7 +1232,7 @@ function ReservarContent() {
             cancelled = true;
             if (pollRef.current) clearInterval(pollRef.current);
         };
-    }, [guest.email, guest.name, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router]);
+    }, [guest.email, guest.name, notifyPaymentDifficulty, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router]);
 
     useEffect(() => {
         if (!paymentBookingId) return;

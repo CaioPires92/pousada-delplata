@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
-import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } from '@/lib/email';
+import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import {
     DEFAULT_PARTIAL_PAYMENT_SETTINGS,
@@ -202,6 +202,47 @@ async function updateBookingFunnelStatus(params: {
     }
 }
 
+async function sendPaymentDifficultyAlert(params: {
+    bookingId?: string;
+    step: string;
+    reason: string;
+    error?: string | null;
+    funnelStage?: string | null;
+}) {
+    if (!params.bookingId) return;
+
+    try {
+        const booking = await prisma.booking.findUnique({
+            where: { id: params.bookingId },
+            include: {
+                guest: true,
+                roomType: true,
+            },
+        });
+
+        if (!booking) return;
+
+        await sendDifficultyAlertEmail({
+            guestName: booking.guest.name,
+            guestEmail: booking.guest.email,
+            guestPhone: booking.guest.phone || null,
+            bookingId: booking.id,
+            roomName: booking.roomType.name,
+            totalPrice: Number(booking.totalPrice),
+            step: params.step,
+            reason: params.reason,
+            error: params.error,
+            funnelStage: params.funnelStage || booking.funnelStage || null,
+        });
+    } catch (alertError) {
+        opsLog('error', 'MP_PAYMENT_DIFFICULTY_ALERT_FAILED', {
+            bookingId: params.bookingId,
+            step: params.step,
+            error: alertError instanceof Error ? alertError.message : String(alertError),
+        });
+    }
+}
+
 export async function POST(request: Request) {
     let ctxBookingId: string | undefined;
     let ctxRequestedAmount: number | undefined;
@@ -283,6 +324,18 @@ export async function POST(request: Request) {
                 bookingId,
                 paymentStatus: booking.payment?.status,
             });
+            await updateBookingFunnelStatus({
+                bookingId,
+                stage: 'PAYMENT_DUPLICATE',
+                message: 'payment_already_exists',
+            });
+            await sendPaymentDifficultyAlert({
+                bookingId,
+                step: 'Pagamento',
+                reason: 'Pagamento duplicado',
+                error: `Ja existe pagamento ${booking.payment?.status} para esta reserva.`,
+                funnelStage: 'PAYMENT_DUPLICATE',
+            });
             return NextResponse.json({ error: 'Pagamento já existe para esta reserva' }, { status: 409 });
         }
 
@@ -326,6 +379,18 @@ export async function POST(request: Request) {
 
         ctxRequestedAmount = requestedAmount;
         if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+            await updateBookingFunnelStatus({
+                bookingId,
+                stage: 'PAYMENT_ERROR',
+                message: 'invalid_transaction_amount',
+            });
+            await sendPaymentDifficultyAlert({
+                bookingId,
+                step: 'Pagamento',
+                reason: 'Valor invalido',
+                error: 'transaction_amount invalido',
+                funnelStage: 'PAYMENT_ERROR',
+            });
             return NextResponse.json({ error: 'transaction_amount inválido' }, { status: 400 });
         }
 
@@ -345,6 +410,18 @@ export async function POST(request: Request) {
                 paymentMethodId,
                 paymentTypeId,
                 pixPayment,
+            });
+            await updateBookingFunnelStatus({
+                bookingId,
+                stage: 'PAYMENT_ERROR',
+                message: 'transaction_amount_below_minimum',
+            });
+            await sendPaymentDifficultyAlert({
+                bookingId,
+                step: 'Pagamento',
+                reason: 'Valor abaixo do minimo permitido',
+                error: minimumMessage,
+                funnelStage: 'PAYMENT_ERROR',
             });
             return NextResponse.json(
                 {
@@ -368,6 +445,18 @@ export async function POST(request: Request) {
                 paymentTypeId,
                 installments: normalizedInstallments,
                 payerEmail: resolvedPayerEmail,
+            });
+            await updateBookingFunnelStatus({
+                bookingId,
+                stage: 'PAYMENT_ERROR',
+                message: 'amount_mismatch',
+            });
+            await sendPaymentDifficultyAlert({
+                bookingId,
+                step: 'Pagamento',
+                reason: 'Valor divergente',
+                error: `Esperado R$ ${formatBrl(expectedAmount)}, recebido R$ ${formatBrl(requestedAmount)}.`,
+                funnelStage: 'PAYMENT_ERROR',
             });
             return NextResponse.json({ error: 'Valor divergente da reserva' }, { status: 400 });
         }
@@ -563,6 +652,13 @@ export async function POST(request: Request) {
                     lastErrorMessage: normalizedStatus.toLowerCase(),
                 },
             });
+            await sendPaymentDifficultyAlert({
+                bookingId,
+                step: 'Retorno do Mercado Pago',
+                reason: 'Pagamento recusado pelo Mercado Pago',
+                error: normalizedStatus.toLowerCase(),
+                funnelStage: 'PAYMENT_REJECTED',
+            });
         }
 
         const pixData = (result as any)?.point_of_interaction?.transaction_data
@@ -584,6 +680,13 @@ export async function POST(request: Request) {
                 stage: 'PAYMENT_ERROR',
                 message: 'pix_not_enabled',
             });
+            await sendPaymentDifficultyAlert({
+                bookingId: ctxBookingId,
+                step: 'Comunicacao com Mercado Pago',
+                reason: 'Falha tecnica no Pix',
+                error: 'pix_not_enabled',
+                funnelStage: 'PAYMENT_ERROR',
+            });
             opsLog('warn', 'MP_PIX_KEY_NOT_ENABLED', {
                 status: error?.status,
                 cause: error?.cause,
@@ -603,6 +706,13 @@ export async function POST(request: Request) {
                 bookingId: ctxBookingId,
                 stage: 'PAYMENT_ERROR',
                 message: mpMessage,
+            });
+            await sendPaymentDifficultyAlert({
+                bookingId: ctxBookingId,
+                step: 'Comunicacao com Mercado Pago',
+                reason: 'Valor recusado pelo Mercado Pago',
+                error: mpMessage,
+                funnelStage: 'PAYMENT_ERROR',
             });
             opsLog('warn', 'MP_PAYMENT_INVALID_TRANSACTION_AMOUNT', {
                 bookingId: ctxBookingId,
@@ -626,6 +736,13 @@ export async function POST(request: Request) {
                 bookingId: ctxBookingId,
                 stage: 'PAYMENT_ERROR',
                 message: 'payer_email_forbidden',
+            });
+            await sendPaymentDifficultyAlert({
+                bookingId: ctxBookingId,
+                step: 'Comunicacao com Mercado Pago',
+                reason: 'Dados do pagador recusados',
+                error: 'payer_email_forbidden',
+                funnelStage: 'PAYMENT_ERROR',
             });
             opsLog('warn', 'MP_PAYMENT_PAYER_EMAIL_FORBIDDEN', {
                 bookingId: ctxBookingId,
@@ -664,6 +781,15 @@ export async function POST(request: Request) {
             message: isLikelyTestBuyerMismatch
                 ? 'test_mode_requires_test_user_email'
                 : getMercadoPagoErrorMessage(error),
+        });
+        await sendPaymentDifficultyAlert({
+            bookingId: ctxBookingId,
+            step: 'Comunicacao com Mercado Pago',
+            reason: 'Erro tecnico no pagamento',
+            error: isLikelyTestBuyerMismatch
+                ? 'test_mode_requires_test_user_email'
+                : getMercadoPagoErrorMessage(error),
+            funnelStage: 'PAYMENT_ERROR',
         });
         opsLog('error', 'MP_PAYMENT_CREATE_FAILED', {
             bookingId: ctxBookingId,

@@ -1,6 +1,4 @@
-from pathlib import Path
-
-content = """# TODO — Melhorias no Fluxo de Pagamentos
+# TODO — Melhorias no Fluxo de Pagamentos
 
 ## 1. Desconto de 5% no PIX
 
@@ -89,40 +87,42 @@ content = """# TODO — Melhorias no Fluxo de Pagamentos
 
 ## 5. Alertas para erros de pagamento
 
-- [ ] Enviar alerta quando o Mercado Pago rejeitar o pagamento.
-- [ ] Enviar alerta quando o Brick ou a API apresentar erro técnico.
-- [ ] Enviar alerta nos seguintes casos:
-  - [ ] Valor divergente.
-  - [ ] Pagamento duplicado.
-  - [ ] Dados do pagador ausentes.
-  - [ ] Erro inesperado.
-  - [ ] Falha de comunicação com o Mercado Pago.
-- [ ] Incluir no alerta:
-  - [ ] Nome do hóspede.
-  - [ ] Email.
-  - [ ] Telefone ou WhatsApp.
-  - [ ] Código ou identificação da reserva.
-  - [ ] Quarto.
-  - [ ] Valor.
-  - [ ] Erro ocorrido.
-  - [ ] Etapa do funil em que ocorreu o erro.
+Escopo ajustado: o objetivo é receber um email de recuperação quando o hóspede já informou os dados e houve desistência, rejeição ou erro no pagamento, para que a pousada possa entrar em contato e ajudar.
+
+- [x] Enviar alerta quando o Mercado Pago rejeitar o pagamento.
+- [x] Enviar alerta quando o Brick ou a API apresentar erro técnico.
+- [x] Enviar alerta nos seguintes casos:
+  - [x] Valor divergente.
+  - [x] Pagamento duplicado.
+  - [x] Dados do pagador ausentes.
+  - [x] Erro inesperado.
+  - [x] Falha de comunicação com o Mercado Pago.
+- [x] Incluir no alerta:
+  - [x] Nome do hóspede.
+  - [x] Email.
+  - [x] Telefone ou WhatsApp.
+  - [x] Código ou identificação da reserva.
+  - [x] Quarto.
+  - [x] Valor.
+  - [x] Erro ocorrido.
+  - [x] Etapa do funil em que ocorreu o erro.
 
 ---
 
 ## 6. Email para o admin em caso de erro
 
-- [ ] Criar ou reutilizar helper/endpoint semelhante a `sendDifficultyAlertEmail`.
-- [ ] Enviar o alerta para `CONTACT_RECEIVER_EMAIL`.
-- [ ] Usar assunto claro, por exemplo:
-  - [ ] `Erro no pagamento - Nome do hóspede`.
-- [ ] Incluir resumo completo do erro.
-- [ ] Incluir botão ou link para contato via WhatsApp.
+- [x] Criar ou reutilizar helper/endpoint semelhante a `sendDifficultyAlertEmail`.
+- [x] Enviar o alerta para `CONTACT_RECEIVER_EMAIL`.
+- [x] Usar assunto claro, por exemplo:
+  - [x] `Erro no pagamento - Nome do hóspede`.
+- [x] Incluir resumo completo do erro.
+- [x] Incluir botão ou link para contato via WhatsApp.
 
 ### Critérios de aceite
 
-- [ ] O email é enviado para erros técnicos e rejeições relevantes.
-- [ ] O admin recebe contexto suficiente para atender o hóspede.
-- [ ] O link do WhatsApp abre com a mensagem preenchida.
+- [x] O email é enviado para erros técnicos e rejeições relevantes.
+- [x] O admin recebe contexto suficiente para atender o hóspede.
+- [x] O link do WhatsApp abre com a mensagem preenchida.
 
 ---
 
@@ -155,7 +155,7 @@ content = """# TODO — Melhorias no Fluxo de Pagamentos
 - [ ] Garantir que o email não seja enviado para pagamentos já concluídos.
 - [ ] Evitar envios duplicados.
 - [ ] Registrar data e status da tentativa de recuperação.
-- [ ] Avaliar alerta opcional para o admin.
+- [ ] Avaliar alerta opcional para o admin. (se possivel um email de lembrete para pousada delplata e no painel adminstrativo um sino com notificacao das reservas que nao foram concluidas ou ate das que foram e ter a opcao de limpar notificacoes)
 - [ ] Deixar envio por WhatsApp como melhoria futura, após estabilização da integração.
 
 ### Critérios de aceite
