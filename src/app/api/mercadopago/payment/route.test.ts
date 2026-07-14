@@ -190,6 +190,35 @@ describe('POST /api/mercadopago/payment', () => {
         }));
     });
 
+    it('infers credit card payment type when Mercado Pago Brick omits it', async () => {
+        mockCreate.mockResolvedValue({
+            id: 'mp-card-1',
+            status: 'pending',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'visa',
+                payment_type_id: '',
+                installments: 1,
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+            body: expect.objectContaining({
+                payment_method_id: 'visa',
+                payment_type_id: 'credit_card',
+            }),
+        }));
+    });
+
     it('returns 400 for invalid transaction_amount returned by MP', async () => {
         mockCreate.mockRejectedValue({
             status: 400,
