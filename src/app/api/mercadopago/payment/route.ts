@@ -170,6 +170,15 @@ function resolveMercadoPagoPayerEmail(params: {
     const normalizedPayerEmail = String(params.payerEmail || '').trim();
     const overrideEmail = String(process.env.MP_TEST_PAYER_EMAIL || '').trim();
 
+    if (
+        process.env.NODE_ENV !== 'production' &&
+        isMercadoPagoTestMode(params.accessToken) &&
+        overrideEmail &&
+        !isMercadoPagoTestUserEmail(normalizedPayerEmail)
+    ) {
+        return overrideEmail;
+    }
+
     if (normalizedPayerEmail) {
         return normalizedPayerEmail;
     }
