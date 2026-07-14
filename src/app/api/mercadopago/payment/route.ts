@@ -57,6 +57,21 @@ function normalizePaymentMethod(params: {
     return paymentMethodId.toUpperCase();
 }
 
+function resolvePaymentTypeId(params: {
+    paymentMethodId: string;
+    paymentTypeId: string;
+    installments: number | null;
+}) {
+    const paymentMethodId = String(params.paymentMethodId || '').trim().toLowerCase();
+    const paymentTypeId = String(params.paymentTypeId || '').trim().toLowerCase();
+
+    if (paymentTypeId) return paymentTypeId;
+    if (paymentMethodId === 'pix') return 'bank_transfer';
+    if (paymentMethodId === 'debit_card') return 'debit_card';
+    if (params.installments !== null && params.installments >= 1 && paymentMethodId) return 'credit_card';
+    return '';
+}
+
 function detectPixKeyNotEnabled(error: any) {
     const status = Number(error?.status || 0);
     const causes: MercadoPagoCause[] = Array.isArray(error?.cause) ? error.cause : [];
@@ -154,6 +169,15 @@ function resolveMercadoPagoPayerEmail(params: {
 }) {
     const normalizedPayerEmail = String(params.payerEmail || '').trim();
     const overrideEmail = String(process.env.MP_TEST_PAYER_EMAIL || '').trim();
+
+    if (
+        process.env.NODE_ENV !== 'production' &&
+        isMercadoPagoTestMode(params.accessToken) &&
+        overrideEmail &&
+        !isMercadoPagoTestUserEmail(normalizedPayerEmail)
+    ) {
+        return overrideEmail;
+    }
 
     if (normalizedPayerEmail) {
         return normalizedPayerEmail;
@@ -268,8 +292,12 @@ export async function POST(request: Request) {
         }
 
         const paymentMethodId = formData?.payment_method_id;
-        const paymentTypeId = String(formData?.payment_type_id || '');
         const normalizedInstallments = normalizeInstallments(formData?.installments);
+        const paymentTypeId = resolvePaymentTypeId({
+            paymentMethodId: String(paymentMethodId || ''),
+            paymentTypeId: String(formData?.payment_type_id || ''),
+            installments: normalizedInstallments,
+        });
         const normalizedCardBrand = normalizeCardBrand({
             paymentMethodId: String(paymentMethodId || ''),
             paymentTypeId,
@@ -468,6 +496,7 @@ export async function POST(request: Request) {
         const result = await payment.create({
             body: {
                 ...formData,
+                payment_type_id: paymentTypeId || undefined,
                 payer: {
                     ...(formData?.payer || {}),
                     email: resolvedPayerEmail,
