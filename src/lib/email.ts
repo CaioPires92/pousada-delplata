@@ -5,7 +5,6 @@ const HOTEL_NAME = process.env.HOTEL_NAME || 'Hotel Pousada Delplata';
 const HOTEL_EMAIL = process.env.HOTEL_EMAIL || 'contato@pousadadelplata.com.br';
 const HOTEL_WHATSAPP = process.env.HOTEL_WHATSAPP || '(19) 99965-4866';
 const DEFAULT_CONTACT_RECEIVER_EMAIL = 'contato@pousadadelplata.com.br';
-const DEFAULT_ALWAYS_BCC_EMAIL = 'caiocgp92@gmail.com';
 
 function formatPaymentMethodLabel(paymentMethod?: string | null) {
     const method = String(paymentMethod || '').trim().toUpperCase();
@@ -778,14 +777,11 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [alwaysBccEmail]);
 
     const mailOptions = {
         from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
         to: guestEmail,
         cc: adminEmail,
-        bcc: bccRecipients,
         subject: `🎫 Voucher de Hospedagem - Reserva ${bookingCode} (${roomName})`,
         html: htmlContent,
     };
@@ -809,8 +805,7 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
     const htmlContent = buildBookingPendingEmailHtml(data);
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
+    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail]);
 
     try {
         const info = await transporter.sendMail({
@@ -835,8 +830,7 @@ export async function sendBookingExpiredEmail(data: BookingEmailData) {
     const htmlContent = buildBookingExpiredEmailHtml(data);
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail, alwaysBccEmail]);
+    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail]);
 
     try {
         const info = await transporter.sendMail({
@@ -865,8 +859,6 @@ export async function sendContactEmail(data: ContactEmailData) {
     }
 
     const toEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(toEmail, [alwaysBccEmail]);
 
     const html = `
 <html>
@@ -890,7 +882,6 @@ export async function sendContactEmail(data: ContactEmailData) {
         const info = await transporter.sendMail({
             from: `"Site Delplata" <${process.env.SMTP_USER}>`,
             to: toEmail,
-            bcc: bccRecipients,
             replyTo: data.email,
 
             subject: `Contato: ${data.subject || 'Mensagem do site'}`,
@@ -912,8 +903,6 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     }
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const alwaysBccEmail = process.env.ALWAYS_BCC_EMAIL || DEFAULT_ALWAYS_BCC_EMAIL;
-    const bccRecipients = buildBccRecipients(adminEmail, [alwaysBccEmail]);
 
     const checkInFormatted = formatDatePtBrLong(data.checkIn);
     const checkOutFormatted = formatDatePtBrLong(data.checkOut);
@@ -952,8 +941,6 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: adminEmail,
-            bcc: bccRecipients,
-
             subject: `📌 Reserva ${formatBookingStatusLabel(data.bookingStatus)} - ${data.roomName}`,
             html,
         });

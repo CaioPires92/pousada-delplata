@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 
 const mockData = {
     guestName: 'Caio Teste',
-    guestEmail: 'caiocgp92@gmail.com', // Enviando para o email do usuário
+    guestEmail: 'hospede@example.com',
     guestPhone: '5511999999999',
     bookingId: randomUUID(),
     roomName: 'Apartamento Térreo',
