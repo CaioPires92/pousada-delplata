@@ -308,6 +308,8 @@ function ReservarContent() {
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
     const [searchEditorOpen, setSearchEditorOpen] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
+    const bookingSubmitLockRef = useRef(false);
+    const paymentSubmitLockRef = useRef(false);
     const paymentBrickRef = useRef<PaymentBrickController | null>(null);
     const paymentBrickRequestRef = useRef(0);
     const paymentContainerId = 'paymentBrick_container';
@@ -870,6 +872,7 @@ function ReservarContent() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (bookingSubmitLockRef.current) return;
         setFormMessage('');
 
         if (!selectedRoom) {
@@ -882,6 +885,7 @@ function ReservarContent() {
             return;
         }
 
+        bookingSubmitLockRef.current = true;
         try {
             setProcessing(true);
             setFormMessage('');
@@ -1029,6 +1033,7 @@ function ReservarContent() {
                 message,
             });
         } finally {
+            bookingSubmitLockRef.current = false;
             setProcessing(false);
         }
     };
@@ -1036,6 +1041,7 @@ function ReservarContent() {
     useEffect(() => {
         if (!paymentBookingId || paymentAmount === null || Number.isNaN(paymentAmount)) return;
 
+        paymentSubmitLockRef.current = false;
         const requestId = ++paymentBrickRequestRef.current;
         let mountedBrick: PaymentBrickController | null = null;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
@@ -1121,6 +1127,8 @@ function ReservarContent() {
                             // Brick pronto
                         },
                         onSubmit: async ({ formData }: any) => {
+                            if (paymentSubmitLockRef.current) return;
+                            paymentSubmitLockRef.current = true;
                             setIsSubmittingPayment(true);
                             setPaymentError('');
                             setPaymentStatus('idle');
@@ -1221,11 +1229,13 @@ function ReservarContent() {
                                 });
                             } finally {
                                 if (!keepOverlayUntilRedirect) {
+                                    paymentSubmitLockRef.current = false;
                                     setIsSubmittingPayment(false);
                                 }
                             }
                         },
                         onError: (err: any) => {
+                            paymentSubmitLockRef.current = false;
                             setIsSubmittingPayment(false);
                             console.error('Mercado Pago Brick Error:', err);
                             setPaymentStatus('error');
@@ -1267,6 +1277,7 @@ function ReservarContent() {
                 });
             } catch (err) {
                 if (paymentBrickRequestRef.current !== requestId) return;
+                paymentSubmitLockRef.current = false;
                 setIsSubmittingPayment(false);
                 console.error(err);
                 setPaymentError('Nao foi possivel inicializar o pagamento. Verifique sua conexao e tente sem bloqueadores de anuncio.');
@@ -2109,6 +2120,8 @@ function ReservarContent() {
                                                 <input
                                                     type="text"
                                                     id="name"
+                                                    name="name"
+                                                    autoComplete="name"
                                                     required
                                                     className="flex h-10 w-full rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                     placeholder="Digite seu nome completo"
@@ -2125,6 +2138,9 @@ function ReservarContent() {
                                                     <input
                                                         type="email"
                                                         id="email"
+                                                        name="email"
+                                                        autoComplete="email"
+                                                        inputMode="email"
                                                         required
                                                         className="flex h-10 w-full rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                         placeholder="seu@email.com"
@@ -2140,6 +2156,9 @@ function ReservarContent() {
                                                     <input
                                                         type="tel"
                                                         id="phone"
+                                                        name="tel"
+                                                        autoComplete="tel"
+                                                        inputMode="tel"
                                                         required
                                                         className="flex h-10 w-full rounded-none border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                         placeholder="(00) 00000-0000"

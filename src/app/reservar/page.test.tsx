@@ -431,8 +431,13 @@ describe('ReservarPage', () => {
     fireEvent.change(screen.getByLabelText(/Nome Completo/i), { target: { value: 'Maria Silva' } });
     fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'maria@example.com' } });
     fireEvent.change(screen.getByLabelText(/Telefone\/WhatsApp/i), { target: { value: '(11) 99999-0000' } });
+    expect(screen.getByLabelText(/Nome Completo/i)).toHaveAttribute('autocomplete', 'name');
+    expect(screen.getByLabelText(/^Email/i)).toHaveAttribute('autocomplete', 'email');
+    expect(screen.getByLabelText(/Telefone\/WhatsApp/i)).toHaveAttribute('autocomplete', 'tel');
     fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
-    fireEvent.submit(screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!);
+    const guestForm = screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!;
+    fireEvent.submit(guestForm);
+    fireEvent.submit(guestForm);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
@@ -446,6 +451,7 @@ describe('ReservarPage', () => {
 
     const bookingCall = mockFetch.mock.calls.find((call) => call[0] === '/api/bookings');
     expect(bookingCall).toBeTruthy();
+    expect(mockFetch.mock.calls.filter((call) => call[0] === '/api/bookings')).toHaveLength(1);
 
     const bookingPayload = JSON.parse(String(bookingCall?.[1]?.body));
     expect(bookingPayload.coupon).toEqual({
