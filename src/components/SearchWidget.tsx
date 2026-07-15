@@ -815,7 +815,7 @@ export default function SearchWidget({
                             <span className="flex flex-col items-center justify-center text-center leading-none">
                                 <span className="whitespace-nowrap">{loading ? loadingLabel : 'Ver disponibilidade'}</span>
                                 <span className="mt-1 text-[0.58rem] tracking-[0.14em] text-[#6f5a43]">
-                                    Melhor tarifa
+                                    Consulte valores
                                 </span>
                             </span>
                         ) : hasResponsiveLabel ? (

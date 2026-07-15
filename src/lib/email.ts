@@ -1103,8 +1103,7 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
         <div class="recommendation-box">
             <span style="font-size: 18px;">⭐</span>
             <p class="recommendation-text">
-                <strong>Ação recomendada:</strong> entrar em contato o quanto antes.<br>
-                Reservas em Serra Negra costumam ter maior taxa de recuperação quando o contato acontece nas primeiras horas após a expiração.
+                <strong>Ação recomendada:</strong> verificar a solicitação e, se necessário, entrar em contato com o hóspede.
             </p>
         </div>
 
@@ -1120,7 +1119,7 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
         <!-- Footer -->
         <div class="footer">
             <div class="footer-amenities">
-                🏊 Piscinas &nbsp;|&nbsp; ☕ Café da manhã &nbsp;|&nbsp; 🏡 Chalés e Apartamentos &nbsp;|&nbsp; 📶 Wi-Fi &nbsp;|&nbsp; 🚗 Estacionamento
+                🏊 Piscinas &nbsp;|&nbsp; ☕ Café da manhã &nbsp;|&nbsp; 🏡 Chalés e Apartamentos
             </div>
             <div class="footer-brand">Pousada Delplata • Serra Negra • SP</div>
             <div class="footer-slogan">🌿 Hospitalidade que acolhe, natureza que encanta.</div>

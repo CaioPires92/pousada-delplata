@@ -82,4 +82,11 @@ describe('SearchWidget', () => {
       expect(screen.getByText(/Informe a idade para continuar/i)).toBeInTheDocument();
     });
   });
+
+  it('não promete melhor tarifa no buscador da página inicial', () => {
+    render(<SearchWidget uiPreset="hero" />);
+
+    expect(screen.getByText('Consulte valores')).toBeInTheDocument();
+    expect(screen.queryByText(/melhor tarifa/i)).not.toBeInTheDocument();
+  });
 });
