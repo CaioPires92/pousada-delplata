@@ -109,7 +109,7 @@ describe('ReservarPage', () => {
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Reserva 100% Segura/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/criptografia SSL/i)).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Pagamento pelo Mercado Pago/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Pix ou cartão/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Valor total exibido/i).length).toBeGreaterThan(0);
   });
 
@@ -256,7 +256,7 @@ describe('ReservarPage', () => {
     });
 
     // Click to select room and show breakdown
-    const selectButton = screen.getByText(/Selecionar e Continuar/i);
+    const selectButton = screen.getByText(/Escolher acomodação/i);
     selectButton.click();
 
     // Wait for breakdown to appear in summary
@@ -296,7 +296,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Test Room Cupom')).toBeInTheDocument();
     });
 
-    screen.getByText(/Selecionar e Continuar/i).click();
+    screen.getByText(/Escolher acomodação/i).click();
 
     await waitFor(() => {
       expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
@@ -331,7 +331,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Suite Mobile')).toBeInTheDocument();
     });
 
-    screen.getByText(/Selecionar e Continuar/i).click();
+    screen.getByText(/Escolher acomodação/i).click();
 
     await waitFor(() => {
       expect(screen.getAllByText(/Resumo da Reserva/i).length).toBeGreaterThan(0);
@@ -428,7 +428,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Suite Cupom')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Selecionar e Continuar/i));
+    fireEvent.click(screen.getByText(/Escolher acomodação/i));
 
     await waitFor(() => {
       expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
