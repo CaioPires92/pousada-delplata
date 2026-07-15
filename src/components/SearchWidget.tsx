@@ -21,9 +21,11 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { trackClickWhatsApp, trackSearch } from '@/lib/analytics';
+import { trackBookingError, trackClickWhatsApp, trackSearch } from '@/lib/analytics';
+import { appendCampaignAttribution } from '@/lib/campaign-attribution';
 
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
+const AVAILABILITY_TIMEOUT_MS = 12_000;
 
 function deferStateUpdate(callback: () => void) {
     queueMicrotask(callback);
@@ -275,9 +277,20 @@ export default function SearchWidget({
                 params.set('promoLock', '1');
             }
         }
+        appendCampaignAttribution(params, searchParams);
 
         try {
-            const response = await fetch(`/api/availability?${params.toString()}`, { cache: 'no-store' });
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), AVAILABILITY_TIMEOUT_MS);
+            let response: Response;
+            try {
+                response = await fetch(`/api/availability?${params.toString()}`, {
+                    cache: 'no-store',
+                    signal: controller.signal,
+                });
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
             const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
             const responsePromoMessage = response.headers.get('x-promo-message') || '';
 
@@ -312,8 +325,13 @@ export default function SearchWidget({
             }
 
             router.push(`/reservar?${params.toString()}`);
-        } catch {
-            setSearchMessage('Erro ao buscar disponibilidade. Tente novamente.');
+        } catch (error) {
+            const timedOut = error instanceof DOMException && error.name === 'AbortError';
+            const message = timedOut
+                ? 'A consulta demorou mais que o esperado. Tente novamente ou fale conosco pelo WhatsApp.'
+                : 'Erro ao buscar disponibilidade. Tente novamente.';
+            setSearchMessage(message);
+            trackBookingError({ stage: 'search_availability', type: timedOut ? 'timeout' : 'network' });
         } finally {
             setLoading(false);
         }

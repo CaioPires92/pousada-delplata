@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Suspense } from "react";
 
 import Footer from "@/components/Footer";
+import CampaignAttribution from "@/components/CampaignAttribution";
 import Header from "@/components/Header";
 import MobileBookingBar from "@/components/MobileBookingBar";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
@@ -65,6 +67,9 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="font-sans antialiased">
+        <Suspense fallback={null}>
+          <CampaignAttribution />
+        </Suspense>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

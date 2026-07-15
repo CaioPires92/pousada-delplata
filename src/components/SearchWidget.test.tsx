@@ -4,12 +4,17 @@ import SearchWidget from './SearchWidget';
 
 const mockRouterPush = vi.fn();
 let preferredRoomTypeId: string | null = null;
+let campaignSource: string | null = null;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
   usePathname: () => '/home',
   useSearchParams: () => ({
-    get: vi.fn((key: string) => key === 'roomTypeId' ? preferredRoomTypeId : null),
+    get: vi.fn((key: string) => {
+      if (key === 'roomTypeId') return preferredRoomTypeId;
+      if (key === 'utm_source') return campaignSource;
+      return null;
+    }),
   }),
 }));
 
@@ -17,6 +22,8 @@ describe('SearchWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     preferredRoomTypeId = null;
+    campaignSource = null;
+    window.sessionStorage.clear();
   });
 
   it('desabilita Buscar quando faltam idades das crianças', async () => {
@@ -70,6 +77,31 @@ describe('SearchWidget', () => {
     await waitFor(() => {
       expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('roomTypeId=room-origin'));
     });
+  });
+
+  it('preserva a origem da campanha ao seguir para os resultados', async () => {
+    campaignSource = 'google';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ id: 'room-1' }],
+      headers: { get: vi.fn(() => null) },
+    });
+
+    render(<SearchWidget />);
+    fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('utm_source=google'));
+    });
+  });
+
+  it('explica quando a consulta excede o tempo limite', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new DOMException('aborted', 'AbortError'));
+    render(<SearchWidget />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
+
+    expect(await screen.findByText(/demorou mais que o esperado/i)).toBeInTheDocument();
   });
 
   it('mostra aviso inline quando faltam idades das crianças', async () => {

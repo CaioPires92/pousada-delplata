@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { gaEvent, trackAddPaymentInfo, trackPurchase } from './ga';
+import { gaEvent, trackAddPaymentInfo, trackBookingError, trackPurchase, trackSearch, trackSelectItem, trackViewItemList } from './ga';
 
 describe('gaEvent debug mode', () => {
     const gtagMock = vi.fn();
@@ -65,5 +65,20 @@ describe('gaEvent debug mode', () => {
         trackPurchase({ transactionId: '', value: 750 });
 
         expect(gtagMock).not.toHaveBeenCalled();
+    });
+
+    it('mantém eventos padrão e personalizados do funil', () => {
+        trackSearch({ checkIn: '2026-08-01', checkOut: '2026-08-03', adults: 2, children: 0 });
+        trackViewItemList([{ id: 'room-1', name: 'Chalé', totalPrice: 800 }]);
+        trackSelectItem({ id: 'room-1', name: 'Chalé', totalPrice: 800 });
+        trackBookingError({ stage: 'search_availability', type: 'timeout' });
+
+        expect(gtagMock).toHaveBeenCalledWith('event', 'search_availability', expect.any(Object));
+        expect(gtagMock).toHaveBeenCalledWith('event', 'view_availability', { available_options: 1 });
+        expect(gtagMock).toHaveBeenCalledWith('event', 'select_room', expect.objectContaining({ room_id: 'room-1' }));
+        expect(gtagMock).toHaveBeenCalledWith('event', 'booking_error', {
+            stage: 'search_availability',
+            error_type: 'timeout',
+        });
     });
 });

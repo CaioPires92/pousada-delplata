@@ -58,6 +58,11 @@ export type ReservationFunnelPayload = {
     message?: string;
 };
 
+export type BookingErrorPayload = {
+    stage: string;
+    type: string;
+};
+
 declare global {
     interface Window {
         dataLayer?: unknown[];
@@ -116,12 +121,14 @@ export function gaEvent(name: string, params: GaParams = {}) {
 }
 
 export function trackSearch(payload: TrackSearchPayload) {
-    gaEvent('search', {
+    const params = {
         check_in: payload.checkIn || undefined,
         check_out: payload.checkOut || undefined,
         adults: toNumber(payload.adults, 0),
         children: toNumber(payload.children, 0),
-    });
+    };
+    gaEvent('search', params);
+    gaEvent('search_availability', params);
 }
 
 export function trackViewItemList(rooms: RoomAnalyticsInput[]) {
@@ -132,6 +139,7 @@ export function trackViewItemList(rooms: RoomAnalyticsInput[]) {
         item_list_name: 'Lista de Quartos',
         items,
     });
+    gaEvent('view_availability', { available_options: rooms.length });
 }
 
 export function trackSelectItem(room: RoomAnalyticsInput, index = 0) {
@@ -140,6 +148,12 @@ export function trackSelectItem(room: RoomAnalyticsInput, index = 0) {
         item_list_id: 'lista_quartos',
         item_list_name: 'Lista de Quartos',
         items: [item],
+    });
+    gaEvent('select_room', {
+        room_id: item.item_id,
+        room_name: item.item_name,
+        value: item.price,
+        currency: 'BRL',
     });
 }
 
@@ -227,6 +241,13 @@ export function trackReservationFunnel(payload: ReservationFunnelPayload) {
         room_name: payload.roomName || undefined,
         value: payload.value != null ? toNumber(payload.value, 0) : undefined,
         message: payload.message || undefined,
+    });
+}
+
+export function trackBookingError(payload: BookingErrorPayload) {
+    gaEvent('booking_error', {
+        stage: payload.stage,
+        error_type: payload.type,
     });
 }
 
