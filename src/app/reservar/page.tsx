@@ -43,6 +43,11 @@ import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
+import {
+    mountLatestPaymentBrick,
+    safelyUnmountPaymentBrick,
+    type PaymentBrickController,
+} from '@/lib/payment-brick-lifecycle';
  
 
 interface Room {
@@ -300,7 +305,8 @@ function ReservarContent() {
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
     const [searchEditorOpen, setSearchEditorOpen] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
-    const paymentBrickRef = useRef<any>(null);
+    const paymentBrickRef = useRef<PaymentBrickController | null>(null);
+    const paymentBrickRequestRef = useRef(0);
     const paymentContainerId = 'paymentBrick_container';
     const mountedRef = useRef(true);
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
@@ -438,26 +444,16 @@ function ReservarContent() {
     const bookingTotal = appliedCoupon
         ? Number(appliedCoupon.total || Math.max(0, bookingSubtotal - bookingDiscount))
         : (selectedRoom ? Number(selectedRoom.totalPrice) : 0);
-    const handleRetryPayment = async () => {
+    const handleRetryPayment = () => {
         setPaymentError('');
         setPaymentStatus('idle');
         setPaymentStatusMessage('');
         setIsSubmittingPayment(false);
         setPixData(null);
 
-        if (paymentBrickRef.current) {
-            try {
-                await paymentBrickRef.current.unmount();
-            } catch {
-                // Ignora falhas de desmontagem para permitir nova tentativa
-            } finally {
-                paymentBrickRef.current = null;
-            }
-        }
-
         setPaymentRetryNonce((prev) => prev + 1);
     };
-    const handlePaymentModeChange = async (nextMode: PaymentMode) => {
+    const handlePaymentModeChange = (nextMode: PaymentMode) => {
         if (!partialPaymentEvaluation || !partialPaymentEvaluation.eligible) return;
 
         const nextAmount = nextMode === 'PARTIAL'
@@ -471,16 +467,6 @@ function ReservarContent() {
         setPaymentStatusMessage('');
         setPixData(null);
         setIsSubmittingPayment(false);
-
-        if (paymentBrickRef.current) {
-            try {
-                await paymentBrickRef.current.unmount();
-            } catch {
-                // Ignora falhas de desmontagem para recriar o Brick com o novo valor
-            } finally {
-                paymentBrickRef.current = null;
-            }
-        }
 
         setPaymentRetryNonce((prev) => prev + 1);
     };
@@ -1027,7 +1013,8 @@ function ReservarContent() {
     useEffect(() => {
         if (!paymentBookingId || paymentAmount === null || Number.isNaN(paymentAmount)) return;
 
-        let cancelled = false;
+        const requestId = ++paymentBrickRequestRef.current;
+        let mountedBrick: PaymentBrickController | null = null;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
         if (!publicKey) {
             const timeoutId = window.setTimeout(() => {
@@ -1083,18 +1070,18 @@ function ReservarContent() {
         const initBrick = async () => {
             try {
                 await loadSdk();
-                if (cancelled) return;
+                if (paymentBrickRequestRef.current !== requestId) return;
 
                 const mp = new (window as any).MercadoPago(publicKey, { locale: 'pt-BR' });
                 const bricksBuilder = mp.bricks();
 
-                if (paymentBrickRef.current) {
-                    await paymentBrickRef.current.unmount();
-                }
-
                 const payerData = buildPaymentBrickInitializationPayer(guest.email);
 
-                paymentBrickRef.current = await bricksBuilder.create('payment', paymentContainerId, {
+                mountedBrick = await mountLatestPaymentBrick({
+                    requestId,
+                    latestRequestRef: paymentBrickRequestRef,
+                    activeBrickRef: paymentBrickRef,
+                    create: () => bricksBuilder.create('payment', paymentContainerId, {
                     initialization: {
                         amount: paymentAmount,
                         payer: payerData,
@@ -1237,8 +1224,10 @@ function ReservarContent() {
                             });
                         },
                     },
+                    }),
                 });
             } catch (err) {
+                if (paymentBrickRequestRef.current !== requestId) return;
                 setIsSubmittingPayment(false);
                 console.error(err);
                 setPaymentError('Nao foi possivel inicializar o pagamento. Verifique sua conexao e tente sem bloqueadores de anuncio.');
@@ -1260,8 +1249,14 @@ function ReservarContent() {
 
         initBrick();
         return () => {
-            cancelled = true;
-            if (pollRef.current) clearInterval(pollRef.current);
+            if (paymentBrickRequestRef.current === requestId) {
+                paymentBrickRequestRef.current += 1;
+            }
+
+            if (mountedBrick && paymentBrickRef.current === mountedBrick) {
+                paymentBrickRef.current = null;
+                void safelyUnmountPaymentBrick(mountedBrick);
+            }
         };
     }, [guest.email, guest.name, notifyPaymentDifficulty, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router]);
 
@@ -1269,7 +1264,7 @@ function ReservarContent() {
         if (!paymentBookingId) return;
         if (pollRef.current) return;
 
-        pollRef.current = setInterval(async () => {
+        const pollInterval = setInterval(async () => {
             try {
                 const res = await fetch(`/api/bookings/${paymentBookingId}`);
                 if (!res.ok) return;
@@ -1302,6 +1297,14 @@ function ReservarContent() {
                 // ignora falhas de rede temporárias
             }
         }, 10000);
+
+        pollRef.current = pollInterval;
+        return () => {
+            clearInterval(pollInterval);
+            if (pollRef.current === pollInterval) {
+                pollRef.current = null;
+            }
+        };
     }, [paymentAmount, paymentBookingId, router]);
 
     if (!checkIn || !checkOut) {
