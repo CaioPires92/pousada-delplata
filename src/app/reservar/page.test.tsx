@@ -11,6 +11,7 @@ const searchParamState = {
   childrenAges: null as string | null,
   promo: null as string | null,
   coupon: null as string | null,
+  roomTypeId: null as string | null,
 };
 
 vi.mock('next/navigation', () => ({
@@ -47,6 +48,7 @@ describe('ReservarPage', () => {
     searchParamState.childrenAges = null;
     searchParamState.promo = null;
     searchParamState.coupon = null;
+    searchParamState.roomTypeId = null;
     // Mock scrollIntoView to avoid errors in tests
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -101,6 +103,27 @@ describe('ReservarPage', () => {
     expect(anexoImg.getAttribute('src')).toBe('https://cdn.example.com/real-photo.jpg');
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Valor total exibido/i).length).toBeGreaterThan(0);
+  });
+
+  it('exibe primeiro o quarto escolhido na página de acomodações', async () => {
+    searchParamState.roomTypeId = 'room-preferred';
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { id: 'room-other', name: 'Outra acomodação', description: 'Outra', capacity: 2, amenities: 'WiFi', totalPrice: 400, photos: [] },
+        { id: 'room-preferred', name: 'Acomodação escolhida', description: 'Escolhida', capacity: 2, amenities: 'WiFi', totalPrice: 500, photos: [] },
+      ],
+      headers: { get: vi.fn(() => null) },
+    });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Acomodação escolhida')).toBeInTheDocument();
+    });
+
+    const roomNames = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
+    expect(roomNames.indexOf('Acomodação escolhida')).toBeLessThan(roomNames.indexOf('Outra acomodação'));
   });
 
   it('oferece contexto útil no fallback renderizado antes do JavaScript', () => {

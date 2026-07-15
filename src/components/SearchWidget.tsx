@@ -62,6 +62,7 @@ export default function SearchWidget({
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const promoLocked = searchParams.get('promoLock') === '1';
+    const preferredRoomTypeId = String(searchParams.get('roomTypeId') || '').trim();
 
     // Definir datas padrão (hoje e amanhã)
     const today = new Date();
@@ -261,6 +262,9 @@ export default function SearchWidget({
             adults,
             children
         });
+        if (preferredRoomTypeId) {
+            params.set('roomTypeId', preferredRoomTypeId);
+        }
         if (normalizedChildrenAges.length > 0) {
             params.set('childrenAges', normalizedChildrenAges.map((a) => String(a)).join(','));
         }

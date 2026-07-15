@@ -266,6 +266,7 @@ function ReservarContent() {
     const children = searchParams.get('children') || '0';
     const childrenAgesParam = searchParams.get('childrenAges') || '';
     const promoFromQuery = String(searchParams.get('promo') || searchParams.get('coupon') || '').trim().toUpperCase();
+    const preferredRoomTypeId = String(searchParams.get('roomTypeId') || '').trim();
 
     // Memoize childrenAges to prevent array recreation on every render
     const childrenAges = useMemo(() => {
@@ -614,17 +615,24 @@ function ReservarContent() {
                 throw new Error('Erro ao carregar quartos disponíveis');
             }
             const data = await response.json();
+            const orderedRooms = Array.isArray(data) && preferredRoomTypeId
+                ? [...data].sort((left: Room, right: Room) => {
+                    if (left.id === preferredRoomTypeId) return -1;
+                    if (right.id === preferredRoomTypeId) return 1;
+                    return 0;
+                })
+                : data;
             const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
             const responsePromoMessage = response.headers.get('x-promo-message') || '';
 
             if (mountedRef.current) {
-                setAvailableRooms(data);
+                setAvailableRooms(orderedRooms);
                 setPromoAppliedInResults(responsePromoApplied);
                 setCouponMessage(responsePromoMessage);
 
                 const currentSelectedRoom = selectedRoomRef.current;
-                if (Array.isArray(data) && currentSelectedRoom) {
-                    const refreshedSelectedRoom = data.find((room: Room) => room.id === currentSelectedRoom.id);
+                if (Array.isArray(orderedRooms) && currentSelectedRoom) {
+                    const refreshedSelectedRoom = orderedRooms.find((room: Room) => room.id === currentSelectedRoom.id);
 
                     if (!refreshedSelectedRoom) {
                         setAppliedCoupon(null);
@@ -683,7 +691,7 @@ function ReservarContent() {
             mountedRef.current = false;
             controller.abort();
         };
-    }, [adults, availabilityRetryNonce, checkIn, checkOut, children, childrenAgesKey, promoFromQuery, isInvalidAdults, isOverCapacity]);
+    }, [adults, availabilityRetryNonce, checkIn, checkOut, children, childrenAgesKey, preferredRoomTypeId, promoFromQuery, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
         if (!Array.isArray(availableRooms)) return;

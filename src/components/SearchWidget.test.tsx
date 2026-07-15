@@ -2,17 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SearchWidget from './SearchWidget';
 
+const mockRouterPush = vi.fn();
+let preferredRoomTypeId: string | null = null;
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mockRouterPush }),
   usePathname: () => '/home',
   useSearchParams: () => ({
-    get: vi.fn(() => null),
+    get: vi.fn((key: string) => key === 'roomTypeId' ? preferredRoomTypeId : null),
   }),
 }));
 
 describe('SearchWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    preferredRoomTypeId = null;
   });
 
   it('desabilita Buscar quando faltam idades das crianças', async () => {
@@ -50,6 +54,22 @@ describe('SearchWidget', () => {
     await waitFor(() => expect(button).not.toBeDisabled());
     fireEvent.click(button);
     await waitFor(() => expect(mockFetch).toHaveBeenCalled());
+  });
+
+  it('preserva a acomodação de origem ao seguir para os resultados', async () => {
+    preferredRoomTypeId = 'room-origin';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ id: 'room-origin' }],
+      headers: { get: vi.fn(() => null) },
+    });
+
+    render(<SearchWidget />);
+    fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('roomTypeId=room-origin'));
+    });
   });
 
   it('mostra aviso inline quando faltam idades das crianças', async () => {
