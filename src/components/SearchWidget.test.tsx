@@ -102,6 +102,7 @@ describe('SearchWidget', () => {
     fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
 
     expect(await screen.findByText(/demorou mais que o esperado/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Falar com a pousada no WhatsApp/i })).toBeInTheDocument();
   });
 
   it('mostra aviso inline quando faltam idades das crianças', async () => {

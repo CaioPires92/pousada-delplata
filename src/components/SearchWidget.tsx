@@ -77,6 +77,7 @@ export default function SearchWidget({
     const [childrenAges, setChildrenAges] = useState<(number | null)[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchMessage, setSearchMessage] = useState('');
+    const [searchCanEscalate, setSearchCanEscalate] = useState(false);
     const [couponCode, setCouponCode] = useState('');
     const [couponFeedback, setCouponFeedback] = useState('');
     const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'warning' | ''>('');
@@ -205,6 +206,7 @@ export default function SearchWidget({
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
         setSearchMessage('');
+        setSearchCanEscalate(false);
         setCouponFeedback('');
         setCouponFeedbackType('');
         setFieldErrors({});
@@ -305,12 +307,14 @@ export default function SearchWidget({
                     ? errorBody.error
                     : 'Erro ao buscar disponibilidade. Tente novamente.';
                 setSearchMessage(errorMessage);
+                setSearchCanEscalate(true);
                 return;
             }
 
             const data = await response.json();
             if (Array.isArray(data) && data.length === 0) {
                 setSearchMessage('Sem disponibilidade para essas datas/ocupação.');
+                setSearchCanEscalate(true);
                 return;
             }
 
@@ -331,6 +335,7 @@ export default function SearchWidget({
                 ? 'A consulta demorou mais que o esperado. Tente novamente ou fale conosco pelo WhatsApp.'
                 : 'Erro ao buscar disponibilidade. Tente novamente.';
             setSearchMessage(message);
+            setSearchCanEscalate(true);
             trackBookingError({ stage: 'search_availability', type: timedOut ? 'timeout' : 'network' });
         } finally {
             setLoading(false);
@@ -916,6 +921,11 @@ export default function SearchWidget({
             {searchMessage ? (
                 <div className={searchMessageClass}>
                     <p className="text-sm font-medium">{searchMessage}</p>
+                    {searchCanEscalate ? (
+                        <Button type="button" variant="outline" className="mt-3 rounded-none" onClick={handleWhatsAppClick}>
+                            Falar com a pousada no WhatsApp
+                        </Button>
+                    ) : null}
                 </div>
             ) : null}
             {shouldShowCapacityFallback ? (
