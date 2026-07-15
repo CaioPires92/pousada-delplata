@@ -566,15 +566,15 @@ export default function ConfirmacaoPage() {
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">
                                 <ShieldCheck className="h-5 w-5 shrink-0 text-primary" />
                                 <div>
-                                    <p className="text-sm font-semibold text-primary">Reserva 100% segura</p>
-                                    <p className="text-xs text-primary/68">Seus dados protegidos</p>
+                                    <p className="text-sm font-semibold text-primary">Status da reserva</p>
+                                    <p className="text-xs text-primary/68">Acompanhamento nesta página</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">
                                 <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
                                 <div>
-                                    <p className="text-sm font-semibold text-primary">Melhor tarifa garantida</p>
-                                    <p className="text-xs text-primary/68">Reservando direto conosco</p>
+                                    <p className="text-sm font-semibold text-primary">Valor da reserva</p>
+                                    <p className="text-xs text-primary/68">Total exibido nos detalhes</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">

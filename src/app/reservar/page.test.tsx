@@ -99,6 +99,8 @@ describe('ReservarPage', () => {
 
     const anexoImg = screen.getByAltText('Apartamento Anexo') as HTMLImageElement;
     expect(anexoImg.getAttribute('src')).toBe('https://cdn.example.com/real-photo.jpg');
+    expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Valor total exibido/i).length).toBeGreaterThan(0);
   });
 
   it('shows error message on API failure', async () => {

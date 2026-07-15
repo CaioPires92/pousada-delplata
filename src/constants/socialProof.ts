@@ -18,4 +18,3 @@ const TOTAL_REVIEWS_ROUNDED_TO_HUNDREDS =
 
 export const SOCIAL_PROOF_TOTAL_LABEL = `+${new Intl.NumberFormat("pt-BR").format(TOTAL_REVIEWS_ROUNDED_TO_HUNDREDS)} avaliações reais`;
 export const HOTEL_EXPERIENCE_LABEL = "+15 anos de história";
-export const BEST_RATE_GUARANTEE_LABEL = "Melhor tarifa garantida no site oficial";

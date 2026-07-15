@@ -43,6 +43,7 @@ import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
+import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
 import {
     mountLatestPaymentBrick,
     safelyUnmountPaymentBrick,
@@ -165,7 +166,7 @@ function RoomListSkeleton() {
 
 const RESERVATION_BENEFITS = [
     'Café da manhã incluso',
-    'Melhor tarifa garantida no site',
+    'Valor total exibido antes do pagamento',
     'Pagamento via Pix ou cartão',
     'Atendimento direto da pousada',
 ];
@@ -178,9 +179,9 @@ const PAGE_TRUST_ITEMS = [
         icon: Phone,
     },
     {
-        value: '4,8/5',
+        value: `${SOCIAL_PROOF_RATINGS.google.score.toFixed(1).replace('.', ',')}/5`,
         label: 'Google',
-        description: 'Mais de 500 avaliações',
+        description: `${SOCIAL_PROOF_RATINGS.google.reviews} avaliações`,
         icon: SiGoogle,
     },
     {
@@ -1346,7 +1347,7 @@ function ReservarContent() {
                             Planeje sua Estadia
                         </h1>
                         <p className="mx-auto max-w-2xl text-lg leading-8 text-white/88">
-                            Selecione as datas da sua viagem para conferir nossas acomodações exclusivas e garantir o melhor preço.
+                            Selecione as datas da viagem para consultar acomodações disponíveis e os valores da estadia.
                         </p>
                     </div>
 
@@ -1525,7 +1526,7 @@ function ReservarContent() {
                                             : null;
                                         const hasSavings = room.promoApplied && Number(room.discountAmount || 0) > 0;
                                         const roomDescription = room.description?.trim()
-                                            || 'Acomodação privativa com conforto, praticidade e contato direto com a natureza.';
+                                            || 'Descrição detalhada não informada. Consulte a pousada antes de reservar.';
                                         return (
                                         <Card
                                             key={room.id}
@@ -1608,7 +1609,7 @@ function ReservarContent() {
                                                         </div>
                                                         <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
                                                             <BadgeCheck className="h-4.5 w-4.5 shrink-0 text-primary/85" />
-                                                            <span className="font-medium leading-5">Melhor tarifa garantida</span>
+                                                            <span className="font-medium leading-5">Valor total exibido</span>
                                                         </div>
                                                         <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
                                                             <ShieldCheck className="h-4.5 w-4.5 shrink-0 text-primary/85" />
@@ -2269,11 +2270,11 @@ function ReservarContent() {
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-primary">
                                             <Check className="h-4 w-4" />
-                                            <span>Melhor tarifa garantida</span>
+                                            <span>Valor total exibido</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-primary">
                                             <Check className="h-4 w-4" />
-                                            <span>Pagamento seguro</span>
+                                            <span>Pagamento via Pix ou cartão</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-primary">
                                             <Check className="h-4 w-4" />
