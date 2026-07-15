@@ -1464,7 +1464,7 @@ function ReservarContent() {
 
     return (
         <main className="min-h-screen pt-28 pb-12 bg-muted/30">
-            <div className="container mx-auto box-border w-full max-w-full px-4">
+            <div className="container mx-auto box-border w-full max-w-[1440px] px-4">
                 <AvailabilityBar
                     checkIn={checkIn!}
                     checkOut={checkOut!}
@@ -1708,8 +1708,8 @@ function ReservarContent() {
                                                         <div className="flex items-start gap-3 border border-primary/10 bg-white px-3 py-2.5 text-xs text-foreground/72 md:text-sm">
                                                             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary md:h-5 md:w-5" />
                                                             <div>
-                                                                <p className="font-semibold text-primary">Reserva 100% Segura</p>
-                                                                <p>Seus dados protegidos por criptografia SSL.</p>
+                                                                <p className="font-semibold text-primary">Pagamento pelo Mercado Pago</p>
+                                                                <p>Os dados de pagamento são processados pelo provedor.</p>
                                                             </div>
                                                         </div>
                                                     </div>

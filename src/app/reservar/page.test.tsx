@@ -97,6 +97,9 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Apartamento Anexo')).toBeInTheDocument();
     });
     expect(screen.getAllByRole('heading', { name: /Escolha sua Acomodação/i })).toHaveLength(1);
+    const resultsContainer = screen.getByRole('heading', { name: /Escolha sua Acomodação/i })
+      .closest('main')?.firstElementChild;
+    expect(resultsContainer).toHaveClass('max-w-[1440px]');
 
     const terreoImg = screen.getByAltText('Apartamento Térreo') as HTMLImageElement;
     expect(terreoImg.getAttribute('src')).toBe('/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0001-1200.webp');
@@ -104,6 +107,9 @@ describe('ReservarPage', () => {
     const anexoImg = screen.getByAltText('Apartamento Anexo') as HTMLImageElement;
     expect(anexoImg.getAttribute('src')).toBe('https://cdn.example.com/real-photo.jpg');
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reserva 100% Segura/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/criptografia SSL/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Pagamento pelo Mercado Pago/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Valor total exibido/i).length).toBeGreaterThan(0);
   });
 
