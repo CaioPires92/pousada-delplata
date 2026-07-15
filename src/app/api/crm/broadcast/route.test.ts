@@ -47,7 +47,12 @@ describe("POST /api/crm/broadcast", () => {
         "Content-Type": "application/json",
         Authorization: "Bearer test-token",
       },
-      body: JSON.stringify({ dryRun: true, text: "Olá" }),
+      body: JSON.stringify({
+        dryRun: true,
+        text: "Olá",
+        startHour: 0,
+        endHour: 24,
+      }),
     });
 
     const res = await POST(req);
