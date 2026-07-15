@@ -128,48 +128,48 @@ Escopo ajustado: o objetivo é receber um email de recuperação quando o hóspe
 
 ## 7. WhatsApp no fluxo de erro
 
-- [ ] Exibir botão `Falar no WhatsApp` quando ocorrer erro no pagamento.
-- [ ] Criar mensagem automática com o contexto da reserva.
-- [ ] Usar mensagem semelhante a:
-  - [ ] `Olá, tive um problema para pagar minha reserva código XXXX.`
-- [ ] Incluir, quando possível:
-  - [ ] Código da reserva.
-  - [ ] Nome do hóspede.
-  - [ ] Quarto.
-  - [ ] Valor da tentativa.
-- [ ] Garantir que o fluxo de suporte não dependa apenas de email.
+- [x] Exibir botão `Falar no WhatsApp` quando ocorrer erro no pagamento.
+- [x] Criar mensagem automática com o contexto da reserva.
+- [x] Usar mensagem semelhante a:
+  - [x] `Olá, tive um problema para pagar minha reserva código XXXX.`
+- [x] Incluir, quando possível:
+  - [x] Código da reserva.
+  - [x] Nome do hóspede.
+  - [x] Quarto.
+  - [x] Valor da tentativa.
+- [x] Garantir que o fluxo de suporte não dependa apenas de email.
 
 ### Critérios de aceite
 
-- [ ] O botão aparece somente em situações de erro.
-- [ ] O número de WhatsApp é obtido de configuração segura.
-- [ ] A mensagem é codificada corretamente na URL.
-- [ ] O link funciona em celular e desktop.
+- [x] O botão aparece somente em situações de erro.
+- [x] O número de WhatsApp é obtido de configuração segura.
+- [x] A mensagem é codificada corretamente na URL.
+- [x] O link funciona em celular e desktop.
 
 ---
 
 ## 8. Recuperação automática de pagamento abandonado
 
-- [ ] Definir o tempo de espera antes do contato.
-- [ ] Após X minutos sem pagamento, enviar email de ajuda ao hóspede.
-- [ ] Garantir que o email não seja enviado para pagamentos já concluídos.
-- [ ] Evitar envios duplicados.
-- [ ] Registrar data e status da tentativa de recuperação.
+- [x] Definir o tempo de espera antes do contato.
+- [x] Após X minutos sem pagamento, enviar email de ajuda ao hóspede.
+- [x] Garantir que o email não seja enviado para pagamentos já concluídos.
+- [x] Evitar envios duplicados.
+- [x] Registrar data e status da tentativa de recuperação.
 - [ ] Avaliar alerta opcional para o admin. (se possivel um email de lembrete para pousada delplata e no painel adminstrativo um sino com notificacao das reservas que nao foram concluidas ou ate das que foram e ter a opcao de limpar notificacoes)
 - [ ] Deixar envio por WhatsApp como melhoria futura, após estabilização da integração.
 
 ### Critérios de aceite
 
-- [ ] Apenas reservas pendentes recebem o email.
-- [ ] Cada abandono gera no máximo um alerta por janela definida.
-- [ ] O sistema cancela a recuperação caso o pagamento seja concluído.
+- [x] Apenas reservas pendentes recebem o email.
+- [x] Cada abandono gera no máximo um alerta por janela definida.
+- [x] O sistema cancela a recuperação caso o pagamento seja concluído.
 
 ---
 
 ## 9. Rastreamento e auditoria de erros
 
-- [ ] Salvar `lastErrorMessage` na reserva.
-- [ ] Registrar a etapa do erro.
+- [x] Salvar `lastErrorMessage` na reserva.
+- [x] Registrar a etapa do erro.
 - [ ] Padronizar códigos de erro, incluindo:
   - [ ] `PAYMENT_BRICK_ERROR`.
   - [ ] `PAYMENT_REJECTED`.
@@ -178,49 +178,49 @@ Escopo ajustado: o objetivo é receber um email de recuperação quando o hóspe
   - [ ] `PAYMENT_PAYER_MISSING`.
   - [ ] `PAYMENT_API_ERROR`.
   - [ ] `PAYMENT_UNEXPECTED_ERROR`.
-- [ ] Salvar data e hora do último erro.
-- [ ] Mostrar o erro e a etapa no admin de reservas.
-- [ ] Evitar salvar dados sensíveis de cartão ou credenciais.
+- [x] Salvar data e hora do último erro.
+- [x] Mostrar o erro e a etapa no admin de reservas.
+- [x] Evitar salvar dados sensíveis de cartão ou credenciais.
 
 ### Critérios de aceite
 
-- [ ] O admin consegue identificar onde o pagamento falhou.
-- [ ] Os logs permitem correlacionar reserva, tentativa e resposta do provedor.
-- [ ] Nenhum dado sensível é armazenado indevidamente.
+- [x] O admin consegue identificar onde o pagamento falhou.
+- [x] Os logs permitem correlacionar reserva, tentativa e resposta do provedor.
+- [x] Nenhum dado sensível é armazenado indevidamente.
 
 ---
 
 ## 10. Validações de segurança e consistência
 
-- [ ] Recalcular valores no backend.
-- [ ] Não aceitar como verdade o valor enviado pelo frontend.
-- [ ] Validar:
-  - [ ] Valor original.
-  - [ ] Desconto PIX.
-  - [ ] Modo de pagamento.
-  - [ ] Valor final esperado.
+- [x] Recalcular valores no backend.
+- [x] Não aceitar como verdade o valor enviado pelo frontend.
+- [x] Validar:
+  - [x] Valor original.
+  - [x] Desconto PIX.
+  - [x] Modo de pagamento.
+  - [x] Valor final esperado.
   - [ ] Valor recebido do Mercado Pago.
-- [ ] Impedir processamento de pagamento duplicado.
-- [ ] Garantir idempotência no processamento.
-- [ ] Registrar divergências antes de alterar o status da reserva.
-- [ ] Não marcar reserva como paga antes da confirmação válida do provedor.
+- [x] Impedir processamento de pagamento duplicado.
+- [x] Garantir idempotência no processamento.
+- [x] Registrar divergências antes de alterar o status da reserva.
+- [x] Não marcar reserva como paga antes da confirmação válida do provedor.
 
 ---
 
 ## 11. Atualizações no painel administrativo
 
-- [ ] Exibir status financeiro da reserva.
-- [ ] Exibir modo de pagamento:
-  - [ ] Total.
-  - [ ] Sinal de 50%.
-- [ ] Exibir valor total.
-- [ ] Exibir valor pago.
-- [ ] Exibir saldo restante.
-- [ ] Exibir método de pagamento.
-- [ ] Exibir último erro.
-- [ ] Exibir etapa do erro.
-- [ ] Destacar visualmente reservas com pagamento parcial.
-- [ ] Destacar tentativas de pagamento com falha.
+- [x] Exibir status financeiro da reserva.
+- [x] Exibir modo de pagamento:
+  - [x] Total.
+  - [x] Sinal de 50%.
+- [x] Exibir valor total.
+- [x] Exibir valor pago.
+- [x] Exibir saldo restante.
+- [x] Exibir método de pagamento.
+- [x] Exibir último erro.
+- [x] Exibir etapa do erro.
+- [x] Destacar visualmente reservas com pagamento parcial.
+- [x] Destacar tentativas de pagamento com falha.
 
 ---
 
@@ -228,25 +228,25 @@ Escopo ajustado: o objetivo é receber um email de recuperação quando o hóspe
 
 ### Pagamentos
 
-- [ ] Testar cartão aprovado.
-- [ ] Testar cartão recusado.
+- [x] Testar cartão aprovado.
+- [x] Testar cartão recusado.
 - [ ] Testar PIX aprovado.
 - [ ] Testar PIX com desconto de 5%.
-- [ ] Testar pagamento total.
-- [ ] Testar pagamento de sinal de 50%.
-- [ ] Testar arredondamento do valor de 50%.
-- [ ] Testar divergência entre valor esperado e valor recebido.
-- [ ] Testar tentativa de pagamento duplicado.
+- [x] Testar pagamento total.
+- [x] Testar pagamento de sinal de 50%.
+- [x] Testar arredondamento do valor de 50%.
+- [x] Testar divergência entre valor esperado e valor recebido.
+- [x] Testar tentativa de pagamento duplicado.
 
 ### Erros e alertas
 
 - [ ] Simular erro técnico no Brick.
-- [ ] Simular erro na API.
+- [x] Simular erro na API.
 - [ ] Simular pagador ausente.
 - [ ] Confirmar recebimento do email de alerta pelo admin.
 - [ ] Confirmar conteúdo do email de erro.
-- [ ] Confirmar funcionamento do link de WhatsApp.
-- [ ] Confirmar mensagem automática do WhatsApp.
+- [x] Confirmar funcionamento do link de WhatsApp.
+- [x] Confirmar mensagem automática do WhatsApp.
 
 ### Banco de dados
 
@@ -282,11 +282,11 @@ Escopo ajustado: o objetivo é receber um email de recuperação quando o hóspe
 - [x] Frontend, backend e Mercado Pago usam o mesmo valor final.
 - [x] O backend recalcula e valida todos os valores.
 - [x] Pagamento parcial não é tratado como pagamento integral.
-- [ ] Emails exibem valores corretos.
-- [ ] Alertas de erro estão funcionando.
-- [ ] Link do WhatsApp foi validado.
-- [ ] Painel administrativo exibe status correto.
-- [ ] Logs não expõem dados sensíveis.
+- [x] Emails exibem valores corretos.
+- [x] Alertas de erro estão funcionando.
+- [x] Link do WhatsApp foi validado.
+- [x] Painel administrativo exibe status correto.
+- [x] Logs não expõem dados sensíveis.
 - [x] Variáveis de ambiente necessárias estão documentadas.
 - [x] Migrações de banco foram criadas e testadas, se aplicável.
 - [x] Código revisado antes do commit.
