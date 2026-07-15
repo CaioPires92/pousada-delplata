@@ -572,7 +572,12 @@ export async function handleMercadoPagoWebhook(request: Request) {
             });
 
             emailSent = Boolean(emailResult?.success);
-            if (!emailSent) {
+            if (emailSent) {
+                await prisma.booking.updateMany({
+                    where: { id: bookingId, confirmationEmailSentAt: null },
+                    data: { confirmationEmailSentAt: new Date() },
+                });
+            } else {
                 emailErrorMessage =
                     emailResult?.error instanceof Error
                         ? emailResult.error.message

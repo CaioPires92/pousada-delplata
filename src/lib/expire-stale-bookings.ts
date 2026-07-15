@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { sendAdminRecoveryAlertEmail } from '@/lib/email';
+import { sendAdminRecoveryAlertEmail, sendBookingExpiredEmail } from '@/lib/email';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 function getPendingBookingTtlMinutes() {
@@ -30,7 +30,7 @@ export async function expireStalePendingBookings(params: {
     });
 
     if (staleBookings.length === 0) {
-        return { expiredCount: 0, alertCount: 0, couponReleaseCount: 0 };
+        return { expiredCount: 0, alertCount: 0, guestExpiredEmailCount: 0, couponReleaseCount: 0 };
     }
 
     const bookingIds = staleBookings.map((booking) => booking.id);
@@ -59,6 +59,7 @@ export async function expireStalePendingBookings(params: {
     });
 
     let alertCount = 0;
+    let guestExpiredEmailCount = 0;
     if (params.sendAdminAlerts) {
         for (const booking of staleBookings) {
             await sendBookingStatusAlertEmail(booking, {
@@ -71,6 +72,32 @@ export async function expireStalePendingBookings(params: {
                 .catch((error) => {
                     console.error(`[Expire Stale Bookings] Failed status alert (${params.source}):`, error);
                 });
+
+            const guestEmailResult = await sendBookingExpiredEmail({
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                guestPhone: booking.guest.phone,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+                paymentMethod: booking.payment?.method || null,
+                paymentInstallments: booking.payment?.installments ?? null,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
+                funnelStage: booking.funnelStage,
+                lastErrorMessage: booking.lastErrorMessage,
+            }).catch((error) => ({ success: false, error }));
+
+            if (guestEmailResult?.success) {
+                guestExpiredEmailCount++;
+                await prisma.booking.update({
+                    where: { id: booking.id },
+                    data: { expiredEmailSentAt: new Date() },
+                });
+            }
 
             await sendAdminRecoveryAlertEmail({
                 guestName: booking.guest.name,
@@ -92,22 +119,10 @@ export async function expireStalePendingBookings(params: {
         }
     }
 
-    if (params.sendAdminAlerts && expired.count > 0) {
-        await prisma.booking.updateMany({
-            where: {
-                id: { in: bookingIds },
-                status: 'EXPIRED',
-            },
-            data: {
-                expiredEmailSentAt: new Date(),
-            },
-        });
-    }
-
     return {
         expiredCount: expired.count,
         alertCount,
+        guestExpiredEmailCount,
         couponReleaseCount: released.count,
     };
 }
-

@@ -577,7 +577,7 @@ export async function POST(request: Request) {
 
             if (!skipGuestEmail && !localCardSandbox) {
                 try {
-                    await sendBookingConfirmationEmail({
+                    const confirmationEmailResult = await sendBookingConfirmationEmail({
                         guestName: booking.guest.name,
                         guestEmail: booking.guest.email,
                         guestPhone: booking.guest.phone || null,
@@ -599,6 +599,19 @@ export async function POST(request: Request) {
                         bookingStatus: 'CONFIRMED',
                         paymentStatus: 'APPROVED',
                         bookingCreatedAt: booking.createdAt,
+                    });
+
+                    if (!confirmationEmailResult?.success) {
+                        throw new Error(
+                            confirmationEmailResult?.error instanceof Error
+                                ? confirmationEmailResult.error.message
+                                : String(confirmationEmailResult?.error || 'confirmation_email_failed')
+                        );
+                    }
+
+                    await prisma.booking.updateMany({
+                        where: { id: bookingId, confirmationEmailSentAt: null },
+                        data: { confirmationEmailSentAt: new Date() },
                     });
 
                     await sendBookingCreatedAlertEmail({

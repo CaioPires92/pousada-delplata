@@ -206,7 +206,19 @@ interface BookingEmailData {
     childrenAges?: string | number[] | null;
     bookingStatus?: string | null;
     paymentStatus?: string | null;
+    funnelStage?: string | null;
+    lastErrorMessage?: string | null;
     bookingCreatedAt?: Date;
+}
+
+function formatRecoveryStage(data: BookingEmailData) {
+    const stage = String(data.funnelStage || '').trim().toUpperCase();
+    if (stage === 'PAYMENT_ERROR') return 'Encontramos uma dificuldade na etapa de pagamento.';
+    if (stage === 'PAYMENT_REJECTED') return 'O pagamento não foi aprovado e a reserva ficou incompleta.';
+    if (stage === 'PAYMENT_PENDING') return 'O pagamento ficou pendente de confirmação.';
+    if (stage === 'PAYMENT_ATTEMPT_STARTED') return 'Você chegou à etapa de pagamento, mas não concluiu a reserva.';
+    if (stage === 'BOOKING_CREATED') return 'Seus dados foram recebidos, mas o pagamento ainda não foi concluído.';
+    return 'Você iniciou sua reserva, mas ela ainda não foi concluída.';
 }
 
 function isPartialPayment(data: BookingEmailData) {
@@ -510,6 +522,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     const guestsLabel = formatGuestCount(adults, children);
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
+    const recoveryStageMessage = formatRecoveryStage(data);
 
     const rawWhatsApp = String(process.env.HOTEL_WHATSAPP_LINK || HOTEL_WHATSAPP || '').replace(/\D/g, '');
     const normalizedWhatsApp = rawWhatsApp
@@ -557,7 +570,8 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     </div>
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
-        <p>Vimos que você iniciou sua reserva e parou no meio do caminho. Tivemos algum problema com o pagamento ou cartão? Queremos muito te receber e estamos à disposição para ajudar no que for preciso para finalizar com tranquilidade.</p>
+        <p>${recoveryStageMessage}</p>
+        <p>Queremos muito te receber e estamos à disposição para ajudar no que for preciso para finalizar com tranquilidade.</p>
 
         <div class="booking-details">
             <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
@@ -655,6 +669,7 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
     const paymentDetails = getPaymentReceiptDetails(paymentMethod, paymentInstallments);
     const guestsLabel = formatGuestCount(adults, children);
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
+    const recoveryStageMessage = formatRecoveryStage(data);
 
     return `
 <!DOCTYPE html>
@@ -682,6 +697,7 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
     </div>
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
+        <p>${recoveryStageMessage}</p>
         <p>O tempo da sua reserva esgotou, mas <strong>ainda queremos te receber!</strong> O quarto foi liberado no site, mas você pode nos chamar no WhatsApp para verificar se ainda há disponibilidade ou tentar novamente.</p>
 
         <div class="booking-details">
@@ -801,7 +817,7 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
             bcc: bccRecipients,
-            subject: `💬 Precisa de ajuda com sua reserva? - ${roomName}`,
+            subject: `💬 Continue sua reserva de onde parou - ${roomName}`,
             html: htmlContent,
         });
         return { success: true, messageId: info.messageId };
@@ -874,6 +890,7 @@ export async function sendContactEmail(data: ContactEmailData) {
         const info = await transporter.sendMail({
             from: `"Site Delplata" <${process.env.SMTP_USER}>`,
             to: toEmail,
+            bcc: bccRecipients,
             replyTo: data.email,
 
             subject: `Contato: ${data.subject || 'Mensagem do site'}`,
@@ -954,8 +971,8 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
 export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     const { guestName, guestEmail, guestPhone, roomName, totalPrice, checkIn, checkOut, adults, children } = data;
     
-    const checkInDate = new Date(checkIn).toLocaleDateString('pt-BR');
-    const checkOutDate = new Date(checkOut).toLocaleDateString('pt-BR');
+    const checkInDate = formatDatePtBrLong(checkIn);
+    const checkOutDate = formatDatePtBrLong(checkOut);
     
     // Calculate nights
     const diffTime = Math.abs(new Date(checkOut).getTime() - new Date(checkIn).getTime());

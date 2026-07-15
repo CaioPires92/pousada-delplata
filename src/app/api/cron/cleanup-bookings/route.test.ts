@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 import prisma from '@/lib/prisma';
+import { sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
 
 vi.mock('@/lib/email', () => ({
     sendAdminRecoveryAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingCreatedAlertEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingExpiredEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingPendingEmail: vi.fn().mockResolvedValue({ success: true }),
@@ -46,6 +48,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
 
     it('sends pending reminders after 15 minutes and expires after 30 minutes', async () => {
         (prisma.booking.findMany as any)
+            .mockResolvedValueOnce([])
             .mockResolvedValueOnce([
                 {
                     id: 'booking-pending-mail',
@@ -86,8 +89,15 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(res.status).toBe(200);
         expect(data.success).toBe(true);
         expect(data.couponReleaseCount).toBe(1);
-        expect(data.pendingEmailCount).toBeGreaterThanOrEqual(0);
-        expect(prisma.booking.updateMany).toHaveBeenCalledTimes(2);
+        expect(data.pendingEmailCount).toBe(1);
+        expect(data.expiredEmailCount).toBe(1);
+        expect(sendBookingPendingEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-pending-mail',
+        }));
+        expect(sendBookingExpiredEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-exp-1',
+        }));
+        expect(prisma.booking.updateMany).toHaveBeenCalledTimes(1);
         expect(prisma.couponRedemption.updateMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
@@ -98,5 +108,32 @@ describe('GET /api/cron/cleanup-bookings', () => {
                 }),
             })
         );
+    });
+
+    it('nao marca lembrete como enviado quando o SMTP falha', async () => {
+        (prisma.booking.findMany as any)
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([{
+                id: 'booking-email-failure',
+                guest: { name: 'A', email: 'a@example.com', phone: null },
+                roomType: { name: 'R1' },
+                checkIn: new Date('2026-02-10'),
+                checkOut: new Date('2026-02-11'),
+                totalPrice: 100,
+                payment: null,
+                funnelStage: 'PAYMENT_ERROR',
+                lastErrorMessage: 'card_rejected',
+            }])
+            .mockResolvedValueOnce([]);
+        vi.mocked(sendBookingPendingEmail).mockResolvedValueOnce({ success: false, error: 'smtp_failed' });
+
+        const res = await GET(new Request('http://localhost/api/cron/cleanup-bookings', {
+            headers: { authorization: 'Bearer secret' },
+        }));
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.pendingEmailCount).toBe(0);
+        expect(prisma.booking.update).not.toHaveBeenCalled();
     });
 });
