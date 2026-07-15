@@ -12,6 +12,7 @@ describe("HomeAvailabilityOffers", () => {
   });
 
   it("exibe somente preço e acomodação retornados pela disponibilidade", async () => {
+    const onLowestOfferChange = vi.fn();
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => [
@@ -26,7 +27,7 @@ describe("HomeAvailabilityOffers", () => {
       ],
     });
 
-    render(<HomeAvailabilityOffers />);
+    render(<HomeAvailabilityOffers onLowestOfferChange={onLowestOfferChange} />);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Apartamento Térreo" })).toBeInTheDocument();
@@ -42,6 +43,7 @@ describe("HomeAvailabilityOffers", () => {
       expect.stringContaining("/api/availability?"),
       expect.objectContaining({ cache: "no-store" }),
     );
+    expect(onLowestOfferChange).toHaveBeenCalledWith(expect.objectContaining({ totalPrice: 599, nights: 1 }));
   });
 
   it("não inventa preço quando a disponibilidade falha", async () => {

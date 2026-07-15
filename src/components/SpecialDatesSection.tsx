@@ -78,7 +78,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                             </h2>
                             <div className="h-px w-20 bg-secondary/70" />
                             <p className="max-w-[19rem] font-sans text-[1rem] leading-7 text-foreground/72">
-                                Planeje sua estadia nos próximos feriados e garanta momentos inesquecíveis em Serra Negra.
+                                Consulte datas de feriados e veja as acomodações disponíveis no motor de reservas.
                             </p>
                         </div>
 

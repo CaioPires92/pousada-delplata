@@ -26,6 +26,17 @@ type OfferWindow = {
   nights: number;
 };
 
+export type HomeOfferSummary = {
+  totalPrice: number;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+};
+
+type HomeAvailabilityOffersProps = {
+  onLowestOfferChange?: (summary: HomeOfferSummary | null) => void;
+};
+
 function formatBrl(value: number) {
   return value.toLocaleString("pt-BR", {
     style: "currency",
@@ -70,7 +81,7 @@ async function requestOffers(window: OfferWindow, signal: AbortSignal) {
   return { response, data };
 }
 
-export default function HomeAvailabilityOffers() {
+export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvailabilityOffersProps) {
   const initialWindow = useMemo(() => makeWindow(1), []);
   const [offerWindow, setOfferWindow] = useState(initialWindow);
   const [offers, setOffers] = useState<HomeOffer[] | null>(null);
@@ -93,6 +104,7 @@ export default function HomeAvailabilityOffers() {
         if (!result.response.ok || !Array.isArray(result.data)) {
           setOffers([]);
           setUnavailable(true);
+          onLowestOfferChange?.(null);
           return;
         }
 
@@ -103,16 +115,27 @@ export default function HomeAvailabilityOffers() {
         setOfferWindow(nextWindow);
         setOffers(validOffers);
         setUnavailable(validOffers.length === 0);
+        onLowestOfferChange?.(
+          validOffers[0]
+            ? {
+                totalPrice: Number(validOffers[0].totalPrice),
+                checkIn: nextWindow.checkIn,
+                checkOut: nextWindow.checkOut,
+                nights: nextWindow.nights,
+              }
+            : null,
+        );
       } catch (error) {
         if ((error as Error)?.name === "AbortError") return;
         setOffers([]);
         setUnavailable(true);
+        onLowestOfferChange?.(null);
       }
     }
 
     void loadOffers();
     return () => controller.abort();
-  }, [initialWindow]);
+  }, [initialWindow, onLowestOfferChange]);
 
   const resultUrl = `/reservar?${new URLSearchParams({
     checkIn: offerWindow.checkIn,

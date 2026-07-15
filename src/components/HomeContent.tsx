@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { motion } from "framer-motion";
 
@@ -15,8 +15,9 @@ import {
   trackClickReservarFinal,
   trackClickWhatsAppFinal,
 } from "@/lib/analytics";
+import { formatDateBRFromYmd } from "@/lib/date";
 import SocialProofBadges from "@/components/SocialProofBadges";
-import HomeAvailabilityOffers from "@/components/HomeAvailabilityOffers";
+import HomeAvailabilityOffers, { type HomeOfferSummary } from "@/components/HomeAvailabilityOffers";
 import SpecialDatesSection from "@/components/SpecialDatesSection";
 import {
   SPECIAL_DATES,
@@ -190,6 +191,10 @@ export default function HomeContent() {
   const WHATSAPP_MESSAGE = "Olá! Tenho uma dúvida sobre a hospedagem. Já consultei no site, pode me ajudar?";
   const WHATSAPP_URL = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
   const [activeGalleryPage, setActiveGalleryPage] = useState(0);
+  const [lowestOffer, setLowestOffer] = useState<HomeOfferSummary | null>(null);
+  const handleLowestOfferChange = useCallback((summary: HomeOfferSummary | null) => {
+    setLowestOffer(summary);
+  }, []);
   const enabledSpecialDates = useMemo(
     () => SPECIAL_DATES.filter((specialDate) => specialDate.enabled),
     []
@@ -250,6 +255,21 @@ export default function HomeContent() {
                 Piscinas, café da manhã e acomodações na ala principal, chalés e anexos.
               </motion.p>
 
+              {lowestOffer ? (
+                <motion.div variants={itemVariants} className="inline-flex w-fit items-end gap-3 border-l-2 border-[color:var(--brand-gold)] bg-black/20 px-4 py-3 text-white backdrop-blur-sm">
+                  <div>
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white/75">Total a partir de</p>
+                    <p className="mt-1 text-3xl font-bold leading-none">
+                      {lowestOffer.totalPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </p>
+                  </div>
+                  <p className="pb-0.5 text-xs leading-5 text-white/75">
+                    {formatDateBRFromYmd(lowestOffer.checkIn)} – {formatDateBRFromYmd(lowestOffer.checkOut)}
+                    <br />{lowestOffer.nights} {lowestOffer.nights === 1 ? "noite" : "noites"} · 2 adultos
+                  </p>
+                </motion.div>
+              ) : null}
+
               <motion.div variants={itemVariants} className="flex flex-wrap gap-3 pt-2">
                 <Button asChild className="h-12 rounded-none bg-[color:var(--brand-gold)] px-6 font-sans text-sm font-semibold text-[color:var(--brand-forest)] shadow-none hover:bg-[color:var(--brand-gold)]/90">
                   <Link href="/reservar" onClick={() => trackClickReservarHero("hero")}>
@@ -298,7 +318,7 @@ export default function HomeContent() {
         </div>
       </section>
 
-      <HomeAvailabilityOffers />
+      <HomeAvailabilityOffers onLowestOfferChange={handleLowestOfferChange} />
 
       {/* Experiências */}
       <section id="sobre" className="section-space-md bg-background">
@@ -452,7 +472,7 @@ export default function HomeContent() {
                 </Button>
               </div>
               <p className="text-sm font-medium text-white/70">
-                * Fins de semana e feriados costumam esgotar rápido.
+                Valores e disponibilidade são confirmados no motor de reservas.
               </p>
             </div>
           </motion.div>
