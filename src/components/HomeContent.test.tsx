@@ -31,24 +31,13 @@ vi.mock('./SpecialDatesSection', () => ({
   default: () => <div data-testid="special-dates" />,
 }));
 
-const wingSummaries = [
-  {
-    id: 'ala-principal' as const,
-    title: 'Ala Principal',
-    description: 'Acomodações da ala principal.',
-    highlights: ['Apartamentos térreo e superior', 'Até 4 hóspedes'],
-  },
-  {
-    id: 'ala-anexo' as const,
-    title: 'Ala Chalés e Anexos',
-    description: 'Chalés e apartamentos anexos.',
-    highlights: ['Chalés e apartamentos anexos', 'Até 4 hóspedes'],
-  },
-];
+vi.mock('./HomeAvailabilityOffers', () => ({
+  default: () => <div data-testid="home-availability-offers" />,
+}));
 
 describe('HomeContent', () => {
   it('apresenta uma proposta comercial baseada apenas em informações confirmadas', () => {
-    render(<HomeContent wingSummaries={wingSummaries} />);
+    render(<HomeContent />);
 
     expect(screen.getByRole('heading', {
       level: 1,
@@ -56,14 +45,11 @@ describe('HomeContent', () => {
     })).toBeInTheDocument();
     expect(screen.getByText(/Piscinas, café da manhã e acomodações na ala principal/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ver preços e disponibilidade/i })).toHaveAttribute('href', '/reservar');
+    expect(screen.getByText(/Consulte valores para sua estadia/i)).toBeInTheDocument();
+    expect(screen.getByTestId('home-availability-offers')).toBeInTheDocument();
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/ótimo custo-benefício/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/mais privacidade/i)).not.toBeInTheDocument();
   });
 
-  it('usa a capacidade recebida do cadastro, sem valor fixo na home', () => {
-    render(<HomeContent wingSummaries={wingSummaries} />);
-
-    expect(screen.getAllByText('Até 4 hóspedes')).toHaveLength(2);
-  });
 });

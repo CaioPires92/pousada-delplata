@@ -8,8 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
-import { ArrowLeft, ArrowRight, BedDouble, CalendarCheck2, Coffee, Trees, Users, Waves } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { ArrowLeft, ArrowRight, CalendarCheck2, Coffee, Trees, Waves } from "lucide-react";
 import {
   gaEvent,
   trackClickReservarHero,
@@ -17,11 +16,11 @@ import {
   trackClickWhatsAppFinal,
 } from "@/lib/analytics";
 import SocialProofBadges from "@/components/SocialProofBadges";
+import HomeAvailabilityOffers from "@/components/HomeAvailabilityOffers";
 import SpecialDatesSection from "@/components/SpecialDatesSection";
 import {
   SPECIAL_DATES,
 } from "@/constants/specialDates";
-import type { RoomWingSummary } from "@/lib/rooms";
 
 const siteImages = {
   hero: {
@@ -138,11 +137,7 @@ const siteImages = {
   ],
 } as const;
 
-interface HomeContentProps {
-  wingSummaries: RoomWingSummary[];
-}
-
-export default function HomeContent({ wingSummaries }: HomeContentProps) {
+export default function HomeContent() {
   /* Removed GSAP refs and effects to fix re-render flash */
   /* Using purely Framer Motion for stable SSR/Hydration */
 
@@ -167,14 +162,6 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
       },
     },
   };
-
-  const wings = wingSummaries.map((wing) => ({
-    ...wing,
-    image: wing.id === "ala-principal"
-      ? siteImages.accommodations.mainWing
-      : siteImages.accommodations.annexWing,
-    link: "/acomodacoes",
-  }));
 
   const experienceBenefits = [
     {
@@ -232,15 +219,15 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
         </div>
 
         <motion.div
-          className="container relative z-10 flex min-h-[88vh] flex-col justify-center pb-12 pt-28 sm:pb-14 lg:pb-16 lg:pt-32"
+          className="container relative z-10 flex min-h-[88vh] flex-col justify-center pb-8 pt-24 sm:pb-14 sm:pt-28 lg:pb-16 lg:pt-32"
           initial={false}
           animate="visible"
           variants={containerVariants}
         >
-          <div className="grid gap-8 lg:min-h-[64vh] lg:grid-cols-[minmax(0,620px)_1fr] lg:items-center">
+          <div className="grid gap-8 lg:min-h-[64vh] lg:grid-cols-[minmax(0,0.82fr)_minmax(540px,1.18fr)] lg:items-center xl:gap-12">
             <motion.div
               variants={containerVariants}
-              className="max-w-[34rem] space-y-6 pb-2 text-left sm:space-y-7"
+              className="max-w-[34rem] space-y-5 pb-2 text-left sm:space-y-7"
             >
               <motion.p
                 variants={itemVariants}
@@ -251,7 +238,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
 
               <motion.h1
                 variants={itemVariants}
-                className="font-hero-display max-w-[13ch] text-[clamp(2.75rem,5vw,4.5rem)] font-bold leading-[0.96] text-white"
+                className="font-hero-display max-w-[13ch] text-[clamp(2.4rem,5vw,4.5rem)] font-bold leading-[0.96] text-white"
               >
                 Pousada em Serra Negra para descansar em família
               </motion.h1>
@@ -269,111 +256,49 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
                     Ver preços e disponibilidade
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="h-12 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--forest-soft)] px-6 font-sans text-sm font-medium text-[color:var(--brand-white)] shadow-none transition-all duration-200 hover:-translate-y-px hover:border-[color:var(--brand-white)]/70 hover:bg-[color:var(--brand-forest)] hover:text-[color:var(--brand-white)]">
+                <Button asChild variant="outline" className="hidden h-12 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--forest-soft)] px-6 font-sans text-sm font-medium text-[color:var(--brand-white)] shadow-none transition-all duration-200 hover:-translate-y-px hover:border-[color:var(--brand-white)]/70 hover:bg-[color:var(--brand-forest)] hover:text-[color:var(--brand-white)] sm:inline-flex">
                   <Link href="/acomodacoes">
                     Conheça a pousada
                   </Link>
                 </Button>
               </motion.div>
 
-              <motion.div variants={itemVariants}>
+              <motion.div variants={itemVariants} className="hidden sm:block">
                 <SocialProofBadges variant="hero" showTotal={false} className="mx-0" />
               </motion.div>
+            </motion.div>
 
+            <motion.div variants={itemVariants} className="lg:justify-self-end">
+              <div className="border border-white/20 bg-[color:var(--brand-cream)]/95 p-3 shadow-[0_28px_70px_rgba(0,0,0,0.28)] backdrop-blur-md sm:p-5">
+                <div className="mb-4 flex items-center justify-between gap-4 px-1">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-gold)]">Reserva online</p>
+                    <h2 className="mt-1 text-xl font-semibold text-primary">Consulte valores para sua estadia</h2>
+                  </div>
+                  <CalendarCheck2 className="hidden h-8 w-8 text-primary/65 sm:block" />
+                </div>
+                <SearchWidget
+                  uiPreset="hero"
+                  submitLabel="Ver preços e disponibilidade"
+                  submitLabelMobile="Ver preços"
+                  collapsible={false}
+                />
+                <p className="px-1 pt-3 text-xs leading-5 text-primary/65">
+                  O valor é calculado conforme datas, ocupação e acomodação disponível.
+                </p>
+              </div>
             </motion.div>
           </div>
         </motion.div>
       </section>
 
-      {/* Avaliações e Motor de Reservas Integrados */}
-      <section className="section-space-overlap relative bg-[color:var(--brand-cream)]">
-        <div className="container">
-          <div className="relative z-30 mx-auto mb-12 max-w-6xl -mt-28 lg:-mt-24 lg:mb-16">
-            <SearchWidget
-              uiPreset="hero"
-              submitLabel="Ver disponibilidade"
-              submitLabelMobile="Buscar"
-              collapsible={false}
-            />
-          </div>
-          <SocialProofBadges variant="light" className="max-w-5xl mx-auto" />
+      <section className="border-b border-primary/10 bg-white py-8 md:py-10">
+        <div className="container mx-auto max-w-[1440px] px-4">
+          <SocialProofBadges variant="light" className="mx-auto max-w-5xl" />
         </div>
       </section>
 
-      {/* Accommodations Section */}
-      <section className="section-space-md bg-[color:var(--brand-cream)]">
-        <div className="container">
-          <motion.div
-            initial={false}
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-            className="mb-12 text-center md:mb-16"
-          >
-            <p className="mb-4 font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)] md:text-[0.8rem]">
-              Hospedagem
-            </p>
-            <motion.h2 variants={itemVariants} className="font-hero-display text-[2.4rem] leading-tight text-[#1d1b19] md:text-[3.2rem]">
-              Nossas Acomodações
-            </motion.h2>
-          </motion.div>
-
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 md:grid-cols-2 lg:gap-10">
-            {wings.map((wing, index) => (
-              <motion.div
-                key={wing.id}
-                className="h-full"
-                initial={false}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-              >
-                <Link href={wing.link} className="block h-full group">
-                  <Card className="h-full overflow-hidden rounded-none border border-primary/10 bg-white shadow-none transition-colors duration-300 hover:border-primary/20">
-                    <div className="relative aspect-[4/3] w-full overflow-hidden">
-                      <Image
-                        src={wing.image.src}
-                        alt={wing.image.alt}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 560px"
-                        quality={80}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="px-8 pb-8 pt-7">
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="font-display text-[2rem] font-medium leading-tight text-[#1d1b19]">
-                            {wing.title}
-                          </h3>
-                          <p className="mt-3 font-sans text-[1.05rem] leading-relaxed text-[#1d1b19]/82">
-                            {wing.description}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-[#1d1b19]/10 pt-5">
-                          <div className="inline-flex items-center gap-2 font-sans text-[0.9rem] text-[#1d1b19]/80">
-                            <BedDouble className="h-4 w-4 text-[#b58b58]" strokeWidth={2} />
-                            <span>{wing.highlights[0]}</span>
-                          </div>
-                          <div className="inline-flex items-center gap-2 font-sans text-[0.9rem] text-[#1d1b19]/80">
-                            <Users className="h-4 w-4 text-[#b58b58]" strokeWidth={2} />
-                            <span>{wing.highlights[1]}</span>
-                          </div>
-                        </div>
-                        <div className="pt-3">
-                          <span className="inline-flex h-12 w-full items-center justify-center border border-primary/15 bg-[color:var(--brand-cream)] px-5 font-sans text-[0.78rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)] transition-colors duration-300 group-hover:border-primary/25 group-hover:text-primary">
-                            Ver detalhes
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <HomeAvailabilityOffers />
 
       {/* Experiências */}
       <section id="sobre" className="section-space-md bg-background">
