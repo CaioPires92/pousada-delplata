@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import SearchWidget from '@/components/SearchWidget';
 import AvailabilityBar from './components/AvailabilityBar';
 import ReservationPageFallback from './components/ReservationPageFallback';
+import ReservationFaq from './components/ReservationFaq';
 import { SiGoogle } from 'react-icons/si';
 
 import {
@@ -2402,6 +2403,7 @@ function ReservarContent() {
                     </div>
                 )}
             </div>
+            <ReservationFaq />
             {roomGallery ? (
                 <div
                     className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm p-4 flex items-center justify-center"
