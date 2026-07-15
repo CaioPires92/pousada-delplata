@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ReservarPage, { ReservationPageFallback } from './page';
+import ReservarPage from './page';
+import ReservationPageFallback from './components/ReservationPageFallback';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 
 const searchParamState = {
