@@ -294,7 +294,6 @@ function ReservarContent() {
     const [processing, setProcessing] = useState(false);
     const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
-    const [paymentTotalAmount, setPaymentTotalAmount] = useState<number | null>(null);
     const [paymentMode, setPaymentMode] = useState<PaymentMode>('FULL');
     const [partialPaymentEvaluation, setPartialPaymentEvaluation] = useState<PartialPaymentEvaluation | null>(null);
     const [paymentError, setPaymentError] = useState<string>('');
@@ -975,7 +974,6 @@ function ReservarContent() {
             }
 
             setPaymentBookingId(booking.id);
-            setPaymentTotalAmount(parsedAmount);
             setPartialPaymentEvaluation(nextPartialEvaluation);
             setPaymentMode(nextPaymentMode);
             setPaymentAmount(nextPaymentMode === 'PARTIAL' && Number.isFinite(nextPaymentAmount) ? nextPaymentAmount : parsedAmount);
