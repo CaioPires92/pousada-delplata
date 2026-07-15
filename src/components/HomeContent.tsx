@@ -8,10 +8,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import SearchWidget from "@/components/SearchWidget";
-import { ArrowLeft, ArrowRight, BedDouble, Coffee, ShieldCheck, Trees, Users, Waves } from "lucide-react";
+import { ArrowLeft, ArrowRight, BedDouble, CalendarCheck2, Coffee, Trees, Users, Waves } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   gaEvent,
+  trackClickReservarHero,
   trackClickReservarFinal,
   trackClickWhatsAppFinal,
 } from "@/lib/analytics";
@@ -192,9 +193,9 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
       icon: Trees,
     },
     {
-      title: "Melhor tarifa garantida",
-      description: "Reserva direta com atendimento próximo e condições mais claras.",
-      icon: ShieldCheck,
+      title: "Reserva pelo site",
+      description: "Consulte disponibilidade e valores antes de escolher sua acomodação.",
+      icon: CalendarCheck2,
     },
   ] as const;
 
@@ -232,7 +233,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
 
         <motion.div
           className="container relative z-10 flex min-h-[88vh] flex-col justify-center pb-12 pt-28 sm:pb-14 lg:pb-16 lg:pt-32"
-          initial="hidden"
+          initial={false}
           animate="visible"
           variants={containerVariants}
         >
@@ -252,20 +253,20 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
                 variants={itemVariants}
                 className="font-hero-display max-w-[9ch] text-[3rem] font-bold leading-[0.94] text-white sm:text-[4.2rem] lg:text-[5rem]"
               >
-                Seu refúgio em Serra Negra
+                Pousada em Serra Negra para descansar em família
               </motion.h1>
 
               <motion.p
                 variants={itemVariants}
                 className="max-w-[30ch] text-base leading-8 text-[color:var(--brand-white)] [text-shadow:0_1px_16px_rgba(0,0,0,0.38)] sm:text-lg"
               >
-                Silêncio, natureza e conforto para um fim de semana sem pressa.
+                Piscinas, café da manhã e acomodações na ala principal, chalés e anexos.
               </motion.p>
 
               <motion.div variants={itemVariants} className="flex flex-wrap gap-3 pt-2">
                 <Button asChild className="h-12 rounded-none bg-[color:var(--brand-gold)] px-6 font-sans text-sm font-semibold text-[color:var(--brand-forest)] shadow-none hover:bg-[color:var(--brand-gold)]/90">
-                  <Link href="/reservar">
-                    Ver disponibilidade
+                  <Link href="/reservar" onClick={() => trackClickReservarHero("hero")}>
+                    Ver preços e disponibilidade
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-12 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--forest-soft)] px-6 font-sans text-sm font-medium text-[color:var(--brand-white)] shadow-none transition-all duration-200 hover:-translate-y-px hover:border-[color:var(--brand-white)]/70 hover:bg-[color:var(--brand-forest)] hover:text-[color:var(--brand-white)]">
@@ -273,6 +274,10 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
                     Conheça a pousada
                   </Link>
                 </Button>
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
+                <SocialProofBadges variant="hero" showTotal={false} className="mx-0" />
               </motion.div>
 
             </motion.div>
@@ -299,7 +304,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
       <section className="section-space-md bg-[color:var(--brand-cream)]">
         <div className="container">
           <motion.div
-            initial="hidden"
+            initial={false}
             whileInView="visible"
             viewport={{ once: true }}
             variants={containerVariants}
@@ -318,7 +323,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
               <motion.div
                 key={wing.id}
                 className="h-full"
-                initial={{ opacity: 0, y: 50 }}
+                initial={false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: index * 0.2 }}
@@ -451,7 +456,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
             </div>
           </div>
           <div key={currentGalleryPage.title} className="mx-auto grid max-w-[82rem] grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
-            {currentGalleryPage.images.map((img, i) => (
+            {currentGalleryPage.images.map((img) => (
               <div key={img.src} className="relative aspect-[4/3] overflow-hidden border border-primary/10">
                 <Image
                   src={img.src}
@@ -488,7 +493,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
         </div>
         <div className="container relative z-10 text-center text-white">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={false}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
