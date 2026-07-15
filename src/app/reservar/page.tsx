@@ -287,6 +287,7 @@ function ReservarContent() {
     const [, setPromoAppliedInResults] = useState(false);
     const [loading, setLoading] = useState(true); // Start with true to show initial loading
     const [error, setError] = useState('');
+    const [availabilityRetryNonce, setAvailabilityRetryNonce] = useState(0);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
@@ -656,8 +657,14 @@ function ReservarContent() {
             if (err && err.name === 'AbortError') {
             } else {
                 if (mountedRef.current) {
-                    setError(err instanceof Error ? err.message : 'Erro ao carregar quartos disponíveis. Tente novamente.');
+                    const message = err instanceof Error ? err.message : 'Erro ao carregar quartos disponíveis. Tente novamente.';
+                    setError(message);
                     hasLoadedOnce.current = true;
+                    trackReservationFunnel({
+                        step: 'availability_loaded',
+                        status: 'error',
+                        message,
+                    });
                 }
             }
         } finally {
@@ -676,17 +683,25 @@ function ReservarContent() {
             mountedRef.current = false;
             controller.abort();
         };
-    }, [adults, checkIn, checkOut, children, childrenAgesKey, promoFromQuery, isInvalidAdults, isOverCapacity]);
+    }, [adults, availabilityRetryNonce, checkIn, checkOut, children, childrenAgesKey, promoFromQuery, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
-        if (!Array.isArray(availableRooms) || availableRooms.length === 0) return;
-        trackViewItemList(availableRooms);
+        if (!Array.isArray(availableRooms)) return;
+        if (availableRooms.length > 0) trackViewItemList(availableRooms);
         trackReservationFunnel({
             step: 'availability_loaded',
             status: 'success',
             value: availableRooms.length,
         });
     }, [availableRooms]);
+
+    const retryAvailability = () => {
+        setError('');
+        setAvailableRooms(null);
+        setLoading(true);
+        lastKeyRef.current = '';
+        setAvailabilityRetryNonce((current) => current + 1);
+    };
 
     const releaseCouponReservation = async (reservationId?: string) => {
         if (!reservationId) return;
@@ -1414,7 +1429,7 @@ function ReservarContent() {
                         Atualize a busca ou tente novamente em instantes. Se preferir, fale com a pousada para confirmar a disponibilidade.
                     </p>
                     <div className="flex flex-col gap-3 sm:flex-row">
-                        <Button onClick={() => router.push('/reservar')} variant="destructive">Tentar Novamente</Button>
+                        <Button onClick={retryAvailability} variant="destructive">Tentar novamente</Button>
                         <Button variant="outline" asChild className="rounded-none">
                             <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer">
                                 Falar com a pousada

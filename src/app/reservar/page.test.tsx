@@ -118,6 +118,44 @@ describe('ReservarPage', () => {
     });
   });
 
+  it('repete a mesma busca após erro sem perder os parâmetros', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({}),
+        headers: { get: vi.fn(() => null) },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{
+          id: 'room-retry',
+          name: 'Acomodação após retry',
+          description: 'Descrição cadastrada',
+          capacity: 2,
+          amenities: 'WiFi',
+          totalPrice: 500,
+          photos: [],
+        }],
+        headers: { get: vi.fn(() => null) },
+      });
+
+    render(<ReservarPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Erro ao carregar quartos disponíveis/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Tentar novamente/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Acomodação após retry')).toBeInTheDocument();
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(String(mockFetch.mock.calls[0][0])).toContain('checkIn=2026-01-01');
+    expect(String(mockFetch.mock.calls[1][0])).toContain('checkIn=2026-01-01');
+  });
+
   // NEW TESTS FROM PLAN
 
   it('should display skeleton loading UI while fetching availability', async () => {
