@@ -3,6 +3,7 @@ import Script from "next/script";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import MobileBookingBar from "@/components/MobileBookingBar";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 import {
@@ -86,6 +87,7 @@ export default function RootLayout({
         <Header />
         {children}
         <Footer />
+        <MobileBookingBar />
         <WhatsAppFloatingButton />
         <ScrollToTopButton />
       </body>

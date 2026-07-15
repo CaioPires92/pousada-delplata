@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { trackClickWhatsAppFloating } from '@/lib/analytics';
@@ -19,6 +20,7 @@ const SCROLL_SHOW_THRESHOLD = 0.25;
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
 
 export default function WhatsAppFloatingButton() {
+    const pathname = usePathname();
     const [showByScroll, setShowByScroll] = useState(false);
     const [showByMotorInteraction, setShowByMotorInteraction] = useState(false);
 
@@ -46,8 +48,10 @@ export default function WhatsAppFloatingButton() {
     const shouldShow = showByScroll || showByMotorInteraction;
     if (!shouldShow) return null;
 
+    const hasMobileBookingBar = !pathname.startsWith('/admin') && !pathname.startsWith('/reservar');
+
     return (
-        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50">
+        <div className={`fixed right-4 z-50 md:bottom-6 md:right-6 ${hasMobileBookingBar ? 'bottom-20' : 'bottom-4'}`}>
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <div className="flex items-center gap-2">
