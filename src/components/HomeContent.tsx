@@ -179,17 +179,17 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
   const experienceBenefits = [
     {
       title: "Piscina",
-      description: "Piscina para adultos e crianças, com conforto para toda a família.",
+      description: "Piscinas para adultos e crianças nas áreas de lazer da pousada.",
       icon: Waves,
     },
     {
       title: "Café da manhã diário",
-      description: "Completo, fresco e servido com carinho todos os dias.",
+      description: "Café da manhã servido diariamente durante a hospedagem.",
       icon: Coffee,
     },
     {
       title: "Ambiente familiar",
-      description: "Uma estadia acolhedora para relaxar e aproveitar juntos.",
+      description: "Ambiente destinado a estadias de casais e famílias.",
       icon: Trees,
     },
     {
@@ -251,7 +251,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
 
               <motion.h1
                 variants={itemVariants}
-                className="font-hero-display max-w-[9ch] text-[3rem] font-bold leading-[0.94] text-white sm:text-[4.2rem] lg:text-[5rem]"
+                className="font-hero-display max-w-[13ch] text-[clamp(2.75rem,5vw,4.5rem)] font-bold leading-[0.96] text-white"
               >
                 Pousada em Serra Negra para descansar em família
               </motion.h1>
@@ -504,7 +504,7 @@ export default function HomeContent({ wingSummaries }: HomeContentProps) {
                 Planeje um fim de semana tranquilo na serra
               </h2>
               <p className="text-lg leading-8 text-white/88 md:text-xl">
-                Consulte a disponibilidade e escolha a acomodação ideal para descansar com calma, natureza e conforto.
+                Consulte a disponibilidade e escolha uma acomodação para sua estadia.
               </p>
             </div>
             

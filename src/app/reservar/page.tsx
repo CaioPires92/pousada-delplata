@@ -166,7 +166,7 @@ function RoomListSkeleton() {
 }
 
 const RESERVATION_BENEFITS = [
-    'Café da manhã incluso',
+    'Café da manhã diário',
     'Valor total exibido antes do pagamento',
     'Pagamento via Pix ou cartão',
     'Atendimento direto da pousada',
@@ -1462,7 +1462,7 @@ function ReservarContent() {
 
     return (
         <main className="min-h-screen pt-28 pb-12 bg-muted/30">
-            <div className="container mx-auto px-4">
+            <div className="container mx-auto box-border w-full max-w-full px-4">
                 <AvailabilityBar
                     checkIn={checkIn!}
                     checkOut={checkOut!}
@@ -1509,7 +1509,6 @@ function ReservarContent() {
 
                 {!selectedRoom ? (
                     <div className="space-y-6">
-                        <h2 className="font-sans pl-1 text-2xl font-semibold text-primary">Escolha sua Acomodação</h2>
                         {loading || availableRooms === null ? (
                             <div className="space-y-6">
                                 <div className="text-center">
@@ -1638,7 +1637,7 @@ function ReservarContent() {
                                                     <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-3 py-3 md:grid-cols-3 md:px-4">
                                                         <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
                                                             <Coffee className="h-4.5 w-4.5 shrink-0 text-primary/85" />
-                                                            <span className="font-medium leading-5">Café da manhã incluso</span>
+                                                            <span className="font-medium leading-5">Café da manhã diário</span>
                                                         </div>
                                                         <div className="flex min-w-0 items-center gap-2 text-xs text-primary md:text-sm">
                                                             <BadgeCheck className="h-4.5 w-4.5 shrink-0 text-primary/85" />
@@ -2046,8 +2045,8 @@ function ReservarContent() {
                         </Card>
                     </div>
                 ) : (
-                    <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="lg:hidden sticky top-20 z-30">
+                    <div className="grid min-w-0 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 lg:grid-cols-3">
+                        <div className="sticky top-20 z-30 min-w-0 lg:hidden">
                             <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3">
                                 <button
                                     type="button"
@@ -2093,12 +2092,12 @@ function ReservarContent() {
                             </div>
                         </div>
 
-                        <div className="lg:col-span-2 space-y-6">
+                        <div className="min-w-0 space-y-6 lg:col-span-2">
                             <Button variant="ghost" onClick={() => { clearCouponState(true); setSelectedRoom(null); }} className="pl-0 hover:pl-2 transition-all gap-2 text-muted-foreground">
                                 <ArrowLeft className="w-4 h-4" /> Voltar para seleção de quartos
                             </Button>
 
-                            <Card id="guest-form" className="rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
+                            <Card id="guest-form" className="min-w-0 overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
                                 <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] pb-6">
                                     <div className="flex items-center gap-3">
                                         <div className="border border-primary/10 bg-[color:var(--brand-white)] p-2 text-primary">
@@ -2251,13 +2250,13 @@ function ReservarContent() {
                                         </Button>
 
                                         <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> Ambiente seguro e criptografado
+                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> Pagamento processado pelo Mercado Pago
                                         </p>
 
                                         <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4 sm:grid-cols-3">
                                             <div className="flex items-center gap-2 text-sm text-primary">
                                                 <Check className="h-4 w-4" />
-                                                <span>Café da manhã incluso</span>
+                                                <span>Café da manhã diário</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-sm text-primary">
                                                 <Check className="h-4 w-4" />
@@ -2307,7 +2306,7 @@ function ReservarContent() {
                                     <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3 sm:grid-cols-2">
                                         <div className="flex items-center gap-2 text-sm text-primary">
                                             <Check className="h-4 w-4" />
-                                            <span>Café da manhã incluso</span>
+                                            <span>Café da manhã diário</span>
                                         </div>
                                         <div className="flex items-center gap-2 text-sm text-primary">
                                             <Check className="h-4 w-4" />
@@ -2391,7 +2390,7 @@ function ReservarContent() {
 
                                     <div className="space-y-2 border-t border-primary/10 pt-4 text-xs text-foreground/72">
                                         <p>Pagamento com Pix ou cartão.</p>
-                                        <p>Ambiente seguro e criptografado via Mercado Pago.</p>
+                                        <p>Dados de pagamento processados pelo Mercado Pago.</p>
                                     </div>
 
                                     <Button variant="outline" className="w-full rounded-none border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>

@@ -96,6 +96,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Apartamento Térreo')).toBeInTheDocument();
       expect(screen.getByText('Apartamento Anexo')).toBeInTheDocument();
     });
+    expect(screen.getAllByRole('heading', { name: /Escolha sua Acomodação/i })).toHaveLength(1);
 
     const terreoImg = screen.getByAltText('Apartamento Térreo') as HTMLImageElement;
     expect(terreoImg.getAttribute('src')).toBe('/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0001-1200.webp');

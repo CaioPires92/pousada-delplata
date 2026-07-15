@@ -30,13 +30,13 @@ describe("rooms helpers", () => {
       {
         id: "ala-principal",
         title: "Ala Principal",
-        description: "Praticidade e ótimo custo-benefício. Perfeito para famílias e casais.",
+        description: "Apartamentos localizados na ala principal da pousada.",
         highlights: ["Apartamentos térreo e superior", "Até 4 hóspedes"],
       },
       {
         id: "ala-anexo",
         title: "Ala Chalés e Anexos",
-        description: "Mais privacidade em meio à natureza. Espaço ideal para relaxar.",
+        description: "Chalés e apartamentos localizados na ala de anexos.",
         highlights: ["Chalés e apartamentos anexos", "Até 4 hóspedes"],
       },
     ]);

@@ -57,6 +57,8 @@ describe('HomeContent', () => {
     expect(screen.getByText(/Piscinas, café da manhã e acomodações na ala principal/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ver preços e disponibilidade/i })).toHaveAttribute('href', '/reservar');
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/ótimo custo-benefício/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/mais privacidade/i)).not.toBeInTheDocument();
   });
 
   it('usa a capacidade recebida do cadastro, sem valor fixo na home', () => {

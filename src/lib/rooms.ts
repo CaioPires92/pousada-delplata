@@ -41,7 +41,7 @@ export function buildWingSummaries(rooms: RoomLike[]): RoomWingSummary[] {
     {
       id: "ala-principal",
       title: "Ala Principal",
-      description: "Praticidade e ótimo custo-benefício. Perfeito para famílias e casais.",
+      description: "Apartamentos localizados na ala principal da pousada.",
       highlights: [
         "Apartamentos térreo e superior",
         mainWingMaxGuests > 0 ? `Até ${mainWingMaxGuests} hóspedes` : "Consulte capacidade",
@@ -50,7 +50,7 @@ export function buildWingSummaries(rooms: RoomLike[]): RoomWingSummary[] {
     {
       id: "ala-anexo",
       title: "Ala Chalés e Anexos",
-      description: "Mais privacidade em meio à natureza. Espaço ideal para relaxar.",
+      description: "Chalés e apartamentos localizados na ala de anexos.",
       highlights: [
         "Chalés e apartamentos anexos",
         annexWingMaxGuests > 0 ? `Até ${annexWingMaxGuests} hóspedes` : "Consulte capacidade",
