@@ -6,6 +6,7 @@ Atualizado em 15/07/2026 na branch `feat/conversao-reservas-diretas`.
 
 - Funil de analytics: busca, visualização, seleção, início do checkout, informação de pagamento, resultado, compra e erros.
 - Eventos padrão do GA4 mantidos junto dos eventos personalizados do funil.
+- Core Web Vitals enviados ao GA4 com nome, valor e classificação, sem dados pessoais.
 - UTMs e identificadores de clique permitidos preservados durante a sessão e ao avançar pela busca.
 - Home com produto, localização, piscina, café da manhã, tipos de acomodação, avaliações e CTA comercial.
 - CTA móvel persistente sem cobrir o rodapé ou o botão de WhatsApp.

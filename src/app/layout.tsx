@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import MobileBookingBar from "@/components/MobileBookingBar";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
+import WebVitalsReporter from "@/components/WebVitalsReporter";
 import {
   buildLodgingBusinessSchema,
   buildPageMetadata,
@@ -70,6 +71,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <CampaignAttribution />
         </Suspense>
+        <WebVitalsReporter />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
