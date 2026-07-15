@@ -17,7 +17,7 @@
         "crm:evolution:qr": "node --env-file=.env scripts/crm/integration/evolution-client.mjs wait-for-qr",
         "crm:evolution:webhook": "node --env-file=.env scripts/crm/integration/evolution-client.mjs setup-webhook",
         "build": "npm run prisma:generate && next build --webpack",
-        "start": "next start --webpack",
+    "start": "next start",
         "lint": "eslint",
         "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
         "test": "vitest run",
