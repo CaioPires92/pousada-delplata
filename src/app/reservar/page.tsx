@@ -42,6 +42,7 @@ import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
+import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
  
 
 interface Room {
@@ -534,18 +535,21 @@ function ReservarContent() {
     const getWhatsAppUrl = (context?: 'error_form' | 'error_payment') => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
         const checkOutStr = checkOut ? formatDate(checkOut) : 'DATA INDEFINIDA';
-        const contextLine = context === 'error_form'
-            ? 'Tive um problema ao continuar minha reserva no preenchimento dos dados.'
-            : context === 'error_payment'
-                ? 'Tive um problema ao finalizar o pagamento da reserva.'
-                : 'Gostaria de cotar hospedagem.';
-        const bookingLine = paymentBookingId ? `Reserva: ${paymentBookingId}\n` : '';
-        const message = `Olá! ${contextLine}\n` +
-            bookingLine +
-            `Hospedagem para *${numAdults} adultos* e *${numChildren} crianças*.\n` +
-            `Datas: ${checkInStr} a ${checkOutStr}.`;
-        const whatsappPhone = '5519999654866';
-        return `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
+        return buildBookingWhatsAppUrl({
+            phone: process.env.NEXT_PUBLIC_HOTEL_WHATSAPP_LINK
+                || process.env.NEXT_PUBLIC_HOTEL_WHATSAPP,
+            context: context || 'quote',
+            bookingId: paymentBookingId,
+            guestName: guest.name,
+            roomName: selectedRoom?.name,
+            amountLabel: context === 'error_payment' && Number(paymentAmount || 0) > 0
+                ? formatCurrencyBRL(Number(paymentAmount))
+                : null,
+            adults: numAdults,
+            children: numChildren,
+            checkInLabel: checkInStr,
+            checkOutLabel: checkOutStr,
+        });
     };
 
     const notifyPaymentDifficulty = useCallback((payload: {
