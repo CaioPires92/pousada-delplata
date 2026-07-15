@@ -45,13 +45,15 @@ vi.mock('@/lib/ga4-measurement', () => ({
 }));
 
 import prisma from '@/lib/prisma';
-import { sendDifficultyAlertEmail } from '@/lib/email';
+import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
+import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import { POST } from './route';
 
 describe('POST /api/mercadopago/payment', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         process.env.MP_ACCESS_TOKEN = 'TEST-test-token';
+        delete process.env.ENABLE_TEST_PAYMENTS;
         delete process.env.MP_TEST_PAYER_EMAIL;
 
         (prisma.booking.findUnique as any).mockResolvedValue({
@@ -70,6 +72,83 @@ describe('POST /api/mercadopago/payment', () => {
             funnelStage: 'PAYMENT_ATTEMPT_STARTED',
         });
         (prisma.partialPaymentSettings.findUnique as any).mockResolvedValue(null);
+    });
+
+    it('approves card payments locally when the isolated sandbox is enabled', async () => {
+        process.env.ENABLE_TEST_PAYMENTS = 'true';
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'visa',
+                payment_type_id: 'credit_card',
+                installments: 1,
+                payer: { email: 'guest@example.com' },
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.status).toBe('approved');
+        expect(data.live_mode).toBe(false);
+        expect(data.sandbox).toBe(true);
+        expect(mockCreate).not.toHaveBeenCalled();
+        expect(sendBookingConfirmationEmail).not.toHaveBeenCalled();
+        expect(sendBookingCreatedAlertEmail).not.toHaveBeenCalled();
+        expect(sendGa4PurchaseServerEvent).not.toHaveBeenCalled();
+        expect(prisma.payment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({
+                status: 'APPROVED',
+                provider: 'MERCADOPAGO_SANDBOX',
+                method: 'CREDIT_CARD',
+                cardBrand: 'VISA',
+            }),
+        }));
+        expect(prisma.booking.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                status: 'CONFIRMED',
+                funnelStage: 'BOOKING_CONFIRMED',
+            }),
+        }));
+    });
+
+    it('always calls Mercado Pago when production credentials are configured', async () => {
+        process.env.ENABLE_TEST_PAYMENTS = 'true';
+        process.env.MP_ACCESS_TOKEN = 'APP_USR-production-token';
+        mockCreate.mockResolvedValue({
+            id: 'mp-production-1',
+            status: 'approved',
+        });
+
+        const req = new Request('http://localhost/api/mercadopago/payment', {
+            method: 'POST',
+            body: JSON.stringify({
+                bookingId: 'booking-1',
+                transaction_amount: 100,
+                payment_method_id: 'visa',
+                payment_type_id: 'credit_card',
+                installments: 1,
+                payer: { email: 'guest@example.com' },
+                skipGuestEmail: true,
+            }),
+        });
+
+        const res = await POST(req);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.sandbox).toBeUndefined();
+        expect(mockCreate).toHaveBeenCalledOnce();
+        expect(prisma.payment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({
+                provider: 'MERCADOPAGO',
+                providerId: 'mp-production-1',
+            }),
+        }));
     });
 
     it('returns 400 with PIX_NOT_ENABLED when MP account has no PIX key for QR', async () => {

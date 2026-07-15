@@ -143,6 +143,18 @@ function isMercadoPagoTestMode(accessToken: string) {
     return accessToken.startsWith('TEST-');
 }
 
+function isLocalCardSandboxEnabled(params: {
+    accessToken: string;
+    pixPayment: boolean;
+}) {
+    return (
+        process.env.NODE_ENV !== 'production'
+        && String(process.env.ENABLE_TEST_PAYMENTS || '').trim().toLowerCase() === 'true'
+        && isMercadoPagoTestMode(params.accessToken)
+        && !params.pixPayment
+    );
+}
+
 function isMercadoPagoTestUserEmail(email: unknown) {
     return String(email || '').trim().toLowerCase().endsWith('@testuser.com');
 }
@@ -461,21 +473,44 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Valor divergente da reserva' }, { status: 400 });
         }
 
-        const client = new MercadoPagoConfig({ accessToken });
-        const payment = new Payment(client);
-
-        const result = await payment.create({
-            body: {
-                ...formData,
-                payer: {
-                    ...(formData?.payer || {}),
-                    email: resolvedPayerEmail,
-                },
-                transaction_amount: requestedAmount,
-                description: description || `Reserva ${bookingId}`,
-                external_reference: bookingId,
-            },
+        const localCardSandbox = isLocalCardSandboxEnabled({
+            accessToken,
+            pixPayment,
         });
+        const result: any = localCardSandbox
+            ? {
+                  id: `LOCAL_SANDBOX_${bookingId}_${Date.now()}`,
+                  status: 'approved',
+                  status_detail: 'accredited',
+                  payment_method_id: paymentMethodId,
+                  payment_type_id: paymentTypeId || 'credit_card',
+                  transaction_amount: requestedAmount,
+                  external_reference: bookingId,
+                  live_mode: false,
+                  sandbox: true,
+              }
+            : await new Payment(new MercadoPagoConfig({ accessToken })).create({
+                  body: {
+                      ...formData,
+                      payer: {
+                          ...(formData?.payer || {}),
+                          email: resolvedPayerEmail,
+                      },
+                      transaction_amount: requestedAmount,
+                      description: description || `Reserva ${bookingId}`,
+                      external_reference: bookingId,
+                  },
+              });
+
+        if (localCardSandbox) {
+            opsLog('info', 'LOCAL_CARD_SANDBOX_APPROVED', {
+                bookingId,
+                requestedAmount,
+                paymentMethodId,
+                paymentTypeId,
+                installments: normalizedInstallments,
+            });
+        }
 
         const normalizedStatus = String(result.status || 'PENDING').toUpperCase();
 
@@ -490,7 +525,7 @@ export async function POST(request: Request) {
                     balanceDueAt: paymentPlan.balanceDueAt,
                     balanceDueDate: paymentPlan.balanceDueDate,
                     status: normalizedStatus,
-                    provider: 'MERCADOPAGO',
+                    provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
                     providerId: String(result.id || ''),
                     method: normalizedPaymentMethod,
                     cardBrand: normalizedCardBrand,
@@ -505,7 +540,7 @@ export async function POST(request: Request) {
                     balanceDueAt: paymentPlan.balanceDueAt,
                     balanceDueDate: paymentPlan.balanceDueDate,
                     status: normalizedStatus,
-                    provider: 'MERCADOPAGO',
+                    provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
                     providerId: String(result.id || ''),
                     method: normalizedPaymentMethod,
                     cardBrand: normalizedCardBrand,
@@ -539,7 +574,7 @@ export async function POST(request: Request) {
                 },
             });
 
-            if (!skipGuestEmail) {
+            if (!skipGuestEmail && !localCardSandbox) {
                 try {
                     await sendBookingConfirmationEmail({
                         guestName: booking.guest.name,
@@ -595,7 +630,7 @@ export async function POST(request: Request) {
                         error: emailError instanceof Error ? emailError.message : String(emailError),
                     });
                 }
-            } else {
+            } else if (!localCardSandbox) {
                 try {
                     await sendBookingCreatedAlertEmail({
                         guestName: booking.guest.name,
@@ -633,15 +668,17 @@ export async function POST(request: Request) {
                 });
             }
 
-            await sendGa4PurchaseServerEvent({
-                transactionId: booking.id,
-                value: Number(booking.totalPrice),
-                currency: 'BRL',
-                itemId: booking.roomType?.id || booking.roomTypeId,
-                itemName: booking.roomType?.name || 'Hospedagem',
-                userId: booking.guest?.id || booking.guestId,
-                source: 'mp_payment_route',
-            });
+            if (!localCardSandbox) {
+                await sendGa4PurchaseServerEvent({
+                    transactionId: booking.id,
+                    value: Number(booking.totalPrice),
+                    currency: 'BRL',
+                    itemId: booking.roomType?.id || booking.roomTypeId,
+                    itemName: booking.roomType?.name || 'Hospedagem',
+                    userId: booking.guest?.id || booking.guestId,
+                    source: 'mp_payment_route',
+                });
+            }
         } else if (['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)) {
             await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
