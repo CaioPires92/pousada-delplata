@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import ReservarPage from './page';
+import ReservarPage, { ReservationPageFallback } from './page';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 
 const searchParamState = {
@@ -101,6 +101,16 @@ describe('ReservarPage', () => {
     expect(anexoImg.getAttribute('src')).toBe('https://cdn.example.com/real-photo.jpg');
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Valor total exibido/i).length).toBeGreaterThan(0);
+  });
+
+  it('oferece contexto útil no fallback renderizado antes do JavaScript', () => {
+    render(<ReservationPageFallback />);
+
+    expect(screen.getByRole('heading', {
+      level: 1,
+      name: /Preparando sua consulta de disponibilidade/i,
+    })).toBeInTheDocument();
+    expect(screen.getByText(/datas, a ocupação e as acomodações cadastradas/i)).toBeInTheDocument();
   });
 
   it('shows error message on API failure', async () => {
