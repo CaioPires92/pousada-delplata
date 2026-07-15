@@ -9,10 +9,13 @@ Atualizado em 15/07/2026 na branch `feat/conversao-reservas-diretas`.
 - Core Web Vitals enviados ao GA4 com nome, valor e classificação, sem dados pessoais.
 - UTMs e identificadores de clique permitidos preservados durante a sessão e ao avançar pela busca.
 - Home com produto, localização, piscina, café da manhã, tipos de acomodação, avaliações e CTA comercial.
+- Primeira dobra comercial com motor de busca, menor total real disponível, período e ocupação de referência.
+- Até quatro acomodações reais exibidas na home com foto, capacidade, comodidades, total e acesso direto aos resultados.
 - CTA móvel persistente sem cobrir o rodapé ou o botão de WhatsApp.
 - Busca com validação de datas, hóspedes e idades, limite de tempo, retry e recuperação contextual pelo WhatsApp.
 - Acomodação escolhida preservada entre catálogo e resultados.
 - Resultados com fotos cadastradas, capacidade, comodidades cadastradas, quantidade de noites e valor total.
+- Resultados compactados em duas colunas no desktop e uma no celular para facilitar comparação.
 - Checkout em três etapas, resumo móvel, autocomplete, teclado apropriado e trava contra duplo envio.
 - Retentativa de pagamento sem apagar dados do hóspede.
 - Confirmação e evento `purchase` centralizados após retorno válido.
@@ -20,6 +23,7 @@ Atualizado em 15/07/2026 na branch `feat/conversao-reservas-diretas`.
 - Conteúdo essencial visível sem depender de animação e fallback útil antes do JavaScript.
 - Next.js, React, React DOM e Nodemailer atualizados para versões corrigidas.
 - Layout validado em 1280×720 e 390×844 com banco temporário isolado.
+- Nova home e novos resultados validados no build de produção em 1440 px e 390 px.
 
 ## Deliberadamente não publicado sem validação da administração
 
