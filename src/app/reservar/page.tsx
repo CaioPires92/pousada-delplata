@@ -41,7 +41,7 @@ import {
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
-import { trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
+import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
 import {
     mountLatestPaymentBrick,
@@ -1111,6 +1111,22 @@ function ReservarContent() {
                             const finalPaymentAmount = isPixBrickPayment(formData)
                                 ? applyPixDiscount(paymentAmount)
                                 : paymentAmount;
+                            const paymentType = isPixBrickPayment(formData)
+                                ? 'pix'
+                                : String(formData?.payment_method_id || formData?.payment_type_id || 'card');
+
+                            trackAddPaymentInfo({
+                                bookingId: paymentBookingId,
+                                value: finalPaymentAmount,
+                                paymentType,
+                                items: selectedRoom ? [{
+                                    item_id: selectedRoom.id,
+                                    item_name: selectedRoom.name,
+                                    item_category: 'Hospedagem',
+                                    price: finalPaymentAmount,
+                                    quantity: 1,
+                                }] : [],
+                            });
 
                             let keepOverlayUntilRedirect = false;
 
@@ -1258,7 +1274,7 @@ function ReservarContent() {
                 void safelyUnmountPaymentBrick(mountedBrick);
             }
         };
-    }, [guest.email, guest.name, notifyPaymentDifficulty, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router]);
+    }, [guest.email, guest.name, notifyPaymentDifficulty, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router, selectedRoom]);
 
     useEffect(() => {
         if (!paymentBookingId) return;

@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDateBR } from '@/lib/date';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { trackPurchase } from '@/lib/analytics';
 
 declare global {
     interface Window {
@@ -76,34 +77,24 @@ function trackPurchaseOnce(booking: BookingData | null) {
     if (window.localStorage.getItem(storageKey)) return;
 
     const value = Number(booking?.totalPrice || 0);
-    const payload = {
-        transaction_id: String(booking.id),
+    const items = [
+        {
+            item_id: String(booking?.roomType?.id || 'quarto'),
+            item_name: String(booking?.roomType?.name || 'Hospedagem'),
+            quantity: 1,
+            price: Number.isFinite(value) ? value : 0,
+        },
+    ];
+
+    const hasAnalyticsQueue = typeof window.gtag === 'function' || Array.isArray(window.dataLayer);
+    if (!hasAnalyticsQueue) return;
+
+    trackPurchase({
+        transactionId: String(booking.id),
         value: Number.isFinite(value) ? value : 0,
         currency: 'BRL',
-        items: [
-            {
-                item_id: String(booking?.roomType?.id || 'quarto'),
-                item_name: String(booking?.roomType?.name || 'Hospedagem'),
-                quantity: 1,
-                price: Number.isFinite(value) ? value : 0,
-            },
-        ],
-    };
-
-    const hasGtag = typeof window.gtag === 'function';
-    const hasDataLayer = Array.isArray(window.dataLayer);
-    if (!hasGtag && !hasDataLayer) return;
-
-    if (hasGtag) {
-        window.gtag?.('event', 'purchase', payload);
-    }
-
-    if (hasDataLayer) {
-        window.dataLayer?.push({
-            event: 'purchase',
-            ecommerce: payload,
-        });
-    }
+        items,
+    });
 
     window.localStorage.setItem(storageKey, new Date().toISOString());
 }

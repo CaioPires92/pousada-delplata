@@ -44,6 +44,10 @@ export type PurchasePayload = {
     items?: GaItem[];
 };
 
+export type AddPaymentInfoPayload = BeginCheckoutPayload & {
+    paymentType?: string;
+};
+
 export type ReservationFunnelPayload = {
     step: string;
     status?: 'success' | 'error' | 'pending';
@@ -63,10 +67,6 @@ declare global {
 
 function isBrowser() {
     return typeof window !== 'undefined';
-}
-
-function hasGtag() {
-    return isBrowser() && typeof window.gtag === 'function';
 }
 
 function toNumber(value: unknown, fallback = 0) {
@@ -103,10 +103,16 @@ function buildItem(room: RoomAnalyticsInput, index?: number): GaItem {
 }
 
 export function gaEvent(name: string, params: GaParams = {}) {
-    if (!hasGtag()) return;
+    if (!isBrowser()) return;
     const debugMode = isAnalyticsDebug();
     const payload = debugMode ? { ...params, debug_mode: true } : params;
-    window.gtag?.('event', name, payload);
+    if (typeof window.gtag === 'function') {
+        window.gtag('event', name, payload);
+        return;
+    }
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push(['event', name, payload]);
 }
 
 export function trackSearch(payload: TrackSearchPayload) {
@@ -197,6 +203,19 @@ export function trackClickWhatsAppFloating(position: CtaPosition = 'floating') {
 
 export function trackClickWhatsAppFinal(position: CtaPosition = 'final') {
     gaEvent('click_whatsapp_final', buildCtaParams(position));
+}
+
+export function trackAddPaymentInfo(payload: AddPaymentInfoPayload) {
+    const items = payload.items || [];
+    const value = toNumber(payload.value, 0);
+
+    gaEvent('add_payment_info', {
+        currency: payload.currency || 'BRL',
+        value,
+        booking_id: payload.bookingId || undefined,
+        payment_type: payload.paymentType || undefined,
+        items,
+    });
 }
 
 export function trackReservationFunnel(payload: ReservationFunnelPayload) {
