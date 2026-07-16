@@ -371,9 +371,9 @@ export default function SearchWidget({
     const heroFieldInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroGuestsInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroDividerClass = '';
-    const heroLabelClass = 'flex items-center gap-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]/65';
-    const heroValueClass = 'flex h-12 w-full cursor-pointer items-center justify-between rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 text-left font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] transition-colors duration-200 hover:border-[color:var(--brand-gold)]';
-    const heroTriggerClass = 'flex h-12 w-full items-center rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] focus:ring-0 focus:ring-offset-0';
+    const heroLabelClass = 'flex items-center gap-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-white/80';
+    const heroValueClass = 'flex h-12 w-full cursor-pointer items-center justify-between rounded-none border border-white/46 bg-white/90 px-4 text-left font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white';
+    const heroTriggerClass = 'flex h-12 w-full items-center rounded-none border border-white/46 bg-white/90 px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white focus:ring-0 focus:ring-offset-0';
     const heroButtonColumnClass = 'flex h-full items-end';
     const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
 

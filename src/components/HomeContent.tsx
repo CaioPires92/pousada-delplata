@@ -289,12 +289,12 @@ export default function HomeContent() {
             </motion.div>
 
             <motion.div variants={itemVariants} className="w-full max-w-[430px] justify-self-start lg:justify-self-end">
-              <div className="border border-white/25 bg-[color:var(--brand-cream)] shadow-[0_24px_56px_rgba(0,0,0,0.24)]">
-                <div className="border-b border-[color:var(--line-dark)] px-5 py-4 sm:px-6">
+              <div className="border border-white/28 bg-black/34 shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-2xl supports-[backdrop-filter]:bg-black/32">
+                <div className="border-b border-white/18 px-5 py-4 sm:px-6">
                   <div>
                     <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">Reserva online</p>
-                    <h2 className="mt-1 text-lg font-semibold leading-tight text-primary">Consulte valores para sua estadia</h2>
-                    <p className="mt-1 text-sm leading-5 text-primary/70">Veja disponibilidade antes de reservar.</p>
+                    <h2 className="mt-1 text-lg font-semibold leading-tight text-white [text-shadow:0_1px_12px_rgba(0,0,0,0.28)]">Consulte valores para sua estadia</h2>
+                    <p className="mt-1 text-sm leading-5 text-white/80">Veja disponibilidade antes de reservar.</p>
                   </div>
                 </div>
                 <div className="p-5 sm:p-6">
@@ -304,7 +304,7 @@ export default function HomeContent() {
                     submitLabelMobile="Ver preços"
                     collapsible={false}
                   />
-                  <p className="pt-4 text-xs leading-5 text-primary/65">
+                  <p className="pt-4 text-xs leading-5 text-white/75">
                     Valor calculado conforme datas, ocupação e acomodação disponível.
                   </p>
                 </div>
