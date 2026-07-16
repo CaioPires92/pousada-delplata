@@ -17,18 +17,40 @@ vi.mock('@/lib/analytics', () => ({
 
 describe('MobileBookingBar', () => {
     beforeEach(() => {
-        mocks.pathname = '/';
+        mocks.pathname = '/acomodacoes';
         mocks.trackClickReservar.mockClear();
+        sessionStorage.clear();
     });
 
-    it('links to the booking search and tracks the click', () => {
+    it('links to the booking search and tracks the desktop click', async () => {
         render(<MobileBookingBar />);
 
-        const link = screen.getByRole('link', { name: /ver preços e disponibilidade/i });
+        const link = await screen.findByRole('link', { name: /ver disponibilidade/i });
         expect(link).toHaveAttribute('href', '/reservar');
 
         fireEvent.click(link);
-        expect(mocks.trackClickReservar).toHaveBeenCalledWith('mobile_sticky');
+        expect(mocks.trackClickReservar).toHaveBeenCalledWith('booking_assistant_desktop');
+    });
+
+    it('waits for interaction before showing on the home page', () => {
+        mocks.pathname = '/';
+        render(<MobileBookingBar />);
+
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+
+        fireEvent(window, new Event('reservar-cta-interaction'));
+
+        expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+    });
+
+    it('can be dismissed for the current session', async () => {
+        render(<MobileBookingBar />);
+
+        const closeButtons = await screen.findAllByRole('button', { name: /fechar lembrete de reserva/i });
+        fireEvent.click(closeButtons[0]);
+
+        expect(sessionStorage.getItem('delplata-booking-assistant-dismissed')).toBe('1');
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
     });
 
     it.each(['/reservar', '/reservar/confirmacao', '/admin', '/admin/reservas'])(
