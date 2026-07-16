@@ -288,24 +288,26 @@ export default function HomeContent() {
               </motion.div>
             </motion.div>
 
-            <motion.div variants={itemVariants} className="lg:justify-self-end">
-              <div className="border border-white/20 bg-[color:var(--brand-cream)]/95 p-3 shadow-[0_28px_70px_rgba(0,0,0,0.28)] backdrop-blur-md sm:p-5">
-                <div className="mb-4 flex items-center justify-between gap-4 px-1">
+            <motion.div variants={itemVariants} className="w-full max-w-[430px] justify-self-start lg:justify-self-end">
+              <div className="border border-white/25 bg-[color:var(--brand-cream)] shadow-[0_24px_56px_rgba(0,0,0,0.24)]">
+                <div className="border-b border-[color:var(--line-dark)] px-5 py-4 sm:px-6">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-gold)]">Reserva online</p>
-                    <h2 className="mt-1 text-xl font-semibold text-primary">Consulte valores para sua estadia</h2>
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">Reserva online</p>
+                    <h2 className="mt-1 text-lg font-semibold leading-tight text-primary">Consulte valores para sua estadia</h2>
+                    <p className="mt-1 text-sm leading-5 text-primary/70">Veja disponibilidade antes de reservar.</p>
                   </div>
-                  <CalendarCheck2 className="hidden h-8 w-8 text-primary/65 sm:block" />
                 </div>
-                <SearchWidget
-                  uiPreset="hero"
-                  submitLabel="Ver preços e disponibilidade"
-                  submitLabelMobile="Ver preços"
-                  collapsible={false}
-                />
-                <p className="px-1 pt-3 text-xs leading-5 text-primary/65">
-                  O valor é calculado conforme datas, ocupação e acomodação disponível.
-                </p>
+                <div className="p-5 sm:p-6">
+                  <SearchWidget
+                    uiPreset="hero"
+                    submitLabel="Ver preços e disponibilidade"
+                    submitLabelMobile="Ver preços"
+                    collapsible={false}
+                  />
+                  <p className="pt-4 text-xs leading-5 text-primary/65">
+                    Valor calculado conforme datas, ocupação e acomodação disponível.
+                  </p>
+                </div>
               </div>
             </motion.div>
           </div>

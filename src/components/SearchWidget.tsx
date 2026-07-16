@@ -366,15 +366,15 @@ export default function SearchWidget({
     } satisfies CalendarProps['classNames'] : undefined;
     const heroSelectContentClass = 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-2 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
     const heroSelectItemClass = 'rounded-none py-3 pl-10 pr-4 font-accent text-sm font-medium uppercase tracking-[0.14em] text-[color:var(--brand-forest)] focus:bg-[color:var(--brand-white)] focus:text-[color:var(--brand-forest)]';
-    const heroBarClass = 'mx-auto w-full max-w-[1180px] overflow-hidden rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-0 shadow-[0_12px_28px_rgba(40,50,35,0.08)]';
-    const heroFieldClass = 'flex h-full min-h-[88px] items-center px-7';
+    const heroBarClass = 'w-full';
+    const heroFieldClass = 'flex h-full';
     const heroFieldInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroGuestsInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
-    const heroDividerClass = 'lg:border-r lg:border-[color:var(--line-dark)]';
-    const heroLabelClass = 'flex items-center gap-2 text-[0.56rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-forest)]/75';
-    const heroValueClass = 'flex h-auto w-full cursor-pointer items-center justify-between rounded-none border-0 bg-transparent px-0 py-0 text-left font-sans text-[0.98rem] font-semibold text-[color:var(--brand-forest)] transition-colors duration-300 hover:text-primary';
-    const heroTriggerClass = 'h-auto w-full rounded-none border-0 bg-transparent px-0 font-sans text-[0.98rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 focus:ring-0 focus:ring-offset-0';
-    const heroButtonColumnClass = 'flex h-full min-h-[88px] items-center justify-center px-0';
+    const heroDividerClass = '';
+    const heroLabelClass = 'flex items-center gap-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]/65';
+    const heroValueClass = 'flex h-12 w-full cursor-pointer items-center justify-between rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 text-left font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] transition-colors duration-200 hover:border-[color:var(--brand-gold)]';
+    const heroTriggerClass = 'flex h-12 w-full items-center rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] focus:ring-0 focus:ring-offset-0';
+    const heroButtonColumnClass = 'flex h-full items-end';
     const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
 
     const labelClass = isInlinePreset
@@ -523,7 +523,7 @@ export default function SearchWidget({
             <form onSubmit={handleSearch} className={cn(
                 "grid grid-cols-1 gap-4 items-end md:grid-cols-2",
                 isHeroPreset
-                    ? "gap-y-4 lg:min-h-[88px] lg:grid-cols-[1fr_1fr_1fr_280px] lg:items-stretch lg:content-stretch lg:gap-x-0 lg:gap-y-0 xl:grid-cols-[1fr_1fr_1fr_280px]"
+                    ? "gap-3 md:grid-cols-2 lg:grid-cols-1"
                     : "xl:grid-cols-[repeat(16,minmax(0,1fr))]"
             )}>
                 {/* Check-in */}
@@ -821,7 +821,7 @@ export default function SearchWidget({
                         className={isInlinePreset
                             ? 'w-full h-11 min-w-[170px] px-4 text-sm font-semibold flex items-center justify-center gap-2'
                             : isHeroPreset
-                                ? 'mx-auto flex h-16 w-[90%] items-center justify-center gap-2 self-center rounded-none border border-[#c5a06a] bg-[#D1B07C] px-6 font-sans text-[0.82rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-forest)] shadow-none transition-all duration-300 hover:bg-[#c9a66f] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0 lg:max-w-[252px]'
+                                ? 'flex h-[52px] w-full items-center justify-center gap-2 rounded-none border border-[#c5a06a] bg-[#D1B07C] px-5 font-sans text-[0.78rem] font-semibold uppercase tracking-[0.13em] text-[color:var(--brand-forest)] shadow-none transition-all duration-200 hover:bg-[#c9a66f] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
                         aria-label={submitLabel}
                         onClick={() => {
