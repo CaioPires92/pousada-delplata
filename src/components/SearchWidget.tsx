@@ -383,10 +383,10 @@ export default function SearchWidget({
         isHeroHorizontal ? 'text-[color:var(--brand-forest)]/78' : 'text-white/80'
     );
     const heroValueClass = isHeroHorizontal
-        ? 'flex h-auto min-h-7 w-full cursor-pointer items-center justify-between rounded-none border-0 bg-transparent p-0 text-left font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none transition-colors duration-200 hover:text-[color:var(--forest-soft)]'
+        ? 'flex h-auto min-h-7 w-full cursor-pointer items-center justify-between rounded-none border-0 bg-transparent p-0 text-left font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none transition-colors duration-200 hover:text-[color:var(--brand-forest)]'
         : 'flex h-12 w-full cursor-pointer items-center justify-between rounded-none border border-white/46 bg-white/90 px-4 text-left font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white';
     const heroTriggerClass = isHeroHorizontal
-        ? 'flex h-auto min-h-7 w-full items-center rounded-none border-0 bg-transparent p-0 font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:text-[color:var(--forest-soft)] focus:ring-0 focus:ring-offset-0'
+        ? 'flex h-auto min-h-7 w-full items-center rounded-none border-0 bg-transparent p-0 font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:text-[color:var(--brand-forest)] focus:ring-0 focus:ring-offset-0'
         : 'flex h-12 w-full items-center rounded-none border border-white/46 bg-white/90 px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white focus:ring-0 focus:ring-offset-0';
     const heroButtonColumnClass = isHeroHorizontal ? 'flex h-full items-stretch bg-white p-3' : 'flex h-full items-end';
     const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
@@ -840,7 +840,7 @@ export default function SearchWidget({
                                 ? cn(
                                     'flex w-full items-center justify-center gap-2 rounded-none px-5 font-sans text-[0.78rem] font-semibold uppercase tracking-[0.13em] shadow-none transition-all duration-200 focus-visible:ring-secondary focus-visible:ring-offset-0',
                                     isHeroHorizontal
-                                        ? 'h-full min-h-[64px] border border-[color:var(--brand-gold)] bg-[color:var(--brand-gold)] text-[color:var(--brand-forest)] hover:bg-[color:var(--brand-gold)]/88 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)]'
+                                        ? 'h-full min-h-[64px] border border-[#c5a06a] bg-[#D1B07C] text-[color:var(--brand-forest)] hover:bg-[#c9a66f] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)]'
                                         : 'h-[52px] border border-white/16 bg-[color:var(--brand-forest)] text-white hover:bg-[color:var(--forest-soft)] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)]'
                                 )
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
