@@ -60,7 +60,9 @@ describe('ReservarPage', () => {
   it('renders loading state initially', async () => {
     mockFetch.mockImplementationOnce(() => new Promise(() => { })); // Hang forever to show loading
     render(<ReservarPage />);
-    expect(screen.getByText(/Buscando as melhores opções/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Buscando as melhores opções/i)).toBeInTheDocument();
+    });
   });
 
   it('ignores placeholder URLs and falls back to local photos', async () => {
@@ -262,7 +264,7 @@ describe('ReservarPage', () => {
 
     // Click to select room and show breakdown
     const selectButton = screen.getByText(/Escolher acomodação/i);
-    selectButton.click();
+    fireEvent.click(selectButton);
 
     // Wait for breakdown to appear in summary
     await waitFor(() => {
@@ -301,7 +303,7 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Test Room Cupom')).toBeInTheDocument();
     });
 
-    screen.getByText(/Escolher acomodação/i).click();
+    fireEvent.click(screen.getByText(/Escolher acomodação/i));
 
     await waitFor(() => {
       expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
@@ -336,14 +338,14 @@ describe('ReservarPage', () => {
       expect(screen.getByText('Suite Mobile')).toBeInTheDocument();
     });
 
-    screen.getByText(/Escolher acomodação/i).click();
+    fireEvent.click(screen.getByText(/Escolher acomodação/i));
 
     await waitFor(() => {
       expect(screen.getAllByText(/Resumo da Reserva/i).length).toBeGreaterThan(0);
       expect(screen.getByRole('button', { name: /Ver resumo/i })).toBeInTheDocument();
     });
 
-    screen.getByRole('button', { name: /Ver resumo/i }).click();
+    fireEvent.click(screen.getByRole('button', { name: /Ver resumo/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText(/Hóspedes/i).length).toBeGreaterThan(0);
