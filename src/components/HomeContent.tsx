@@ -208,7 +208,7 @@ export default function HomeContent() {
   return (
     <main className="min-h-screen">
       {/* Hero Section with Background Image */}
-      <section className="relative flex min-h-[88vh] w-full items-end overflow-hidden bg-[color:var(--brand-black)]">
+      <section className="relative flex min-h-screen min-h-[100svh] w-full items-end overflow-hidden bg-[color:var(--brand-black)]">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image
@@ -224,7 +224,7 @@ export default function HomeContent() {
         </div>
 
         <motion.div
-          className="container relative z-10 flex min-h-[88vh] flex-col justify-center pb-8 pt-24 sm:pb-14 sm:pt-28 lg:pb-16 lg:pt-32"
+          className="container relative z-10 flex min-h-screen min-h-[100svh] flex-col justify-center pb-8 pt-24 sm:pb-14 sm:pt-28 lg:pb-16 lg:pt-32"
           initial={false}
           animate="visible"
           variants={containerVariants}
