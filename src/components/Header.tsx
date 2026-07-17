@@ -94,7 +94,7 @@ export default function Header() {
                                 : "rounded-none bg-primary text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_8px_18px_rgba(9,9,9,0.08)]"}
                         >
                             <Link href="/reservar" onClick={() => trackClickReservar('header_desktop')}>
-                                Reservas
+                                Reservar agora
                             </Link>
                         </Button>
                     </nav>
@@ -123,7 +123,7 @@ export default function Header() {
                         ))}
                         <Button asChild className="w-full rounded-none shadow-none">
                             <Link href="/reservar" onClick={() => { trackClickReservar('header_mobile'); setIsMobileMenuOpen(false); }}>
-                                Reservar
+                                Reservar agora
                             </Link>
                         </Button>
                     </nav>

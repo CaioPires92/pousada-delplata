@@ -35,6 +35,7 @@ describe("HomeAvailabilityOffers", () => {
 
     expect(screen.getByText("R$ 599,00")).toBeInTheDocument();
     expect(screen.getByText(/Até 4 hóspedes/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Consultar outras datas/i })).toHaveAttribute("href", "/reservar");
     expect(screen.getByRole("link", { name: /Escolher esta acomodação/i })).toHaveAttribute(
       "href",
       expect.stringContaining("roomTypeId=room-1"),

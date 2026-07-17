@@ -1538,8 +1538,10 @@ function ReservarContent() {
                                     Tente ajustar as datas ou a ocupação. Em feriados e fins de semana, a disponibilidade muda rápido.
                                 </p>
                                 <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-                                    <Button onClick={() => router.push('/reservar')}>
-                                        Buscar Outras Datas
+                                    <Button asChild>
+                                        <Link href="/reservar">
+                                            Consultar outras datas
+                                        </Link>
                                     </Button>
                                     <Button variant="outline" asChild className="rounded-none">
                                         <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer">

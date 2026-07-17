@@ -161,7 +161,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
             </p>
           </div>
           <Link
-            href={resultUrl}
+            href="/reservar"
             className="inline-flex h-12 items-center justify-center gap-2 border border-primary/15 bg-white px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
           >
             Consultar outras datas <ArrowRight className="h-4 w-4" />
