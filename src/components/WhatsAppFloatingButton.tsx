@@ -51,7 +51,7 @@ export default function WhatsAppFloatingButton() {
     const hasBookingAssistant = !pathname.startsWith('/admin') && !pathname.startsWith('/reservar');
 
     return (
-        <div className={`fixed right-4 z-50 md:right-6 ${hasBookingAssistant ? 'bottom-28 md:bottom-48' : 'bottom-4 md:bottom-6'}`}>
+        <div className={`fixed z-50 ${hasBookingAssistant ? 'bottom-28 right-4 md:bottom-6 md:right-[22.5rem]' : 'bottom-4 right-4 md:bottom-6 md:right-6'}`}>
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <div className="flex items-center gap-2">

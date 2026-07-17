@@ -84,7 +84,7 @@ export default function MobileBookingBar() {
                     Ver preços e disponibilidade
                 </Link>
             </div>
-            <aside className="fixed bottom-6 right-6 z-40 hidden w-[320px] border border-white/25 bg-black/72 text-white shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-xl md:block">
+            <aside className="fixed bottom-6 right-6 z-40 hidden w-[320px] border border-white/18 bg-[color:var(--brand-forest)]/96 text-white shadow-[0_24px_70px_rgba(0,0,0,0.30)] backdrop-blur-xl md:block">
                 <button
                     type="button"
                     onClick={handleDismiss}
@@ -110,7 +110,7 @@ export default function MobileBookingBar() {
                     <Link
                         href="/reservar"
                         onClick={() => trackClickReservar('booking_assistant_desktop')}
-                        className="flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-4 text-center text-sm font-semibold text-[color:var(--brand-forest)] transition-colors hover:bg-[color:var(--brand-gold)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                        className="flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-4 text-center text-sm font-semibold text-[color:var(--brand-forest)] transition-colors hover:bg-[color:var(--brand-gold)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--brand-forest)]"
                     >
                         <CalendarDays className="h-4 w-4" aria-hidden="true" />
                         Ver disponibilidade
