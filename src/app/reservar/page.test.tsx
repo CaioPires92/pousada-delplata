@@ -22,16 +22,19 @@ vi.mock('next/navigation', () => ({
     prefetch: vi.fn(),
   }),
   usePathname: () => '/reservar',
-  useSearchParams: () => ({
-    get: vi.fn((key: keyof typeof searchParamState) => searchParamState[key] ?? null),
-    toString: vi.fn(() => {
-      const params = new URLSearchParams();
-      Object.entries(searchParamState).forEach(([key, value]) => {
-        if (value) params.set(key, value);
-      });
-      return params.toString();
-    }),
-  }),
+  useSearchParams: (() => {
+    const params = {
+      get: vi.fn((key: keyof typeof searchParamState) => searchParamState[key] ?? null),
+      toString: vi.fn(() => {
+        const params = new URLSearchParams();
+        Object.entries(searchParamState).forEach(([key, value]) => {
+          if (value) params.set(key, value);
+        });
+        return params.toString();
+      }),
+    };
+    return () => params;
+  })(),
 }));
 
 // Mock fetch
@@ -132,6 +135,8 @@ describe('ReservarPage', () => {
 
     expect(screen.getAllByText('Acomodação escolhida').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Escolher acomodação/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Fechar busca/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Ver disponibilidade/i })).toBeInTheDocument();
   });
 
   it('oferece contexto útil no fallback renderizado antes do JavaScript', () => {

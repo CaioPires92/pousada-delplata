@@ -300,7 +300,7 @@ function ReservarContent() {
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
-    const [searchEditorOpen, setSearchEditorOpen] = useState(false);
+    const [searchEditorOpen, setSearchEditorOpen] = useState(true);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const bookingSubmitLockRef = useRef(false);
     const paymentSubmitLockRef = useRef(false);
@@ -510,13 +510,6 @@ function ReservarContent() {
             return () => window.clearTimeout(timeoutId);
         }
     }, [promoFromQuery, selectedRoom]);
-
-    useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            setSearchEditorOpen(false);
-        }, 0);
-        return () => window.clearTimeout(timeoutId);
-    }, [checkIn, checkOut, adults, children, childrenAgesKey]);
 
     const getWhatsAppUrl = (context?: 'error_form' | 'error_payment') => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
