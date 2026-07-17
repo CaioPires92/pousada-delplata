@@ -821,7 +821,7 @@ export default function SearchWidget({
                         className={isInlinePreset
                             ? 'w-full h-11 min-w-[170px] px-4 text-sm font-semibold flex items-center justify-center gap-2'
                             : isHeroPreset
-                                ? 'flex h-[52px] w-full items-center justify-center gap-2 rounded-none border border-[#c5a06a] bg-[#D1B07C] px-5 font-sans text-[0.78rem] font-semibold uppercase tracking-[0.13em] text-[color:var(--brand-forest)] shadow-none transition-all duration-200 hover:bg-[#c9a66f] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
+                                ? 'flex h-[52px] w-full items-center justify-center gap-2 rounded-none border border-white/16 bg-[color:var(--brand-forest)] px-5 font-sans text-[0.78rem] font-semibold uppercase tracking-[0.13em] text-white shadow-none transition-all duration-200 hover:bg-[color:var(--forest-soft)] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
                         aria-label={submitLabel}
                         onClick={() => {
@@ -837,7 +837,7 @@ export default function SearchWidget({
                         {isHeroPreset ? (
                             <span className="flex flex-col items-center justify-center text-center leading-none">
                                 <span className="whitespace-nowrap">{loading ? loadingLabel : 'Ver disponibilidade'}</span>
-                                <span className="mt-1 text-[0.58rem] tracking-[0.14em] text-[#6f5a43]">
+                                <span className="mt-1 text-[0.58rem] tracking-[0.14em] text-white/72">
                                     Consulte valores
                                 </span>
                             </span>
