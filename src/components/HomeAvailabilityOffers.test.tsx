@@ -100,7 +100,15 @@ describe("HomeAvailabilityOffers", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Consultar outras datas/i }));
-    fireEvent.change(screen.getByLabelText("Check-in"), { target: { value: "2026-08-10" } });
+    const checkInInput = screen.getByLabelText("Check-in") as HTMLInputElement;
+    const checkOutInput = screen.getByLabelText("Check-out") as HTMLInputElement;
+
+    fireEvent.change(checkInInput, { target: { value: "2026-08-10" } });
+    expect(checkOutInput).toHaveValue("2026-08-11");
+
+    fireEvent.change(checkOutInput, { target: { value: "2026-08-10" } });
+    expect(checkOutInput).toHaveValue("2026-08-11");
+
     fireEvent.change(screen.getByLabelText("Check-out"), { target: { value: "2026-08-12" } });
     fireEvent.change(screen.getByLabelText("Adultos"), { target: { value: "3" } });
     fireEvent.change(screen.getByLabelText("Crianças"), { target: { value: "1" } });

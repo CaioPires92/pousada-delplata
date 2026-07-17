@@ -73,6 +73,10 @@ function calculateNights(checkIn: string, checkOut: string) {
   return Math.max(1, diff);
 }
 
+function getNextDayKey(checkIn: string) {
+  return format(addDays(new Date(`${checkIn}T12:00:00`), 1), "yyyy-MM-dd");
+}
+
 function makeOfferSearchKey(search: OfferSearch) {
   return [
     search.checkIn,
@@ -201,6 +205,32 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
     setIsSearchModalOpen(true);
   };
 
+  const updateDraftCheckIn = (checkIn: string) => {
+    if (!checkIn) {
+      setDraftSearch((current) => ({ ...current, checkIn }));
+      return;
+    }
+
+    setDraftSearch((current) => ({
+      ...current,
+      checkIn,
+      checkOut: getNextDayKey(checkIn),
+    }));
+  };
+
+  const updateDraftCheckOut = (checkOut: string) => {
+    setDraftSearch((current) => {
+      if (!current.checkIn || !checkOut) return { ...current, checkOut };
+
+      const minimumCheckOut = getNextDayKey(current.checkIn);
+      const normalizedCheckOut = new Date(`${checkOut}T12:00:00`) <= new Date(`${current.checkIn}T12:00:00`)
+        ? minimumCheckOut
+        : checkOut;
+
+      return { ...current, checkOut: normalizedCheckOut };
+    });
+  };
+
   const updateDraftChildren = (children: number) => {
     const normalizedChildren = Math.min(Math.max(children, 0), Math.max(0, 4 - draftSearch.adults));
     setDraftSearch((current) => {
@@ -264,7 +294,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                   <input
                     type="date"
                     value={draftSearch.checkIn}
-                    onChange={(event) => setDraftSearch((current) => ({ ...current, checkIn: event.target.value }))}
+                    min={format(new Date(), "yyyy-MM-dd")}
+                    onChange={(event) => updateDraftCheckIn(event.target.value)}
                     className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
                   />
                 </label>
@@ -273,8 +304,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                   <input
                     type="date"
                     value={draftSearch.checkOut}
-                    min={draftSearch.checkIn ? format(addDays(new Date(`${draftSearch.checkIn}T12:00:00`), 1), "yyyy-MM-dd") : undefined}
-                    onChange={(event) => setDraftSearch((current) => ({ ...current, checkOut: event.target.value }))}
+                    min={draftSearch.checkIn ? getNextDayKey(draftSearch.checkIn) : undefined}
+                    onChange={(event) => updateDraftCheckOut(event.target.value)}
                     className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
                   />
                 </label>

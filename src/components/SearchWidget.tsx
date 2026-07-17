@@ -131,11 +131,9 @@ export default function SearchWidget({
 
         // Automatizar Check-out
         if (date) {
-            setCheckOutViewMonth(date);
-            // Se check-out não estiver definido, ou for antes/igual ao check-in
-            if (!checkOut || isBefore(checkOut, date) || isSameDay(checkOut, date)) {
-                setCheckOut(addDays(date, 1));
-            }
+            const nextCheckOut = addDays(date, 1);
+            setCheckOut(nextCheckOut);
+            setCheckOutViewMonth(nextCheckOut);
         }
     };
 
@@ -621,7 +619,9 @@ export default function SearchWidget({
                                 onMonthChange={setCheckOutViewMonth}
                                 onSelect={handleCheckOutSelect}
                                 disabled={(date) =>
-                                    (checkIn ? isBefore(date, checkIn) : isBefore(date, new Date()))
+                                    checkIn
+                                        ? isBefore(date, checkIn) || isSameDay(date, checkIn)
+                                        : isBefore(date, new Date())
                                 }
                                 initialFocus
                                 locale={ptBR}
