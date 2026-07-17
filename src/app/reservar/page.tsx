@@ -1374,8 +1374,8 @@ function ReservarContent() {
                         <h1 className="font-sans mb-4 mt-4 text-[2.9rem] font-semibold leading-[0.98] md:text-[4rem]">
                             Planeje sua Estadia
                         </h1>
-                        <p className="mx-auto max-w-2xl text-lg leading-8 text-white/88">
-                            Selecione as datas da viagem para consultar acomodações disponíveis e os valores da estadia.
+                        <p className="mx-auto max-w-2xl text-lg font-semibold leading-8 text-white/88">
+                            Selecione as datas da sua viagem para conferir nossas acomodações exclusivas e garantir o melhor preço.
                         </p>
                     </div>
 

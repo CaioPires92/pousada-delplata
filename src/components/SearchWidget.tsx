@@ -369,15 +369,26 @@ export default function SearchWidget({
     } satisfies CalendarProps['classNames'] : undefined;
     const heroSelectContentClass = 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-2 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
     const heroSelectItemClass = 'rounded-none py-3 pl-10 pr-4 font-accent text-sm font-medium uppercase tracking-[0.14em] text-[color:var(--brand-forest)] focus:bg-[color:var(--brand-white)] focus:text-[color:var(--brand-forest)]';
-    const heroBarClass = 'w-full';
-    const heroFieldClass = 'flex h-full';
+    const heroBarClass = isHeroHorizontal
+        ? 'w-full overflow-hidden bg-white/96 shadow-[0_18px_44px_rgba(12,18,10,0.18)]'
+        : 'w-full';
+    const heroFieldClass = isHeroHorizontal ? 'flex h-full bg-white/96' : 'flex h-full';
     const heroFieldInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroGuestsInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
-    const heroDividerClass = '';
-    const heroLabelClass = 'flex items-center gap-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-white/80';
-    const heroValueClass = 'flex h-12 w-full cursor-pointer items-center justify-between rounded-none border border-white/46 bg-white/90 px-4 text-left font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white';
-    const heroTriggerClass = 'flex h-12 w-full items-center rounded-none border border-white/46 bg-white/90 px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white focus:ring-0 focus:ring-offset-0';
-    const heroButtonColumnClass = 'flex h-full items-end';
+    const heroDividerClass = isHeroHorizontal
+        ? 'border border-white/70 px-5 py-5 lg:min-h-[88px] lg:border-y-0 lg:border-l-0 lg:border-r lg:border-r-[color:var(--line-dark)]/35'
+        : '';
+    const heroLabelClass = cn(
+        'flex items-center gap-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em]',
+        isHeroHorizontal ? 'text-[color:var(--brand-forest)]/78' : 'text-white/80'
+    );
+    const heroValueClass = isHeroHorizontal
+        ? 'flex h-auto min-h-7 w-full cursor-pointer items-center justify-between rounded-none border-0 bg-transparent p-0 text-left font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none transition-colors duration-200 hover:text-[color:var(--forest-soft)]'
+        : 'flex h-12 w-full cursor-pointer items-center justify-between rounded-none border border-white/46 bg-white/90 px-4 text-left font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white';
+    const heroTriggerClass = isHeroHorizontal
+        ? 'flex h-auto min-h-7 w-full items-center rounded-none border-0 bg-transparent p-0 font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:text-[color:var(--forest-soft)] focus:ring-0 focus:ring-offset-0'
+        : 'flex h-12 w-full items-center rounded-none border border-white/46 bg-white/90 px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white focus:ring-0 focus:ring-offset-0';
+    const heroButtonColumnClass = isHeroHorizontal ? 'flex h-full items-stretch bg-white/96 p-3' : 'flex h-full items-end';
     const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
 
     const labelClass = isInlinePreset
@@ -527,7 +538,7 @@ export default function SearchWidget({
                 "grid grid-cols-1 gap-4 items-end md:grid-cols-2",
                 isHeroPreset
                     ? isHeroHorizontal
-                        ? "gap-3 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_260px] lg:items-end"
+                        ? "gap-3 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_280px] lg:items-stretch lg:gap-0"
                         : "gap-3 md:grid-cols-2 lg:grid-cols-1"
                     : "xl:grid-cols-[repeat(16,minmax(0,1fr))]"
             )}>
@@ -826,7 +837,12 @@ export default function SearchWidget({
                         className={isInlinePreset
                             ? 'w-full h-11 min-w-[170px] px-4 text-sm font-semibold flex items-center justify-center gap-2'
                             : isHeroPreset
-                                ? 'flex h-[52px] w-full items-center justify-center gap-2 rounded-none border border-white/16 bg-[color:var(--brand-forest)] px-5 font-sans text-[0.78rem] font-semibold uppercase tracking-[0.13em] text-white shadow-none transition-all duration-200 hover:bg-[color:var(--forest-soft)] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-secondary focus-visible:ring-offset-0'
+                                ? cn(
+                                    'flex w-full items-center justify-center gap-2 rounded-none px-5 font-sans text-[0.78rem] font-semibold uppercase tracking-[0.13em] shadow-none transition-all duration-200 focus-visible:ring-secondary focus-visible:ring-offset-0',
+                                    isHeroHorizontal
+                                        ? 'h-full min-h-[64px] border border-[color:var(--brand-gold)] bg-[color:var(--brand-gold)] text-[color:var(--brand-forest)] hover:bg-[color:var(--brand-gold)]/88 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)]'
+                                        : 'h-[52px] border border-white/16 bg-[color:var(--brand-forest)] text-white hover:bg-[color:var(--forest-soft)] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)]'
+                                )
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
                         aria-label={submitLabel}
                         onClick={() => {
@@ -842,8 +858,11 @@ export default function SearchWidget({
                         {isHeroPreset ? (
                             <span className="flex flex-col items-center justify-center text-center leading-none">
                                 <span className="whitespace-nowrap">{loading ? loadingLabel : 'Ver disponibilidade'}</span>
-                                <span className="mt-1 text-[0.58rem] tracking-[0.14em] text-white/72">
-                                    Consulte valores
+                                <span className={cn(
+                                    "mt-1 text-[0.58rem] tracking-[0.14em]",
+                                    isHeroHorizontal ? "text-[color:var(--brand-forest)]/68" : "text-white/72"
+                                )}>
+                                    {isHeroHorizontal ? 'Melhor tarifa' : 'Consulte valores'}
                                 </span>
                             </span>
                         ) : hasResponsiveLabel ? (
