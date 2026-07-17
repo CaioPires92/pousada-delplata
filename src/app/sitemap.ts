@@ -4,6 +4,8 @@ import { getAllBlogPosts } from "@/lib/blog";
 import prisma from "@/lib/prisma";
 import { absoluteUrl } from "@/lib/seo";
 
+export const dynamic = "force-dynamic";
+
 const staticRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/acomodacoes", changeFrequency: "weekly", priority: 0.9 },
