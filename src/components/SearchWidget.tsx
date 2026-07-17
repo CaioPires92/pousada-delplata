@@ -181,7 +181,7 @@ export default function SearchWidget({
         }
         setChildrenAges((prev) => {
             const next = prev.slice(0, nextChildren);
-            while (next.length < nextChildren) next.push(null);
+            while (next.length < nextChildren) next.push(0);
             return next;
         });
         if (showCapacityFallback && normalizedAdults + nextChildren <= maxGuests) {
@@ -197,7 +197,7 @@ export default function SearchWidget({
         setChildren(String(normalizedChildren));
         setChildrenAges((prev) => {
             const next = prev.slice(0, normalizedChildren);
-            while (next.length < normalizedChildren) next.push(null);
+            while (next.length < normalizedChildren) next.push(0);
             return next;
         });
         if (showCapacityFallback && numAdults + normalizedChildren <= maxGuests) {
