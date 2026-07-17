@@ -1383,6 +1383,7 @@ function ReservarContent() {
                         <SearchWidget
                             variant="light"
                             uiPreset="hero"
+                            heroLayout="horizontal"
                             hideCouponField
                             submitLabel="Ver disponibilidade"
                             submitLabelMobile="Buscar"
@@ -1479,6 +1480,7 @@ function ReservarContent() {
                         <SearchWidget
                             variant="light"
                             uiPreset="hero"
+                            heroLayout="horizontal"
                             hideCouponField
                             prefillFromQuery
                             submitLabel="Ver disponibilidade"

@@ -40,6 +40,7 @@ type SearchFieldErrors = {
 interface SearchWidgetProps {
     variant?: 'default' | 'light';
     uiPreset?: 'default' | 'inline' | 'hero';
+    heroLayout?: 'stacked' | 'horizontal';
     hideCouponField?: boolean;
     ctaMicrocopy?: string;
     submitLabel?: string;
@@ -52,6 +53,7 @@ interface SearchWidgetProps {
 export default function SearchWidget({
     variant = 'default',
     uiPreset = 'default',
+    heroLayout = 'stacked',
     hideCouponField = false,
     ctaMicrocopy,
     submitLabel = 'Buscar',
@@ -344,6 +346,7 @@ export default function SearchWidget({
 
     const isInlinePreset = uiPreset === 'inline';
     const isHeroPreset = uiPreset === 'hero';
+    const isHeroHorizontal = isHeroPreset && heroLayout === 'horizontal';
     const shouldShowHeroCompact = isHeroPreset && collapsible && !isHeroExpanded;
     const showCouponField = !isHeroPreset && !hideCouponField;
     const heroCalendarClassNames = isHeroPreset ? {
@@ -523,7 +526,9 @@ export default function SearchWidget({
             <form onSubmit={handleSearch} className={cn(
                 "grid grid-cols-1 gap-4 items-end md:grid-cols-2",
                 isHeroPreset
-                    ? "gap-3 md:grid-cols-2 lg:grid-cols-1"
+                    ? isHeroHorizontal
+                        ? "gap-3 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_260px] lg:items-end"
+                        : "gap-3 md:grid-cols-2 lg:grid-cols-1"
                     : "xl:grid-cols-[repeat(16,minmax(0,1fr))]"
             )}>
                 {/* Check-in */}
@@ -618,7 +623,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Hóspedes / Adultos / Crianças */}
-                <div className={cn("flex flex-col md:col-span-2", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1` : "xl:col-span-4")}>
+                <div className={cn("flex flex-col md:col-span-2", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1 ${isHeroHorizontal ? "md:col-span-2 lg:col-span-1" : ""}` : "xl:col-span-4")}>
                     <div className={cn(isHeroPreset && heroGuestsInnerClass, !isHeroPreset && heroFieldInnerClass)}>
                     <label htmlFor="adults" className={labelClass}>
                         <Users className="w-4 h-4" />
