@@ -64,6 +64,40 @@ describe("HomeAvailabilityOffers", () => {
     expect(screen.getByRole("link", { name: /Ver preços e disponibilidade/i })).toHaveAttribute("href", "/reservar");
   });
 
+  it("abre galeria de fotos ao clicar na foto da acomodação", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "room-gallery",
+          name: "Chalé com fotos",
+          maxGuests: 4,
+          amenities: "WiFi",
+          totalPrice: 699,
+          photos: [
+            { url: "/fotos/chale-1.webp" },
+            { url: "/fotos/chale-2.webp" },
+          ],
+        },
+      ],
+    });
+
+    render(<HomeAvailabilityOffers />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Chalé com fotos" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Abrir galeria de fotos de Chalé com fotos/i }));
+
+    expect(screen.getByRole("dialog", { name: /Galeria de fotos de Chalé com fotos/i })).toBeInTheDocument();
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Próxima foto/i }));
+
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+  });
+
   it("atualiza os cards ao consultar outras datas no modal", async () => {
     fetchMock
       .mockResolvedValueOnce({
