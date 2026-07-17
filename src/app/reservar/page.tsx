@@ -311,6 +311,7 @@ function ReservarContent() {
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
     const selectedRoomRef = useRef<Room | null>(null);
+    const autoSelectedRoomKeyRef = useRef<string>('');
     const maxGuests = 4;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
@@ -863,6 +864,23 @@ function ReservarContent() {
             document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
     };
+
+    const autoSelectPreferredRoom = useEffectEvent(async (room: Room) => {
+        await handleSelectRoom(room);
+    });
+
+    useEffect(() => {
+        if (!preferredRoomTypeId || !Array.isArray(availableRooms) || selectedRoom) return;
+
+        const roomFromUrl = availableRooms.find((room) => room.id === preferredRoomTypeId);
+        if (!roomFromUrl) return;
+
+        const autoSelectKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}|${promoFromQuery}|${preferredRoomTypeId}`;
+        if (autoSelectedRoomKeyRef.current === autoSelectKey) return;
+
+        autoSelectedRoomKeyRef.current = autoSelectKey;
+        void autoSelectPreferredRoom(roomFromUrl);
+    }, [adults, availableRooms, checkIn, checkOut, children, childrenAgesKey, preferredRoomTypeId, promoFromQuery, selectedRoom]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

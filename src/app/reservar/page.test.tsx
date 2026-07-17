@@ -113,7 +113,7 @@ describe('ReservarPage', () => {
     expect(screen.getAllByText(/Valor total exibido/i).length).toBeGreaterThan(0);
   });
 
-  it('exibe primeiro o quarto escolhido na página de acomodações', async () => {
+  it('abre direto no checkout quando a URL informa a acomodação escolhida', async () => {
     searchParamState.roomTypeId = 'room-preferred';
     mockFetch.mockResolvedValue({
       ok: true,
@@ -127,11 +127,11 @@ describe('ReservarPage', () => {
     render(<ReservarPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Acomodação escolhida')).toBeInTheDocument();
+      expect(screen.getByText(/Passo 2 de 3/i)).toBeInTheDocument();
     });
 
-    const roomNames = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent);
-    expect(roomNames.indexOf('Acomodação escolhida')).toBeLessThan(roomNames.indexOf('Outra acomodação'));
+    expect(screen.getAllByText('Acomodação escolhida').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Escolher acomodação/i })).not.toBeInTheDocument();
   });
 
   it('oferece contexto útil no fallback renderizado antes do JavaScript', () => {
