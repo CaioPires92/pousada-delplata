@@ -64,6 +64,44 @@ describe("HomeAvailabilityOffers", () => {
     expect(screen.getByRole("link", { name: /Ver preços e disponibilidade/i })).toHaveAttribute("href", "/reservar");
   });
 
+  it("busca automaticamente a próxima data com oferta real no carregamento inicial", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          {
+            id: "next-room",
+            name: "Chalé disponível",
+            maxGuests: 4,
+            amenities: "WiFi",
+            totalPrice: 499,
+            photos: [],
+          },
+        ],
+      });
+
+    render(<HomeAvailabilityOffers />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Chalé disponível" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("R$ 499,00")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole("link", { name: /Escolher esta acomodação/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("roomTypeId=next-room"),
+    );
+  });
+
   it("abre galeria de fotos ao clicar na foto da acomodação", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

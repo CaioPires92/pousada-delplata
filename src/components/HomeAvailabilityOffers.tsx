@@ -93,6 +93,17 @@ function makeOfferSearchKey(search: OfferSearch) {
   ].join("|");
 }
 
+function moveSearchByDays(search: OfferSearch, offsetDays: number): OfferSearch {
+  const checkInDate = addDays(new Date(`${search.checkIn}T12:00:00`), offsetDays);
+  const checkOutDate = addDays(checkInDate, search.nights);
+
+  return {
+    ...search,
+    checkIn: format(checkInDate, "yyyy-MM-dd"),
+    checkOut: format(checkOutDate, "yyyy-MM-dd"),
+  };
+}
+
 function isValidOfferPhotoUrl(url: string) {
   const normalizedUrl = url.trim();
   return normalizedUrl && !normalizedUrl.includes("picsum.photos") && !normalizedUrl.includes("placeholder");
@@ -136,6 +147,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const [unavailable, setUnavailable] = useState(false);
   const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
   const lastLoadedSearchKeyRef = useRef("");
+  const initialFallbackAppliedRef = useRef(false);
 
   useEffect(() => {
     if (!roomGallery) return;
@@ -191,9 +203,36 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
           return;
         }
 
-        const validOffers = result.data
+        let validOffers = result.data
           .filter((room: HomeOffer) => Number(room.totalPrice) > 0)
           .sort((left: HomeOffer, right: HomeOffer) => Number(left.totalPrice) - Number(right.totalPrice));
+
+        const canTryInitialFallback = !initialFallbackAppliedRef.current
+          && makeOfferSearchKey(offerSearch) === makeOfferSearchKey(initialSearch)
+          && validOffers.length === 0;
+
+        if (canTryInitialFallback) {
+          initialFallbackAppliedRef.current = true;
+
+          for (let offsetDays = 1; offsetDays <= 30; offsetDays += 1) {
+            if (controller.signal.aborted) return;
+
+            const fallbackSearch = moveSearchByDays(offerSearch, offsetDays);
+            const fallbackResult = await requestOffers(fallbackSearch, controller.signal);
+
+            if (!fallbackResult.response.ok || !Array.isArray(fallbackResult.data)) continue;
+
+            const fallbackOffers = fallbackResult.data
+              .filter((room: HomeOffer) => Number(room.totalPrice) > 0)
+              .sort((left: HomeOffer, right: HomeOffer) => Number(left.totalPrice) - Number(right.totalPrice));
+
+            if (fallbackOffers.length > 0) {
+              nextSearch = fallbackSearch;
+              validOffers = fallbackOffers;
+              break;
+            }
+          }
+        }
 
         lastLoadedSearchKeyRef.current = makeOfferSearchKey(nextSearch);
         setOfferSearch(nextSearch);
@@ -220,7 +259,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
 
     void loadOffers();
     return () => controller.abort();
-  }, [offerSearch, onLowestOfferChange]);
+  }, [initialSearch, offerSearch, onLowestOfferChange]);
 
   const resultUrl = `/reservar?${new URLSearchParams({
     checkIn: offerSearch.checkIn,
