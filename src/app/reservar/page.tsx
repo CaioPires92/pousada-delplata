@@ -421,7 +421,11 @@ function ReservarContent() {
         return Number.isFinite(parsed) ? parsed : Number.NaN;
     };
 
-    const formatCurrencyBRL = (value: number) => `R$ ${Number(value).toFixed(2)}`;
+    const formatCurrencyBRL = (value: number) => Number(value).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+    });
 
     const getPartialPaymentUnavailableMessage = (reasons: string[]) => {
         if (reasons.includes('disabled')) return 'Pagamento parcial indisponível no momento.';
@@ -854,7 +858,16 @@ function ReservarContent() {
             value: nextRoom.totalPrice,
         });
         setTimeout(() => {
-            document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth' });
+            const isMobileViewport = typeof window.matchMedia === 'function'
+                ? window.matchMedia('(max-width: 1023px)').matches
+                : window.innerWidth < 1024;
+
+            if (isMobileViewport) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+
+            document.getElementById('guest-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
     };
 
@@ -1364,7 +1377,7 @@ function ReservarContent() {
 
     if (!checkIn || !checkOut) {
         return (
-            <main className="relative flex min-h-screen items-center justify-center bg-[color:var(--brand-black)]">
+            <main className="relative flex min-h-[100svh] items-start justify-center bg-[color:var(--brand-black)] pb-10 pt-28 md:min-h-screen md:items-center md:py-28">
                 <div className="absolute inset-0 z-0">
                     <Image
                         src="/fotos/piscina-aptos/DJI_0845.jpg"
@@ -1378,14 +1391,14 @@ function ReservarContent() {
                 </div>
 
                 <div className="container relative z-10 max-w-7xl mx-auto px-4">
-                    <div className="text-center mb-8 text-white">
+                    <div className="text-center mb-6 text-white md:mb-8">
                         <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
                             Reservas
                         </p>
-                        <h1 className="font-sans mb-4 mt-4 text-[2.9rem] font-semibold leading-[0.98] md:text-[4rem]">
+                        <h1 className="font-sans mb-4 mt-4 text-[2.45rem] font-semibold leading-[0.98] sm:text-[2.9rem] md:text-[4rem]">
                             Planeje sua Estadia
                         </h1>
-                        <p className="mx-auto max-w-2xl text-lg font-semibold leading-8 text-white/88">
+                        <p className="mx-auto max-w-2xl text-base font-semibold leading-7 text-white/88 sm:text-lg sm:leading-8">
                             Selecione as datas da sua viagem para conferir nossas acomodações exclusivas e garantir o melhor preço.
                         </p>
                     </div>
@@ -1468,7 +1481,7 @@ function ReservarContent() {
     }
 
     return (
-        <main className="min-h-screen pt-28 pb-12 bg-muted/30">
+        <main className="min-h-screen bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
             <div className="container mx-auto box-border w-full max-w-[1440px] px-4">
                 <AvailabilityBar
                     checkIn={checkIn!}
@@ -1500,7 +1513,7 @@ function ReservarContent() {
                     </div>
                 ) : null}
 
-                <div className="mb-6 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3">
+                <div className="mb-4 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 md:mb-6">
                     <div className="flex items-center justify-between gap-4">
                         <p className="text-sm font-medium text-foreground">Passo {currentStep} de {totalSteps}</p>
                         <p className="text-xs text-muted-foreground">
@@ -1974,8 +1987,8 @@ function ReservarContent() {
                         </Card>
                     </div>
                 ) : (
-                    <div className="grid min-w-0 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 lg:grid-cols-3">
-                        <div className="sticky top-20 z-30 min-w-0 lg:hidden">
+                    <div className="grid min-w-0 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-500 md:gap-8 lg:grid-cols-3">
+                        <div className="relative z-30 min-w-0 lg:hidden">
                             <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3">
                                 <button
                                     type="button"
@@ -1990,7 +2003,7 @@ function ReservarContent() {
                                         <p className="text-xs text-muted-foreground">{formatDateBR(checkIn!)} - {formatDateBR(checkOut!)}</p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-sm font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
+                                        <span className="text-sm font-bold text-primary">{formatCurrencyBRL(bookingTotal)}</span>
                                         <span className="text-xs font-medium text-primary">
                                             {mobileSummaryExpanded ? 'Ocultar resumo' : 'Ver resumo'}
                                         </span>
@@ -2014,7 +2027,7 @@ function ReservarContent() {
                                         </div>
                                         <div className="flex items-center justify-between text-sm">
                                             <span>{bookingDiscount > 0 ? 'Total com desconto' : 'Total'}</span>
-                                            <span className="font-bold text-primary">R$ {bookingTotal.toFixed(2)}</span>
+                                            <span className="font-bold text-primary">{formatCurrencyBRL(bookingTotal)}</span>
                                         </div>
                                     </div>
                                 ) : null}
@@ -2022,23 +2035,23 @@ function ReservarContent() {
                         </div>
 
                         <div className="min-w-0 space-y-6 lg:col-span-2">
-                            <Button variant="ghost" onClick={() => { clearCouponState(true); setSelectedRoom(null); }} className="pl-0 hover:pl-2 transition-all gap-2 text-muted-foreground">
+                            <Button variant="ghost" onClick={() => { clearCouponState(true); setSelectedRoom(null); }} className="h-auto min-h-10 whitespace-normal pl-0 text-left hover:pl-2 transition-all gap-2 text-muted-foreground">
                                 <ArrowLeft className="w-4 h-4" /> Voltar para seleção de quartos
                             </Button>
 
                             <Card id="guest-form" className="min-w-0 overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
-                                <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] pb-6">
-                                    <div className="flex items-center gap-3">
+                                <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] px-4 pb-5 pt-5 md:px-6 md:pb-6">
+                                    <div className="flex items-start gap-3">
                                         <div className="border border-primary/10 bg-[color:var(--brand-white)] p-2 text-primary">
                                             <User className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <CardTitle className="text-xl">Dados do Hóspede Principal</CardTitle>
-                                            <CardDescription>Preencha seus dados para receber contato, voucher e confirmação da reserva.</CardDescription>
+                                            <CardTitle className="text-lg md:text-xl">Dados do Hóspede Principal</CardTitle>
+                                            <CardDescription className="text-sm leading-5">Preencha seus dados para receber contato, voucher e confirmação da reserva.</CardDescription>
                                         </div>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="pt-6">
+                                <CardContent className="px-4 pt-5 md:px-6 md:pt-6">
                                     <form onSubmit={handleSubmit} className="space-y-6">
                                         <div className="space-y-4">
                                             <div className="space-y-2">
@@ -2275,7 +2288,7 @@ function ReservarContent() {
                                     <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total da estadia</p>
                                         <div className="mt-2">
-                                            <span className="text-[2.2rem] font-bold leading-none text-primary">R$ {bookingTotal.toFixed(2)}</span>
+                                            <span className="text-[2.2rem] font-bold leading-none text-primary">{formatCurrencyBRL(bookingTotal)}</span>
                                         </div>
                                         <div className="mt-2 flex items-center justify-between text-sm text-primary/82">
                                             <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>

@@ -30,9 +30,8 @@ export default function Footer() {
         <footer className="bg-primary text-white">
             <div className="container py-16">
                 <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true }}
+                    initial={false}
+                    animate="visible"
                     variants={containerVariants}
                     className="grid grid-cols-1 md:grid-cols-3 gap-12"
                 >
@@ -123,17 +122,15 @@ export default function Footer() {
             <div className="border-t border-white/10">
                 <div className="container py-6">
                     <motion.p
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
+                        initial={false}
+                        animate={{ opacity: 1 }}
                         className="text-center text-white/60 text-sm"
                     >
                         © {currentYear} Hotel Pousada Delplata. Todos os direitos reservados.
                     </motion.p>
                     <motion.p
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
+                        initial={false}
+                        animate={{ opacity: 1 }}
                         className="mt-2 text-center text-white/60 text-sm"
                     >
                         Desenvolvido por{" "}

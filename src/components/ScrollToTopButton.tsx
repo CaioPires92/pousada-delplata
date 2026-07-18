@@ -42,7 +42,7 @@ export default function ScrollToTopButton() {
     }
 
     return (
-        <div className="fixed bottom-5 left-5 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-5 left-5 z-50 hidden animate-in fade-in slide-in-from-bottom-4 duration-300 md:block">
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <TooltipTrigger asChild>

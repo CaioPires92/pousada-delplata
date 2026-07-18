@@ -268,7 +268,7 @@ describe('ReservarPage', () => {
 
     // Wait for breakdown to appear in summary
     await waitFor(() => {
-      const totals = screen.getAllByText(/R\$ 760\.00/);
+      const totals = screen.getAllByText(/R\$\s*760,00/);
       expect(totals.length).toBeGreaterThan(0);
       expect(screen.getByText(/Base/i)).toBeInTheDocument();
       expect(screen.getByText(/Hóspedes adicionais/i)).toBeInTheDocument();

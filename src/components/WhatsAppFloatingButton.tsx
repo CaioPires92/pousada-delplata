@@ -48,14 +48,15 @@ export default function WhatsAppFloatingButton() {
     const shouldShow = showByScroll || showByMotorInteraction;
     if (!shouldShow) return null;
 
-    const hasBookingAssistant = !pathname.startsWith('/admin') && !pathname.startsWith('/reservar');
+    const isReservationPage = pathname.startsWith('/reservar');
+    const hasBookingAssistant = !pathname.startsWith('/admin') && !isReservationPage;
 
     return (
         <div className={`fixed z-50 ${hasBookingAssistant ? 'bottom-28 right-4 md:bottom-6 md:right-[22.5rem]' : 'bottom-4 right-4 md:bottom-6 md:right-6'}`}>
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <div className="flex items-center gap-2">
-                        <span className="md:hidden rounded-full border border-emerald-200/40 bg-emerald-950/85 px-2.5 py-1 text-xs font-medium text-emerald-50">
+                        <span className={`md:hidden rounded-full border border-emerald-200/40 bg-emerald-950/85 px-2.5 py-1 text-xs font-medium text-emerald-50 ${isReservationPage ? 'hidden' : ''}`}>
                             Dúvidas? Fale conosco
                         </span>
                         <TooltipTrigger asChild>
