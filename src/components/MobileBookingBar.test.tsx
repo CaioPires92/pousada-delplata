@@ -32,13 +32,28 @@ describe('MobileBookingBar', () => {
         expect(mocks.trackClickReservar).toHaveBeenCalledWith('booking_assistant_desktop');
     });
 
-    it('waits for interaction before showing on the home page', () => {
+    it('waits until the visitor leaves the hero before showing on the home page', () => {
         mocks.pathname = '/';
+        const hero = document.createElement('section');
+        hero.setAttribute('data-home-hero', '');
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: 640,
+        }) as DOMRect);
+        document.body.appendChild(hero);
+
         render(<MobileBookingBar />);
 
         expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
 
         fireEvent(window, new Event('reservar-cta-interaction'));
+        fireEvent.scroll(window);
+
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: -1,
+        }) as DOMRect);
+        fireEvent.scroll(window);
 
         expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
     });

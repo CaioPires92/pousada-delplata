@@ -208,7 +208,7 @@ export default function HomeContent() {
   return (
     <main className="min-h-screen">
       {/* Hero Section with Background Image */}
-      <section className="relative flex min-h-screen min-h-[100svh] w-full items-end overflow-hidden bg-[color:var(--brand-black)]">
+      <section data-home-hero className="relative flex min-h-screen min-h-[100svh] w-full items-end overflow-hidden bg-[color:var(--brand-black)]">
         {/* Background Image */}
         <div className="absolute inset-0">
           <Image

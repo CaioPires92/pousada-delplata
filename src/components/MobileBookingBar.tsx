@@ -7,8 +7,17 @@ import { CalendarDays, ShieldCheck, X } from 'lucide-react';
 import { trackClickReservar } from '@/lib/analytics';
 
 const DISMISSED_KEY = 'delplata-booking-assistant-dismissed';
-const HOME_SCROLL_THRESHOLD = 0.18;
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
+
+function hasLeftHomeHero() {
+    const hero = document.querySelector<HTMLElement>('[data-home-hero]');
+
+    if (hero) {
+        return hero.getBoundingClientRect().bottom <= 0;
+    }
+
+    return window.scrollY > window.innerHeight * 0.9;
+}
 
 export default function MobileBookingBar() {
     const pathname = usePathname();
@@ -31,14 +40,16 @@ export default function MobileBookingBar() {
         }
 
         const handleScroll = () => {
-            const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-            const progress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0;
-            if (progress >= HOME_SCROLL_THRESHOLD || window.scrollY > 420) {
+            if (hasLeftHomeHero()) {
                 setIsVisible(true);
             }
         };
 
-        const handleReservationInteraction = () => setIsVisible(true);
+        const handleReservationInteraction = () => {
+            if (hasLeftHomeHero()) {
+                setIsVisible(true);
+            }
+        };
 
         handleScroll();
         window.addEventListener('scroll', handleScroll, { passive: true });
