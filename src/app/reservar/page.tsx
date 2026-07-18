@@ -2299,30 +2299,30 @@ function ReservarContent() {
                                             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                                                 <div className="flex justify-between">
                                                     <span>Base ({stayNights} {stayNights === 1 ? 'diária' : 'diárias'})</span>
-                                                    <span>R$ {Number(selectedRoom.priceBreakdown.baseTotal).toFixed(2)}</span>
+                                                    <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.baseTotal))}</span>
                                                 </div>
                                                 {appliedCoupon ? (
                                                     <>
                                                         <div className="flex justify-between text-emerald-600">
                                                             <span>Desconto ({appliedCoupon.code})</span>
-                                                            <span>- R$ {bookingDiscount.toFixed(2)}</span>
+                                                            <span>- {formatCurrencyBRL(bookingDiscount)}</span>
                                                         </div>
                                                         <div className="flex justify-between font-semibold text-foreground">
                                                             <span>Subtotal</span>
-                                                            <span>R$ {bookingSubtotal.toFixed(2)}</span>
+                                                            <span>{formatCurrencyBRL(bookingSubtotal)}</span>
                                                         </div>
                                                     </>
                                                 ) : null}
                                                 {selectedRoom.priceBreakdown.extraAdultTotal > 0 ? (
                                                     <div className="flex justify-between">
                                                         <span>Hóspedes adicionais</span>
-                                                        <span>R$ {Number(selectedRoom.priceBreakdown.extraAdultTotal).toFixed(2)}</span>
+                                                        <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.extraAdultTotal))}</span>
                                                     </div>
                                                 ) : null}
                                                 {selectedRoom.priceBreakdown.childTotal > 0 ? (
                                                     <div className="flex justify-between">
                                                         <span>Crianças 6–11</span>
-                                                        <span>R$ {Number(selectedRoom.priceBreakdown.childTotal).toFixed(2)}</span>
+                                                        <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.childTotal))}</span>
                                                     </div>
                                                 ) : null}
                                             </div>
