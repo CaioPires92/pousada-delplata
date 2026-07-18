@@ -290,3 +290,90 @@ Escopo ajustado: o objetivo é receber um email de recuperação quando o hóspe
 - [x] Variáveis de ambiente necessárias estão documentadas.
 - [x] Migrações de banco foram criadas e testadas, se aplicável.
 - [x] Código revisado antes do commit.
+
+---
+
+## 14. Backlog futuro — conversão, cupons e painel interno
+
+Estes itens ainda não devem ser tratados como implementados. São melhorias futuras para aumentar reservas pelo motor e melhorar operação interna.
+
+### 14.1 Reativar desconto no motor
+
+- [ ] Revisar a regra atual de desconto já existente no projeto.
+- [ ] Definir qual desconto será reativado:
+  - [ ] Desconto por Pix.
+  - [ ] Cupom manual.
+  - [ ] Cupom automático de recuperação.
+- [ ] Garantir que o desconto apareça de forma clara antes do pagamento.
+- [ ] Salvar no banco:
+  - [ ] Valor original.
+  - [ ] Código do desconto/cupom aplicado.
+  - [ ] Valor do desconto.
+  - [ ] Valor final pago.
+- [ ] Validar no backend que o desconto aplicado é permitido.
+- [ ] Garantir que o Mercado Pago receba exatamente o valor final validado pelo backend.
+
+#### Critérios de aceite
+
+- [ ] O cliente entende claramente o valor original, desconto e valor final.
+- [ ] O desconto não pode ser manipulado pelo frontend.
+- [ ] O admin consegue identificar qual desconto foi usado na reserva.
+- [ ] Os e-mails de confirmação exibem valores coerentes com o desconto aplicado.
+
+### 14.2 Cupom automático de 5% para abandono de reserva
+
+- [ ] Criar regra para gerar cupom de 5% quando uma reserva for abandonada.
+- [ ] Definir quando uma reserva conta como abandonada:
+  - [ ] Reserva criada e sem pagamento após X minutos.
+  - [ ] Pagamento iniciado, mas não aprovado.
+  - [ ] Reserva expirada sem pagamento.
+- [ ] Definir validade do cupom:
+  - [ ] Exemplo: 24h, 48h ou 72h.
+- [ ] Definir se o cupom será único por reserva/hóspede.
+- [ ] Vincular o cupom ao e-mail/telefone do hóspede para evitar uso indevido.
+- [ ] Incluir o cupom no e-mail de recuperação de abandono.
+- [ ] Exibir CTA no e-mail levando de volta para o motor de reservas com o cupom aplicado.
+- [ ] Garantir que reserva já paga/confirmada não receba cupom.
+- [ ] Evitar envio duplicado de cupom para a mesma reserva.
+- [ ] Registrar no banco:
+  - [ ] Cupom gerado.
+  - [ ] Reserva original abandonada.
+  - [ ] Hóspede/e-mail vinculado.
+  - [ ] Data de envio.
+  - [ ] Data de expiração.
+  - [ ] Status: gerado, enviado, usado, expirado, cancelado.
+
+#### Critérios de aceite
+
+- [ ] O hóspede recebe apenas um cupom por abandono.
+- [ ] O cupom concede exatamente 5%.
+- [ ] O cupom não funciona após expirar.
+- [ ] O cupom não funciona para outro e-mail/telefone, se a regra exigir vínculo.
+- [ ] O painel administrativo mostra se o cupom foi usado para recuperar a reserva.
+- [ ] O e-mail deixa claro que o desconto é para concluir a reserva pelo site.
+
+### 14.3 Busca no dashboard interno por reserva e hóspede
+
+- [ ] Adicionar campo de busca com ícone de lupa no dashboard/painel de reservas.
+- [ ] Permitir filtro por:
+  - [ ] Número/código da reserva.
+  - [ ] ID completo da reserva.
+  - [ ] Nome do hóspede.
+  - [ ] E-mail do hóspede, se fizer sentido.
+  - [ ] Telefone/WhatsApp, se fizer sentido.
+- [ ] A busca deve funcionar sem recarregar a página inteira quando possível.
+- [ ] A busca deve aceitar parte do texto:
+  - [ ] Exemplo: buscar `CAIO` encontra `CAIO CESAR DE GODOI PIRES`.
+  - [ ] Exemplo: buscar os primeiros caracteres do ID encontra a reserva.
+- [ ] Exibir estado vazio claro quando nada for encontrado.
+- [ ] Manter filtros atuais de status/data funcionando junto com a busca, se existirem.
+- [ ] Garantir que a busca não quebre paginação ou ordenação.
+
+#### Critérios de aceite
+
+- [ ] Admin encontra uma reserva pelo código/ID.
+- [ ] Admin encontra uma reserva pelo nome do hóspede.
+- [ ] Campo tem ícone de lupa visível.
+- [ ] Busca funciona em desktop e mobile.
+- [ ] Busca não expõe dados sensíveis além do que o admin já pode ver.
+- [ ] Testes cobrem busca por ID e nome.
