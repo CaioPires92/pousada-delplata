@@ -776,12 +776,9 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
     const htmlContent = buildBookingConfirmationEmailHtml(data);
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
 
-    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-
     const mailOptions = {
         from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
         to: guestEmail,
-        cc: adminEmail,
         subject: `🎫 Voucher de Hospedagem - Reserva ${bookingCode} (${roomName})`,
         html: htmlContent,
     };
