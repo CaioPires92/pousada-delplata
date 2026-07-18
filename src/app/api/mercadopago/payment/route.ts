@@ -604,31 +604,33 @@ export async function POST(request: Request) {
                 },
             });
 
-            if (!skipGuestEmail && !localCardSandbox) {
+            const approvedEmailPayload = {
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                guestPhone: booking.guest.phone || null,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+                paymentMethod: normalizedPaymentMethod,
+                paymentInstallments: normalizedInstallments,
+                paymentMode: paymentPlan.paymentMode,
+                paidAmount: requestedAmount,
+                remainingAmount,
+                balanceDueAt: paymentPlan.balanceDueAt,
+                balanceDueDate: paymentPlan.balanceDueDate,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
+                bookingStatus: 'CONFIRMED',
+                paymentStatus: 'APPROVED',
+                bookingCreatedAt: booking.createdAt,
+            };
+
+            if (!skipGuestEmail) {
                 try {
-                    const confirmationEmailResult = await sendBookingConfirmationEmail({
-                        guestName: booking.guest.name,
-                        guestEmail: booking.guest.email,
-                        guestPhone: booking.guest.phone || null,
-                        bookingId: booking.id,
-                        roomName: booking.roomType.name,
-                        checkIn: booking.checkIn,
-                        checkOut: booking.checkOut,
-                        totalPrice: Number(booking.totalPrice),
-                        paymentMethod: normalizedPaymentMethod,
-                        paymentInstallments: normalizedInstallments,
-                        paymentMode: paymentPlan.paymentMode,
-                        paidAmount: requestedAmount,
-                        remainingAmount,
-                        balanceDueAt: paymentPlan.balanceDueAt,
-                        balanceDueDate: paymentPlan.balanceDueDate,
-                        adults: booking.adults,
-                        children: booking.children,
-                        childrenAges: booking.childrenAges,
-                        bookingStatus: 'CONFIRMED',
-                        paymentStatus: 'APPROVED',
-                        bookingCreatedAt: booking.createdAt,
-                    });
+                    const confirmationEmailResult = await sendBookingConfirmationEmail(approvedEmailPayload);
 
                     if (!confirmationEmailResult?.success) {
                         throw new Error(
@@ -642,72 +644,29 @@ export async function POST(request: Request) {
                         where: { id: bookingId, confirmationEmailSentAt: null },
                         data: { confirmationEmailSentAt: new Date() },
                     });
-
-                    await sendBookingCreatedAlertEmail({
-                        guestName: booking.guest.name,
-                        guestEmail: booking.guest.email,
-                        guestPhone: booking.guest.phone || null,
-                        bookingId: booking.id,
-                        roomName: booking.roomType.name,
-                        checkIn: booking.checkIn,
-                        checkOut: booking.checkOut,
-                        totalPrice: Number(booking.totalPrice),
-                        paymentMethod: normalizedPaymentMethod,
-                        paymentInstallments: normalizedInstallments,
-                        paymentMode: paymentPlan.paymentMode,
-                        paidAmount: requestedAmount,
-                        remainingAmount,
-                        balanceDueAt: paymentPlan.balanceDueAt,
-                        balanceDueDate: paymentPlan.balanceDueDate,
-                        adults: booking.adults,
-                        children: booking.children,
-                        childrenAges: booking.childrenAges,
-                        bookingStatus: 'CONFIRMED',
-                        paymentStatus: 'APPROVED',
-                        bookingCreatedAt: booking.createdAt,
-                    });
                 } catch (emailError) {
                     opsLog('error', 'MP_PAYMENT_APPROVED_EMAIL_FAILED', {
                         bookingId,
                         paymentMethod: normalizedPaymentMethod,
+                        localCardSandbox,
                         error: emailError instanceof Error ? emailError.message : String(emailError),
                     });
                 }
-            } else if (!localCardSandbox) {
-                try {
-                    await sendBookingCreatedAlertEmail({
-                        guestName: booking.guest.name,
-                        guestEmail: booking.guest.email,
-                        guestPhone: booking.guest.phone || null,
-                        bookingId: booking.id,
-                        roomName: booking.roomType.name,
-                        checkIn: booking.checkIn,
-                        checkOut: booking.checkOut,
-                        totalPrice: Number(booking.totalPrice),
-                        paymentMethod: normalizedPaymentMethod,
-                        paymentInstallments: normalizedInstallments,
-                        paymentMode: paymentPlan.paymentMode,
-                        paidAmount: requestedAmount,
-                        remainingAmount,
-                        balanceDueAt: paymentPlan.balanceDueAt,
-                        balanceDueDate: paymentPlan.balanceDueDate,
-                        adults: booking.adults,
-                        children: booking.children,
-                        childrenAges: booking.childrenAges,
-                        bookingStatus: 'CONFIRMED',
-                        paymentStatus: 'APPROVED',
-                        bookingCreatedAt: booking.createdAt,
-                    });
-                } catch (emailError) {
-                    opsLog('error', 'MP_PAYMENT_APPROVED_ALERT_EMAIL_FAILED', {
-                        bookingId,
-                        paymentMethod: normalizedPaymentMethod,
-                        error: emailError instanceof Error ? emailError.message : String(emailError),
-                    });
-                }
+            } else {
                 opsLog('info', 'MP_PAYMENT_APPROVED_EMAIL_SKIPPED', {
                     bookingId,
                     reason: 'skipGuestEmail is true'
+                });
+            }
+
+            try {
+                await sendBookingCreatedAlertEmail(approvedEmailPayload);
+            } catch (emailError) {
+                opsLog('error', 'MP_PAYMENT_APPROVED_ALERT_EMAIL_FAILED', {
+                    bookingId,
+                    paymentMethod: normalizedPaymentMethod,
+                    localCardSandbox,
+                    error: emailError instanceof Error ? emailError.message : String(emailError),
                 });
             }
 

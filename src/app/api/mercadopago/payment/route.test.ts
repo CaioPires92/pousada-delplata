@@ -74,7 +74,7 @@ describe('POST /api/mercadopago/payment', () => {
         (prisma.partialPaymentSettings.findUnique as any).mockResolvedValue(null);
     });
 
-    it('approves card payments locally when the isolated sandbox is enabled', async () => {
+    it('approves card payments locally and sends confirmation emails when the isolated sandbox is enabled', async () => {
         process.env.ENABLE_TEST_PAYMENTS = 'true';
 
         const req = new Request('http://localhost/api/mercadopago/payment', {
@@ -97,8 +97,20 @@ describe('POST /api/mercadopago/payment', () => {
         expect(data.live_mode).toBe(false);
         expect(data.sandbox).toBe(true);
         expect(mockCreate).not.toHaveBeenCalled();
-        expect(sendBookingConfirmationEmail).not.toHaveBeenCalled();
-        expect(sendBookingCreatedAlertEmail).not.toHaveBeenCalled();
+        expect(sendBookingConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            guestEmail: 'maria@example.com',
+            totalPrice: 100,
+            paymentMethod: 'CREDIT_CARD',
+            paymentStatus: 'APPROVED',
+        }));
+        expect(sendBookingCreatedAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            guestEmail: 'maria@example.com',
+            totalPrice: 100,
+            paymentMethod: 'CREDIT_CARD',
+            paymentStatus: 'APPROVED',
+        }));
         expect(sendGa4PurchaseServerEvent).not.toHaveBeenCalled();
         expect(prisma.payment.upsert).toHaveBeenCalledWith(expect.objectContaining({
             create: expect.objectContaining({

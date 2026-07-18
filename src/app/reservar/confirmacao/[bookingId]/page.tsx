@@ -59,6 +59,12 @@ interface BookingData {
         method?: string | null;
         cardBrand?: string | null;
         installments?: number | null;
+        amount?: number | string | null;
+        totalAmount?: number | string | null;
+        remainingAmount?: number | string | null;
+        paymentMode?: string | null;
+        balanceDueAt?: string | null;
+        balanceDueDate?: string | null;
     } | null;
 }
 
@@ -144,6 +150,20 @@ function formatPaymentStatus(status?: string | null) {
     if (normalized === 'REFUNDED') return 'Estornado';
     if (normalized === 'CHARGED_BACK') return 'Chargeback';
     return normalized || 'Em analise';
+}
+
+function isPartialPayment(payment?: BookingData['payment']) {
+    return String(payment?.paymentMode || '').toUpperCase() === 'PARTIAL'
+        && Number(payment?.remainingAmount || 0) > 0;
+}
+
+function formatBalanceDue(payment?: BookingData['payment']) {
+    const dueAt = String(payment?.balanceDueAt || '').toUpperCase();
+    if (dueAt === 'BEFORE_CHECK_IN' && payment?.balanceDueDate) {
+        return `Saldo restante até ${formatDateBR(payment.balanceDueDate)}`;
+    }
+    if (dueAt === 'BEFORE_CHECK_IN') return 'Saldo restante antes do check-in';
+    return 'Saldo restante no check-in';
 }
 
 function getStatusPresentation(status: PaymentStatus) {
@@ -310,6 +330,10 @@ export default function ConfirmacaoPage() {
     const stayNights = getStayNights(booking?.checkIn, booking?.checkOut);
     const paymentStatusLabel = formatPaymentStatus(booking?.payment?.status);
     const paymentMethodLabel = formatPaymentMethod(booking?.payment);
+    const partialPayment = isPartialPayment(booking?.payment);
+    const totalAmount = booking?.payment?.totalAmount ?? booking?.totalPrice;
+    const paidAmount = booking?.payment?.amount;
+    const remainingAmount = booking?.payment?.remainingAmount;
 
     return (
         <main className="min-h-screen bg-background px-4 pb-14 pt-28 text-primary md:px-6 md:pt-32">
@@ -417,15 +441,39 @@ export default function ConfirmacaoPage() {
                                             </span>
                                         </div>
 
-                                        <div className="flex items-center justify-between gap-4 pt-1">
+                                        <div className={`flex items-center justify-between gap-4 ${partialPayment ? 'border-b border-primary/10 pb-4' : 'pt-1'}`}>
                                             <div className="flex items-center gap-3 text-primary/78">
                                                 <BadgeCheck className="h-4.5 w-4.5 shrink-0" />
-                                                <span className="text-sm font-medium">Total</span>
+                                                <span className="text-sm font-medium">Total da estadia</span>
                                             </div>
                                             <span className="text-right text-[1.95rem] font-semibold leading-none text-primary">
-                                                {formatCurrency(booking?.totalPrice)}
+                                                {formatCurrency(totalAmount)}
                                             </span>
                                         </div>
+
+                                        {partialPayment ? (
+                                            <>
+                                                <div className="flex items-center justify-between gap-4 border-b border-primary/10 pb-4">
+                                                    <div className="flex items-center gap-3 text-primary/78">
+                                                        <CreditCard className="h-4.5 w-4.5 shrink-0" />
+                                                        <span className="text-sm font-medium">Pago agora</span>
+                                                    </div>
+                                                    <span className="text-right text-xl font-semibold text-primary">
+                                                        {formatCurrency(paidAmount)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-4 pt-1">
+                                                    <div className="flex items-center gap-3 text-primary/78">
+                                                        <CalendarClock className="h-4.5 w-4.5 shrink-0" />
+                                                        <span className="text-sm font-medium">{formatBalanceDue(booking?.payment)}</span>
+                                                    </div>
+                                                    <span className="text-right text-xl font-semibold text-primary">
+                                                        {formatCurrency(remainingAmount)}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        ) : null}
                                     </div>
 
                                     <div className="mt-6 grid gap-3 border-t border-primary/10 pt-6">
@@ -449,6 +497,12 @@ export default function ConfirmacaoPage() {
                                                 {paymentStatusLabel}
                                             </span>
                                         </div>
+
+                                        {partialPayment ? (
+                                            <div className="border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
+                                                Você optou pelo pagamento parcial. Esta reserva está confirmada com o pagamento de entrada; o saldo restante será acertado conforme informado acima.
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
                             </section>
@@ -573,8 +627,8 @@ export default function ConfirmacaoPage() {
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">
                                 <BadgeCheck className="h-5 w-5 shrink-0 text-primary" />
                                 <div>
-                                    <p className="text-sm font-semibold text-primary">Valor da reserva</p>
-                                    <p className="text-xs text-primary/68">Total exibido nos detalhes</p>
+                                    <p className="text-sm font-semibold text-primary">{partialPayment ? 'Pagamento parcial' : 'Valor da reserva'}</p>
+                                    <p className="text-xs text-primary/68">{partialPayment ? 'Entrada e saldo detalhados acima' : 'Total exibido nos detalhes'}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">
