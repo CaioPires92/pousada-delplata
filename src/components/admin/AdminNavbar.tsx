@@ -43,14 +43,14 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
         { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList },
         { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
-        { href: '/admin/inbox', label: 'Mensagens', icon: MessageSquare },
-        { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
-        { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
+        { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
         { href: '/admin/quartos', label: 'Quartos', icon: Home },
         { href: '/admin/settings/partial-payment', label: 'Pagamento Parcial', icon: CreditCard },
-        { href: '/admin/settings/chatbot', label: 'Chatbot', icon: Bot },
-        { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
         { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
+        { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
+        { href: '/admin/inbox', label: 'Mensagens', icon: MessageSquare },
+        { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
+        { href: '/admin/settings/chatbot', label: 'Chatbot', icon: Bot },
     ];
 
     const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
