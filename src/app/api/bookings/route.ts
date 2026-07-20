@@ -50,7 +50,7 @@ export async function POST(request: Request) {
             if (!roomType) return null;
 
             const nightKeys = eachDayKeyInclusive(checkIn, prevDayKey(checkOut));
-            const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+            const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
             const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
             const activeBookings = await tx.booking.findMany({
                 where: {

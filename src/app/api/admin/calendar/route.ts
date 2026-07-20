@@ -84,7 +84,7 @@ export async function GET(request: Request) {
         );
 
         // 4. Buscar Reservas Ativas (Substituindo o $queryRaw por findMany seguro)
-        const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+        const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
 
         const activeBookings = await prisma.booking.findMany({
             where: {

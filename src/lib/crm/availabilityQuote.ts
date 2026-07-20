@@ -94,7 +94,7 @@ export async function queryAvailabilityQuote(
       rates: { orderBy: { createdAt: "desc" } },
     },
   });
-  const ttlMinutes = Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || "30", 10) || 30);
+  const ttlMinutes = Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || "15", 10) || 30);
   const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
   const options: AvailabilityQuoteOption[] = [];
   let minRequiredAcrossRooms = Infinity;

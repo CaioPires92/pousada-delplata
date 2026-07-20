@@ -83,6 +83,8 @@ export function formatFunnelStage(stage?: string | null) {
         BOOKING_CONFIRMED: 'Reserva confirmada',
         BOOKING_CANCELLED: 'Reserva cancelada',
         EXPIRED_UNPAID: 'Expirou sem concluir',
+        INVENTORY_RELEASED: 'Inventario liberado por abandono',
+        EXPIRED_CHECK_IN_PASSED: 'Expirada apos check-in',
     };
 
     return texts[normalized] || normalized.replace(/_/g, ' ');

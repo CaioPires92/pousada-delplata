@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendBookingConfirmationEmail, sendBookingPendingEmail } from '@/lib/email';
-import { expireStalePendingBookings } from '@/lib/expire-stale-bookings';
+import {
+    expirePastCheckInPendingBookings,
+    getPendingBookingReminderMinutes,
+    getTodayDateInSaoPauloAsUtcDate,
+    releaseStalePendingBookingHolds,
+} from '@/lib/expire-stale-bookings';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,12 +17,9 @@ export async function GET(request: Request) {
     }
 
     try {
-        const quinzeMinutosAtras = new Date(Date.now() - 15 * 60 * 1000);
-        const pendingTtlMinutes = Math.max(
-            1,
-            Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30
-        );
-        const expirationThreshold = new Date(Date.now() - pendingTtlMinutes * 60 * 1000);
+        const pendingReminderMinutes = getPendingBookingReminderMinutes();
+        const reminderThreshold = new Date(Date.now() - pendingReminderMinutes * 60 * 1000);
+        const today = getTodayDateInSaoPauloAsUtcDate();
         let pendingEmailCount = 0;
         let confirmationEmailCount = 0;
 
@@ -69,7 +71,8 @@ export async function GET(request: Request) {
         const pendingToNotify = await prisma.booking.findMany({
             where: {
                 status: 'PENDING',
-                createdAt: { lt: quinzeMinutosAtras, gte: expirationThreshold },
+                createdAt: { lt: reminderThreshold },
+                checkIn: { gte: today },
                 pendingEmailSentAt: null,
             },
             include: { guest: true, roomType: true, payment: true },
@@ -105,22 +108,29 @@ export async function GET(request: Request) {
             }
         }
 
-        const expiration = await expireStalePendingBookings({
+        const releasedHolds = await releaseStalePendingBookingHolds({
+            source: 'cron_cleanup_bookings',
+            sendAdminAlerts: true,
+            limit: 200,
+        });
+
+        const expiration = await expirePastCheckInPendingBookings({
             source: 'cron_cleanup_bookings',
             sendAdminAlerts: true,
             limit: 200,
         });
 
         console.log(
-            `[Cron Cleanup] ${expiration.expiredCount} reservas expiradas. Emails pendentes: ${pendingEmailCount}, alertas expirados: ${expiration.alertCount}, cupons liberados: ${expiration.couponReleaseCount}.`
+            `[Cron Cleanup] ${expiration.expiredCount} reservas expiradas por check-in vencido. Holds liberados: ${releasedHolds.holdReleasedCount}. Emails pendentes: ${pendingEmailCount}, alertas: ${releasedHolds.alertCount + expiration.alertCount}, cupons liberados: ${releasedHolds.couponReleaseCount + expiration.couponReleaseCount}.`
         );
         return NextResponse.json({
             success: true,
             count: expiration.expiredCount,
             pendingEmailCount,
             confirmationEmailCount,
+            holdReleasedCount: releasedHolds.holdReleasedCount,
             expiredEmailCount: expiration.guestExpiredEmailCount,
-            couponReleaseCount: expiration.couponReleaseCount,
+            couponReleaseCount: releasedHolds.couponReleaseCount + expiration.couponReleaseCount,
         });
     } catch (error) {
         console.error('Erro no Cron:', error);

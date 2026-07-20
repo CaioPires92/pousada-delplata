@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
-import { expireStalePendingBookings } from '@/lib/expire-stale-bookings';
+import { expirePastCheckInPendingBookings, releaseStalePendingBookingHolds } from '@/lib/expire-stale-bookings';
 
 export const runtime = 'nodejs';
 
@@ -413,11 +413,18 @@ export async function GET(request: Request) {
         if (warnings.length > 0) {
             console.warn('[Admin Bookings] Query warnings:', warnings.join(' | '));
         }
-        await expireStalePendingBookings({
+        await releaseStalePendingBookingHolds({
             source: 'admin_bookings_list',
             sendAdminAlerts: true,
         }).catch((error) => {
-            console.error('[Admin Bookings] Failed to expire stale pending bookings:', error);
+            console.error('[Admin Bookings] Failed to release stale pending booking holds:', error);
+        });
+
+        await expirePastCheckInPendingBookings({
+            source: 'admin_bookings_list',
+            sendAdminAlerts: true,
+        }).catch((error) => {
+            console.error('[Admin Bookings] Failed to expire past check-in pending bookings:', error);
         });
 
         try {

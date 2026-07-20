@@ -35,7 +35,7 @@ export async function POST(request: Request) {
             let appliedLimit = false;
 
             for (const id of targetIds) {
-                const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+                const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
                 const startStr = coerceToYmd(startDate, 'startDate');
                 const endStr = coerceToYmd(endDate, 'endDate');
                 const start = new Date(`${startStr}T12:00:00Z`);
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
             const capacityTotal = Number(roomType?.totalUnits ?? 1);
             const fourGuestCapacity = Math.max(0, Math.min(capacityTotal, Number(roomType?.inventoryFor4Guests ?? 0)));
 
-            const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '30', 10) || 30);
+            const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
             const activeBookings = await prisma.booking.findMany({
                 where: {
                     roomTypeId,

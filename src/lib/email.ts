@@ -215,6 +215,8 @@ function formatRecoveryStage(data: BookingEmailData) {
     if (stage === 'PAYMENT_ERROR') return 'Encontramos uma dificuldade na etapa de pagamento.';
     if (stage === 'PAYMENT_REJECTED') return 'O pagamento não foi aprovado e a reserva ficou incompleta.';
     if (stage === 'PAYMENT_PENDING') return 'O pagamento ficou pendente de confirmação.';
+    if (stage === 'INVENTORY_RELEASED') return 'A reserva ficou sem conclusao e o quarto voltou ao inventario.';
+    if (stage === 'EXPIRED_CHECK_IN_PASSED') return 'A data de check-in passou sem confirmacao da reserva.';
     if (stage === 'PAYMENT_ATTEMPT_STARTED') return 'Você chegou à etapa de pagamento, mas não concluiu a reserva.';
     if (stage === 'BOOKING_CREATED') return 'Seus dados foram recebidos, mas o pagamento ainda não foi concluído.';
     return 'Você iniciou sua reserva, mas ela ainda não foi concluída.';
