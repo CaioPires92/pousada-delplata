@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 import prisma from '@/lib/prisma';
-import { sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
+import { sendAdminRecoveryAlertEmail, sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
 
 vi.mock('@/lib/email', () => ({
     sendAdminRecoveryAlertEmail: vi.fn().mockResolvedValue({ success: true }),
@@ -46,7 +46,7 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(res.status).toBe(401);
     });
 
-    it('sends pending reminders after 15 minutes and expires after 30 minutes', async () => {
+    it('sends pending reminders after 15 minutes and expires stale bookings without emailing expiration to guests', async () => {
         (prisma.booking.findMany as any)
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce([
@@ -90,11 +90,12 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(data.success).toBe(true);
         expect(data.couponReleaseCount).toBe(1);
         expect(data.pendingEmailCount).toBe(1);
-        expect(data.expiredEmailCount).toBe(1);
+        expect(data.expiredEmailCount).toBe(0);
         expect(sendBookingPendingEmail).toHaveBeenCalledWith(expect.objectContaining({
             bookingId: 'booking-pending-mail',
         }));
-        expect(sendBookingExpiredEmail).toHaveBeenCalledWith(expect.objectContaining({
+        expect(sendBookingExpiredEmail).not.toHaveBeenCalled();
+        expect(sendAdminRecoveryAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
             bookingId: 'booking-exp-1',
         }));
         expect(prisma.booking.updateMany).toHaveBeenCalledTimes(1);

@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { sendAdminRecoveryAlertEmail, sendBookingExpiredEmail } from '@/lib/email';
+import { sendAdminRecoveryAlertEmail } from '@/lib/email';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 function getPendingBookingTtlMinutes() {
@@ -59,7 +59,6 @@ export async function expireStalePendingBookings(params: {
     });
 
     let alertCount = 0;
-    let guestExpiredEmailCount = 0;
     if (params.sendAdminAlerts) {
         for (const booking of staleBookings) {
             await sendBookingStatusAlertEmail(booking, {
@@ -72,33 +71,6 @@ export async function expireStalePendingBookings(params: {
                 .catch((error) => {
                     console.error(`[Expire Stale Bookings] Failed status alert (${params.source}):`, error);
                 });
-
-            const guestEmailResult = await sendBookingExpiredEmail({
-                guestName: booking.guest.name,
-                guestEmail: booking.guest.email,
-                guestPhone: booking.guest.phone,
-                bookingId: booking.id,
-                roomName: booking.roomType.name,
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                totalPrice: Number(booking.totalPrice),
-                paymentMethod: booking.payment?.method || null,
-                paymentInstallments: booking.payment?.installments ?? null,
-                adults: booking.adults,
-                children: booking.children,
-                childrenAges: booking.childrenAges,
-                funnelStage: booking.funnelStage,
-                lastErrorMessage: booking.lastErrorMessage,
-            }).catch((error) => ({ success: false, error }));
-
-            if (guestEmailResult?.success) {
-                guestExpiredEmailCount++;
-                await prisma.booking.update({
-                    where: { id: booking.id },
-                    data: { expiredEmailSentAt: new Date() },
-                });
-            }
-
             await sendAdminRecoveryAlertEmail({
                 guestName: booking.guest.name,
                 guestEmail: booking.guest.email,
@@ -122,7 +94,7 @@ export async function expireStalePendingBookings(params: {
     return {
         expiredCount: expired.count,
         alertCount,
-        guestExpiredEmailCount,
+        guestExpiredEmailCount: 0,
         couponReleaseCount: released.count,
     };
 }
