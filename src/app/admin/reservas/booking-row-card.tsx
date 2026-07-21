@@ -14,6 +14,7 @@ import {
     CheckCircle2,
     XCircle,
     HelpCircle,
+    MessageCircle,
     Trash2,
     TestTube2
 } from 'lucide-react';
@@ -42,6 +43,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
 import styles from './reservas.module.css';
+
+function buildBookingWhatsAppUrl(booking: Booking) {
+    const phone = String(booking.guest.phone || '').replace(/\D/g, '');
+    if (!phone) return null;
+
+    const normalizedPhone = phone.startsWith('55') ? phone : `55${phone}`;
+    const message = [
+        `Olá, ${booking.guest.name || 'tudo bem'}!`,
+        'Aqui é da Pousada Delplata.',
+        `Estou chamando sobre a reserva ${booking.id}.`,
+    ].join(' ');
+
+    return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}
 
 type BookingRowCardProps = {
     booking: Booking;
@@ -73,6 +88,7 @@ export default function BookingRowCard(props: BookingRowCardProps) {
     const checkOut = formatDateSafe(getBookingCheckOutDate(booking));
     const partialPayment = String(booking.payment?.paymentMode || '').toUpperCase() === 'PARTIAL'
         && Number(booking.payment?.remainingAmount || 0) > 0;
+    const whatsappUrl = buildBookingWhatsAppUrl(booking);
 
     const triggerAction = (action: string) => {
         onActionSelect(booking, action);
@@ -138,6 +154,16 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                             >
                                 <HelpCircle className="w-4 h-4 text-blue-500" />
                                 Enviar Ajuda
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    if (whatsappUrl) window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                                }}
+                                disabled={!whatsappUrl}
+                                className="gap-2 cursor-pointer font-semibold py-2.5"
+                            >
+                                <MessageCircle className="w-4 h-4 text-emerald-500" />
+                                Chamar no WhatsApp
                             </DropdownMenuItem>
                             
                             {testPaymentsEnabled && (
