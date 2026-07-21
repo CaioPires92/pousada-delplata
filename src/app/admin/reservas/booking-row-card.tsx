@@ -52,7 +52,7 @@ function buildBookingWhatsAppUrl(booking: Booking) {
     const message = [
         `Olá, ${booking.guest.name || 'tudo bem'}!`,
         'Aqui é da Pousada Delplata.',
-        `Estou chamando sobre a reserva ${booking.id}.`,
+        'Vimos que você tem interesse em se hospedar conosco e queremos saber se podemos ajudar com a sua reserva.',
     ].join(' ');
 
     return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
