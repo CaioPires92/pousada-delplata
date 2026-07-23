@@ -276,8 +276,9 @@ function ReservarContent() {
     const [availableRooms, setAvailableRooms] = useState<Room[] | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
+    const [couponEnabled, setCouponEnabled] = useState(Boolean(promoFromQuery));
     const [couponCode, setCouponCode] = useState('');
-    const [, setCouponMessage] = useState('');
+    const [couponMessage, setCouponMessage] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
     const [formMessage, setFormMessage] = useState('');
     const [, setPromoAppliedInResults] = useState(false);
@@ -501,6 +502,7 @@ function ReservarContent() {
     useEffect(() => {
         if (promoFromQuery) {
             const timeoutId = window.setTimeout(() => {
+                setCouponEnabled(true);
                 setCouponCode(promoFromQuery);
             }, 0);
             return () => window.clearTimeout(timeoutId);
@@ -736,11 +738,6 @@ function ReservarContent() {
             setCouponMessage('');
             return null;
         }
-        if (!room.promoApplied) {
-            setAppliedCoupon(null);
-            return null;
-        }
-
         setFormMessage('');
 
         try {
@@ -2109,6 +2106,65 @@ function ReservarContent() {
                                                     />
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
+                                            <label htmlFor="has-coupon" className="flex cursor-pointer items-center gap-3 text-sm font-medium">
+                                                <input
+                                                    id="has-coupon"
+                                                    type="checkbox"
+                                                    checked={couponEnabled}
+                                                    onChange={(event) => {
+                                                        const enabled = event.target.checked;
+                                                        setCouponEnabled(enabled);
+                                                        setCouponMessage('');
+                                                        if (!enabled) {
+                                                            clearCouponState(true);
+                                                            setCouponCode('');
+                                                        }
+                                                    }}
+                                                    disabled={processing}
+                                                    className="h-4 w-4 accent-primary"
+                                                />
+                                                Tenho um cupom de desconto
+                                            </label>
+
+                                            {couponEnabled ? (
+                                                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                                    <input
+                                                        type="text"
+                                                        id="coupon-code"
+                                                        name="couponCode"
+                                                        autoComplete="off"
+                                                        value={couponCode}
+                                                        onChange={(event) => {
+                                                            setCouponCode(event.target.value.toUpperCase());
+                                                            setCouponMessage('');
+                                                            if (appliedCoupon) clearCouponState(true);
+                                                        }}
+                                                        placeholder="Digite o código do cupom"
+                                                        disabled={processing}
+                                                        className="flex h-10 min-w-0 flex-1 border border-input bg-background px-3 py-2 text-sm uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        disabled={processing || !selectedRoom || !couponCode.trim()}
+                                                        onClick={() => selectedRoom && void applyCoupon(selectedRoom)}
+                                                    >
+                                                        Aplicar cupom
+                                                    </Button>
+                                                </div>
+                                            ) : null}
+
+                                            {couponMessage ? (
+                                                <p
+                                                    role="status"
+                                                    className={`mt-2 text-xs ${appliedCoupon ? 'text-emerald-700' : 'text-red-600'}`}
+                                                >
+                                                    {couponMessage}
+                                                </p>
+                                            ) : null}
                                         </div>
 
                                         {appliedCoupon ? (

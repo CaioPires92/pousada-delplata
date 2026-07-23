@@ -1213,3 +1213,57 @@ export async function sendDifficultyAlertEmail(data: {
         return { success: false, error };
     }
 }
+
+function escapeDiscountEmailHtml(value: string) {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+export async function sendGuestDiscountEmail(data: {
+    guestName: string;
+    guestEmail: string;
+    code: string;
+    discountPercent: number;
+    expiresAt: Date;
+    bookingUrl: string;
+}) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        return { success: false, error: 'SMTP not configured' };
+    }
+
+    const guestName = escapeDiscountEmailHtml(data.guestName);
+    const code = escapeDiscountEmailHtml(data.code);
+    const bookingUrl = escapeDiscountEmailHtml(data.bookingUrl);
+    const expiration = data.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const html = `
+      <div style="max-width:620px;margin:0 auto;padding:28px;font-family:Arial,sans-serif;color:#1f2937">
+        <h1 style="color:#6d3f2b">Um desconto especial para você</h1>
+        <p>Olá, ${guestName}!</p>
+        <p>A Pousada Delplata preparou um cupom individual de <strong>${data.discountPercent}% de desconto</strong> para sua próxima reserva direta.</p>
+        <div style="margin:24px 0;padding:20px;text-align:center;background:#f7f1eb;border:1px solid #ead8c8">
+          <div style="font-size:12px;text-transform:uppercase;color:#6b7280">Seu cupom</div>
+          <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px">${code}</div>
+        </div>
+        <p>Válido até <strong>${expiration}</strong>, para um único uso e sujeito à disponibilidade.</p>
+        <p style="margin:28px 0">
+          <a href="${bookingUrl}" style="background:#6d3f2b;color:#fff;padding:13px 20px;text-decoration:none;font-weight:bold">Reservar com desconto</a>
+        </p>
+        <p style="font-size:12px;color:#6b7280">O desconto será calculado automaticamente pelo motor de reservas. Não cumulativo com outras promoções.</p>
+      </div>`;
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Pousada Delplata" <${process.env.SMTP_USER}>`,
+            to: data.guestEmail,
+            subject: `${data.discountPercent}% de desconto para sua próxima reserva`,
+            html,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        return { success: false, error };
+    }
+}

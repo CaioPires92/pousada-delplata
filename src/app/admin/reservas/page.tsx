@@ -15,7 +15,8 @@ import {
     Loader2,
     RefreshCw,
     XCircle,
-    Info
+    Info,
+    Tag
 } from 'lucide-react';
 import { gaEvent } from '@/lib/analytics';
 import BookingRowCard from './booking-row-card';
@@ -67,6 +68,7 @@ function getActionLabel(action: BookingAction) {
         confirm: 'Confirmar reserva',
         expire: 'Expirar reserva',
         assist: 'Enviar ajuda',
+        discount: 'Enviar desconto',
         delete: 'Excluir reserva',
         test: 'Aprovar pagamento de teste',
     };
@@ -83,6 +85,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     if (action === 'confirm') return 'A reserva será marcada como confirmada.';
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
+    if (action === 'discount') return 'Será criado um cupom individual de 10%, válido por 7 dias e limitado a um uso.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
 
@@ -114,6 +117,7 @@ export default function AdminReservasPage() {
     const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
     const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
     const [actionSelectValue, setActionSelectValue] = useState<Record<string, string>>({});
+    const [discountChannels, setDiscountChannels] = useState({ email: true, whatsapp: true });
 
     const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
     const periodRange = useMemo(
@@ -286,6 +290,38 @@ export default function AdminReservasPage() {
         });
     }, [runBookingAction]);
 
+    const sendDiscount = useCallback(async (booking: Booking) => {
+        setActionBusy({ bookingId: booking.id, action: 'discount' });
+        setActionFeedback(null);
+
+        try {
+            const response = await fetch(`/api/admin/bookings/${booking.id}/discount`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channels: discountChannels }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data?.message || data?.error || 'Não foi possível enviar o desconto.');
+            }
+
+            setActionFeedback({
+                type: 'success',
+                message: `Cupom ${data.code} criado${discountChannels.email ? ' e enviado por e-mail' : ''}.`,
+            });
+            if (discountChannels.whatsapp && data.whatsappUrl) {
+                window.open(data.whatsappUrl, '_blank', 'noopener,noreferrer');
+            }
+        } catch (error) {
+            setActionFeedback({
+                type: 'error',
+                message: error instanceof Error ? error.message : 'Não foi possível enviar o desconto.',
+            });
+        } finally {
+            setActionBusy(null);
+        }
+    }, [discountChannels]);
+
     const executeAction = useCallback(async (booking: Booking, action: BookingAction) => {
         if (action === 'confirm') {
             await confirmBooking(booking.id);
@@ -307,10 +343,15 @@ export default function AdminReservasPage() {
             return;
         }
 
+        if (action === 'discount') {
+            await sendDiscount(booking);
+            return;
+        }
+
         if (action === 'test') {
             await approveTestPayment(booking.id);
         }
-    }, [approveTestPayment, confirmBooking, deleteBooking, markBookingExpired, sendAssistEmail]);
+    }, [approveTestPayment, confirmBooking, deleteBooking, markBookingExpired, sendAssistEmail, sendDiscount]);
 
     const confirmActionModal = useCallback(async () => {
         if (!actionModal) return;
@@ -329,6 +370,12 @@ export default function AdminReservasPage() {
         if (!actionValue) return;
 
         const action = actionValue as BookingAction;
+        if (action === 'discount') {
+            setDiscountChannels({
+                email: Boolean(booking.guest.email),
+                whatsapp: Boolean(booking.guest.phone),
+            });
+        }
         trackAdminEvent('admin_booking_action_selected', {
             action,
             booking_id_short: booking.id.slice(0, 8).toUpperCase(),
@@ -575,11 +622,42 @@ export default function AdminReservasPage() {
                 <div className={styles.modalBackdrop} onClick={() => setActionModal(null)}>
                     <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-6 text-red-600">
-                             {actionModal.action === 'delete' ? <XCircle className="w-8 h-8" /> : <Info className="w-8 h-8 text-slate-900" />}
+                             {actionModal.action === 'delete'
+                                 ? <XCircle className="w-8 h-8" />
+                                 : actionModal.action === 'discount'
+                                     ? <Tag className="w-8 h-8 text-violet-600" />
+                                     : <Info className="w-8 h-8 text-slate-900" />}
                              <h3 className={styles.modalTitle}>{getActionLabel(actionModal.action)}</h3>
                         </div>
                         
                         <p className={styles.modalDescription}>{getActionDescription(actionModal.action, actionModal.booking)}</p>
+
+                        {actionModal.action === 'discount' ? (
+                            <fieldset className="mb-6 space-y-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+                                <legend className="px-1 text-xs font-bold uppercase tracking-widest text-violet-700">Canais de envio</legend>
+                                <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                                    <input
+                                        type="checkbox"
+                                        checked={discountChannels.email}
+                                        onChange={(event) => setDiscountChannels((current) => ({ ...current, email: event.target.checked }))}
+                                        disabled={!actionModal.booking.guest.email}
+                                        className="h-4 w-4 accent-violet-600"
+                                    />
+                                    E-mail automático
+                                </label>
+                                <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                                    <input
+                                        type="checkbox"
+                                        checked={discountChannels.whatsapp}
+                                        onChange={(event) => setDiscountChannels((current) => ({ ...current, whatsapp: event.target.checked }))}
+                                        disabled={!actionModal.booking.guest.phone}
+                                        className="h-4 w-4 accent-violet-600"
+                                    />
+                                    Abrir mensagem pronta no WhatsApp
+                                </label>
+                                <p className="text-xs text-slate-500">O WhatsApp será aberto para você revisar e confirmar o envio.</p>
+                            </fieldset>
+                        ) : null}
                         
                         <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Referência</p>
@@ -601,7 +679,7 @@ export default function AdminReservasPage() {
                                 type="button"
                                 className={modalConfirmClass}
                                 onClick={confirmActionModal}
-                                disabled={Boolean(actionBusy)}
+                                disabled={Boolean(actionBusy) || (actionModal.action === 'discount' && !discountChannels.email && !discountChannels.whatsapp)}
                             >
                                 {actionBusy ? 'Processando...' : 'Confirmar Ação'}
                             </button>

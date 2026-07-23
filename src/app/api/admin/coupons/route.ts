@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomInt } from 'crypto';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import {
@@ -34,7 +35,7 @@ function generateCouponCode(len = 10): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let out = '';
     for (let i = 0; i < len; i += 1) {
-        out += chars[Math.floor(Math.random() * chars.length)];
+        out += chars[randomInt(chars.length)];
     }
     return out;
 }
@@ -124,6 +125,13 @@ export async function POST(request: Request) {
                 startsAt,
                 endsAt,
                 maxGlobalUses,
+                maxUsesPerGuest: parseIntNullable(body?.maxUsesPerGuest),
+                bindEmail: String(body?.bindEmail || '').trim().toLowerCase() || null,
+                bindPhone: String(body?.bindPhone || '').replace(/\D/g, '') || null,
+                allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
+                allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
+                singleUse: Boolean(body?.singleUse),
+                stackable: Boolean(body?.stackable),
             },
         });
 

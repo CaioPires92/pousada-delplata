@@ -25,6 +25,11 @@ function parseIntNullable(value: unknown): number | null {
     return Number.isFinite(n) ? n : null;
 }
 
+function parseStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const auth = await requireAdminAuth();
@@ -93,6 +98,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 startsAt,
                 endsAt,
                 maxGlobalUses,
+                maxUsesPerGuest: parseIntNullable(body?.maxUsesPerGuest),
+                bindEmail: String(body?.bindEmail || '').trim().toLowerCase() || null,
+                bindPhone: String(body?.bindPhone || '').replace(/\D/g, '') || null,
+                allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
+                allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
+                singleUse: Boolean(body?.singleUse),
+                stackable: Boolean(body?.stackable),
             },
         });
 
