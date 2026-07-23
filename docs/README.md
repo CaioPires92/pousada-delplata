@@ -15,7 +15,9 @@
 
 ## Material tecnico adicional
 
-- `docs/CRM_WHATSAPP_ARCHITECTURE_SDD.md`: SDD consolidado do CRM WhatsApp.
+- `docs/product/CRM_AI_PRD.md`: especificação atual do CRM com IA e WhatsApp oficial da Meta.
+- `docs/product/CRM_AI_PHASES_TODO.md`: fases, regras de negócio, testes e microtarefas do CRM.
+- `docs/product/CRM_PHASE_0_BASELINE.md`: baseline técnico e gates iniciais.
 - `docs/TURSO_COUPONS_SQL.md`: notas de SQL/Turso.
 
 ## Historico

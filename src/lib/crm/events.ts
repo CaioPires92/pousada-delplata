@@ -59,12 +59,20 @@ export async function recordCrmEvent(input: CrmEventInput) {
  * Emite eventos do CRM para um Webhook externo (n8n).
  */
 export async function emitCrmEvent(input: CrmEventInput) {
+  const externalEmissionEnabled = process.env.N8N_ENABLED === "true";
   const webhookUrl = process.env.N8N_WEBHOOK_URL;
-  if (!webhookUrl) {
+  if (process.env.NODE_ENV === "test" || !externalEmissionEnabled || !webhookUrl) {
     crmLog({
       level: "INFO",
       action: input.action,
-      message: "External CRM event emission skipped (N8N_WEBHOOK_URL not set)",
+      message: "External CRM event emission skipped",
+      context: {
+        reason: process.env.NODE_ENV === "test"
+          ? "test_environment"
+          : !externalEmissionEnabled
+            ? "disabled"
+            : "webhook_not_configured",
+      },
     });
     return;
   }
