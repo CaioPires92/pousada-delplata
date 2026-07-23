@@ -16,6 +16,11 @@ function asNonEmptyString(value: unknown) {
   return trimmed || undefined;
 }
 
+function parseHour(value: unknown, fallback: number, min: number, max: number) {
+  const parsed = Number.parseInt(String(value ?? fallback), 10);
+  return Math.min(max, Math.max(min, Number.isFinite(parsed) ? parsed : fallback));
+}
+
 function inAllowedHourWindow(startHour: number, endHour: number) {
   const now = new Date();
   const hour = now.getHours();
@@ -36,8 +41,8 @@ export async function POST(request: Request) {
   const stage = asNonEmptyString(body?.stage);
   const dryRun = Boolean(body?.dryRun ?? true);
   const limit = Math.min(200, Math.max(1, Number.parseInt(String(body?.limit ?? "50"), 10) || 50));
-  const startHour = Math.min(23, Math.max(0, Number.parseInt(String(body?.startHour ?? "9"), 10) || 9));
-  const endHour = Math.min(24, Math.max(1, Number.parseInt(String(body?.endHour ?? "20"), 10) || 20));
+  const startHour = parseHour(body?.startHour, 9, 0, 23);
+  const endHour = parseHour(body?.endHour, 20, 1, 24);
 
   if (!text) {
     return NextResponse.json({ ok: false, error: "INVALID_PAYLOAD", message: "Informe text" }, { status: 400 });

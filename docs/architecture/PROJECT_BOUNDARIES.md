@@ -27,7 +27,8 @@ Responsável por:
 - histórico de conversa;
 - pipeline comercial;
 - automações controladas por eventos;
-- integração com Evolution API e n8n.
+- transporte atual pela Evolution durante a migração controlada para a WhatsApp Cloud API oficial da Meta;
+- automações internas orientadas a eventos.
 
 Principais caminhos:
 - `src/app/admin/inbox/*`
@@ -36,11 +37,11 @@ Principais caminhos:
 - `src/app/api/whatsapp/*`
 - `src/lib/crm/*`
 - `src/lib/whatsapp/*`
-- `n8n/workflows/*`
+- futura orquestração descrita em `docs/product/CRM_AI_PHASES_TODO.md` (sem workflow n8n ativo nesta versão)
 - `docs/ops/CRM_*`
 
 ## Regra de integração entre A e B
 
-- CRM e n8n **não escrevem direto no banco fora das APIs do app**.
-- Eventos do CRM são emitidos para n8n; n8n devolve ações via API autenticada do CRM.
-- O motor de reservas segue como fonte oficial de disponibilidade, tarifa e reserva.
+- integrações e orquestradores externos **não escrevem direto no banco fora das APIs do app**;
+- eventos externos retornam por APIs internas autenticadas do CRM;
+- o domínio do Mapa/motor é a fonte oficial de disponibilidade, tarifa, restrições e reserva.

@@ -22,9 +22,9 @@ Responsabilidades:
 
 Nao deve depender de:
 - regras internas de pipeline CRM;
-- semantica de automacao n8n para decisao de disponibilidade.
+- decisão comercial fora do domínio oficial do Mapa/motor.
 
-## Projeto B: CRM + n8n
+## Projeto B: CRM + automações
 
 Pastas principais:
 - `src/app/admin/inbox`
@@ -34,7 +34,7 @@ Pastas principais:
 - `src/app/api/cron/crm-queue-worker`
 - `src/lib/whatsapp`
 - `src/lib/crm`
-- `n8n/workflows`
+- `docs/product/CRM_AI_PHASES_TODO.md` define a futura orquestração; não há workflow n8n ativo versionado.
 
 Responsabilidades:
 - atendimento por conversa;
@@ -42,7 +42,7 @@ Responsabilidades:
 - emissao/consumo de eventos operacionais.
 
 Nao deve fazer:
-- escrita direta de n8n no banco;
+- escrita direta de orquestradores externos no banco;
 - bypass das APIs internas autenticadas.
 
 ## Compartilhado entre os dois
@@ -55,7 +55,6 @@ Nao deve fazer:
 Regra:
 - mudancas em compartilhado exigem validar impacto nos dois projetos.
 
-## Lixo tecnico / quarentena
+## Arquivos temporários
 
-- usar `trash/for-review/` para logs antigos, metadados de SO e arquivos temporarios sem uso de runtime.
-- antes de remover definitivamente: revisar em PR ou checklist operacional.
+- logs, bancos locais, dumps e experimentos devem ser ignorados, não versionados.
