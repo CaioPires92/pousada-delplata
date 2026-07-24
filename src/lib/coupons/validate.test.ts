@@ -162,6 +162,36 @@ describe('validateCoupon', () => {
         expect(result.reason).toBe('GUEST_NOT_ELIGIBLE');
     });
 
+    it('accepts the same Brazilian phone with or without country code', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-phone',
+            active: true,
+            startsAt: null,
+            endsAt: null,
+            bindEmail: 'caio@example.com',
+            bindPhone: '19998701203',
+            allowedRoomTypeIds: null,
+            allowedSources: '["direct"]',
+            minBookingValue: null,
+            maxGlobalUses: null,
+            maxUsesPerGuest: null,
+            type: 'PERCENT',
+            value: 10,
+            maxDiscountAmount: null,
+        });
+
+        const result = await validateCoupon({
+            code: 'VOLTE10',
+            subtotal: 500,
+            guestEmail: 'caio@example.com',
+            guestPhone: '+55 19 99870-1203',
+            source: 'direct',
+        });
+
+        expect(result.valid).toBe(true);
+        expect(result.reason).toBe('OK');
+    });
+
     it('rejects when minimum booking is not reached', async () => {
         (prisma.coupon.findFirst as any).mockResolvedValue({
             id: 'coupon-4',

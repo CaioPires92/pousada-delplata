@@ -12,7 +12,11 @@ export function normalizeGuestEmail(email?: string | null) {
 }
 
 export function normalizeGuestPhone(phone?: string | null) {
-    return phone ? phone.replace(/\D+/g, '') : '';
+    const digits = phone ? phone.replace(/\D+/g, '') : '';
+    if ((digits.length === 12 || digits.length === 13) && digits.startsWith('55')) {
+        return digits.slice(2);
+    }
+    return digits;
 }
 
 export function getCouponCodePrefix(code: string, len = 6) {
