@@ -84,7 +84,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     }
     if (action === 'confirm') return 'A reserva será marcada como confirmada.';
     if (action === 'expire') return 'A reserva será marcada como expirada.';
-    if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
+    if (action === 'assist') return 'Envie ajuda para retomar esta reserva por e-mail, WhatsApp ou ambos. O cupom é opcional.';
     if (action === 'discount') return 'Envie um convite de retorno ao hóspede. Você pode incluir um cupom ativo, se desejar.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
@@ -119,8 +119,11 @@ export default function AdminReservasPage() {
     const [actionSelectValue, setActionSelectValue] = useState<Record<string, string>>({});
     const [discountChannels, setDiscountChannels] = useState({ email: true, whatsapp: true });
     const [returnCoupon, setReturnCoupon] = useState({ enabled: false, code: '' });
+    const [assistChannels, setAssistChannels] = useState({ email: true, whatsapp: false });
+    const [assistCoupon, setAssistCoupon] = useState({ enabled: false, code: '' });
 
-    const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
+    const testPaymentsEnabled = process.env.NODE_ENV !== 'production'
+        && process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
     const periodRange = useMemo(
         () => buildPeriodRange({ mode: periodMode, anchorDate: periodAnchor, customFrom: rangeFrom, customTo: rangeTo }),
         [periodMode, periodAnchor, rangeFrom, rangeTo]
@@ -264,15 +267,43 @@ export default function AdminReservasPage() {
         });
     }, [runBookingAction]);
 
-    const sendAssistEmail = useCallback(async (bookingId: string) => {
-        await runBookingAction({
-            bookingId,
-            action: 'assist',
-            endpoint: '/api/admin/bookings/' + bookingId + '/assist-email',
-            method: 'POST',
-            successMessage: 'Email de ajuda enviado para a reserva ' + bookingId.slice(0, 8) + '.',
-        });
-    }, [runBookingAction]);
+    const sendAssistEmail = useCallback(async (booking: Booking) => {
+        const whatsappWindow = assistChannels.whatsapp ? window.open('', '_blank') : null;
+        if (whatsappWindow) {
+            whatsappWindow.opener = null;
+            whatsappWindow.document.title = 'Abrindo WhatsApp...';
+            whatsappWindow.document.body.textContent = 'Preparando a mensagem no WhatsApp...';
+        }
+        setActionBusy({ bookingId: booking.id, action: 'assist' });
+        setActionFeedback(null);
+        try {
+            const response = await fetch(`/api/admin/bookings/${booking.id}/assist-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channels: assistChannels,
+                    couponCode: assistCoupon.enabled ? assistCoupon.code.trim() : '',
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data?.message || data?.error || 'Não foi possível enviar a ajuda.');
+            if (assistChannels.whatsapp && data.whatsappUrl) {
+                if (whatsappWindow) whatsappWindow.location.replace(data.whatsappUrl);
+                else window.location.assign(data.whatsappUrl);
+            }
+            const channels = [
+                assistChannels.email ? 'e-mail enviado' : null,
+                assistChannels.whatsapp ? 'WhatsApp aberto para confirmação' : null,
+            ].filter(Boolean).join(' e ');
+            setActionFeedback({ type: 'success', message: `Ajuda preparada: ${channels}.` });
+            await fetchBookings();
+        } catch (error) {
+            if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
+            setActionFeedback({ type: 'error', message: error instanceof Error ? error.message : 'Não foi possível enviar a ajuda.' });
+        } finally {
+            setActionBusy(null);
+        }
+    }, [assistChannels, assistCoupon, fetchBookings]);
 
     const deleteBooking = useCallback(async (booking: Booking) => {
         const approvedPayment = String(booking.payment?.status || '').toUpperCase() === 'APPROVED';
@@ -357,7 +388,7 @@ export default function AdminReservasPage() {
         }
 
         if (action === 'assist') {
-            await sendAssistEmail(booking.id);
+            await sendAssistEmail(booking);
             return;
         }
 
@@ -399,6 +430,13 @@ export default function AdminReservasPage() {
                 whatsapp: Boolean(booking.guest.phone),
             });
             setReturnCoupon({ enabled: false, code: '' });
+        }
+        if (action === 'assist') {
+            setAssistChannels({
+                email: Boolean(booking.guest.email),
+                whatsapp: false,
+            });
+            setAssistCoupon({ enabled: false, code: '' });
         }
         trackAdminEvent('admin_booking_action_selected', {
             action,
@@ -711,6 +749,61 @@ export default function AdminReservasPage() {
                             </fieldset>
                             </div>
                         ) : null}
+
+                        {actionModal.action === 'assist' ? (
+                            <div className="mb-6 space-y-4">
+                                <fieldset className="space-y-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                                    <legend className="px-1 text-xs font-bold uppercase tracking-widest text-blue-700">Canais de envio</legend>
+                                    <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                                        <input
+                                            type="checkbox"
+                                            checked={assistChannels.email}
+                                            onChange={(event) => setAssistChannels((current) => ({ ...current, email: event.target.checked }))}
+                                            disabled={!actionModal.booking.guest.email}
+                                            className="h-4 w-4 accent-blue-600"
+                                        />
+                                        Enviar por e-mail
+                                    </label>
+                                    <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                                        <input
+                                            type="checkbox"
+                                            checked={assistChannels.whatsapp}
+                                            onChange={(event) => setAssistChannels((current) => ({ ...current, whatsapp: event.target.checked }))}
+                                            disabled={!actionModal.booking.guest.phone}
+                                            className="h-4 w-4 accent-blue-600"
+                                        />
+                                        Abrir mensagem pronta no WhatsApp
+                                    </label>
+                                </fieldset>
+                                <fieldset className="space-y-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                                    <legend className="px-1 text-xs font-bold uppercase tracking-widest text-blue-700">Cupom opcional</legend>
+                                    <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                                        <input
+                                            type="checkbox"
+                                            checked={assistCoupon.enabled}
+                                            onChange={(event) => setAssistCoupon({
+                                                enabled: event.target.checked,
+                                                code: event.target.checked ? assistCoupon.code : '',
+                                            })}
+                                            className="h-4 w-4 accent-blue-600"
+                                        />
+                                        Incluir cupom de desconto
+                                    </label>
+                                    {assistCoupon.enabled ? (
+                                        <input
+                                            type="text"
+                                            aria-label="Código do cupom para a ajuda"
+                                            value={assistCoupon.code}
+                                            onChange={(event) => setAssistCoupon({ enabled: true, code: event.target.value.toUpperCase() })}
+                                            placeholder="Digite um cupom ativo"
+                                            autoComplete="off"
+                                            className="h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm font-semibold uppercase text-slate-900 outline-none focus:border-blue-500"
+                                        />
+                                    ) : null}
+                                    <p className="text-xs text-slate-500">Sem cupom: ajuda comum. Com cupom: oferta manual para recuperar a reserva.</p>
+                                </fieldset>
+                            </div>
+                        ) : null}
                         
                         <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Referência</p>
@@ -736,6 +829,11 @@ export default function AdminReservasPage() {
                                     actionModal.action === 'discount' && (
                                         (!discountChannels.email && !discountChannels.whatsapp) ||
                                         (returnCoupon.enabled && !returnCoupon.code.trim())
+                                    )
+                                ) || (
+                                    actionModal.action === 'assist' && (
+                                        (!assistChannels.email && !assistChannels.whatsapp) ||
+                                        (assistCoupon.enabled && !assistCoupon.code.trim())
                                     )
                                 )}
                             >

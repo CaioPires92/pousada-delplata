@@ -8,7 +8,8 @@ import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 export const runtime = 'nodejs';
 
 function isTestPaymentsEnabled() {
-    return String(process.env.ENABLE_TEST_PAYMENTS || '').trim().toLowerCase() === 'true';
+    return process.env.NODE_ENV !== 'production'
+        && String(process.env.ENABLE_TEST_PAYMENTS || '').trim().toLowerCase() === 'true';
 }
 
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ bookingId: string }> }) {

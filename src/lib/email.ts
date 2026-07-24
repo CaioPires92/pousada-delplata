@@ -208,6 +208,12 @@ interface BookingEmailData {
     funnelStage?: string | null;
     lastErrorMessage?: string | null;
     bookingCreatedAt?: Date;
+    recoveryCoupon?: {
+        code: string;
+        label: string;
+        expiresAt?: Date | null;
+        bookingUrl: string;
+    };
 }
 
 function formatRecoveryStage(data: BookingEmailData) {
@@ -524,6 +530,18 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
     const recoveryStageMessage = formatRecoveryStage(data);
+    const recoveryCoupon = data.recoveryCoupon;
+    const recoveryCouponHtml = recoveryCoupon ? `
+        <div style="margin:20px 0;padding:20px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
+            <p style="margin:0 0 6px;font-weight:bold;color:#283223">Uma condição especial para você concluir sua reserva</p>
+            <p style="margin:0 0 12px">${recoveryCoupon.label}</p>
+            <div style="font-size:24px;font-weight:bold;letter-spacing:2px;color:#283223">${escapeDiscountEmailHtml(recoveryCoupon.code)}</div>
+            ${recoveryCoupon.expiresAt ? `<p style="margin:10px 0 0;font-size:12px">Válido até ${recoveryCoupon.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>` : ''}
+        </div>
+        <div class="cta-wrapper">
+            <a class="cta-button" href="${escapeDiscountEmailHtml(recoveryCoupon.bookingUrl)}" target="_blank" rel="noopener noreferrer">Retomar reserva com desconto</a>
+        </div>
+    ` : '';
 
     const rawWhatsApp = String(process.env.HOTEL_WHATSAPP_LINK || HOTEL_WHATSAPP || '').replace(/\D/g, '');
     const normalizedWhatsApp = rawWhatsApp
@@ -631,6 +649,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         <div class="notice">
             Se você quiser, nossa equipe pode te ajudar a concluir a reserva ou tirar qualquer dúvida.
         </div>
+        ${recoveryCouponHtml}
 
         <div class="cta-wrapper">
             <a class="cta-button" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Falar no WhatsApp do Hotel</a>

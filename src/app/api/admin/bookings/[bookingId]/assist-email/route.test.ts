@@ -18,6 +18,12 @@ vi.mock('@/lib/prisma', () => ({
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        coupon: {
+            findFirst: vi.fn(),
+        },
+        couponRedemption: {
+            count: vi.fn(),
+        },
     },
 }));
 
@@ -26,6 +32,12 @@ import { sendBookingPendingEmail } from '@/lib/email';
 import { POST } from './route';
 
 describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
+    const assistRequest = (body: Record<string, unknown> = { channels: { email: true, whatsapp: false } }) =>
+        new Request('http://localhost/api/admin/bookings/booking-1/assist-email', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+
     beforeEach(() => {
         vi.clearAllMocks();
         (prisma.booking.findUnique as any).mockResolvedValue({
@@ -47,7 +59,7 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
     });
 
     it('sends assist email and updates pendingEmailSentAt', async () => {
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/assist-email', { method: 'POST' }), {
+        const response = await POST(assistRequest(), {
             params: Promise.resolve({ bookingId: 'booking-1' }),
         });
         const data = await response.json();
@@ -75,7 +87,7 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
             payment: { status: 'PENDING', method: 'PIX', installments: null },
         });
 
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/assist-email', { method: 'POST' }), {
+        const response = await POST(assistRequest(), {
             params: Promise.resolve({ bookingId: 'booking-1' }),
         });
 
@@ -86,10 +98,35 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
     it('returns 502 when email sending fails', async () => {
         (sendBookingPendingEmail as any).mockResolvedValue({ success: false });
 
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/assist-email', { method: 'POST' }), {
+        const response = await POST(assistRequest(), {
             params: Promise.resolve({ bookingId: 'booking-1' }),
         });
 
         expect(response.status).toBe(502);
+    });
+
+    it('prepara WhatsApp com cupom sem disparar o e-mail', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-1',
+            active: true,
+            startsAt: null,
+            endsAt: new Date('2026-12-01T00:00:00.000Z'),
+            maxGlobalUses: null,
+            bindEmail: null,
+            bindPhone: null,
+            type: 'PERCENT',
+            value: 10,
+        });
+
+        const response = await POST(assistRequest({
+            channels: { email: false, whatsapp: true },
+            couponCode: 'VOLTA10',
+        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(decodeURIComponent(data.whatsappUrl)).toContain('cupom *VOLTA10*');
+        expect(sendBookingPendingEmail).not.toHaveBeenCalled();
+        expect(prisma.booking.update).not.toHaveBeenCalled();
     });
 });
