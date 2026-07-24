@@ -18,8 +18,7 @@ import {
     MessageSquare,
     BarChart3,
     Bot,
-    CreditCard,
-    BadgePercent
+    CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +45,6 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
         { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList },
         { href: '/admin/quartos', label: 'Quartos', icon: Home },
         { href: '/admin/settings/partial-payment', label: 'Pagamento Parcial', icon: CreditCard },
-        { href: '/admin/settings/discount-policy', label: 'Política de Desconto', icon: BadgePercent },
         { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
         { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
         { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },

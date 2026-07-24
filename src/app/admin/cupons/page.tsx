@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatDateBR } from '@/lib/date';
 import styles from './cupons.module.css';
+import DiscountPolicyPanel from './discount-policy-panel';
 import { 
     Tag, 
     Plus, 
@@ -411,6 +412,8 @@ export default function AdminCuponsPage() {
                     </button>
                 </div>
             )}
+
+            <DiscountPolicyPanel />
 
             {/* Resumo operacional */}
             <div className={styles.metricsGrid}>
