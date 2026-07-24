@@ -68,6 +68,7 @@ function getActionLabel(action: BookingAction) {
         expire: 'Expirar reserva',
         assist: 'Enviar ajuda',
         'payment-link': 'Gerar link de pagamento',
+        'hotel-confirmation': 'Reenviar confirmação ao hotel',
         delete: 'Excluir reserva',
         test: 'Aprovar pagamento de teste',
     };
@@ -85,6 +86,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
     if (action === 'payment-link') return 'Será criado um link seguro do Mercado Pago, copiado para a área de transferência e preparado para envio pelo WhatsApp.';
+    if (action === 'hotel-confirmation') return 'A confirmação completa desta reserva será reenviada para o e-mail administrativo do hotel.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
 
@@ -261,6 +263,16 @@ export default function AdminReservasPage() {
         });
     }, [runBookingAction]);
 
+    const resendHotelConfirmation = useCallback(async (bookingId: string) => {
+        await runBookingAction({
+            bookingId,
+            action: 'hotel-confirmation',
+            endpoint: `/api/admin/bookings/${bookingId}/resend-hotel-confirmation`,
+            method: 'POST',
+            successMessage: `Confirmação da reserva ${bookingId.slice(0, 8).toUpperCase()} reenviada ao hotel.`,
+        });
+    }, [runBookingAction]);
+
     const sendAssistEmail = useCallback(async (bookingId: string) => {
         await runBookingAction({
             bookingId,
@@ -369,10 +381,15 @@ export default function AdminReservasPage() {
             return;
         }
 
+        if (action === 'hotel-confirmation') {
+            await resendHotelConfirmation(booking.id);
+            return;
+        }
+
         if (action === 'test') {
             await approveTestPayment(booking.id);
         }
-    }, [approveTestPayment, confirmBooking, deleteBooking, generatePaymentLink, markBookingExpired, sendAssistEmail]);
+    }, [approveTestPayment, confirmBooking, deleteBooking, generatePaymentLink, markBookingExpired, resendHotelConfirmation, sendAssistEmail]);
 
     const confirmActionModal = useCallback(async () => {
         if (!actionModal) return;

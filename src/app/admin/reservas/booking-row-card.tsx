@@ -17,7 +17,8 @@ import {
     MessageCircle,
     Trash2,
     TestTube2,
-    Link2
+    Link2,
+    MailCheck
 } from 'lucide-react';
 import type { Booking } from './types';
 import {
@@ -104,6 +105,12 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                         <span className={cn(styles.statusBadge, statusClassName)}>
                             {statusText}
                         </span>
+                        <span
+                            className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[11px] font-bold tracking-wide text-slate-500"
+                            title={booking.id}
+                        >
+                            Reserva #{booking.id.slice(0, 8).toUpperCase()}
+                        </span>
                     </div>
                     <div className={styles.dateLine}>
                         <div className="flex items-center gap-2">
@@ -134,13 +141,21 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                             <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 font-bold px-3 py-2">
                                 Gerenciar Reserva
                             </DropdownMenuLabel>
-                            <DropdownMenuItem 
-                                onClick={() => triggerAction('confirm')} 
+                            <DropdownMenuItem
+                                onClick={() => triggerAction('confirm')}
                                 disabled={bookingConfirmed}
                                 className="gap-2 cursor-pointer font-semibold py-2.5"
                             >
                                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                                 Confirmar Reserva
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => triggerAction('hotel-confirmation')}
+                                disabled={!bookingConfirmed}
+                                className="gap-2 cursor-pointer font-semibold py-2.5 text-emerald-700"
+                            >
+                                <MailCheck className="w-4 h-4" />
+                                Reenviar confirmação ao hotel
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                                 onClick={() => triggerAction('expire')}
