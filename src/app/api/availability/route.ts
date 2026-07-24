@@ -232,6 +232,7 @@ export async function GET(request: Request) {
                         checkIn,
                         checkOut,
                         blockedDateRanges: discountPolicy?.blockedDateRanges,
+                        preview: true,
                     });
 
                     if (couponResult.valid) {

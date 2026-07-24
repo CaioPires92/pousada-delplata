@@ -67,6 +67,37 @@ describe('validateCoupon', () => {
         expect(result.total).toBe(900);
     });
 
+    it('permite pré-visualizar o preço de cupom individual antes de identificar o hóspede', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-personal',
+            active: true,
+            startsAt: null,
+            endsAt: null,
+            bindEmail: 'maria@example.com',
+            bindPhone: '19999999999',
+            allowedRoomTypeIds: null,
+            allowedSources: '["direct"]',
+            minBookingValue: null,
+            maxGlobalUses: 1,
+            maxUsesPerGuest: 1,
+            type: 'PERCENT',
+            value: 10,
+            maxDiscountAmount: null,
+        });
+        (prisma.couponRedemption.count as any).mockResolvedValue(0);
+
+        const preview = await validateCoupon({
+            code: 'VOLTE-ABC123',
+            subtotal: 599,
+            roomTypeId: 'room-1',
+            source: 'direct',
+            preview: true,
+        });
+
+        expect(preview.valid).toBe(true);
+        expect(preview.total).toBe(539.1);
+    });
+
     it('rejects expired coupon', async () => {
         (prisma.coupon.findFirst as any).mockResolvedValue({
             id: 'coupon-2',

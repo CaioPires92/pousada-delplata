@@ -885,18 +885,28 @@ export default function SearchWidget({
                                 Tenho um cupom de desconto
                             </label>
                             {isCouponOpen ? (
-                                <input
-                                    type="text"
-                                    aria-label="Código do cupom"
-                                    className={cn(
-                                        dateInputClass,
-                                        "h-11 min-w-0 flex-1 rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 py-0 text-sm uppercase text-[color:var(--brand-forest)] placeholder:normal-case placeholder:text-[color:var(--brand-forest)]/55 focus:border-[color:var(--brand-gold)] focus:outline-none focus:ring-0 sm:max-w-sm"
-                                    )}
-                                    placeholder="Digite o código do cupom"
-                                    value={couponCode}
-                                    onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
-                                    disabled={promoLocked}
-                                />
+                                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-lg sm:flex-row">
+                                    <input
+                                        type="text"
+                                        aria-label="Código do cupom"
+                                        className={cn(
+                                            dateInputClass,
+                                            "h-11 min-w-0 flex-1 rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 py-0 text-sm uppercase text-[color:var(--brand-forest)] placeholder:normal-case placeholder:text-[color:var(--brand-forest)]/55 focus:border-[color:var(--brand-gold)] focus:outline-none focus:ring-0"
+                                        )}
+                                        placeholder="Digite o código do cupom"
+                                        value={couponCode}
+                                        onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                                        disabled={promoLocked}
+                                    />
+                                    <Button
+                                        type="submit"
+                                        variant="outline"
+                                        disabled={loading || !couponCode.trim()}
+                                        className="h-11 shrink-0 rounded-none border-[color:var(--brand-gold)] bg-[color:var(--brand-cream)] px-5 font-semibold text-[color:var(--brand-forest)] hover:bg-[color:var(--brand-gold)]/20"
+                                    >
+                                        {loading ? 'Aplicando...' : 'Aplicar cupom'}
+                                    </Button>
+                                </div>
                             ) : null}
                         </div>
                     </div>

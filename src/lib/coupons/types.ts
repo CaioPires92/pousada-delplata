@@ -22,6 +22,7 @@ export type CouponValidationInput = {
     checkIn?: Date | string;
     checkOut?: Date | string;
     blockedDateRanges?: Array<{ start: string; end: string; label: string }>;
+    preview?: boolean;
 };
 
 export type CouponValidationResult = {
