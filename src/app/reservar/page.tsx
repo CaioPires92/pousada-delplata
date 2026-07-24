@@ -1258,6 +1258,25 @@ function ReservarContent() {
                             console.error('Mercado Pago Brick Error:', err);
                             setPaymentStatus('error');
                             const errorMessage = String(err?.message || err?.error || '');
+
+                            if (errorMessage.includes('no_payment_method_for_provided_bin')) {
+                                setPaymentError('Cartão não aceito ou número incorreto. Por favor, verifique os dados digitados ou tente usar outro cartão.');
+                                notifyPaymentDifficulty({
+                                    step: 'Brick Mercado Pago',
+                                    reason: 'Cartão não suportado ou número incorreto (BIN inválido)',
+                                    error: errorMessage || 'no_payment_method_for_provided_bin',
+                                    funnelStage: 'PAYMENT_ERROR',
+                                });
+                                trackReservationFunnel({
+                                    step: 'payment_result',
+                                    status: 'error',
+                                    bookingId: paymentBookingId,
+                                    value: paymentAmount,
+                                    message: 'invalid_card_bin_error',
+                                });
+                                return;
+                            }
+
                             if (/dado obrigat[oó]rio|required/i.test(errorMessage)) {
                                 setPaymentError('Preencha o nome do titular manualmente (sem auto preenchimento) e tente novamente.');
                                 notifyPaymentDifficulty({
@@ -1275,6 +1294,7 @@ function ReservarContent() {
                                 });
                                 return;
                             }
+
                             setPaymentError('Nao foi possivel carregar o formulario de pagamento. Atualize a pagina e tente sem bloqueadores de anuncio.');
                             notifyPaymentDifficulty({
                                 step: 'Brick Mercado Pago',
