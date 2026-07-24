@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateCoupon } from '@/lib/coupons/validate';
 import prisma from '@/lib/prisma';
+import { getDiscountPolicy } from '@/lib/discount-policy-store';
 
 vi.mock('@/lib/prisma', () => ({
     default: {
@@ -11,6 +12,16 @@ vi.mock('@/lib/prisma', () => ({
             count: vi.fn(),
         },
     },
+}));
+vi.mock('@/lib/discount-policy-store', () => ({
+    getDiscountPolicy: vi.fn(async () => ({
+        sendEnabled: true,
+        percentage: 10,
+        validityDays: 7,
+        minimumBookingValue: null,
+        maximumDiscountAmount: null,
+        blockedDateRanges: [],
+    })),
 }));
 
 describe('validateCoupon', () => {
@@ -82,6 +93,45 @@ describe('validateCoupon', () => {
 
         expect(result.valid).toBe(false);
         expect(result.reason).toBe('EXPIRED');
+    });
+
+    it('rejects a coupon when the stay overlaps a globally blocked date range', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-blocked-date',
+            active: true,
+            startsAt: null,
+            endsAt: null,
+            bindEmail: null,
+            bindPhone: null,
+            allowedRoomTypeIds: null,
+            allowedSources: null,
+            minBookingValue: null,
+            maxGlobalUses: null,
+            maxUsesPerGuest: null,
+            type: 'PERCENT',
+            value: 10,
+            maxDiscountAmount: null,
+        });
+        (getDiscountPolicy as any).mockResolvedValueOnce({
+            sendEnabled: true,
+            percentage: 10,
+            validityDays: 7,
+            minimumBookingValue: null,
+            maximumDiscountAmount: null,
+            blockedDateRanges: [{ start: '2026-12-30', end: '2027-01-01', label: 'Réveillon' }],
+        });
+
+        const result = await validateCoupon({
+            code: 'VOLTE10',
+            subtotal: 800,
+            checkIn: '2026-12-29',
+            checkOut: '2027-01-02',
+        });
+
+        expect(result).toEqual(expect.objectContaining({
+            valid: false,
+            reason: 'STAY_DATE_BLOCKED',
+        }));
     });
 
     it('rejects guest when bindEmail does not match', async () => {

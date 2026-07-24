@@ -14,6 +14,8 @@ export async function POST(request: Request) {
         const roomTypeId = String(body?.context?.roomTypeId || '');
         const source = String(body?.context?.source || 'direct');
         const subtotal = Number(body?.context?.subtotal);
+        const checkIn = String(body?.context?.checkIn || '');
+        const checkOut = String(body?.context?.checkOut || '');
 
         if (shouldThrottleCouponRequest({ scope: 'validate', request, guestEmail })) {
             return NextResponse.json({ valid: false, reason: 'TOO_MANY_ATTEMPTS' }, { status: 429 });
@@ -30,6 +32,8 @@ export async function POST(request: Request) {
             guestPhone,
             roomTypeId,
             source,
+            checkIn,
+            checkOut,
         });
 
         const forwardedFor = request.headers.get('x-forwarded-for') || '';

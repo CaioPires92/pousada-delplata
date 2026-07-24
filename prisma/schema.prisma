@@ -136,6 +136,18 @@ model PartialPaymentSettings {
   updatedAt                   DateTime @updatedAt
 }
 
+model DiscountPolicySettings {
+  id                String   @id
+  sendEnabled       Boolean  @default(true)
+  percentage        Int      @default(10)
+  validityDays      Int      @default(7)
+  minimumBookingValue Decimal?
+  maximumDiscountAmount Decimal?
+  blockedDateRanges String   @default("[]")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 model Payment {
   id              String   @id @default(uuid())
   bookingId       String   @unique

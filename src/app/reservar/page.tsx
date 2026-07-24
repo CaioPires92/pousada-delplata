@@ -754,6 +754,8 @@ function ReservarContent() {
                         roomTypeId: room.id,
                         source: 'direct',
                         subtotal: Number(room.priceOriginal ?? room.totalPrice),
+                        checkIn,
+                        checkOut,
                     },
                 }),
             });
@@ -768,9 +770,11 @@ function ReservarContent() {
                         ? 'Este cupom expirou.'
                         : reason === 'NOT_STARTED'
                             ? 'Este cupom ainda não está ativo.'
-                            : reason === 'GUEST_NOT_ELIGIBLE'
-                                ? 'Este cupom não é válido para este hóspede.'
-                                : reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED'
+                                : reason === 'GUEST_NOT_ELIGIBLE'
+                                    ? 'Este cupom não é válido para este hóspede.'
+                                    : reason === 'STAY_DATE_BLOCKED'
+                                        ? 'Este cupom não é válido para as datas selecionadas.'
+                                    : reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED'
                                     ? 'Limite de uso deste cupom foi atingido.'
                                     : 'Cupom inválido ou indisponível.';
 

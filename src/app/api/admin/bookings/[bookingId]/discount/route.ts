@@ -10,11 +10,9 @@ import {
     normalizeGuestPhone,
 } from '@/lib/coupons/hash';
 import { opsLog } from '@/lib/ops-log';
+import { getDiscountPolicy } from '@/lib/discount-policy-store';
 
 export const runtime = 'nodejs';
-
-const DISCOUNT_PERCENT = 10;
-const VALIDITY_DAYS = 7;
 
 function generateCode() {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -25,13 +23,13 @@ function generateCode() {
     return `VOLTE-${suffix}`;
 }
 
-function buildWhatsAppUrl(phone: string, guestName: string, code: string, bookingUrl: string, expiresAt: Date) {
+function buildWhatsAppUrl(phone: string, guestName: string, code: string, bookingUrl: string, expiresAt: Date, percentage: number) {
     const normalizedPhone = normalizeGuestPhone(phone);
     if (!normalizedPhone) return null;
     const internationalPhone = normalizedPhone.startsWith('55') ? normalizedPhone : `55${normalizedPhone}`;
     const firstName = guestName.trim().split(/\s+/)[0] || 'tudo bem';
     const expiration = expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const message = `Olá, ${firstName}! A Pousada Delplata preparou um cupom individual de 10% para sua próxima reserva: *${code}*. Válido até ${expiration}, para um uso. Reserve aqui: ${bookingUrl}`;
+    const message = `Olá, ${firstName}! A Pousada Delplata preparou um cupom individual de ${percentage}% para sua próxima reserva: *${code}*. Válido até ${expiration}, para um uso. Reserve aqui: ${bookingUrl}`;
     return `https://wa.me/${internationalPhone}?text=${encodeURIComponent(message)}`;
 }
 
@@ -65,8 +63,16 @@ export async function POST(
             return NextResponse.json({ error: 'GUEST_PHONE_REQUIRED', message: 'A reserva não possui WhatsApp.' }, { status: 400 });
         }
 
+        const policy = await getDiscountPolicy();
+        if (!policy.sendEnabled) {
+            return NextResponse.json(
+                { error: 'DISCOUNT_SENDING_PAUSED', message: 'O envio de novos descontos está pausado na política.' },
+                { status: 409 }
+            );
+        }
+
         const code = generateCode();
-        const expiresAt = new Date(Date.now() + VALIDITY_DAYS * 24 * 60 * 60 * 1000);
+        const expiresAt = new Date(Date.now() + policy.validityDays * 24 * 60 * 60 * 1000);
         const publicUrl = String(process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || 'https://www.pousadadelplata.com.br').replace(/\/+$/, '');
         const bookingUrl = `${publicUrl}/reservar?promo=${encodeURIComponent(code)}`;
 
@@ -76,7 +82,9 @@ export async function POST(
                 codeHash: hashCouponCode(code),
                 codePrefix: getCouponCodePrefix(code),
                 type: 'PERCENT',
-                value: DISCOUNT_PERCENT,
+                value: policy.percentage,
+                minBookingValue: policy.minimumBookingValue,
+                maxDiscountAmount: policy.maximumDiscountAmount,
                 active: true,
                 startsAt: new Date(),
                 endsAt: expiresAt,
@@ -96,7 +104,7 @@ export async function POST(
                 guestName: booking.guest.name,
                 guestEmail: booking.guest.email,
                 code,
-                discountPercent: DISCOUNT_PERCENT,
+                discountPercent: policy.percentage,
                 expiresAt,
                 bookingUrl,
             });
@@ -110,7 +118,7 @@ export async function POST(
         }
 
         const whatsappUrl = whatsappRequested
-            ? buildWhatsAppUrl(booking.guest.phone, booking.guest.name, code, bookingUrl, expiresAt)
+            ? buildWhatsAppUrl(booking.guest.phone, booking.guest.name, code, bookingUrl, expiresAt, policy.percentage)
             : null;
 
         opsLog('info', 'ADMIN_BOOKING_DISCOUNT_CREATED', {
@@ -124,7 +132,7 @@ export async function POST(
         return NextResponse.json({
             ok: true,
             code,
-            discountPercent: DISCOUNT_PERCENT,
+            discountPercent: policy.percentage,
             expiresAt: expiresAt.toISOString(),
             whatsappUrl,
         });

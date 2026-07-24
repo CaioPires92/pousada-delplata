@@ -85,7 +85,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     if (action === 'confirm') return 'A reserva será marcada como confirmada.';
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
-    if (action === 'discount') return 'Será criado um cupom individual de 10%, válido por 7 dias e limitado a um uso.';
+    if (action === 'discount') return 'Será criado um cupom individual conforme a política de desconto atual, limitado a um uso.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
 

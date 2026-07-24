@@ -5,6 +5,7 @@ import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { normalizeCouponCode } from '@/lib/coupons/hash';
 import { validateCoupon } from '@/lib/coupons/validate';
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
+import { getDiscountPolicy } from '@/lib/discount-policy-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ function getPromoMessage(reason: string) {
     if (reason === 'EXPIRED') return 'Cupom expirado.';
     if (reason === 'NOT_STARTED') return 'Cupom ainda não está ativo.';
     if (reason === 'MIN_BOOKING_NOT_REACHED') return 'Cupom indisponível para o valor atual da reserva.';
+    if (reason === 'STAY_DATE_BLOCKED') return 'Cupom indisponível para as datas selecionadas.';
     if (reason === 'ROOM_NOT_ELIGIBLE') return 'Cupom não aplicável para este quarto.';
     if (reason === 'SOURCE_NOT_ELIGIBLE') return 'Cupom não disponível para este canal.';
     if (reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED') return 'Limite de uso do cupom atingido.';
@@ -67,6 +69,7 @@ export async function GET(request: Request) {
         let eligibleMinLosCount = 0;
         let promoApplied = false;
         let promoMessage: string | undefined;
+        const discountPolicy = promoCode ? await getDiscountPolicy() : null;
         const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
         const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
 
@@ -226,6 +229,9 @@ export async function GET(request: Request) {
                         subtotal: breakdown.total,
                         roomTypeId: room.id,
                         source: 'direct',
+                        checkIn,
+                        checkOut,
+                        blockedDateRanges: discountPolicy?.blockedDateRanges,
                     });
 
                     if (couponResult.valid) {

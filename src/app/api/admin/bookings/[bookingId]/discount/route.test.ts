@@ -5,6 +5,16 @@ vi.mock('@/lib/admin-auth', () => ({
 }));
 
 vi.mock('@/lib/ops-log', () => ({ opsLog: vi.fn() }));
+vi.mock('@/lib/discount-policy-store', () => ({
+    getDiscountPolicy: vi.fn(async () => ({
+        sendEnabled: true,
+        percentage: 10,
+        validityDays: 7,
+        minimumBookingValue: null,
+        maximumDiscountAmount: null,
+        blockedDateRanges: [],
+    })),
+}));
 vi.mock('@/lib/email', () => ({
     sendGuestDiscountEmail: vi.fn(async () => ({ success: true, messageId: 'message-1' })),
 }));
@@ -17,6 +27,7 @@ vi.mock('@/lib/prisma', () => ({
 
 import prisma from '@/lib/prisma';
 import { sendGuestDiscountEmail } from '@/lib/email';
+import { getDiscountPolicy } from '@/lib/discount-policy-store';
 import { POST } from './route';
 
 describe('POST /api/admin/bookings/[bookingId]/discount', () => {
@@ -65,6 +76,24 @@ describe('POST /api/admin/bookings/[bookingId]/discount', () => {
         }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
 
         expect(response.status).toBe(400);
+        expect(prisma.coupon.create).not.toHaveBeenCalled();
+    });
+
+    it('does not create a coupon while sending is paused', async () => {
+        (getDiscountPolicy as any).mockResolvedValueOnce({
+            sendEnabled: false,
+            percentage: 10,
+            validityDays: 7,
+            minimumBookingValue: null,
+            maximumDiscountAmount: null,
+            blockedDateRanges: [],
+        });
+        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
+            method: 'POST',
+            body: JSON.stringify({ channels: { email: true, whatsapp: false } }),
+        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
+
+        expect(response.status).toBe(409);
         expect(prisma.coupon.create).not.toHaveBeenCalled();
     });
 
