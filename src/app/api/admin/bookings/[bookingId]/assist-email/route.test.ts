@@ -95,6 +95,34 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
         expect(sendBookingPendingEmail).not.toHaveBeenCalled();
     });
 
+    it('abre o WhatsApp mesmo quando o e-mail está no cooldown', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue({
+            id: 'booking-1',
+            status: 'PENDING',
+            pendingEmailSentAt: new Date(),
+            createdAt: new Date('2026-02-24T18:00:00.000Z'),
+            checkIn: new Date('2026-08-10T00:00:00.000Z'),
+            checkOut: new Date('2026-08-12T00:00:00.000Z'),
+            totalPrice: 450,
+            adults: 2,
+            children: 0,
+            childrenAges: null,
+            guest: { name: 'Hospede', email: 'guest@example.com', phone: '19999999999' },
+            roomType: { name: 'Apartamento' },
+            payment: { status: 'PENDING', method: 'PIX', installments: null },
+        });
+
+        const response = await POST(assistRequest({
+            channels: { email: true, whatsapp: true },
+        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.emailSkippedCooldown).toBe(true);
+        expect(data.whatsappUrl).toContain('wa.me/5519999999999');
+        expect(sendBookingPendingEmail).not.toHaveBeenCalled();
+    });
+
     it('returns 502 when email sending fails', async () => {
         (sendBookingPendingEmail as any).mockResolvedValue({ success: false });
 

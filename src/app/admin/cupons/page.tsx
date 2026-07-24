@@ -24,6 +24,7 @@ type Coupon = {
     id: string;
     name: string;
     codePrefix: string;
+    code: string | null;
     type: 'PERCENT' | 'FIXED';
     value: number | string;
     active: boolean;
@@ -484,8 +485,11 @@ export default function AdminCuponsPage() {
                                         <td className="font-bold">{coupon.name}</td>
                                         <td>
                                             <code className="bg-slate-100 px-1.5 py-0.5 rounded text-xs">
-                                                {coupon.codePrefix}******
+                                                {coupon.code || `${coupon.codePrefix}******`}
                                             </code>
+                                            {!coupon.code ? (
+                                                <p className="mt-1 text-[10px] text-amber-700">Redefina o código para poder visualizá-lo.</p>
+                                            ) : null}
                                         </td>
                                         <td>
                                             <span className="font-medium text-slate-900">

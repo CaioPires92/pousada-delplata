@@ -184,6 +184,7 @@ model Coupon {
   name               String
   codeHash           String             @unique
   codePrefix         String
+  codeCiphertext     String?
   type               String
   value              Decimal
   maxDiscountAmount  Decimal?

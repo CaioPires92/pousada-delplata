@@ -66,12 +66,18 @@ export async function POST(
         }
 
         const cooldownMs = getAssistEmailCooldownMs();
+        let shouldSendEmail = emailRequested;
+        let emailSkippedCooldown = false;
         if (emailRequested && booking.pendingEmailSentAt) {
             const lastSentAt = new Date(booking.pendingEmailSentAt).getTime();
             const elapsedMs = Date.now() - lastSentAt;
             if (Number.isFinite(lastSentAt) && elapsedMs >= 0 && elapsedMs < cooldownMs) {
                 const remainingMs = cooldownMs - elapsedMs;
                 const nextAllowedAt = new Date(lastSentAt + cooldownMs);
+                if (whatsappRequested) {
+                    shouldSendEmail = false;
+                    emailSkippedCooldown = true;
+                } else {
                 return NextResponse.json(
                     {
                         error: 'ASSIST_EMAIL_COOLDOWN',
@@ -81,6 +87,7 @@ export async function POST(
                     },
                     { status: 429 }
                 );
+                }
             }
         }
 
@@ -123,7 +130,7 @@ export async function POST(
         if (couponCode) bookingQuery.set('promo', couponCode);
         const bookingUrl = `${publicUrl}/reservar?${bookingQuery.toString()}`;
 
-        const emailResult = emailRequested ? await sendBookingPendingEmail({
+        const emailResult = shouldSendEmail ? await sendBookingPendingEmail({
             guestName: booking.guest.name,
             guestEmail: booking.guest.email,
             guestPhone: booking.guest.phone || null,
@@ -158,7 +165,7 @@ export async function POST(
             );
         }
 
-        if (emailRequested) {
+        if (shouldSendEmail) {
             await prisma.booking.update({
                 where: { id: booking.id },
                 data: { pendingEmailSentAt: new Date() },
@@ -179,7 +186,7 @@ export async function POST(
             bookingId: booking.id,
             adminId: auth.adminId,
             guestEmail: booking.guest.email,
-            emailRequested,
+            emailRequested: shouldSendEmail,
             whatsappRequested,
             couponId: coupon?.id || null,
         });
@@ -188,6 +195,8 @@ export async function POST(
             ok: true,
             bookingId: booking.id,
             guestEmail: booking.guest.email,
+            emailSent: shouldSendEmail,
+            emailSkippedCooldown,
             code: couponCode || null,
             whatsappUrl,
         });

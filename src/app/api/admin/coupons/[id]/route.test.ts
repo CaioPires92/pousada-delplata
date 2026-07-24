@@ -20,6 +20,7 @@ vi.mock('@/lib/admin-auth', () => ({
 describe('Admin Coupons API /api/admin/coupons/[id]', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        process.env.ADMIN_JWT_SECRET = 'test-secret-at-least-32-characters-long';
         (requireAdminAuth as any).mockResolvedValue({ sub: 'admin-1', email: 'admin@example.com' });
     });
 

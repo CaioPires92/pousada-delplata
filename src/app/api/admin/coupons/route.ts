@@ -7,6 +7,7 @@ import {
     hashCouponCode,
     normalizeCouponCode,
 } from '@/lib/coupons/hash';
+import { decryptCouponCode, encryptCouponCode } from '@/lib/coupons/code-vault';
 
 function parseDate(value: unknown): Date | null {
     if (!value) return null;
@@ -57,7 +58,11 @@ export async function GET() {
             },
         });
 
-        return NextResponse.json(coupons);
+        return NextResponse.json(coupons.map((coupon) => ({
+            ...coupon,
+            code: decryptCouponCode(coupon.codeCiphertext),
+            codeCiphertext: undefined,
+        })));
     } catch (error) {
         console.error('[Admin Coupons] GET error:', error);
         return NextResponse.json({ error: 'Erro ao carregar cupons' }, { status: 500 });
@@ -117,6 +122,7 @@ export async function POST(request: Request) {
                 name,
                 codeHash,
                 codePrefix: getCouponCodePrefix(code),
+                codeCiphertext: encryptCouponCode(code),
                 type,
                 value,
                 maxDiscountAmount,

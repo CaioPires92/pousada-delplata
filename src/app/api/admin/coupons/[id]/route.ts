@@ -6,6 +6,7 @@ import {
     hashCouponCode,
     normalizeCouponCode,
 } from '@/lib/coupons/hash';
+import { encryptCouponCode } from '@/lib/coupons/code-vault';
 
 function parseDate(value: unknown): Date | null {
     if (!value) return null;
@@ -89,7 +90,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             where: { id },
             data: {
                 name,
-                ...(codeHash ? { codeHash, codePrefix } : {}),
+                ...(codeHash ? { codeHash, codePrefix, codeCiphertext: encryptCouponCode(codeInput) } : {}),
                 type,
                 value,
                 maxDiscountAmount,

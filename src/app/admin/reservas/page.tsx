@@ -292,7 +292,8 @@ export default function AdminReservasPage() {
                 else window.location.assign(data.whatsappUrl);
             }
             const channels = [
-                assistChannels.email ? 'e-mail enviado' : null,
+                data.emailSent ? 'e-mail enviado' : null,
+                data.emailSkippedCooldown ? 'e-mail aguardando intervalo de segurança' : null,
                 assistChannels.whatsapp ? 'WhatsApp aberto para confirmação' : null,
             ].filter(Boolean).join(' e ');
             setActionFeedback({ type: 'success', message: `Ajuda preparada: ${channels}.` });
