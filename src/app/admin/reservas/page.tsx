@@ -67,6 +67,7 @@ function getActionLabel(action: BookingAction) {
         confirm: 'Confirmar reserva',
         expire: 'Expirar reserva',
         assist: 'Enviar ajuda',
+        'payment-link': 'Gerar link de pagamento',
         delete: 'Excluir reserva',
         test: 'Aprovar pagamento de teste',
     };
@@ -83,6 +84,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     if (action === 'confirm') return 'A reserva será marcada como confirmada.';
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
+    if (action === 'payment-link') return 'Será criado um link seguro do Mercado Pago, copiado para a área de transferência e preparado para envio pelo WhatsApp.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
 
@@ -286,6 +288,61 @@ export default function AdminReservasPage() {
         });
     }, [runBookingAction]);
 
+    const generatePaymentLink = useCallback(async (booking: Booking) => {
+        const whatsappWindow = booking.guest.phone ? window.open('', '_blank') : null;
+        if (whatsappWindow) {
+            whatsappWindow.opener = null;
+            whatsappWindow.document.title = 'Gerando link de pagamento...';
+            whatsappWindow.document.body.textContent = 'Preparando a mensagem no WhatsApp...';
+        }
+
+        setActionBusy({ bookingId: booking.id, action: 'payment-link' });
+        setActionFeedback(null);
+
+        try {
+            const response = await fetch(`/api/admin/bookings/${booking.id}/payment-link`, {
+                method: 'POST',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data?.message || data?.error || 'Não foi possível gerar o link de pagamento.');
+            }
+
+            let copied = false;
+            try {
+                await navigator.clipboard.writeText(data.paymentLink);
+                copied = true;
+            } catch {
+                copied = false;
+            }
+
+            if (whatsappWindow && data.whatsappUrl) {
+                whatsappWindow.location.replace(data.whatsappUrl);
+            } else if (whatsappWindow && !whatsappWindow.closed) {
+                whatsappWindow.close();
+            }
+
+            setActionFeedback({
+                type: 'success',
+                message: copied
+                    ? 'Link de pagamento copiado. O WhatsApp foi preparado para você revisar e enviar.'
+                    : `Link gerado: ${data.paymentLink}`,
+            });
+            trackAdminEvent('admin_booking_payment_link_created', {
+                booking_id_short: booking.id.slice(0, 8).toUpperCase(),
+            });
+            await fetchBookings();
+        } catch (error) {
+            if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
+            setActionFeedback({
+                type: 'error',
+                message: error instanceof Error ? error.message : 'Não foi possível gerar o link de pagamento.',
+            });
+        } finally {
+            setActionBusy(null);
+        }
+    }, [fetchBookings, trackAdminEvent]);
+
     const executeAction = useCallback(async (booking: Booking, action: BookingAction) => {
         if (action === 'confirm') {
             await confirmBooking(booking.id);
@@ -307,10 +364,15 @@ export default function AdminReservasPage() {
             return;
         }
 
+        if (action === 'payment-link') {
+            await generatePaymentLink(booking);
+            return;
+        }
+
         if (action === 'test') {
             await approveTestPayment(booking.id);
         }
-    }, [approveTestPayment, confirmBooking, deleteBooking, markBookingExpired, sendAssistEmail]);
+    }, [approveTestPayment, confirmBooking, deleteBooking, generatePaymentLink, markBookingExpired, sendAssistEmail]);
 
     const confirmActionModal = useCallback(async () => {
         if (!actionModal) return;

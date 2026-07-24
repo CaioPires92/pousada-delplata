@@ -16,7 +16,8 @@ import {
     HelpCircle,
     MessageCircle,
     Trash2,
-    TestTube2
+    TestTube2,
+    Link2
 } from 'lucide-react';
 import type { Booking } from './types';
 import {
@@ -154,6 +155,17 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                             >
                                 <HelpCircle className="w-4 h-4 text-blue-500" />
                                 Enviar Ajuda
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() => triggerAction('payment-link')}
+                                disabled={
+                                    bookingApproved
+                                    || ['CANCELLED', 'EXPIRED', 'REFUNDED'].includes(String(booking.status || '').toUpperCase())
+                                }
+                                className="gap-2 cursor-pointer font-semibold py-2.5 text-sky-700"
+                            >
+                                <Link2 className="w-4 h-4" />
+                                Gerar link de pagamento
                             </DropdownMenuItem>
                             <DropdownMenuItem
                                 onClick={() => {

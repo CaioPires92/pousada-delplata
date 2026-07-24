@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 import prisma from '@/lib/prisma';
 
+vi.mock('@/lib/admin-auth', () => ({
+  requireAdminAuth: vi.fn(async () => ({ adminId: 'admin-1' })),
+}));
+
 // Mock Prisma
 vi.mock('@/lib/prisma', () => ({
   default: {

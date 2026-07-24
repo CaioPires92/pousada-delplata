@@ -80,6 +80,7 @@ export function formatFunnelStage(stage?: string | null) {
         PAYMENT_APPROVED: 'Pagamento aprovado',
         PAYMENT_REJECTED: 'Pagamento rejeitado',
         PAYMENT_ERROR: 'Erro no pagamento',
+        PAYMENT_LINK_CREATED: 'Link de pagamento criado',
         BOOKING_CONFIRMED: 'Reserva confirmada',
         BOOKING_CANCELLED: 'Reserva cancelada',
         EXPIRED_UNPAID: 'Expirou sem concluir',
