@@ -864,7 +864,7 @@ export default function SearchWidget({
                             ? "border-t border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-5 py-3"
                             : "pt-1"
                     )}>
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="flex flex-col gap-3">
                             <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-[color:var(--brand-forest)]">
                                 <input
                                     type="checkbox"
@@ -885,7 +885,7 @@ export default function SearchWidget({
                                 Tenho um cupom de desconto
                             </label>
                             {isCouponOpen ? (
-                                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:max-w-lg sm:flex-row">
+                                <div className="flex w-full min-w-0 flex-col gap-2 sm:max-w-lg sm:flex-row">
                                     <input
                                         type="text"
                                         aria-label="Código do cupom"
