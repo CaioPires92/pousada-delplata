@@ -162,7 +162,7 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                                 className="gap-2 cursor-pointer font-semibold py-2.5 text-violet-700"
                             >
                                 <Tag className="w-4 h-4" />
-                                Enviar desconto
+                                Convidar para voltar
                             </DropdownMenuItem>
                             <DropdownMenuItem
                                 onClick={() => {

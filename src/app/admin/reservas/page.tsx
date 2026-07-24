@@ -68,7 +68,7 @@ function getActionLabel(action: BookingAction) {
         confirm: 'Confirmar reserva',
         expire: 'Expirar reserva',
         assist: 'Enviar ajuda',
-        discount: 'Enviar desconto',
+        discount: 'Convidar para voltar',
         delete: 'Excluir reserva',
         test: 'Aprovar pagamento de teste',
     };
@@ -85,7 +85,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     if (action === 'confirm') return 'A reserva será marcada como confirmada.';
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Será enviado um e-mail de ajuda ao hóspede.';
-    if (action === 'discount') return 'Será criado um cupom individual conforme a política de desconto atual, limitado a um uso.';
+    if (action === 'discount') return 'Envie um convite de retorno ao hóspede. Você pode incluir um cupom ativo, se desejar.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }
 
@@ -118,6 +118,7 @@ export default function AdminReservasPage() {
     const [actionModal, setActionModal] = useState<ActionModalState | null>(null);
     const [actionSelectValue, setActionSelectValue] = useState<Record<string, string>>({});
     const [discountChannels, setDiscountChannels] = useState({ email: true, whatsapp: true });
+    const [returnCoupon, setReturnCoupon] = useState({ enabled: false, code: '' });
 
     const testPaymentsEnabled = process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
     const periodRange = useMemo(
@@ -307,11 +308,14 @@ export default function AdminReservasPage() {
             const response = await fetch(`/api/admin/bookings/${booking.id}/discount`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channels: discountChannels }),
+                body: JSON.stringify({
+                    channels: discountChannels,
+                    couponCode: returnCoupon.enabled ? returnCoupon.code.trim() : '',
+                }),
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(data?.message || data?.error || 'Não foi possível enviar o desconto.');
+                throw new Error(data?.message || data?.error || 'Não foi possível enviar o convite.');
             }
 
             if (discountChannels.whatsapp && data.whatsappUrl) {
@@ -328,18 +332,18 @@ export default function AdminReservasPage() {
             ].filter(Boolean).join(' e ');
             setActionFeedback({
                 type: 'success',
-                message: `Cupom ${data.code} criado${deliveryDetails ? ` e ${deliveryDetails}` : ''}.`,
+                message: `${data.code ? `Convite com o cupom ${data.code}` : 'Convite de retorno'} ${deliveryDetails || 'preparado'}.`,
             });
         } catch (error) {
             if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
             setActionFeedback({
                 type: 'error',
-                message: error instanceof Error ? error.message : 'Não foi possível enviar o desconto.',
+                message: error instanceof Error ? error.message : 'Não foi possível enviar o convite.',
             });
         } finally {
             setActionBusy(null);
         }
-    }, [discountChannels]);
+    }, [discountChannels, returnCoupon]);
 
     const executeAction = useCallback(async (booking: Booking, action: BookingAction) => {
         if (action === 'confirm') {
@@ -394,6 +398,7 @@ export default function AdminReservasPage() {
                 email: Boolean(booking.guest.email),
                 whatsapp: Boolean(booking.guest.phone),
             });
+            setReturnCoupon({ enabled: false, code: '' });
         }
         trackAdminEvent('admin_booking_action_selected', {
             action,
@@ -652,7 +657,8 @@ export default function AdminReservasPage() {
                         <p className={styles.modalDescription}>{getActionDescription(actionModal.action, actionModal.booking)}</p>
 
                         {actionModal.action === 'discount' ? (
-                            <fieldset className="mb-6 space-y-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+                            <div className="mb-6 space-y-4">
+                            <fieldset className="space-y-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
                                 <legend className="px-1 text-xs font-bold uppercase tracking-widest text-violet-700">Canais de envio</legend>
                                 <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
                                     <input
@@ -676,6 +682,34 @@ export default function AdminReservasPage() {
                                 </label>
                                 <p className="text-xs text-slate-500">O WhatsApp será aberto para você revisar e confirmar o envio.</p>
                             </fieldset>
+                            <fieldset className="space-y-3 rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+                                <legend className="px-1 text-xs font-bold uppercase tracking-widest text-violet-700">Cupom opcional</legend>
+                                <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                                    <input
+                                        type="checkbox"
+                                        checked={returnCoupon.enabled}
+                                        onChange={(event) => setReturnCoupon({
+                                            enabled: event.target.checked,
+                                            code: event.target.checked ? returnCoupon.code : '',
+                                        })}
+                                        className="h-4 w-4 accent-violet-600"
+                                    />
+                                    Incluir cupom de desconto
+                                </label>
+                                {returnCoupon.enabled ? (
+                                    <input
+                                        type="text"
+                                        aria-label="Código do cupom para o convite"
+                                        value={returnCoupon.code}
+                                        onChange={(event) => setReturnCoupon({ enabled: true, code: event.target.value.toUpperCase() })}
+                                        placeholder="Digite um cupom ativo"
+                                        autoComplete="off"
+                                        className="h-11 w-full rounded-lg border border-violet-200 bg-white px-3 text-sm font-semibold uppercase text-slate-900 outline-none focus:border-violet-500"
+                                    />
+                                ) : null}
+                                <p className="text-xs text-slate-500">Sem marcar esta opção, o hóspede recebe somente o convite para voltar.</p>
+                            </fieldset>
+                            </div>
                         ) : null}
                         
                         <div className="bg-slate-50 p-4 rounded-2xl mb-8 border border-slate-100">
@@ -698,7 +732,12 @@ export default function AdminReservasPage() {
                                 type="button"
                                 className={modalConfirmClass}
                                 onClick={confirmActionModal}
-                                disabled={Boolean(actionBusy) || (actionModal.action === 'discount' && !discountChannels.email && !discountChannels.whatsapp)}
+                                disabled={Boolean(actionBusy) || (
+                                    actionModal.action === 'discount' && (
+                                        (!discountChannels.email && !discountChannels.whatsapp) ||
+                                        (returnCoupon.enabled && !returnCoupon.code.trim())
+                                    )
+                                )}
                             >
                                 {actionBusy ? 'Processando...' : 'Confirmar Ação'}
                             </button>

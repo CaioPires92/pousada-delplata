@@ -65,7 +65,7 @@ describe('booking emails', () => {
             guestName: 'Maria Silva',
             guestEmail: 'maria@example.com',
             code: 'VOLTE-ABC123',
-            discountPercent: 10,
+            discountLabel: '10% de desconto',
             expiresAt: new Date('2026-08-31T12:00:00Z'),
             bookingUrl: 'https://www.pousadadelplata.com.br/reservar?promo=VOLTE-ABC123',
         });
@@ -75,5 +75,20 @@ describe('booking emails', () => {
             subject: 'Um convite para você voltar à Pousada Delplata',
             html: expect.stringMatching(/Gostaríamos de receber você novamente[\s\S]*Planejar minha próxima estadia/),
         }));
+    });
+
+    it('envia o convite de retorno sem mencionar desconto quando não há cupom', async () => {
+        const { sendGuestDiscountEmail } = await import('./email');
+
+        await sendGuestDiscountEmail({
+            guestName: 'Maria Silva',
+            guestEmail: 'maria@example.com',
+            bookingUrl: 'https://www.pousadadelplata.com.br/reservar',
+        });
+
+        const message = sendMailMock.mock.calls[0][0];
+        expect(message.html).toContain('Gostaríamos de receber você novamente');
+        expect(message.html).not.toContain('Seu cupom');
+        expect(message.html).not.toContain('Não cumulativo');
     });
 });

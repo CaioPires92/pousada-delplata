@@ -3,32 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/admin-auth', () => ({
     requireAdminAuth: vi.fn(async () => ({ adminId: 'admin-1' })),
 }));
-
 vi.mock('@/lib/ops-log', () => ({ opsLog: vi.fn() }));
-vi.mock('@/lib/discount-policy-store', () => ({
-    getDiscountPolicy: vi.fn(async () => ({
-        sendEnabled: true,
-        percentage: 10,
-        validityDays: 7,
-        minimumBookingValue: null,
-        maximumDiscountAmount: null,
-        blockedDateRanges: [],
-    })),
-}));
 vi.mock('@/lib/email', () => ({
     sendGuestDiscountEmail: vi.fn(async () => ({ success: true, messageId: 'message-1' })),
 }));
 vi.mock('@/lib/prisma', () => ({
     default: {
         booking: { findUnique: vi.fn() },
-        coupon: { create: vi.fn(), update: vi.fn() },
+        coupon: { findFirst: vi.fn() },
+        couponRedemption: { count: vi.fn() },
     },
 }));
 
 import prisma from '@/lib/prisma';
 import { sendGuestDiscountEmail } from '@/lib/email';
-import { getDiscountPolicy } from '@/lib/discount-policy-store';
 import { POST } from './route';
+
+const context = { params: Promise.resolve({ bookingId: 'booking-1' }) };
 
 describe('POST /api/admin/bookings/[bookingId]/discount', () => {
     beforeEach(() => {
@@ -41,77 +32,79 @@ describe('POST /api/admin/bookings/[bookingId]/discount', () => {
                 phone: '(19) 99999-9999',
             },
         });
-        (prisma.coupon.create as any).mockResolvedValue({ id: 'coupon-1' });
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-1',
+            type: 'PERCENT',
+            value: 10,
+            active: true,
+            startsAt: null,
+            endsAt: new Date('2026-08-31T12:00:00Z'),
+            maxGlobalUses: 20,
+            bindEmail: null,
+            bindPhone: null,
+        });
+        (prisma.couponRedemption.count as any).mockResolvedValue(2);
     });
 
-    it('creates a guest-bound, one-use 10% coupon and prepares both channels', async () => {
+    it('envia um convite de retorno sem criar ou exigir cupom', async () => {
         const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
             method: 'POST',
             body: JSON.stringify({ channels: { email: true, whatsapp: true } }),
-        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
+        }), context);
         const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.code).toMatch(/^VOLTE-[A-Z2-9]{8}$/);
+        expect(data.code).toBeNull();
         expect(data.whatsappUrl).toContain('wa.me/5519999999999');
-        expect(decodeURIComponent(data.whatsappUrl)).toContain('exclusivamente em reservas feitas pelo site oficial');
-        expect(prisma.coupon.create).toHaveBeenCalledWith({
-            data: expect.objectContaining({
-                type: 'PERCENT',
-                value: 10,
-                maxGlobalUses: 1,
-                maxUsesPerGuest: 1,
-                bindEmail: 'maria@example.com',
-                bindPhone: '19999999999',
-                originBookingId: 'booking-1',
-                singleUse: true,
-                stackable: false,
-            }),
-        });
-        expect(sendGuestDiscountEmail).toHaveBeenCalledTimes(1);
+        expect(decodeURIComponent(data.whatsappUrl)).not.toContain('cupom');
+        expect(prisma.coupon.findFirst).not.toHaveBeenCalled();
+        expect(sendGuestDiscountEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingUrl: 'https://www.pousadadelplata.com.br/reservar',
+            code: undefined,
+        }));
     });
 
-    it('rejects requests without a delivery channel', async () => {
+    it('valida e inclui um cupom ativo escolhido pelo administrador', async () => {
+        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
+            method: 'POST',
+            body: JSON.stringify({
+                channels: { email: true, whatsapp: true },
+                couponCode: 'VOLTA10',
+            }),
+        }), context);
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(data.code).toBe('VOLTA10');
+        expect(decodeURIComponent(data.whatsappUrl)).toContain('cupom *VOLTA10*');
+        expect(sendGuestDiscountEmail).toHaveBeenCalledWith(expect.objectContaining({
+            code: 'VOLTA10',
+            discountLabel: '10% de desconto',
+            bookingUrl: expect.stringContaining('promo=VOLTA10'),
+        }));
+    });
+
+    it('rejeita cupom inexistente ou inativo', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValueOnce(null);
+        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
+            method: 'POST',
+            body: JSON.stringify({
+                channels: { email: true, whatsapp: false },
+                couponCode: 'INVALIDO',
+            }),
+        }), context);
+
+        expect(response.status).toBe(404);
+        expect(sendGuestDiscountEmail).not.toHaveBeenCalled();
+    });
+
+    it('rejeita solicitações sem canal de envio', async () => {
         const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
             method: 'POST',
             body: JSON.stringify({ channels: { email: false, whatsapp: false } }),
-        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
+        }), context);
 
         expect(response.status).toBe(400);
-        expect(prisma.coupon.create).not.toHaveBeenCalled();
-    });
-
-    it('does not create a coupon while sending is paused', async () => {
-        (getDiscountPolicy as any).mockResolvedValueOnce({
-            sendEnabled: false,
-            percentage: 10,
-            validityDays: 7,
-            minimumBookingValue: null,
-            maximumDiscountAmount: null,
-            blockedDateRanges: [],
-        });
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
-            method: 'POST',
-            body: JSON.stringify({ channels: { email: true, whatsapp: false } }),
-        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
-
-        expect(response.status).toBe(409);
-        expect(prisma.coupon.create).not.toHaveBeenCalled();
-    });
-
-    it('deactivates the coupon when automatic email delivery fails', async () => {
-        (sendGuestDiscountEmail as any).mockResolvedValueOnce({ success: false });
-        (prisma.coupon.update as any).mockResolvedValue({ id: 'coupon-1', active: false });
-
-        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
-            method: 'POST',
-            body: JSON.stringify({ channels: { email: true, whatsapp: false } }),
-        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
-
-        expect(response.status).toBe(502);
-        expect(prisma.coupon.update).toHaveBeenCalledWith({
-            where: { id: 'coupon-1' },
-            data: { active: false },
-        });
+        expect(sendGuestDiscountEmail).not.toHaveBeenCalled();
     });
 });

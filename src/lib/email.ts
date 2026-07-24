@@ -1226,9 +1226,9 @@ function escapeDiscountEmailHtml(value: string) {
 export async function sendGuestDiscountEmail(data: {
     guestName: string;
     guestEmail: string;
-    code: string;
-    discountPercent: number;
-    expiresAt: Date;
+    code?: string;
+    discountLabel?: string;
+    expiresAt?: Date | null;
     bookingUrl: string;
 }) {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -1236,9 +1236,21 @@ export async function sendGuestDiscountEmail(data: {
     }
 
     const guestName = escapeDiscountEmailHtml(data.guestName);
-    const code = escapeDiscountEmailHtml(data.code);
+    const code = data.code ? escapeDiscountEmailHtml(data.code) : '';
+    const discountLabel = data.discountLabel ? escapeDiscountEmailHtml(data.discountLabel) : '';
     const bookingUrl = escapeDiscountEmailHtml(data.bookingUrl);
-    const expiration = data.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const expiration = data.expiresAt
+        ? data.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+        : '';
+    const couponBlock = code ? `
+        <p>Para deixar o convite ainda melhor, incluímos o cupom <strong>${discountLabel}</strong> abaixo.</p>
+        <div style="margin:24px 0;padding:22px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
+          <div style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#6f6d31">Seu cupom</div>
+          <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px;color:#283223">${code}</div>
+        </div>
+        ${expiration ? `<p>Válido até <strong>${expiration}</strong>, sujeito às regras do cupom e à disponibilidade.</p>` : ''}
+        <p><strong>Este desconto é válido exclusivamente para reservas realizadas pelo site oficial da Pousada Delplata.</strong></p>
+    ` : '';
     const html = `
       <div style="margin:0;padding:32px 16px;background:#f5f5f5;font-family:Arial,sans-serif;color:#283223">
       <div style="max-width:620px;margin:0 auto;padding:32px;background:#ffffff;border-top:6px solid #bbb863">
@@ -1246,18 +1258,12 @@ export async function sendGuestDiscountEmail(data: {
         <h1 style="margin:0 0 24px;color:#283223;font-size:28px;line-height:1.2">Temos um convite para você voltar</h1>
         <p>Olá, ${guestName}!</p>
         <p>Esperamos que esteja bem. Gostaríamos de receber você novamente na Pousada Delplata e tornar sua próxima estadia ainda mais especial.</p>
-        <p>Por isso, reservamos para você um cupom individual de <strong>${data.discountPercent}% de desconto</strong> para uma nova reserva pelo nosso site.</p>
-        <div style="margin:24px 0;padding:22px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
-          <div style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#6f6d31">Seu cupom</div>
-          <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px;color:#283223">${code}</div>
-        </div>
-        <p>Válido até <strong>${expiration}</strong>, para um único uso e sujeito à disponibilidade.</p>
-        <p><strong>Este desconto é válido exclusivamente para reservas realizadas pelo site oficial da Pousada Delplata.</strong></p>
+        ${couponBlock}
         <p style="margin:28px 0">
           <a href="${bookingUrl}" style="display:inline-block;background:#283223;color:#ffffff;padding:14px 22px;border-bottom:3px solid #bbb863;text-decoration:none;font-weight:bold">Planejar minha próxima estadia</a>
         </p>
         <p>Esperamos receber você em breve!<br><strong>Equipe Pousada Delplata</strong></p>
-        <p style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1d3;font-size:12px;line-height:1.6;color:#667060">O desconto será calculado automaticamente pelo motor de reservas. Não cumulativo com outras promoções.</p>
+        ${code ? '<p style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1d3;font-size:12px;line-height:1.6;color:#667060">O desconto será calculado automaticamente pelo motor de reservas. Não cumulativo com outras promoções.</p>' : ''}
       </div>
       </div>`;
 
