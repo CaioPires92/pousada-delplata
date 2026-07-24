@@ -1249,6 +1249,7 @@ export async function sendGuestDiscountEmail(data: {
           <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px">${code}</div>
         </div>
         <p>Válido até <strong>${expiration}</strong>, para um único uso e sujeito à disponibilidade.</p>
+        <p><strong>Este desconto é válido exclusivamente para reservas realizadas pelo site oficial da Pousada Delplata.</strong></p>
         <p style="margin:28px 0">
           <a href="${bookingUrl}" style="background:#6d3f2b;color:#fff;padding:13px 20px;text-decoration:none;font-weight:bold">Reservar com desconto</a>
         </p>

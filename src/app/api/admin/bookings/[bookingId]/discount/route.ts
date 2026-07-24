@@ -29,7 +29,7 @@ function buildWhatsAppUrl(phone: string, guestName: string, code: string, bookin
     const internationalPhone = normalizedPhone.startsWith('55') ? normalizedPhone : `55${normalizedPhone}`;
     const firstName = guestName.trim().split(/\s+/)[0] || 'tudo bem';
     const expiration = expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-    const message = `Olá, ${firstName}! A Pousada Delplata preparou um cupom individual de ${percentage}% para sua próxima reserva: *${code}*. Válido até ${expiration}, para um uso. Reserve aqui: ${bookingUrl}`;
+    const message = `Olá, ${firstName}! A Pousada Delplata preparou um cupom individual de ${percentage}% para sua próxima reserva: *${code}*. Válido até ${expiration}, para um uso e exclusivamente em reservas feitas pelo site oficial. Reserve aqui: ${bookingUrl}`;
     return `https://wa.me/${internationalPhone}?text=${encodeURIComponent(message)}`;
 }
 

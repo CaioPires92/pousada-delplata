@@ -54,6 +54,7 @@ describe('POST /api/admin/bookings/[bookingId]/discount', () => {
         expect(response.status).toBe(200);
         expect(data.code).toMatch(/^VOLTE-[A-Z2-9]{8}$/);
         expect(data.whatsappUrl).toContain('wa.me/5519999999999');
+        expect(decodeURIComponent(data.whatsappUrl)).toContain('exclusivamente em reservas feitas pelo site oficial');
         expect(prisma.coupon.create).toHaveBeenCalledWith({
             data: expect.objectContaining({
                 type: 'PERCENT',
