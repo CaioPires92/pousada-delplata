@@ -291,6 +291,15 @@ export default function AdminReservasPage() {
     }, [runBookingAction]);
 
     const sendDiscount = useCallback(async (booking: Booking) => {
+        const whatsappWindow = discountChannels.whatsapp
+            ? window.open('', '_blank')
+            : null;
+        if (whatsappWindow) {
+            whatsappWindow.opener = null;
+            whatsappWindow.document.title = 'Abrindo WhatsApp...';
+            whatsappWindow.document.body.textContent = 'Preparando a mensagem no WhatsApp...';
+        }
+
         setActionBusy({ bookingId: booking.id, action: 'discount' });
         setActionFeedback(null);
 
@@ -305,14 +314,24 @@ export default function AdminReservasPage() {
                 throw new Error(data?.message || data?.error || 'Não foi possível enviar o desconto.');
             }
 
+            if (discountChannels.whatsapp && data.whatsappUrl) {
+                if (whatsappWindow) {
+                    whatsappWindow.location.replace(data.whatsappUrl);
+                } else {
+                    window.location.assign(data.whatsappUrl);
+                }
+            }
+
+            const deliveryDetails = [
+                discountChannels.email ? 'enviado por e-mail' : null,
+                discountChannels.whatsapp ? 'aberto no WhatsApp para confirmação' : null,
+            ].filter(Boolean).join(' e ');
             setActionFeedback({
                 type: 'success',
-                message: `Cupom ${data.code} criado${discountChannels.email ? ' e enviado por e-mail' : ''}.`,
+                message: `Cupom ${data.code} criado${deliveryDetails ? ` e ${deliveryDetails}` : ''}.`,
             });
-            if (discountChannels.whatsapp && data.whatsappUrl) {
-                window.open(data.whatsappUrl, '_blank', 'noopener,noreferrer');
-            }
         } catch (error) {
+            if (whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
             setActionFeedback({
                 type: 'error',
                 message: error instanceof Error ? error.message : 'Não foi possível enviar o desconto.',
