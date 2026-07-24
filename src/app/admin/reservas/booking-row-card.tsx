@@ -25,6 +25,7 @@ import {
     formatFunnelStage,
     formatCurrency,
     formatDateSafe,
+    formatDateTimeSafe,
     formatInstallments,
     formatPaymentBrand,
     formatPaymentType,
@@ -285,7 +286,7 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                 <div className={styles.metaItem}>
                     <span className={styles.metaLabel}>Total</span>
                     <span className={styles.metaValueStrong}>{formatCurrency(booking.totalPrice)}</span>
-                    <span className={styles.metaSub}>Desde {formatDateSafe(booking.createdAt)}</span>
+                    <span className={styles.metaSub}>Desde {formatDateTimeSafe(booking.createdAt)}</span>
                 </div>
             </div>
         </article>
