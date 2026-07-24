@@ -5,6 +5,8 @@ import SearchWidget from './SearchWidget';
 const mockRouterPush = vi.fn();
 let preferredRoomTypeId: string | null = null;
 let campaignSource: string | null = null;
+let promoCode: string | null = null;
+let promoLocked = false;
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockRouterPush }),
@@ -13,6 +15,8 @@ vi.mock('next/navigation', () => ({
     get: vi.fn((key: string) => {
       if (key === 'roomTypeId') return preferredRoomTypeId;
       if (key === 'utm_source') return campaignSource;
+      if (key === 'promo') return promoCode;
+      if (key === 'promoLock') return promoLocked ? '1' : null;
       return null;
     }),
   }),
@@ -23,6 +27,8 @@ describe('SearchWidget', () => {
     vi.clearAllMocks();
     preferredRoomTypeId = null;
     campaignSource = null;
+    promoCode = null;
+    promoLocked = false;
     window.sessionStorage.clear();
   });
 
@@ -128,5 +134,23 @@ describe('SearchWidget', () => {
 
     expect(screen.getByText('Consulte valores')).toBeInTheDocument();
     expect(screen.queryByText(/melhor tarifa/i)).not.toBeInTheDocument();
+  });
+
+  it('abre o campo de cupom no buscador da página inicial', () => {
+    render(<SearchWidget uiPreset="hero" />);
+
+    expect(screen.queryByLabelText('Código do cupom')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: /adicionar cupom à busca/i }));
+    expect(screen.getByLabelText('Código do cupom')).toBeInTheDocument();
+  });
+
+  it('abre e preenche automaticamente o cupom recebido pelo link', async () => {
+    promoCode = 'VOLTE-ABC123';
+    promoLocked = true;
+
+    render(<SearchWidget uiPreset="hero" />);
+
+    expect(await screen.findByLabelText('Código do cupom')).toHaveValue('VOLTE-ABC123');
+    expect(screen.getByRole('checkbox', { name: /adicionar cupom à busca/i })).toBeChecked();
   });
 });

@@ -57,4 +57,23 @@ describe('booking emails', () => {
             subject: expect.stringContaining('Continue sua reserva'),
         }));
     });
+
+    it('envia o desconto como um convite pessoal para o hóspede voltar', async () => {
+        const { sendGuestDiscountEmail } = await import('./email');
+
+        await sendGuestDiscountEmail({
+            guestName: 'Maria Silva',
+            guestEmail: 'maria@example.com',
+            code: 'VOLTE-ABC123',
+            discountPercent: 10,
+            expiresAt: new Date('2026-08-31T12:00:00Z'),
+            bookingUrl: 'https://www.pousadadelplata.com.br/reservar?promo=VOLTE-ABC123',
+        });
+
+        expect(sendMailMock).toHaveBeenCalledWith(expect.objectContaining({
+            to: 'maria@example.com',
+            subject: 'Um convite para você voltar à Pousada Delplata',
+            html: expect.stringMatching(/Gostaríamos de receber você novamente[\s\S]*Planejar minha próxima estadia/),
+        }));
+    });
 });

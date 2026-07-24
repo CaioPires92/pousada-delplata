@@ -81,6 +81,7 @@ export default function SearchWidget({
     const [searchMessage, setSearchMessage] = useState('');
     const [searchCanEscalate, setSearchCanEscalate] = useState(false);
     const [couponCode, setCouponCode] = useState('');
+    const [isCouponOpen, setIsCouponOpen] = useState(false);
     const [couponFeedback, setCouponFeedback] = useState('');
     const [couponFeedbackType, setCouponFeedbackType] = useState<'success' | 'warning' | ''>('');
     const [isHeroExpanded, setIsHeroExpanded] = useState(false);
@@ -346,7 +347,7 @@ export default function SearchWidget({
     const isHeroPreset = uiPreset === 'hero';
     const isHeroHorizontal = isHeroPreset && heroLayout === 'horizontal';
     const shouldShowHeroCompact = isHeroPreset && collapsible && !isHeroExpanded;
-    const showCouponField = !isHeroPreset && !hideCouponField;
+    const showCouponField = !hideCouponField;
     const heroCalendarClassNames = isHeroPreset ? {
         months: 'flex flex-col space-y-4',
         month: 'space-y-4',
@@ -433,9 +434,11 @@ export default function SearchWidget({
         deferStateUpdate(() => {
             if (incomingPromo) {
                 setCouponCode(incomingPromo);
+                setIsCouponOpen(true);
                 return;
             }
             setCouponCode('');
+            setIsCouponOpen(false);
         });
     }, [searchParams]);
 
@@ -808,27 +811,6 @@ export default function SearchWidget({
                     </div>
                 </div>
 
-                {/* Cupom */}
-                {showCouponField ? (
-                <div className="flex flex-col md:col-span-2 xl:col-span-3">
-                    <label htmlFor="coupon" className={labelClass}>
-                        Cupom
-                    </label>
-                    <input
-                        id="coupon"
-                        type="text"
-                        className={cn(
-                            dateInputClass,
-                            isHeroPreset && "h-[58px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-5 py-0 text-[0.95rem] leading-none placeholder:font-sans placeholder:text-[0.95rem] placeholder:font-medium placeholder:tracking-normal placeholder:text-[color:var(--brand-forest)]/60 focus:border-[color:var(--brand-gold)] focus:bg-[color:var(--brand-white)] focus:outline-none focus:ring-0 caret-[color:var(--brand-gold)]"
-                        )}
-                        placeholder="Código Promocional"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                        disabled={promoLocked}
-                    />
-                </div>
-                ) : null}
-
                 {/* Botão de busca */}
                 <div className={cn("md:col-span-2", isHeroPreset ? `${heroButtonColumnClass} lg:col-span-1 lg:min-w-0 xl:col-span-1` : "xl:col-span-4")}>
                     <Button
@@ -875,6 +857,50 @@ export default function SearchWidget({
                         )}
                     </Button>
                 </div>
+                {showCouponField ? (
+                    <div className={cn(
+                        "md:col-span-2 xl:col-span-full",
+                        isHeroPreset
+                            ? "border-t border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-5 py-3"
+                            : "pt-1"
+                    )}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-[color:var(--brand-forest)]">
+                                <input
+                                    type="checkbox"
+                                    aria-label="Adicionar cupom à busca"
+                                    checked={isCouponOpen}
+                                    disabled={promoLocked}
+                                    onChange={(event) => {
+                                        const nextOpen = event.target.checked;
+                                        setIsCouponOpen(nextOpen);
+                                        if (!nextOpen) {
+                                            setCouponCode('');
+                                            setCouponFeedback('');
+                                            setCouponFeedbackType('');
+                                        }
+                                    }}
+                                    className="h-4 w-4 accent-[color:var(--brand-forest)]"
+                                />
+                                Tenho um cupom de desconto
+                            </label>
+                            {isCouponOpen ? (
+                                <input
+                                    type="text"
+                                    aria-label="Código do cupom"
+                                    className={cn(
+                                        dateInputClass,
+                                        "h-11 min-w-0 flex-1 rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 py-0 text-sm uppercase text-[color:var(--brand-forest)] placeholder:normal-case placeholder:text-[color:var(--brand-forest)]/55 focus:border-[color:var(--brand-gold)] focus:outline-none focus:ring-0 sm:max-w-sm"
+                                    )}
+                                    placeholder="Digite o código do cupom"
+                                    value={couponCode}
+                                    onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                                    disabled={promoLocked}
+                                />
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
                 {numChildren > 0 && !isHeroPreset ? (
                     <div className={cn("md:col-span-2 xl:col-span-15", isHeroPreset && "rounded-none border border-white/10 bg-white/[0.02] p-4 xl:pt-4")}>
                         <p className={cn("mb-2 text-xs text-white/90", isHeroPreset && "font-accent text-[0.68rem] font-medium uppercase tracking-[0.18em] text-white/58")}>
@@ -930,7 +956,7 @@ export default function SearchWidget({
                     {ctaMicrocopy}
                 </p>
             ) : null}
-            {couponFeedback ? (
+            {couponFeedback && pathname !== '/reservar' ? (
                 <div className={`mt-3 rounded-none p-3 text-sm ${couponFeedbackType === 'success'
                     ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
                     : 'border border-amber-200 bg-amber-50 text-amber-800'}`}>

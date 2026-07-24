@@ -1438,7 +1438,6 @@ function ReservarContent() {
                             variant="light"
                             uiPreset="hero"
                             heroLayout="horizontal"
-                            hideCouponField
                             submitLabel="Ver disponibilidade"
                             submitLabelMobile="Buscar"
                         />
@@ -1535,7 +1534,6 @@ function ReservarContent() {
                             variant="light"
                             uiPreset="hero"
                             heroLayout="horizontal"
-                            hideCouponField
                             prefillFromQuery
                             submitLabel="Ver disponibilidade"
                             submitLabelMobile="Buscar"
@@ -2190,10 +2188,10 @@ function ReservarContent() {
                                                 </div>
                                             ) : null}
 
-                                            {couponMessage ? (
+                                            {couponMessage && !appliedCoupon ? (
                                                 <p
                                                     role="status"
-                                                    className={`mt-2 text-xs ${appliedCoupon ? 'text-emerald-700' : 'text-red-600'}`}
+                                                    className="mt-2 text-xs text-red-600"
                                                 >
                                                     {couponMessage}
                                                 </p>
