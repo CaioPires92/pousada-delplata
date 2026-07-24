@@ -1240,20 +1240,23 @@ export async function sendGuestDiscountEmail(data: {
     const bookingUrl = escapeDiscountEmailHtml(data.bookingUrl);
     const expiration = data.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const html = `
-      <div style="max-width:620px;margin:0 auto;padding:28px;font-family:Arial,sans-serif;color:#1f2937">
-        <h1 style="color:#6d3f2b">Um desconto especial para você</h1>
+      <div style="margin:0;padding:32px 16px;background:#f5f5f5;font-family:Arial,sans-serif;color:#283223">
+      <div style="max-width:620px;margin:0 auto;padding:32px;background:#ffffff;border-top:6px solid #bbb863">
+        <div style="margin-bottom:10px;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#8a883f">Pousada Delplata</div>
+        <h1 style="margin:0 0 24px;color:#283223;font-size:28px;line-height:1.2">Um desconto especial para você</h1>
         <p>Olá, ${guestName}!</p>
         <p>A Pousada Delplata preparou um cupom individual de <strong>${data.discountPercent}% de desconto</strong> para sua próxima reserva direta.</p>
-        <div style="margin:24px 0;padding:20px;text-align:center;background:#f7f1eb;border:1px solid #ead8c8">
-          <div style="font-size:12px;text-transform:uppercase;color:#6b7280">Seu cupom</div>
-          <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px">${code}</div>
+        <div style="margin:24px 0;padding:22px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
+          <div style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#6f6d31">Seu cupom</div>
+          <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px;color:#283223">${code}</div>
         </div>
         <p>Válido até <strong>${expiration}</strong>, para um único uso e sujeito à disponibilidade.</p>
         <p><strong>Este desconto é válido exclusivamente para reservas realizadas pelo site oficial da Pousada Delplata.</strong></p>
         <p style="margin:28px 0">
-          <a href="${bookingUrl}" style="background:#6d3f2b;color:#fff;padding:13px 20px;text-decoration:none;font-weight:bold">Reservar com desconto</a>
+          <a href="${bookingUrl}" style="display:inline-block;background:#283223;color:#ffffff;padding:14px 22px;border-bottom:3px solid #bbb863;text-decoration:none;font-weight:bold">Reservar com desconto</a>
         </p>
-        <p style="font-size:12px;color:#6b7280">O desconto será calculado automaticamente pelo motor de reservas. Não cumulativo com outras promoções.</p>
+        <p style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1d3;font-size:12px;line-height:1.6;color:#667060">O desconto será calculado automaticamente pelo motor de reservas. Não cumulativo com outras promoções.</p>
+      </div>
       </div>`;
 
     try {
