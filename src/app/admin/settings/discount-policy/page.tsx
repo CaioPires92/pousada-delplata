@@ -128,15 +128,23 @@ export default function DiscountPolicySettingsPage() {
                                     <span className="bg-slate-100 px-4 py-3 font-bold text-slate-500">dias</span>
                                 </div>
                             </label>
-                            <label className="space-y-2">
-                                <span className="text-xs font-black uppercase tracking-widest text-slate-400">Valor mínimo da reserva</span>
-                                <input type="number" min={0} step="0.01" value={policy.minimumBookingValue ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, minimumBookingValue: event.target.value === '' ? null : Number(event.target.value) }))} placeholder="Sem mínimo" className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold outline-none" />
-                            </label>
-                            <label className="space-y-2">
-                                <span className="text-xs font-black uppercase tracking-widest text-slate-400">Desconto máximo em reais</span>
-                                <input type="number" min={0} step="0.01" value={policy.maximumDiscountAmount ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, maximumDiscountAmount: event.target.value === '' ? null : Number(event.target.value) }))} placeholder="Sem limite" className="w-full rounded-xl border border-slate-200 px-4 py-3 font-bold outline-none" />
-                            </label>
                         </div>
+
+                        <details className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-bold text-slate-600">
+                                Limites avançados
+                            </summary>
+                            <div className="grid gap-4 border-t border-slate-200 p-4 md:grid-cols-2">
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Valor mínimo da reserva</span>
+                                    <input type="number" min={0} step="0.01" value={policy.minimumBookingValue ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, minimumBookingValue: event.target.value === '' ? null : Number(event.target.value) }))} placeholder="Sem mínimo" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none" />
+                                </label>
+                                <label className="space-y-2">
+                                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Desconto máximo em reais</span>
+                                    <input type="number" min={0} step="0.01" value={policy.maximumDiscountAmount ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, maximumDiscountAmount: event.target.value === '' ? null : Number(event.target.value) }))} placeholder="Sem limite" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-bold outline-none" />
+                                </label>
+                            </div>
+                        </details>
                     </section>
 
                     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

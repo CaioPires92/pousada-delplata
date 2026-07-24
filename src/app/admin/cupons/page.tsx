@@ -14,12 +14,9 @@ import {
     Edit3, 
     X, 
     Check, 
-    AlertCircle, 
     ChevronRight,
     Users,
     Calendar,
-    DollarSign,
-    Lock
 } from 'lucide-react';
 
 type Coupon = {
@@ -392,12 +389,12 @@ export default function AdminCuponsPage() {
             {/* Header */}
             <div className={styles.pageHeader}>
                 <div className={styles.headerInfo}>
-                    <h2>Gestão de Cupons</h2>
-                    <p>Controle descontos, campanhas e auditoria de tentativas maliciosas.</p>
+                    <h2>Cupons</h2>
+                    <p>Crie, acompanhe e desative descontos.</p>
                 </div>
                 <button onClick={openCreate} className={styles.primaryButton}>
                     <Plus size={20} />
-                    Novo Cupom
+                    Criar cupom
                 </button>
             </div>
 
@@ -415,25 +412,7 @@ export default function AdminCuponsPage() {
                 </div>
             )}
 
-            {/* Tabs */}
-            <div className={styles.tabs}>
-                <button 
-                    className={`${styles.tab} ${activeTab === 'gestao' ? styles.tabActive : ''}`}
-                    onClick={() => setActiveTab('gestao')}
-                >
-                    <Tag size={18} className="inline mr-2" />
-                    Gestão de Cupons
-                </button>
-                <button 
-                    className={`${styles.tab} ${activeTab === 'auditoria' ? styles.tabActive : ''}`}
-                    onClick={() => setActiveTab('auditoria')}
-                >
-                    <ShieldCheck size={18} className="inline mr-2" />
-                    Auditoria de Segurança
-                </button>
-            </div>
-
-            {/* Metrics Grid */}
+            {/* Resumo operacional */}
             <div className={styles.metricsGrid}>
                 <div className={styles.metricCard}>
                     <div className={styles.metricIcon} style={{ color: 'var(--primary)' }}>
@@ -453,56 +432,33 @@ export default function AdminCuponsPage() {
                         <strong className={styles.metricValue}>{metrics?.redemptions.confirmed || 0}</strong>
                     </div>
                 </div>
-                <div className={styles.metricCard}>
-                    <div className={styles.metricIcon} style={{ color: 'var(--warning)' }}>
-                        <AlertCircle size={22} />
-                    </div>
-                    <div className={styles.metricInfo}>
-                        <span className={styles.metricLabel}>Tentativas Inválidas (7d)</span>
-                        <strong className={styles.metricValue}>{metrics?.attempts.last7d.invalid || 0}</strong>
-                    </div>
-                </div>
-                <div className={styles.metricCard}>
-                    <div className={styles.metricIcon} style={{ color: 'var(--danger)' }}>
-                        <Lock size={22} />
-                    </div>
-                    <div className={styles.metricInfo}>
-                        <span className={styles.metricLabel}>Bloqueios (7d)</span>
-                        <strong className={styles.metricValue}>{metrics?.attempts.last7d.blocked || 0}</strong>
-                    </div>
-                </div>
             </div>
 
-            {activeTab === 'gestao' ? (
-                <>
+            <>
                     {/* Templates Section */}
                     {templates.length > 0 && (
-                        <div className={styles.templateSection}>
-                            <h3>
-                                <BarChart3 size={20} />
-                                Modelos Antifraude
-                            </h3>
+                        <details className={styles.advancedPanel}>
+                            <summary>
+                                <span><BarChart3 size={18} />Modelos prontos</span>
+                                <small>Opcional</small>
+                            </summary>
                             <div className={styles.templateGrid}>
                                 {templates.map((template) => (
                                     <div key={template.id} className={styles.templateCard}>
                                         <div className={styles.templateHead}>
                                             <strong>{template.name}</strong>
                                             <span className={`${styles.badge} ${template.antifraudLevel === 'HIGH' ? styles.badgeDanger : styles.badgeWarning}`}>
-                                                {template.antifraudLevel}
+                                                {template.antifraudLevel === 'HIGH' ? 'Proteção alta' : 'Proteção média'}
                                             </span>
                                         </div>
                                         <p>{template.description}</p>
-                                        <button 
-                                            className={styles.secondaryButton} 
-                                            onClick={() => openCreateFromTemplate(template)}
-                                            style={{ padding: '0.5rem', width: '100%', fontSize: '0.85rem' }}
-                                        >
+                                        <button className={styles.secondaryButton} onClick={() => openCreateFromTemplate(template)}>
                                             Usar modelo
                                         </button>
                                     </div>
                                 ))}
                             </div>
-                        </div>
+                        </details>
                     )}
 
                     {/* Main Table */}
@@ -565,9 +521,19 @@ export default function AdminCuponsPage() {
                             </tbody>
                         </table>
                     </div>
-                </>
-            ) : (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            </>
+
+            <details
+                className={styles.advancedPanel}
+                onToggle={(event) => {
+                    if (event.currentTarget.open) setActiveTab('auditoria');
+                }}
+            >
+                <summary>
+                    <span><ShieldCheck size={18} />Segurança e auditoria</span>
+                    <small>{metrics?.attempts.last7d.invalid || 0} inválidas · {metrics?.attempts.last7d.blocked || 0} bloqueadas em 7 dias</small>
+                </summary>
+                <div className="pt-5">
                     {/* Audit Filters */}
                     <div className={styles.auditFilters}>
                         <div className={styles.filterGroup}>
@@ -647,14 +613,14 @@ export default function AdminCuponsPage() {
                         </table>
                     </div>
                 </div>
-            )}
+            </details>
 
             {/* Modal */}
             {formOpen && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
                         <div className={styles.modalHeader}>
-                            <h3>{isEdit ? 'Editar Cupom' : 'Criar Novo Cupom'}</h3>
+                            <h3>{isEdit ? 'Editar cupom' : 'Criar cupom'}</h3>
                             <button onClick={() => setFormOpen(false)} className="text-slate-400 hover:text-slate-600">
                                 <X size={24} />
                             </button>
@@ -668,7 +634,7 @@ export default function AdminCuponsPage() {
                                 </div>
                                 
                                 <div className={styles.field + " col-span-2"}>
-                                    <label>Nome da Campanha</label>
+                                    <label>Nome do cupom</label>
                                     <input 
                                         className={styles.input} 
                                         placeholder="Ex: Natal Delplata 2026"
@@ -678,7 +644,7 @@ export default function AdminCuponsPage() {
                                 </div>
                                 
                                 <div className={styles.field}>
-                                    <label>Tipo de Desconto</label>
+                                    <label>Tipo de desconto</label>
                                     <select
                                         className={styles.input}
                                         value={form.type}
@@ -690,7 +656,7 @@ export default function AdminCuponsPage() {
                                 </div>
                                 
                                 <div className={styles.field}>
-                                    <label>Valor do Desconto</label>
+                                    <label>Valor do desconto</label>
                                     <div className="relative">
                                         <input
                                             className={styles.input + " w-full"}
@@ -707,7 +673,7 @@ export default function AdminCuponsPage() {
                                 </div>
 
                                 <div className={styles.field}>
-                                    <label>Código do Cupom</label>
+                                    <label>Código do cupom</label>
                                     <input
                                         className={styles.input}
                                         value={form.code}
@@ -735,21 +701,11 @@ export default function AdminCuponsPage() {
 
                                 {/* Limites */}
                                 <div className={styles.formSection}>
-                                    <h4><Calendar size={14} className="inline mr-1" /> Prazos e Limites</h4>
+                                    <h4><Calendar size={14} className="inline mr-1" /> Validade e uso</h4>
                                 </div>
 
                                 <div className={styles.field}>
-                                    <label>Início da Validade</label>
-                                    <input
-                                        className={styles.input}
-                                        type="date"
-                                        value={form.startsAt}
-                                        onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Fim da Validade</label>
+                                    <label>Válido até</label>
                                     <input
                                         className={styles.input}
                                         type="date"
@@ -759,7 +715,7 @@ export default function AdminCuponsPage() {
                                 </div>
 
                                 <div className={styles.field}>
-                                    <label>Máx. Usos Globais</label>
+                                    <label>Limite de usos</label>
                                     <input
                                         className={styles.input}
                                         type="number"
@@ -770,43 +726,40 @@ export default function AdminCuponsPage() {
                                     />
                                 </div>
 
-
-                                {/* Restrições */}
-                                <div className={styles.formSection}>
-                                    <h4><DollarSign size={14} className="inline mr-1" /> Regras Financeiras</h4>
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Valor Mín. da Reserva</label>
-                                    <input
-                                        className={styles.input}
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={form.minBookingValue}
-                                        onChange={(e) => setForm({ ...form, minBookingValue: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className={styles.field}>
-                                    <label>Desconto Máximo</label>
-                                    <input
-                                        className={styles.input}
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={form.maxDiscountAmount}
-                                        onChange={(e) => setForm({ ...form, maxDiscountAmount: e.target.value })}
-                                    />
-                                </div>
-
-
-                                <div className={styles.formSection}>
-                                    <h4><ShieldCheck size={14} className="inline mr-1" /> Comportamento</h4>
-                                </div>
-
-                                <div className="col-span-2">
-                                    <div className={styles.checkboxGroup}>
+                                <details className={`${styles.formAdvanced} col-span-2`}>
+                                    <summary>Opções avançadas</summary>
+                                    <div className={styles.formGrid}>
+                                        <div className={styles.field}>
+                                            <label>Início da validade</label>
+                                            <input
+                                                className={styles.input}
+                                                type="date"
+                                                value={form.startsAt}
+                                                onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className={styles.field}>
+                                            <label>Valor mínimo da reserva</label>
+                                            <input
+                                                className={styles.input}
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={form.minBookingValue}
+                                                onChange={(e) => setForm({ ...form, minBookingValue: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className={styles.field}>
+                                            <label>Desconto máximo</label>
+                                            <input
+                                                className={styles.input}
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={form.maxDiscountAmount}
+                                                onChange={(e) => setForm({ ...form, maxDiscountAmount: e.target.value })}
+                                            />
+                                        </div>
                                         <label className={styles.checkboxItem}>
                                             <input
                                                 type="checkbox"
@@ -814,13 +767,12 @@ export default function AdminCuponsPage() {
                                                 onChange={(e) => setForm({ ...form, active: e.target.checked })}
                                             />
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-bold">Ativo</span>
+                                                <span className="text-sm font-bold">Cupom ativo</span>
                                                 <span className="text-[10px] text-slate-500">Pode ser usado no motor</span>
                                             </div>
                                         </label>
-
                                     </div>
-                                </div>
+                                </details>
                             </div>
                         </div>
 
