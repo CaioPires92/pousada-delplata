@@ -1161,6 +1161,13 @@ export async function sendDifficultyAlertEmail(data: {
     totalPrice?: number | null;
     error?: string | null;
     funnelStage?: string | null;
+    cardBrand?: string | null;
+    paymentStatusDetail?: string | null;
+    paymentMethodId?: string | null;
+    paymentTypeId?: string | null;
+    paymentProviderId?: string | number | null;
+    cardLastFour?: string | null;
+    installments?: number | null;
 }) {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
@@ -1187,6 +1194,13 @@ export async function sendDifficultyAlertEmail(data: {
         ${data.bookingId ? `<p><strong>ID da Reserva:</strong> ${data.bookingId.slice(0,8).toUpperCase()}</p>` : ''}
         ${data.roomName ? `<p><strong>Quarto:</strong> ${data.roomName}</p>` : ''}
         ${typeof data.totalPrice === 'number' ? `<p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2).replace('.', ',')}</p>` : ''}
+        <p><strong>Bandeira:</strong> ${data.cardBrand || 'Não identificada pelo Mercado Pago'}</p>
+        ${data.cardLastFour ? `<p><strong>Final do cartão:</strong> ${data.cardLastFour}</p>` : ''}
+        ${data.paymentMethodId ? `<p><strong>Meio identificado:</strong> ${data.paymentMethodId}</p>` : ''}
+        ${data.paymentTypeId ? `<p><strong>Tipo de pagamento:</strong> ${data.paymentTypeId}</p>` : ''}
+        ${typeof data.installments === 'number' ? `<p><strong>Parcelas:</strong> ${data.installments}x</p>` : ''}
+        ${data.paymentStatusDetail ? `<p><strong>Motivo técnico do Mercado Pago:</strong> ${data.paymentStatusDetail}</p>` : ''}
+        ${data.paymentProviderId ? `<p><strong>ID da transação no Mercado Pago:</strong> ${data.paymentProviderId}</p>` : ''}
         ${data.error ? `<p><strong>Erro ocorrido:</strong> ${data.error}</p>` : ''}
         ${data.funnelStage ? `<p><strong>Etapa do funil:</strong> ${data.funnelStage}</p>` : ''}
         ${whatsappLink ? `

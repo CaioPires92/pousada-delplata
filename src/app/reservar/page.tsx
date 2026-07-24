@@ -540,6 +540,7 @@ function ReservarContent() {
         reason: string;
         error?: string;
         funnelStage?: string;
+        cardBrand?: string;
     }) => {
         if (!guest.name || !guest.email) return;
 
@@ -557,6 +558,7 @@ function ReservarContent() {
                 reason: payload.reason,
                 error: payload.error,
                 funnelStage: payload.funnelStage,
+                cardBrand: payload.cardBrand,
             }),
         }).catch(() => {});
     }, [bookingTotal, guest.email, guest.name, guest.phone, paymentAmount, paymentBookingId, selectedRoom?.name]);
@@ -1137,6 +1139,7 @@ function ReservarContent() {
                         paymentMethods: {
                             creditCard: 'all',
                             debitCard: 'all',
+                            prepaidCard: 'all',
                             bankTransfer: 'all',
                         },
                     },
@@ -1258,14 +1261,34 @@ function ReservarContent() {
                             console.error('Mercado Pago Brick Error:', err);
                             setPaymentStatus('error');
                             const errorMessage = String(err?.message || err?.error || '');
+                            const brickCauseDetails = Array.isArray(err?.cause)
+                                ? err.cause
+                                    .map((cause: any) => [
+                                        cause?.code,
+                                        cause?.description,
+                                        cause?.data?.message,
+                                    ].filter(Boolean).join(': '))
+                                    .filter(Boolean)
+                                    .join(' | ')
+                                : '';
+                            const safeTechnicalError = [errorMessage, err?.code, brickCauseDetails]
+                                .filter(Boolean)
+                                .join(' | ');
+                            const cardBrand = String(
+                                err?.payment_method_id
+                                || err?.paymentMethodId
+                                || err?.cause?.[0]?.data?.payment_method_id
+                                || ''
+                            ).trim();
 
                             if (errorMessage.includes('no_payment_method_for_provided_bin')) {
                                 setPaymentError('Cartão não aceito ou número incorreto. Por favor, verifique os dados digitados ou tente usar outro cartão.');
                                 notifyPaymentDifficulty({
                                     step: 'Brick Mercado Pago',
                                     reason: 'Cartão não suportado ou número incorreto (BIN inválido)',
-                                    error: errorMessage || 'no_payment_method_for_provided_bin',
+                                    error: safeTechnicalError || 'no_payment_method_for_provided_bin',
                                     funnelStage: 'PAYMENT_ERROR',
+                                    cardBrand,
                                 });
                                 trackReservationFunnel({
                                     step: 'payment_result',
@@ -1282,8 +1305,9 @@ function ReservarContent() {
                                 notifyPaymentDifficulty({
                                     step: 'Brick Mercado Pago',
                                     reason: 'Dados do pagador ausentes',
-                                    error: errorMessage || 'required_field_error',
+                                    error: safeTechnicalError || 'required_field_error',
                                     funnelStage: 'PAYMENT_ERROR',
+                                    cardBrand,
                                 });
                                 trackReservationFunnel({
                                     step: 'payment_result',
@@ -1299,8 +1323,9 @@ function ReservarContent() {
                             notifyPaymentDifficulty({
                                 step: 'Brick Mercado Pago',
                                 reason: 'Erro tecnico no Brick',
-                                error: errorMessage || 'brick_error',
+                                error: safeTechnicalError || 'brick_error',
                                 funnelStage: 'PAYMENT_ERROR',
+                                cardBrand,
                             });
                             trackReservationFunnel({
                                 step: 'payment_result',
