@@ -92,6 +92,7 @@ export async function POST(
                 maxUsesPerGuest: 1,
                 bindEmail: normalizeGuestEmail(booking.guest.email) || null,
                 bindPhone: normalizeGuestPhone(booking.guest.phone) || null,
+                originBookingId: booking.id,
                 allowedRoomTypeIds: '[]',
                 allowedSources: JSON.stringify(['direct']),
                 singleUse: true,

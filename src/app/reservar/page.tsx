@@ -517,6 +517,35 @@ function ReservarContent() {
         }
     }, [promoFromQuery, selectedRoom]);
 
+    useEffect(() => {
+        if (!promoFromQuery) return;
+
+        const controller = new AbortController();
+        async function loadGuestPrefill() {
+            try {
+                const response = await fetch('/api/coupons/prefill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: promoFromQuery }),
+                    signal: controller.signal,
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data?.available || !data?.guest) return;
+
+                setGuest((current) => ({
+                    name: current.name || String(data.guest.name || ''),
+                    email: current.email || String(data.guest.email || ''),
+                    phone: current.phone || String(data.guest.phone || ''),
+                }));
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') return;
+            }
+        }
+
+        void loadGuestPrefill();
+        return () => controller.abort();
+    }, [promoFromQuery]);
+
     const getWhatsAppUrl = (context?: 'error_form' | 'error_payment') => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
         const checkOutStr = checkOut ? formatDate(checkOut) : 'DATA INDEFINIDA';

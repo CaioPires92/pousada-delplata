@@ -120,6 +120,7 @@ model Booking {
   roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
   guest              Guest             @relation(fields: [guestId], references: [id])
   couponRedemption   CouponRedemption?
+  issuedCoupons      Coupon[]           @relation("CouponOriginBooking")
   payment            Payment?
 }
 
@@ -194,6 +195,7 @@ model Coupon {
   maxUsesPerGuest    Int?
   bindEmail          String?
   bindPhone          String?
+  originBookingId    String?
   allowedRoomTypeIds String?
   allowedSources     String?
   singleUse          Boolean            @default(false)
@@ -201,10 +203,12 @@ model Coupon {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   attemptLogs        CouponAttemptLog[]
+  originBooking      Booking?           @relation("CouponOriginBooking", fields: [originBookingId], references: [id], onDelete: SetNull)
   redemptions        CouponRedemption[]
 
   @@index([codePrefix])
   @@index([active])
+  @@index([originBookingId])
   @@index([startsAt, endsAt])
 }
 

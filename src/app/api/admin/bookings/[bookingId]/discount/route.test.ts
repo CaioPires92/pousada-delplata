@@ -62,6 +62,7 @@ describe('POST /api/admin/bookings/[bookingId]/discount', () => {
                 maxUsesPerGuest: 1,
                 bindEmail: 'maria@example.com',
                 bindPhone: '19999999999',
+                originBookingId: 'booking-1',
                 singleUse: true,
                 stackable: false,
             }),

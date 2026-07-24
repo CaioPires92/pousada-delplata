@@ -1,15 +1,17 @@
 import { hashTelemetryValue, normalizeGuestEmail } from '@/lib/coupons/hash';
 
-type Scope = 'validate' | 'reserve';
+type Scope = 'validate' | 'reserve' | 'prefill';
 
 type BucketStore = {
     validate: Map<string, number[]>;
     reserve: Map<string, number[]>;
+    prefill: Map<string, number[]>;
 };
 
 const bucketStore: BucketStore = {
     validate: new Map(),
     reserve: new Map(),
+    prefill: new Map(),
 };
 
 function parsePositiveInt(raw: string | undefined, fallback: number) {
@@ -20,7 +22,7 @@ function parsePositiveInt(raw: string | undefined, fallback: number) {
 function getScopeConfig(scope: Scope) {
     const windowMs = parsePositiveInt(process.env.COUPON_RATE_LIMIT_WINDOW_MS, 10 * 60 * 1000);
 
-    if (scope === 'reserve') {
+    if (scope === 'reserve' || scope === 'prefill') {
         return {
             windowMs,
             maxAttempts: parsePositiveInt(process.env.COUPON_RESERVE_RATE_LIMIT_MAX, 8),
@@ -76,4 +78,5 @@ export function shouldThrottleCouponRequest(params: {
 export function __resetCouponRateLimitForTests() {
     bucketStore.validate.clear();
     bucketStore.reserve.clear();
+    bucketStore.prefill.clear();
 }

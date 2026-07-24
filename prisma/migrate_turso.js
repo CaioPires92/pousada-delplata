@@ -162,6 +162,7 @@ async function migrate() {
         { name: 'maxUsesPerGuest', ddl: 'ALTER TABLE Coupon ADD COLUMN maxUsesPerGuest INTEGER' },
         { name: 'bindEmail', ddl: 'ALTER TABLE Coupon ADD COLUMN bindEmail TEXT' },
         { name: 'bindPhone', ddl: 'ALTER TABLE Coupon ADD COLUMN bindPhone TEXT' },
+        { name: 'originBookingId', ddl: 'ALTER TABLE Coupon ADD COLUMN originBookingId TEXT' },
         { name: 'allowedRoomTypeIds', ddl: 'ALTER TABLE Coupon ADD COLUMN allowedRoomTypeIds TEXT' },
         { name: 'allowedSources', ddl: 'ALTER TABLE Coupon ADD COLUMN allowedSources TEXT' },
         { name: 'singleUse', ddl: 'ALTER TABLE Coupon ADD COLUMN singleUse BOOLEAN NOT NULL DEFAULT true' },
