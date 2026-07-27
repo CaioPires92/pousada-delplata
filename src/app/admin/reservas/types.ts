@@ -34,4 +34,4 @@ export interface Booking {
     } | null;
 }
 
-export type BookingAction = 'confirm' | 'test' | 'expire' | 'assist' | 'payment-link' | 'hotel-confirmation' | 'delete';
+export type BookingAction = 'confirm' | 'test' | 'expire' | 'assist' | 'discount' | 'payment-link' | 'hotel-confirmation' | 'delete';

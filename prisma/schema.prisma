@@ -120,6 +120,7 @@ model Booking {
   roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
   guest              Guest             @relation(fields: [guestId], references: [id])
   couponRedemption   CouponRedemption?
+  issuedCoupons      Coupon[]           @relation("CouponOriginBooking")
   payment            Payment?
 }
 
@@ -134,6 +135,18 @@ model PartialPaymentSettings {
   defaultPaymentMode          String   @default("FULL")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
+}
+
+model DiscountPolicySettings {
+  id                String   @id
+  sendEnabled       Boolean  @default(true)
+  percentage        Int      @default(10)
+  validityDays      Int      @default(7)
+  minimumBookingValue Decimal?
+  maximumDiscountAmount Decimal?
+  blockedDateRanges String   @default("[]")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Payment {
@@ -171,6 +184,7 @@ model Coupon {
   name               String
   codeHash           String             @unique
   codePrefix         String
+  codeCiphertext     String?
   type               String
   value              Decimal
   maxDiscountAmount  Decimal?
@@ -179,13 +193,23 @@ model Coupon {
   startsAt           DateTime?
   endsAt             DateTime?
   maxGlobalUses      Int?
+  maxUsesPerGuest    Int?
+  bindEmail          String?
+  bindPhone          String?
+  originBookingId    String?
+  allowedRoomTypeIds String?
+  allowedSources     String?
+  singleUse          Boolean            @default(false)
+  stackable          Boolean            @default(false)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   attemptLogs        CouponAttemptLog[]
+  originBooking      Booking?           @relation("CouponOriginBooking", fields: [originBookingId], references: [id], onDelete: SetNull)
   redemptions        CouponRedemption[]
 
   @@index([codePrefix])
   @@index([active])
+  @@index([originBookingId])
   @@index([startsAt, endsAt])
 }
 

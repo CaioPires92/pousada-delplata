@@ -6,6 +6,7 @@ import {
     hashCouponCode,
     normalizeCouponCode,
 } from '@/lib/coupons/hash';
+import { encryptCouponCode } from '@/lib/coupons/code-vault';
 
 function parseDate(value: unknown): Date | null {
     if (!value) return null;
@@ -23,6 +24,11 @@ function parseIntNullable(value: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
     const n = Number.parseInt(String(value), 10);
     return Number.isFinite(n) ? n : null;
+}
+
+function parseStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -84,7 +90,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             where: { id },
             data: {
                 name,
-                ...(codeHash ? { codeHash, codePrefix } : {}),
+                ...(codeHash ? { codeHash, codePrefix, codeCiphertext: encryptCouponCode(codeInput) } : {}),
                 type,
                 value,
                 maxDiscountAmount,
@@ -93,6 +99,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 startsAt,
                 endsAt,
                 maxGlobalUses,
+                maxUsesPerGuest: parseIntNullable(body?.maxUsesPerGuest),
+                bindEmail: String(body?.bindEmail || '').trim().toLowerCase() || null,
+                bindPhone: String(body?.bindPhone || '').replace(/\D/g, '') || null,
+                allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
+                allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
+                singleUse: Boolean(body?.singleUse),
+                stackable: Boolean(body?.stackable),
             },
         });
 

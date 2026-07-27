@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateCoupon } from '@/lib/coupons/validate';
 import prisma from '@/lib/prisma';
+import { getDiscountPolicy } from '@/lib/discount-policy-store';
 
 vi.mock('@/lib/prisma', () => ({
     default: {
@@ -11,6 +12,16 @@ vi.mock('@/lib/prisma', () => ({
             count: vi.fn(),
         },
     },
+}));
+vi.mock('@/lib/discount-policy-store', () => ({
+    getDiscountPolicy: vi.fn(async () => ({
+        sendEnabled: true,
+        percentage: 10,
+        validityDays: 7,
+        minimumBookingValue: null,
+        maximumDiscountAmount: null,
+        blockedDateRanges: [],
+    })),
 }));
 
 describe('validateCoupon', () => {
@@ -56,6 +67,37 @@ describe('validateCoupon', () => {
         expect(result.total).toBe(900);
     });
 
+    it('permite pré-visualizar o preço de cupom individual antes de identificar o hóspede', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-personal',
+            active: true,
+            startsAt: null,
+            endsAt: null,
+            bindEmail: 'maria@example.com',
+            bindPhone: '19999999999',
+            allowedRoomTypeIds: null,
+            allowedSources: '["direct"]',
+            minBookingValue: null,
+            maxGlobalUses: 1,
+            maxUsesPerGuest: 1,
+            type: 'PERCENT',
+            value: 10,
+            maxDiscountAmount: null,
+        });
+        (prisma.couponRedemption.count as any).mockResolvedValue(0);
+
+        const preview = await validateCoupon({
+            code: 'VOLTE-ABC123',
+            subtotal: 599,
+            roomTypeId: 'room-1',
+            source: 'direct',
+            preview: true,
+        });
+
+        expect(preview.valid).toBe(true);
+        expect(preview.total).toBe(539.1);
+    });
+
     it('rejects expired coupon', async () => {
         (prisma.coupon.findFirst as any).mockResolvedValue({
             id: 'coupon-2',
@@ -84,6 +126,45 @@ describe('validateCoupon', () => {
         expect(result.reason).toBe('EXPIRED');
     });
 
+    it('rejects a coupon when the stay overlaps a globally blocked date range', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-blocked-date',
+            active: true,
+            startsAt: null,
+            endsAt: null,
+            bindEmail: null,
+            bindPhone: null,
+            allowedRoomTypeIds: null,
+            allowedSources: null,
+            minBookingValue: null,
+            maxGlobalUses: null,
+            maxUsesPerGuest: null,
+            type: 'PERCENT',
+            value: 10,
+            maxDiscountAmount: null,
+        });
+        (getDiscountPolicy as any).mockResolvedValueOnce({
+            sendEnabled: true,
+            percentage: 10,
+            validityDays: 7,
+            minimumBookingValue: null,
+            maximumDiscountAmount: null,
+            blockedDateRanges: [{ start: '2026-12-30', end: '2027-01-01', label: 'Réveillon' }],
+        });
+
+        const result = await validateCoupon({
+            code: 'VOLTE10',
+            subtotal: 800,
+            checkIn: '2026-12-29',
+            checkOut: '2027-01-02',
+        });
+
+        expect(result).toEqual(expect.objectContaining({
+            valid: false,
+            reason: 'STAY_DATE_BLOCKED',
+        }));
+    });
+
     it('rejects guest when bindEmail does not match', async () => {
         (prisma.coupon.findFirst as any).mockResolvedValue({
             id: 'coupon-3',
@@ -110,6 +191,36 @@ describe('validateCoupon', () => {
 
         expect(result.valid).toBe(false);
         expect(result.reason).toBe('GUEST_NOT_ELIGIBLE');
+    });
+
+    it('accepts the same Brazilian phone with or without country code', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue({
+            id: 'coupon-phone',
+            active: true,
+            startsAt: null,
+            endsAt: null,
+            bindEmail: 'caio@example.com',
+            bindPhone: '19998701203',
+            allowedRoomTypeIds: null,
+            allowedSources: '["direct"]',
+            minBookingValue: null,
+            maxGlobalUses: null,
+            maxUsesPerGuest: null,
+            type: 'PERCENT',
+            value: 10,
+            maxDiscountAmount: null,
+        });
+
+        const result = await validateCoupon({
+            code: 'VOLTE10',
+            subtotal: 500,
+            guestEmail: 'caio@example.com',
+            guestPhone: '+55 19 99870-1203',
+            source: 'direct',
+        });
+
+        expect(result.valid).toBe(true);
+        expect(result.reason).toBe('OK');
     });
 
     it('rejects when minimum booking is not reached', async () => {
