@@ -98,7 +98,7 @@ describe('coupon reservation service', () => {
         const tx = {
             couponRedemption: {
                 updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-                count: vi.fn().mockResolvedValue(0),
+                count: vi.fn().mockResolvedValue(1),
                 findFirst: vi.fn().mockResolvedValue({
                     id: 'res-existing',
                     expiresAt: new Date('2026-02-11T10:15:00.000Z'),
@@ -108,7 +108,7 @@ describe('coupon reservation service', () => {
             coupon: {
                 findUnique: vi.fn().mockResolvedValue({
                     id: 'coupon-1',
-                    maxGlobalUses: null,
+                    maxGlobalUses: 1,
                     maxUsesPerGuest: null,
                     singleUse: true,
                 }),
@@ -126,6 +126,7 @@ describe('coupon reservation service', () => {
 
         expect(result.valid).toBe(true);
         expect(result.reservationId).toBe('res-existing');
+        expect(tx.couponRedemption.count).not.toHaveBeenCalled();
         expect(tx.couponRedemption.create).not.toHaveBeenCalled();
     });
 

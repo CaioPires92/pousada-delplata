@@ -245,6 +245,13 @@ async function sendPaymentDifficultyAlert(params: {
     reason: string;
     error?: string | null;
     funnelStage?: string | null;
+    cardBrand?: string | null;
+    paymentStatusDetail?: string | null;
+    paymentMethodId?: string | null;
+    paymentTypeId?: string | null;
+    paymentProviderId?: string | number | null;
+    cardLastFour?: string | null;
+    installments?: number | null;
 }) {
     if (!params.bookingId) return;
 
@@ -270,6 +277,13 @@ async function sendPaymentDifficultyAlert(params: {
             reason: params.reason,
             error: params.error,
             funnelStage: params.funnelStage || booking.funnelStage || null,
+            cardBrand: params.cardBrand,
+            paymentStatusDetail: params.paymentStatusDetail,
+            paymentMethodId: params.paymentMethodId,
+            paymentTypeId: params.paymentTypeId,
+            paymentProviderId: params.paymentProviderId,
+            cardLastFour: params.cardLastFour,
+            installments: params.installments,
         });
     } catch (alertError) {
         opsLog('error', 'MP_PAYMENT_DIFFICULTY_ALERT_FAILED', {
@@ -714,8 +728,15 @@ export async function POST(request: Request) {
                 bookingId,
                 step: 'Retorno do Mercado Pago',
                 reason: 'Pagamento recusado pelo Mercado Pago',
-                error: normalizedStatus.toLowerCase(),
+                error: String(result.status_detail || normalizedStatus).toLowerCase(),
                 funnelStage: 'PAYMENT_REJECTED',
+                cardBrand: normalizedCardBrand,
+                paymentStatusDetail: result.status_detail || null,
+                paymentMethodId: result.payment_method_id || paymentMethodId,
+                paymentTypeId: result.payment_type_id || paymentTypeId,
+                paymentProviderId: result.id || null,
+                cardLastFour: result.card?.last_four_digits || null,
+                installments: normalizeInstallments(result.installments) ?? normalizedInstallments,
             });
         }
 
@@ -848,6 +869,13 @@ export async function POST(request: Request) {
                 ? 'test_mode_requires_test_user_email'
                 : getMercadoPagoErrorMessage(error),
             funnelStage: 'PAYMENT_ERROR',
+            cardBrand: normalizeCardBrand({
+                paymentMethodId: ctxPaymentMethodId || '',
+                paymentTypeId: ctxPaymentTypeId || '',
+            }),
+            paymentMethodId: ctxPaymentMethodId,
+            paymentTypeId: ctxPaymentTypeId,
+            installments: ctxInstallments,
         });
         opsLog('error', 'MP_PAYMENT_CREATE_FAILED', {
             bookingId: ctxBookingId,

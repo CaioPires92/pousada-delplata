@@ -208,6 +208,12 @@ interface BookingEmailData {
     funnelStage?: string | null;
     lastErrorMessage?: string | null;
     bookingCreatedAt?: Date;
+    recoveryCoupon?: {
+        code: string;
+        label: string;
+        expiresAt?: Date | null;
+        bookingUrl: string;
+    };
 }
 
 function formatRecoveryStage(data: BookingEmailData) {
@@ -524,6 +530,18 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
     const recoveryStageMessage = formatRecoveryStage(data);
+    const recoveryCoupon = data.recoveryCoupon;
+    const recoveryCouponHtml = recoveryCoupon ? `
+        <div style="margin:20px 0;padding:20px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
+            <p style="margin:0 0 6px;font-weight:bold;color:#283223">Uma condição especial para você concluir sua reserva</p>
+            <p style="margin:0 0 12px">${recoveryCoupon.label}</p>
+            <div style="font-size:24px;font-weight:bold;letter-spacing:2px;color:#283223">${escapeDiscountEmailHtml(recoveryCoupon.code)}</div>
+            ${recoveryCoupon.expiresAt ? `<p style="margin:10px 0 0;font-size:12px">Válido até ${recoveryCoupon.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>` : ''}
+        </div>
+        <div class="cta-wrapper">
+            <a class="cta-button" href="${escapeDiscountEmailHtml(recoveryCoupon.bookingUrl)}" target="_blank" rel="noopener noreferrer">Retomar reserva com desconto</a>
+        </div>
+    ` : '';
 
     const rawWhatsApp = String(process.env.HOTEL_WHATSAPP_LINK || HOTEL_WHATSAPP || '').replace(/\D/g, '');
     const normalizedWhatsApp = rawWhatsApp
@@ -631,6 +649,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         <div class="notice">
             Se você quiser, nossa equipe pode te ajudar a concluir a reserva ou tirar qualquer dúvida.
         </div>
+        ${recoveryCouponHtml}
 
         <div class="cta-wrapper">
             <a class="cta-button" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Falar no WhatsApp do Hotel</a>
@@ -1161,6 +1180,13 @@ export async function sendDifficultyAlertEmail(data: {
     totalPrice?: number | null;
     error?: string | null;
     funnelStage?: string | null;
+    cardBrand?: string | null;
+    paymentStatusDetail?: string | null;
+    paymentMethodId?: string | null;
+    paymentTypeId?: string | null;
+    paymentProviderId?: string | number | null;
+    cardLastFour?: string | null;
+    installments?: number | null;
 }) {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
@@ -1187,6 +1213,13 @@ export async function sendDifficultyAlertEmail(data: {
         ${data.bookingId ? `<p><strong>ID da Reserva:</strong> ${data.bookingId.slice(0,8).toUpperCase()}</p>` : ''}
         ${data.roomName ? `<p><strong>Quarto:</strong> ${data.roomName}</p>` : ''}
         ${typeof data.totalPrice === 'number' ? `<p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2).replace('.', ',')}</p>` : ''}
+        <p><strong>Bandeira:</strong> ${data.cardBrand || 'Não identificada pelo Mercado Pago'}</p>
+        ${data.cardLastFour ? `<p><strong>Final do cartão:</strong> ${data.cardLastFour}</p>` : ''}
+        ${data.paymentMethodId ? `<p><strong>Meio identificado:</strong> ${data.paymentMethodId}</p>` : ''}
+        ${data.paymentTypeId ? `<p><strong>Tipo de pagamento:</strong> ${data.paymentTypeId}</p>` : ''}
+        ${typeof data.installments === 'number' ? `<p><strong>Parcelas:</strong> ${data.installments}x</p>` : ''}
+        ${data.paymentStatusDetail ? `<p><strong>Motivo técnico do Mercado Pago:</strong> ${data.paymentStatusDetail}</p>` : ''}
+        ${data.paymentProviderId ? `<p><strong>ID da transação no Mercado Pago:</strong> ${data.paymentProviderId}</p>` : ''}
         ${data.error ? `<p><strong>Erro ocorrido:</strong> ${data.error}</p>` : ''}
         ${data.funnelStage ? `<p><strong>Etapa do funil:</strong> ${data.funnelStage}</p>` : ''}
         ${whatsappLink ? `
@@ -1206,6 +1239,72 @@ export async function sendDifficultyAlertEmail(data: {
             from: `"Sistema Admin" <${process.env.SMTP_USER}>`,
             to: adminEmail,
             subject: `⚠️ Dificuldade de Pagamento: ${data.guestName}`,
+            html,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        return { success: false, error };
+    }
+}
+
+function escapeDiscountEmailHtml(value: string) {
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+export async function sendGuestDiscountEmail(data: {
+    guestName: string;
+    guestEmail: string;
+    code?: string;
+    discountLabel?: string;
+    expiresAt?: Date | null;
+    bookingUrl: string;
+}) {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        return { success: false, error: 'SMTP not configured' };
+    }
+
+    const guestName = escapeDiscountEmailHtml(data.guestName);
+    const code = data.code ? escapeDiscountEmailHtml(data.code) : '';
+    const discountLabel = data.discountLabel ? escapeDiscountEmailHtml(data.discountLabel) : '';
+    const bookingUrl = escapeDiscountEmailHtml(data.bookingUrl);
+    const expiration = data.expiresAt
+        ? data.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+        : '';
+    const couponBlock = code ? `
+        <p>Para deixar o convite ainda melhor, incluímos o cupom <strong>${discountLabel}</strong> abaixo.</p>
+        <div style="margin:24px 0;padding:22px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
+          <div style="font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#6f6d31">Seu cupom</div>
+          <div style="margin-top:8px;font-size:26px;font-weight:bold;letter-spacing:2px;color:#283223">${code}</div>
+        </div>
+        ${expiration ? `<p>Válido até <strong>${expiration}</strong>, sujeito às regras do cupom e à disponibilidade.</p>` : ''}
+        <p><strong>Este desconto é válido exclusivamente para reservas realizadas pelo site oficial da Pousada Delplata.</strong></p>
+    ` : '';
+    const html = `
+      <div style="margin:0;padding:32px 16px;background:#f5f5f5;font-family:Arial,sans-serif;color:#283223">
+      <div style="max-width:620px;margin:0 auto;padding:32px;background:#ffffff;border-top:6px solid #bbb863">
+        <div style="margin-bottom:10px;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#8a883f">Pousada Delplata</div>
+        <h1 style="margin:0 0 24px;color:#283223;font-size:28px;line-height:1.2">Temos um convite para você voltar</h1>
+        <p>Olá, ${guestName}!</p>
+        <p>Esperamos que esteja bem. Gostaríamos de receber você novamente na Pousada Delplata e tornar sua próxima estadia ainda mais especial.</p>
+        ${couponBlock}
+        <p style="margin:28px 0">
+          <a href="${bookingUrl}" style="display:inline-block;background:#283223;color:#ffffff;padding:14px 22px;border-bottom:3px solid #bbb863;text-decoration:none;font-weight:bold">Planejar minha próxima estadia</a>
+        </p>
+        <p>Esperamos receber você em breve!<br><strong>Equipe Pousada Delplata</strong></p>
+        ${code ? '<p style="margin-top:28px;padding-top:18px;border-top:1px solid #e2e1d3;font-size:12px;line-height:1.6;color:#667060">O desconto será calculado automaticamente pelo motor de reservas. Não cumulativo com outras promoções.</p>' : ''}
+      </div>
+      </div>`;
+
+    try {
+        const info = await transporter.sendMail({
+            from: `"Pousada Delplata" <${process.env.SMTP_USER}>`,
+            to: data.guestEmail,
+            subject: `Um convite para você voltar à Pousada Delplata`,
             html,
         });
         return { success: true, messageId: info.messageId };

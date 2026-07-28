@@ -15,7 +15,10 @@ import {
     AlertCircle,
     QrCode,
     Loader2,
-    ArrowRight
+    ArrowRight,
+    Link2,
+    Copy,
+    MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +53,11 @@ export default function ReservaManualPage() {
     const [paymentStatus, setPaymentStatus] = useState<'idle' | 'approved' | 'rejected' | 'pending' | 'error'>('idle');
     const [paymentStatusMessage, setPaymentStatusMessage] = useState('');
     const [sendGuestEmail, setSendGuestEmail] = useState(false);
+    const [paymentFulfillmentMode, setPaymentFulfillmentMode] = useState<'checkout' | 'link'>('checkout');
+    const [paymentLink, setPaymentLink] = useState('');
+    const [paymentLinkWhatsappUrl, setPaymentLinkWhatsappUrl] = useState('');
+    const [paymentLinkLoading, setPaymentLinkLoading] = useState(false);
+    const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const paymentBrickRef = useRef<any>(null);
     const pollRef = useRef<number | null>(null);
@@ -108,6 +116,39 @@ export default function ReservaManualPage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const generatePaymentLink = useCallback(async (bookingId: string) => {
+        setPaymentLinkLoading(true);
+        setPaymentLinkCopied(false);
+        setPaymentError('');
+
+        try {
+            const response = await fetch(`/api/admin/bookings/${bookingId}/payment-link`, {
+                method: 'POST',
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data?.paymentLink) {
+                throw new Error(data?.message || data?.error || 'Não foi possível gerar o link de pagamento.');
+            }
+
+            setPaymentLink(String(data.paymentLink));
+            setPaymentLinkWhatsappUrl(String(data.whatsappUrl || ''));
+            setPaymentStatus('pending');
+            setPaymentStatusMessage('Link de pagamento criado com sucesso.');
+
+            try {
+                await navigator.clipboard.writeText(String(data.paymentLink));
+                setPaymentLinkCopied(true);
+            } catch {
+                setPaymentLinkCopied(false);
+            }
+        } catch (err) {
+            setPaymentStatus('error');
+            setPaymentError(err instanceof Error ? err.message : 'Não foi possível gerar o link de pagamento.');
+        } finally {
+            setPaymentLinkLoading(false);
+        }
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -160,6 +201,13 @@ export default function ReservaManualPage() {
             setPaymentStatus('idle');
             setPaymentStatusMessage('');
             setPixData(null);
+            setPaymentLink('');
+            setPaymentLinkWhatsappUrl('');
+
+            if (paymentFulfillmentMode === 'link') {
+                await generatePaymentLink(bookingId);
+            }
+
             setLoading(false);
 
             setTimeout(() => {
@@ -173,7 +221,12 @@ export default function ReservaManualPage() {
     };
 
     useEffect(() => {
-        if (!paymentBookingId || paymentAmount === null || Number.isNaN(paymentAmount)) return;
+        if (
+            paymentFulfillmentMode !== 'checkout'
+            || !paymentBookingId
+            || paymentAmount === null
+            || Number.isNaN(paymentAmount)
+        ) return;
 
         let cancelled = false;
         const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY;
@@ -226,6 +279,7 @@ export default function ReservaManualPage() {
                         paymentMethods: {
                             creditCard: 'all',
                             debitCard: 'all',
+                            prepaidCard: 'all',
                             bankTransfer: 'all',
                         },
                     },
@@ -311,7 +365,7 @@ export default function ReservaManualPage() {
                 pollRef.current = null;
             }
         };
-    }, [buildPayerData, paymentAmount, paymentBookingId]);
+    }, [buildPayerData, paymentAmount, paymentBookingId, paymentFulfillmentMode]);
 
     useEffect(() => {
         if (!paymentBookingId) return;
@@ -610,6 +664,44 @@ export default function ReservaManualPage() {
                                     </div>
                                     <p className="text-xs text-slate-500 font-medium italic">Este valor será cobrado no checkout do Mercado Pago.</p>
                                 </div>
+
+                                <fieldset className="space-y-3 pt-2">
+                                    <legend className="text-slate-600 font-semibold text-xs uppercase tracking-wider">
+                                        Como deseja cobrar?
+                                    </legend>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            disabled={Boolean(paymentBookingId)}
+                                            onClick={() => setPaymentFulfillmentMode('checkout')}
+                                            className={cn(
+                                                'rounded-xl border p-4 text-left transition-all',
+                                                paymentFulfillmentMode === 'checkout'
+                                                    ? 'border-slate-900 bg-white ring-2 ring-slate-900/10'
+                                                    : 'border-slate-200 bg-white/60 hover:border-slate-300'
+                                            )}
+                                        >
+                                            <CreditCard className="mb-2 h-5 w-5 text-slate-700" />
+                                            <strong className="block text-sm text-slate-900">Pagar agora</strong>
+                                            <span className="mt-1 block text-xs text-slate-500">Abrir cartão ou Pix nesta tela.</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={Boolean(paymentBookingId)}
+                                            onClick={() => setPaymentFulfillmentMode('link')}
+                                            className={cn(
+                                                'rounded-xl border p-4 text-left transition-all',
+                                                paymentFulfillmentMode === 'link'
+                                                    ? 'border-sky-600 bg-sky-50 ring-2 ring-sky-600/10'
+                                                    : 'border-slate-200 bg-white/60 hover:border-slate-300'
+                                            )}
+                                        >
+                                            <Link2 className="mb-2 h-5 w-5 text-sky-700" />
+                                            <strong className="block text-sm text-slate-900">Gerar link</strong>
+                                            <span className="mt-1 block text-xs text-slate-500">Copiar e enviar ao hóspede pelo WhatsApp.</span>
+                                        </button>
+                                    </div>
+                                </fieldset>
                             </section>
 
                             <div className="pt-8 flex flex-col md:flex-row gap-4 items-center justify-end">
@@ -636,7 +728,13 @@ export default function ReservaManualPage() {
                                     ) : (
                                         <ArrowRight className="w-5 h-5" />
                                     )}
-                                    {paymentBookingId ? 'Reserva Criada' : loading ? 'Processando...' : 'Gerar Reserva e Pagar'}
+                                    {paymentBookingId
+                                        ? 'Reserva Criada'
+                                        : loading
+                                            ? 'Processando...'
+                                            : paymentFulfillmentMode === 'link'
+                                                ? 'Gerar Reserva e Link'
+                                                : 'Gerar Reserva e Pagar'}
                                 </Button>
                             </div>
                         </form>
@@ -657,7 +755,9 @@ export default function ReservaManualPage() {
                                 </Badge>
                             </div>
                             <CardDescription className="text-slate-400 mt-2 font-medium">
-                                Conclua a transação abaixo para confirmar a reserva #{paymentBookingId}.
+                                {paymentFulfillmentMode === 'link'
+                                    ? `Envie o link abaixo para o pagamento da reserva #${paymentBookingId}.`
+                                    : `Conclua a transação abaixo para confirmar a reserva #${paymentBookingId}.`}
                             </CardDescription>
                         </CardHeader>
                         
@@ -680,14 +780,69 @@ export default function ReservaManualPage() {
                                 </div>
                             )}
 
-                            {paymentStatusMessage && (
+                            {paymentStatusMessage && paymentFulfillmentMode === 'checkout' && (
                                 <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl flex items-center gap-3 text-sm font-bold">
                                     <CheckCircle2 className="w-5 h-5 shrink-0" />
                                     {paymentStatusMessage}
                                 </div>
                             )}
 
-                            {paymentStatus === 'pending' && pixData?.qr_code_base64 && (
+                            {paymentFulfillmentMode === 'link' && (
+                                <div className="space-y-5 rounded-2xl border border-sky-100 bg-sky-50/60 p-6">
+                                    <div className="flex items-start gap-3">
+                                        <Link2 className="mt-0.5 h-5 w-5 shrink-0 text-sky-700" />
+                                        <div>
+                                            <h4 className="font-bold text-slate-900">Link de pagamento</h4>
+                                            <p className="text-sm text-slate-600">
+                                                O hóspede poderá escolher cartão ou outra forma disponibilizada pelo Mercado Pago.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {paymentLink ? (
+                                        <>
+                                            <div className="rounded-xl border border-sky-100 bg-white p-4 text-sm text-slate-600 break-all">
+                                                {paymentLink}
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="h-12 rounded-xl gap-2 font-bold"
+                                                    onClick={async () => {
+                                                        await navigator.clipboard.writeText(paymentLink);
+                                                        setPaymentLinkCopied(true);
+                                                    }}
+                                                >
+                                                    <Copy className="h-4 w-4" />
+                                                    {paymentLinkCopied ? 'Link copiado' : 'Copiar link'}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    className="h-12 rounded-xl gap-2 bg-emerald-600 hover:bg-emerald-700 font-bold"
+                                                    disabled={!paymentLinkWhatsappUrl}
+                                                    onClick={() => window.open(paymentLinkWhatsappUrl, '_blank', 'noopener,noreferrer')}
+                                                >
+                                                    <MessageCircle className="h-4 w-4" />
+                                                    Abrir WhatsApp
+                                                </Button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <Button
+                                            type="button"
+                                            className="h-12 w-full rounded-xl gap-2 font-bold"
+                                            disabled={paymentLinkLoading}
+                                            onClick={() => generatePaymentLink(paymentBookingId)}
+                                        >
+                                            {paymentLinkLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                                            {paymentLinkLoading ? 'Gerando link...' : 'Tentar gerar novamente'}
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+
+                            {paymentFulfillmentMode === 'checkout' && paymentStatus === 'pending' && pixData?.qr_code_base64 && (
                                 <div className="flex flex-col items-center gap-6 p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
                                         <img
@@ -721,6 +876,7 @@ export default function ReservaManualPage() {
                                 </div>
                             )}
 
+                            {paymentFulfillmentMode === 'checkout' && (
                             <div id={paymentContainerId} className="min-h-[300px] flex items-center justify-center">
                                 {!paymentStatusMessage && !paymentError && (
                                     <div className="flex flex-col items-center gap-4 text-slate-400">
@@ -729,6 +885,7 @@ export default function ReservaManualPage() {
                                     </div>
                                 )}
                             </div>
+                            )}
                         </CardContent>
                         
                         <CardFooter className="bg-slate-50 border-t border-slate-100 p-6 flex justify-center">

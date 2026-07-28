@@ -158,6 +158,18 @@ async function migrate() {
         { name: 'balanceDueDate', ddl: 'ALTER TABLE Payment ADD COLUMN balanceDueDate DATETIME' },
     ];
 
+    const couponDefs = [
+        { name: 'codeCiphertext', ddl: 'ALTER TABLE Coupon ADD COLUMN codeCiphertext TEXT' },
+        { name: 'maxUsesPerGuest', ddl: 'ALTER TABLE Coupon ADD COLUMN maxUsesPerGuest INTEGER' },
+        { name: 'bindEmail', ddl: 'ALTER TABLE Coupon ADD COLUMN bindEmail TEXT' },
+        { name: 'bindPhone', ddl: 'ALTER TABLE Coupon ADD COLUMN bindPhone TEXT' },
+        { name: 'originBookingId', ddl: 'ALTER TABLE Coupon ADD COLUMN originBookingId TEXT' },
+        { name: 'allowedRoomTypeIds', ddl: 'ALTER TABLE Coupon ADD COLUMN allowedRoomTypeIds TEXT' },
+        { name: 'allowedSources', ddl: 'ALTER TABLE Coupon ADD COLUMN allowedSources TEXT' },
+        { name: 'singleUse', ddl: 'ALTER TABLE Coupon ADD COLUMN singleUse BOOLEAN NOT NULL DEFAULT true' },
+        { name: 'stackable', ddl: 'ALTER TABLE Coupon ADD COLUMN stackable BOOLEAN NOT NULL DEFAULT false' },
+    ];
+
     const pipelineCardDefs = [
         { name: 'bookingId', ddl: 'ALTER TABLE PipelineCard ADD COLUMN bookingId TEXT' },
         { name: 'estimatedValue', ddl: 'ALTER TABLE PipelineCard ADD COLUMN estimatedValue REAL' },
@@ -180,6 +192,7 @@ async function migrate() {
     const addedRateIndexes = await ensureRateUniqueIndex();
     const addedInventoryAdjustment = await ensureColumns('InventoryAdjustment', inventoryAdjustmentDefs);
     const addedPipelineCard = await ensureColumns('PipelineCard', pipelineCardDefs);
+    const addedCoupon = await ensureColumns('Coupon', couponDefs);
     const addedPartialPaymentSettings = await ensureTable('PartialPaymentSettings', `
         CREATE TABLE "PartialPaymentSettings" (
             "id" TEXT NOT NULL PRIMARY KEY,
@@ -194,6 +207,19 @@ async function migrate() {
             "updatedAt" DATETIME NOT NULL
         )
     `);
+    const addedDiscountPolicySettings = await ensureTable('DiscountPolicySettings', `
+        CREATE TABLE "DiscountPolicySettings" (
+            "id" TEXT NOT NULL PRIMARY KEY,
+            "sendEnabled" BOOLEAN NOT NULL DEFAULT true,
+            "percentage" INTEGER NOT NULL DEFAULT 10,
+            "validityDays" INTEGER NOT NULL DEFAULT 7,
+            "minimumBookingValue" DECIMAL,
+            "maximumDiscountAmount" DECIMAL,
+            "blockedDateRanges" TEXT NOT NULL DEFAULT '[]',
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL
+        )
+    `);
     const addedPayment = await ensureColumns('Payment', paymentDefs);
 
     const totalAdded = addedRoomType
@@ -201,7 +227,9 @@ async function migrate() {
         + addedRateIndexes
         + addedInventoryAdjustment
         + addedPipelineCard
+        + addedCoupon
         + addedPartialPaymentSettings
+        + addedDiscountPolicySettings
         + addedPayment;
     if (totalAdded === 0) console.log('schema ok');
 

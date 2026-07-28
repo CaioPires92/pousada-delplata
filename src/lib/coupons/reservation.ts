@@ -52,6 +52,32 @@ export async function reserveCouponUsage(input: CouponValidationInput): Promise<
 
         const couponPolicy = coupon as typeof coupon & { singleUse?: boolean | null };
 
+        const guestReservationFilter = guestEmail || guestPhone
+            ? {
+                ...activeReservedFilter,
+                AND: [{
+                    OR: [
+                        ...(guestEmail ? [{ guestEmail }] : []),
+                        ...(guestPhone ? [{ guestPhone }] : []),
+                    ],
+                }],
+            }
+            : null;
+
+        if (guestReservationFilter) {
+            const existingGuestReservation = await tx.couponRedemption.findFirst({
+                where: guestReservationFilter,
+            });
+
+            if (existingGuestReservation) {
+                return {
+                    ...validation,
+                    reservationId: existingGuestReservation.id,
+                    reservationExpiresAt: existingGuestReservation.expiresAt?.toISOString(),
+                };
+            }
+        }
+
         if (coupon.maxGlobalUses !== null) {
             const confirmedCount = await tx.couponRedemption.count({
                 where: { couponId: coupon.id, status: 'CONFIRMED' },
@@ -75,9 +101,9 @@ export async function reserveCouponUsage(input: CouponValidationInput): Promise<
 
             if (existingReservation) {
                 return {
-                    ...validation,
-                    reservationId: existingReservation.id,
-                    reservationExpiresAt: existingReservation.expiresAt?.toISOString(),
+                    valid: false,
+                    reason: 'USAGE_LIMIT_REACHED',
+                    couponId: coupon.id,
                 };
             }
         }

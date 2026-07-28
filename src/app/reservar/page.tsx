@@ -276,8 +276,9 @@ function ReservarContent() {
     const [availableRooms, setAvailableRooms] = useState<Room[] | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
+    const [couponEnabled, setCouponEnabled] = useState(Boolean(promoFromQuery));
     const [couponCode, setCouponCode] = useState('');
-    const [, setCouponMessage] = useState('');
+    const [couponMessage, setCouponMessage] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
     const [formMessage, setFormMessage] = useState('');
     const [, setPromoAppliedInResults] = useState(false);
@@ -501,6 +502,7 @@ function ReservarContent() {
     useEffect(() => {
         if (promoFromQuery) {
             const timeoutId = window.setTimeout(() => {
+                setCouponEnabled(true);
                 setCouponCode(promoFromQuery);
             }, 0);
             return () => window.clearTimeout(timeoutId);
@@ -514,6 +516,35 @@ function ReservarContent() {
             return () => window.clearTimeout(timeoutId);
         }
     }, [promoFromQuery, selectedRoom]);
+
+    useEffect(() => {
+        if (!promoFromQuery) return;
+
+        const controller = new AbortController();
+        async function loadGuestPrefill() {
+            try {
+                const response = await fetch('/api/coupons/prefill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: promoFromQuery }),
+                    signal: controller.signal,
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data?.available || !data?.guest) return;
+
+                setGuest((current) => ({
+                    name: current.name || String(data.guest.name || ''),
+                    email: current.email || String(data.guest.email || ''),
+                    phone: current.phone || String(data.guest.phone || ''),
+                }));
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') return;
+            }
+        }
+
+        void loadGuestPrefill();
+        return () => controller.abort();
+    }, [promoFromQuery]);
 
     const getWhatsAppUrl = (context?: 'error_form' | 'error_payment') => {
         const checkInStr = checkIn ? formatDate(checkIn) : 'DATA INDEFINIDA';
@@ -540,6 +571,7 @@ function ReservarContent() {
         reason: string;
         error?: string;
         funnelStage?: string;
+        cardBrand?: string;
     }) => {
         if (!guest.name || !guest.email) return;
 
@@ -557,6 +589,7 @@ function ReservarContent() {
                 reason: payload.reason,
                 error: payload.error,
                 funnelStage: payload.funnelStage,
+                cardBrand: payload.cardBrand,
             }),
         }).catch(() => {});
     }, [bookingTotal, guest.email, guest.name, guest.phone, paymentAmount, paymentBookingId, selectedRoom?.name]);
@@ -736,11 +769,6 @@ function ReservarContent() {
             setCouponMessage('');
             return null;
         }
-        if (!room.promoApplied) {
-            setAppliedCoupon(null);
-            return null;
-        }
-
         setFormMessage('');
 
         try {
@@ -757,6 +785,8 @@ function ReservarContent() {
                         roomTypeId: room.id,
                         source: 'direct',
                         subtotal: Number(room.priceOriginal ?? room.totalPrice),
+                        checkIn,
+                        checkOut,
                     },
                 }),
             });
@@ -771,9 +801,11 @@ function ReservarContent() {
                         ? 'Este cupom expirou.'
                         : reason === 'NOT_STARTED'
                             ? 'Este cupom ainda não está ativo.'
-                            : reason === 'GUEST_NOT_ELIGIBLE'
-                                ? 'Este cupom não é válido para este hóspede.'
-                                : reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED'
+                                : reason === 'GUEST_NOT_ELIGIBLE'
+                                    ? 'Este cupom não é válido para este hóspede.'
+                                    : reason === 'STAY_DATE_BLOCKED'
+                                        ? 'Este cupom não é válido para as datas selecionadas.'
+                                    : reason === 'USAGE_LIMIT_REACHED' || reason === 'GUEST_USAGE_LIMIT_REACHED'
                                     ? 'Limite de uso deste cupom foi atingido.'
                                     : 'Cupom inválido ou indisponível.';
 
@@ -1137,6 +1169,7 @@ function ReservarContent() {
                         paymentMethods: {
                             creditCard: 'all',
                             debitCard: 'all',
+                            prepaidCard: 'all',
                             bankTransfer: 'all',
                         },
                     },
@@ -1258,13 +1291,53 @@ function ReservarContent() {
                             console.error('Mercado Pago Brick Error:', err);
                             setPaymentStatus('error');
                             const errorMessage = String(err?.message || err?.error || '');
+                            const brickCauseDetails = Array.isArray(err?.cause)
+                                ? err.cause
+                                    .map((cause: any) => [
+                                        cause?.code,
+                                        cause?.description,
+                                        cause?.data?.message,
+                                    ].filter(Boolean).join(': '))
+                                    .filter(Boolean)
+                                    .join(' | ')
+                                : '';
+                            const safeTechnicalError = [errorMessage, err?.code, brickCauseDetails]
+                                .filter(Boolean)
+                                .join(' | ');
+                            const cardBrand = String(
+                                err?.payment_method_id
+                                || err?.paymentMethodId
+                                || err?.cause?.[0]?.data?.payment_method_id
+                                || ''
+                            ).trim();
+
+                            if (errorMessage.includes('no_payment_method_for_provided_bin')) {
+                                setPaymentError('Cartão não aceito ou número incorreto. Por favor, verifique os dados digitados ou tente usar outro cartão.');
+                                notifyPaymentDifficulty({
+                                    step: 'Brick Mercado Pago',
+                                    reason: 'Cartão não suportado ou número incorreto (BIN inválido)',
+                                    error: safeTechnicalError || 'no_payment_method_for_provided_bin',
+                                    funnelStage: 'PAYMENT_ERROR',
+                                    cardBrand,
+                                });
+                                trackReservationFunnel({
+                                    step: 'payment_result',
+                                    status: 'error',
+                                    bookingId: paymentBookingId,
+                                    value: paymentAmount,
+                                    message: 'invalid_card_bin_error',
+                                });
+                                return;
+                            }
+
                             if (/dado obrigat[oó]rio|required/i.test(errorMessage)) {
                                 setPaymentError('Preencha o nome do titular manualmente (sem auto preenchimento) e tente novamente.');
                                 notifyPaymentDifficulty({
                                     step: 'Brick Mercado Pago',
                                     reason: 'Dados do pagador ausentes',
-                                    error: errorMessage || 'required_field_error',
+                                    error: safeTechnicalError || 'required_field_error',
                                     funnelStage: 'PAYMENT_ERROR',
+                                    cardBrand,
                                 });
                                 trackReservationFunnel({
                                     step: 'payment_result',
@@ -1275,12 +1348,14 @@ function ReservarContent() {
                                 });
                                 return;
                             }
+
                             setPaymentError('Nao foi possivel carregar o formulario de pagamento. Atualize a pagina e tente sem bloqueadores de anuncio.');
                             notifyPaymentDifficulty({
                                 step: 'Brick Mercado Pago',
                                 reason: 'Erro tecnico no Brick',
-                                error: errorMessage || 'brick_error',
+                                error: safeTechnicalError || 'brick_error',
                                 funnelStage: 'PAYMENT_ERROR',
+                                cardBrand,
                             });
                             trackReservationFunnel({
                                 step: 'payment_result',
@@ -1408,7 +1483,6 @@ function ReservarContent() {
                             variant="light"
                             uiPreset="hero"
                             heroLayout="horizontal"
-                            hideCouponField
                             submitLabel="Ver disponibilidade"
                             submitLabelMobile="Buscar"
                         />
@@ -1505,7 +1579,6 @@ function ReservarContent() {
                             variant="light"
                             uiPreset="hero"
                             heroLayout="horizontal"
-                            hideCouponField
                             prefillFromQuery
                             submitLabel="Ver disponibilidade"
                             submitLabelMobile="Buscar"
@@ -2109,6 +2182,65 @@ function ReservarContent() {
                                                     />
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
+                                            <label htmlFor="has-coupon" className="flex cursor-pointer items-center gap-3 text-sm font-medium">
+                                                <input
+                                                    id="has-coupon"
+                                                    type="checkbox"
+                                                    checked={couponEnabled}
+                                                    onChange={(event) => {
+                                                        const enabled = event.target.checked;
+                                                        setCouponEnabled(enabled);
+                                                        setCouponMessage('');
+                                                        if (!enabled) {
+                                                            clearCouponState(true);
+                                                            setCouponCode('');
+                                                        }
+                                                    }}
+                                                    disabled={processing}
+                                                    className="h-4 w-4 accent-primary"
+                                                />
+                                                Tenho um cupom de desconto
+                                            </label>
+
+                                            {couponEnabled ? (
+                                                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                                    <input
+                                                        type="text"
+                                                        id="coupon-code"
+                                                        name="couponCode"
+                                                        autoComplete="off"
+                                                        value={couponCode}
+                                                        onChange={(event) => {
+                                                            setCouponCode(event.target.value.toUpperCase());
+                                                            setCouponMessage('');
+                                                            if (appliedCoupon) clearCouponState(true);
+                                                        }}
+                                                        placeholder="Digite o código do cupom"
+                                                        disabled={processing}
+                                                        className="flex h-10 min-w-0 flex-1 border border-input bg-background px-3 py-2 text-sm uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        disabled={processing || !selectedRoom || !couponCode.trim()}
+                                                        onClick={() => selectedRoom && void applyCoupon(selectedRoom)}
+                                                    >
+                                                        Aplicar cupom
+                                                    </Button>
+                                                </div>
+                                            ) : null}
+
+                                            {couponMessage && !appliedCoupon ? (
+                                                <p
+                                                    role="status"
+                                                    className="mt-2 text-xs text-red-600"
+                                                >
+                                                    {couponMessage}
+                                                </p>
+                                            ) : null}
                                         </div>
 
                                         {appliedCoupon ? (

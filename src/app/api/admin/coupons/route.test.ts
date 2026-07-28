@@ -20,6 +20,7 @@ vi.mock('@/lib/admin-auth', () => ({
 describe('Admin Coupons API /api/admin/coupons', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        process.env.ADMIN_JWT_SECRET = 'test-secret-at-least-32-characters-long';
         (requireAdminAuth as any).mockResolvedValue({ sub: 'admin-1', email: 'admin@example.com' });
     });
 
@@ -30,7 +31,7 @@ describe('Admin Coupons API /api/admin/coupons', () => {
         const data = await res.json();
 
         expect(res.status).toBe(200);
-        expect(data).toEqual([{ id: 'c1', name: 'VIP' }]);
+        expect(data).toEqual([{ id: 'c1', name: 'VIP', code: null }]);
     });
 
     it('returns auth response when unauthorized', async () => {

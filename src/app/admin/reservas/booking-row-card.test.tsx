@@ -50,9 +50,11 @@ describe('BookingRowCard', () => {
 
         expect(screen.getByText('Maria Teste')).toBeInTheDocument();
         expect(screen.getByText('Pendente')).toBeInTheDocument();
+        expect(screen.getByText('Reserva #ABC12345')).toBeInTheDocument();
         expect(screen.getByTestId('booking-card-abc123456789')).toHaveTextContent('Check-in: 08/03/2026');
         expect(screen.getByTestId('booking-card-abc123456789')).toHaveTextContent('Check-out: 10/03/2026');
         expect(screen.getByText('R$ 880.00')).toBeInTheDocument();
+        expect(screen.getByText('Desde 01/03/2026 às 09:30')).toBeInTheDocument();
         expect(screen.getByText('3 hósp. (2A/1C)')).toBeInTheDocument();
         expect(screen.getByText('Idades: 7')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Ações/i })).toBeInTheDocument();

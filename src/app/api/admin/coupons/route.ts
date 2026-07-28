@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomInt } from 'crypto';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import {
@@ -6,6 +7,7 @@ import {
     hashCouponCode,
     normalizeCouponCode,
 } from '@/lib/coupons/hash';
+import { decryptCouponCode, encryptCouponCode } from '@/lib/coupons/code-vault';
 
 function parseDate(value: unknown): Date | null {
     if (!value) return null;
@@ -34,7 +36,7 @@ function generateCouponCode(len = 10): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let out = '';
     for (let i = 0; i < len; i += 1) {
-        out += chars[Math.floor(Math.random() * chars.length)];
+        out += chars[randomInt(chars.length)];
     }
     return out;
 }
@@ -56,7 +58,11 @@ export async function GET() {
             },
         });
 
-        return NextResponse.json(coupons);
+        return NextResponse.json(coupons.map((coupon) => ({
+            ...coupon,
+            code: decryptCouponCode(coupon.codeCiphertext),
+            codeCiphertext: undefined,
+        })));
     } catch (error) {
         console.error('[Admin Coupons] GET error:', error);
         return NextResponse.json({ error: 'Erro ao carregar cupons' }, { status: 500 });
@@ -116,6 +122,7 @@ export async function POST(request: Request) {
                 name,
                 codeHash,
                 codePrefix: getCouponCodePrefix(code),
+                codeCiphertext: encryptCouponCode(code),
                 type,
                 value,
                 maxDiscountAmount,
@@ -124,6 +131,13 @@ export async function POST(request: Request) {
                 startsAt,
                 endsAt,
                 maxGlobalUses,
+                maxUsesPerGuest: parseIntNullable(body?.maxUsesPerGuest),
+                bindEmail: String(body?.bindEmail || '').trim().toLowerCase() || null,
+                bindPhone: String(body?.bindPhone || '').replace(/\D/g, '') || null,
+                allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
+                allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
+                singleUse: Boolean(body?.singleUse),
+                stackable: Boolean(body?.stackable),
             },
         });
 

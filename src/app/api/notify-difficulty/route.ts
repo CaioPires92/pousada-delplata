@@ -4,7 +4,25 @@ import { sendDifficultyAlertEmail } from '@/lib/email';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { guestName, guestEmail, guestPhone, step, reason, bookingId, roomName, totalPrice, error, funnelStage } = body;
+        const {
+            guestName,
+            guestEmail,
+            guestPhone,
+            step,
+            reason,
+            bookingId,
+            roomName,
+            totalPrice,
+            error,
+            funnelStage,
+            cardBrand,
+            paymentStatusDetail,
+            paymentMethodId,
+            paymentTypeId,
+            paymentProviderId,
+            cardLastFour,
+            installments,
+        } = body;
 
         if (!guestName || !guestEmail || !step || !reason) {
             return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
@@ -21,6 +39,13 @@ export async function POST(request: Request) {
             totalPrice,
             error,
             funnelStage,
+            cardBrand,
+            paymentStatusDetail,
+            paymentMethodId,
+            paymentTypeId,
+            paymentProviderId,
+            cardLastFour,
+            installments,
         });
 
         if (!result.success) {

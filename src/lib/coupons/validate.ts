@@ -2,6 +2,8 @@ import prisma from '@/lib/prisma';
 import { calculateCouponDiscount } from '@/lib/coupons/discount';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail, normalizeGuestPhone } from '@/lib/coupons/hash';
 import { CouponValidationInput, CouponValidationResult } from '@/lib/coupons/types';
+import { stayOverlapsBlockedRange } from '@/lib/discount-policy';
+import { getDiscountPolicy } from '@/lib/discount-policy-store';
 
 type CouponPolicyFields = {
     bindEmail?: string | null;
@@ -69,16 +71,26 @@ export async function validateCoupon(input: CouponValidationInput): Promise<Coup
         return { valid: false, reason: 'EXPIRED', couponId: coupon.id };
     }
 
-
-    const policy = coupon as typeof coupon & CouponPolicyFields;
-    const bindEmail = normalizeGuestEmail(policy.bindEmail);
-    if (bindEmail && bindEmail !== guestEmail) {
-        return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+    const blockedDateRanges = input.blockedDateRanges ?? (await getDiscountPolicy()).blockedDateRanges;
+    if (stayOverlapsBlockedRange({
+        checkIn: input.checkIn,
+        checkOut: input.checkOut,
+        blockedDateRanges,
+    })) {
+        return { valid: false, reason: 'STAY_DATE_BLOCKED', couponId: coupon.id };
     }
 
-    const bindPhone = normalizeGuestPhone(policy.bindPhone);
-    if (bindPhone && bindPhone !== guestPhone) {
-        return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+    const policy = coupon as typeof coupon & CouponPolicyFields;
+    if (!input.preview) {
+        const bindEmail = normalizeGuestEmail(policy.bindEmail);
+        if (bindEmail && bindEmail !== guestEmail) {
+            return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+        }
+
+        const bindPhone = normalizeGuestPhone(policy.bindPhone);
+        if (bindPhone && bindPhone !== guestPhone) {
+            return { valid: false, reason: 'GUEST_NOT_ELIGIBLE', couponId: coupon.id };
+        }
     }
 
     const allowedRoomTypeIds = parseList(policy.allowedRoomTypeIds);
@@ -110,7 +122,7 @@ export async function validateCoupon(input: CouponValidationInput): Promise<Coup
     }
 
 
-    if (policy.maxUsesPerGuest !== null && policy.maxUsesPerGuest !== undefined && (guestEmail || guestPhone)) {
+    if (!input.preview && policy.maxUsesPerGuest !== null && policy.maxUsesPerGuest !== undefined && (guestEmail || guestPhone)) {
         const perGuestConfirmedCount = await prisma.couponRedemption.count({
             where: {
                 couponId: coupon.id,

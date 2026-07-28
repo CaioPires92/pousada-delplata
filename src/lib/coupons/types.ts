@@ -7,6 +7,7 @@ export type CouponValidationReason =
     | 'GUEST_NOT_ELIGIBLE'
     | 'MIN_BOOKING_NOT_REACHED'
     | 'USAGE_LIMIT_REACHED'
+    | 'STAY_DATE_BLOCKED'
     | 'INVALID_COUPON_CONFIG'
     | 'MISSING_SUBTOTAL';
 
@@ -18,6 +19,10 @@ export type CouponValidationInput = {
     guestPhone?: string;
     roomTypeId?: string;
     source?: string;
+    checkIn?: Date | string;
+    checkOut?: Date | string;
+    blockedDateRanges?: Array<{ start: string; end: string; label: string }>;
+    preview?: boolean;
 };
 
 export type CouponValidationResult = {

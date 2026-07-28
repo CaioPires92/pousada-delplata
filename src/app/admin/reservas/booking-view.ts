@@ -30,6 +30,26 @@ export function formatDateSafe(value?: string | null) {
     return `${day}/${month}/${year}`;
 }
 
+export function formatDateTimeSafe(value?: string | null) {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(parsed);
+    const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((part) => part.type === type)?.value || '';
+
+    return `${getPart('day')}/${getPart('month')}/${getPart('year')} às ${getPart('hour')}:${getPart('minute')}`;
+}
+
 function normalizeBrand(value?: string | null) {
     const raw = String(value || '').trim().toUpperCase();
     if (!raw) return '';
@@ -80,6 +100,7 @@ export function formatFunnelStage(stage?: string | null) {
         PAYMENT_APPROVED: 'Pagamento aprovado',
         PAYMENT_REJECTED: 'Pagamento rejeitado',
         PAYMENT_ERROR: 'Erro no pagamento',
+        PAYMENT_LINK_CREATED: 'Link de pagamento criado',
         BOOKING_CONFIRMED: 'Reserva confirmada',
         BOOKING_CANCELLED: 'Reserva cancelada',
         EXPIRED_UNPAID: 'Expirou sem concluir',
