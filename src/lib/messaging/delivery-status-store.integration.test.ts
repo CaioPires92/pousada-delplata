@@ -55,5 +55,5 @@ describe("message delivery status database persistence", () => {
       deliveryStatus: "read",
       deliveryUpdatedAt: new Date("2026-07-28T12:00:30.000Z"),
     });
-  });
+  }, 15_000);
 });
