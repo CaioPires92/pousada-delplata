@@ -51,6 +51,7 @@ describe("sanitized Meta webhook fixtures", () => {
       "list-message.json",
       "status-events.json",
       "text-message.json",
+      "unknown-message.json",
     ]);
     expect(messages.map(message => message.type)).toEqual(
       expect.arrayContaining(["text", "interactive", "image", "document"]),

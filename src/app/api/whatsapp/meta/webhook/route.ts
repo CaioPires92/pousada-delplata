@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyMetaWebhookChallenge } from "@/lib/messaging/meta-webhook-verification";
 import { verifyMetaWebhookSignature } from "@/lib/messaging/meta-webhook-signature";
+import { normalizeMetaWebhook } from "@/lib/messaging/meta-webhook-normalizer";
 
 export async function GET(request: Request) {
   const result = verifyMetaWebhookChallenge(
@@ -50,8 +51,9 @@ export async function POST(request: Request) {
     );
   }
 
+  let payload: unknown;
   try {
-    JSON.parse(rawBody);
+    payload = JSON.parse(rawBody);
   } catch {
     return NextResponse.json(
       { ok: false, error: "invalid_meta_webhook_payload" },
@@ -59,5 +61,6 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  const events = normalizeMetaWebhook(payload);
+  return NextResponse.json({ ok: true, acceptedEvents: events.length });
 }

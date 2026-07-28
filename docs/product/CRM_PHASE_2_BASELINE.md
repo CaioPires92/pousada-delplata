@@ -94,7 +94,32 @@ A validação:
 - typecheck aprovado;
 - gate CRM: 24 arquivos e 93 testes aprovados.
 
+## F2.05 — Normalização dos eventos Meta
+
+`normalizeMetaWebhook` percorre todas as entradas e mudanças do envelope Meta e
+produz o contrato interno definido em F2.01.
+
+O mapeamento cobre:
+
+- texto;
+- resposta de botão;
+- resposta de lista;
+- imagem e documento com ID de mídia;
+- tipo desconhecido sem descartar o evento;
+- status `sent`, `delivered`, `read` e `failed`, incluindo erro sanitizado.
+
+IDs de evento são determinísticos a partir do ID externo, status e timestamp.
+Payloads malformados ou não relacionados são ignorados sem lançar exceção. A
+rota executa a normalização somente depois de autenticar a assinatura e
+validar o JSON.
+
+### Evidência
+
+- testes direcionados: 3 arquivos e 27 testes aprovados;
+- todos os eventos produzidos passam pelo validador do contrato normalizado;
+- typecheck aprovado;
+- gate CRM: 25 arquivos e 104 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.05 deve transformar as fixtures Meta em eventos normalizados de texto,
-botão, lista, imagem, documento e status.
+F2.06 deve persistir e deduplicar cada evento pelo ID externo e tipo de evento.
