@@ -120,6 +120,34 @@ validar o JSON.
 - typecheck aprovado;
 - gate CRM: 25 arquivos e 104 testes aprovados.
 
+## F2.06 — Persistência e deduplicação
+
+A migration `20260728163000_add_messaging_webhook_events` cria a inbox técnica
+`MessagingWebhookEvent`.
+
+Cada evento normalizado é persistido com:
+
+- provedor;
+- ID externo do evento;
+- tipo `message` ou `status`;
+- ID externo da mensagem;
+- evento normalizado;
+- estado de processamento.
+
+O payload bruto e as credenciais da Meta não são armazenados. A restrição
+única `(provider, externalEventId, eventKind)` é a autoridade de concorrência:
+uma colisão `P2002` é contabilizada como duplicata, enquanto outros erros de
+banco continuam interrompendo a operação.
+
+### Evidência
+
+- testes unitários direcionados: 2 arquivos e 16 testes aprovados;
+- teste com banco SQLite isolado envia o mesmo evento simultaneamente e
+  confirma exatamente uma linha;
+- typecheck aprovado;
+- gate CRM: 27 arquivos e 108 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.06 deve persistir e deduplicar cada evento pelo ID externo e tipo de evento.
+F2.07 deve implementar o envio de texto pela Cloud API usando o contrato
+`MessagingProvider`, ainda sem alterar o provedor principal.

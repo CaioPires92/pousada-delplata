@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyMetaWebhookChallenge } from "@/lib/messaging/meta-webhook-verification";
 import { verifyMetaWebhookSignature } from "@/lib/messaging/meta-webhook-signature";
 import { normalizeMetaWebhook } from "@/lib/messaging/meta-webhook-normalizer";
+import { persistNormalizedWebhookEvents } from "@/lib/messaging/webhook-event-store";
 
 export async function GET(request: Request) {
   const result = verifyMetaWebhookChallenge(
@@ -62,5 +63,6 @@ export async function POST(request: Request) {
   }
 
   const events = normalizeMetaWebhook(payload);
-  return NextResponse.json({ ok: true, acceptedEvents: events.length });
+  const persisted = await persistNormalizedWebhookEvents("meta", events);
+  return NextResponse.json({ ok: true, ...persisted });
 }

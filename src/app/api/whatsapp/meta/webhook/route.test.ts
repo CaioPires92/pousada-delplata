@@ -91,7 +91,11 @@ describe("Meta webhook verification", () => {
     const response = await POST(webhookRequest(body, signatureFor(body)));
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true, acceptedEvents: 0 });
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      acceptedEvents: 0,
+      duplicateEvents: 0,
+    });
   });
 
   it.each([
