@@ -9,6 +9,7 @@ const REQUIRED_META_VARIABLES = [
   "META_WHATSAPP_PHONE_NUMBER_ID",
   "META_WHATSAPP_BUSINESS_ACCOUNT_ID",
   "META_WHATSAPP_GRAPH_API_VERSION",
+  "META_WHATSAPP_TEST_RECIPIENT",
 ] as const;
 
 describe("Meta environment example", () => {
@@ -32,5 +33,6 @@ describe("Meta environment example", () => {
     );
 
     expect(contents.split(/\r?\n/)).toContain("WHATSAPP_PROVIDER=evolution");
+    expect(contents.split(/\r?\n/)).toContain("META_E2E_ENABLED=false");
   });
 });

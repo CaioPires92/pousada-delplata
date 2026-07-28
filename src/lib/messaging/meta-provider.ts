@@ -62,18 +62,20 @@ function requireConfigValue(value: string | undefined, name: string) {
   return value.trim();
 }
 
-export function metaMessagingConfigFromEnv(): MetaMessagingProviderConfig {
+export function metaMessagingConfigFromEnv(
+  environment: Record<string, string | undefined> = process.env,
+): MetaMessagingProviderConfig {
   return {
     accessToken: requireConfigValue(
-      process.env.META_WHATSAPP_ACCESS_TOKEN,
+      environment.META_WHATSAPP_ACCESS_TOKEN,
       "META_WHATSAPP_ACCESS_TOKEN",
     ),
     phoneNumberId: requireConfigValue(
-      process.env.META_WHATSAPP_PHONE_NUMBER_ID,
+      environment.META_WHATSAPP_PHONE_NUMBER_ID,
       "META_WHATSAPP_PHONE_NUMBER_ID",
     ),
     graphApiVersion: requireConfigValue(
-      process.env.META_WHATSAPP_GRAPH_API_VERSION,
+      environment.META_WHATSAPP_GRAPH_API_VERSION,
       "META_WHATSAPP_GRAPH_API_VERSION",
     ),
   };

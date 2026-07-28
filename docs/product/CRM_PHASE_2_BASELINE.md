@@ -326,7 +326,29 @@ A verificação:
   SQLite anterior; o limite explícito foi corrigido em microcommit separado;
 - gate CRM repetido: 34 arquivos e 147 testes aprovados.
 
+## F2.14 — Preparação do E2E real (pendente operacionalmente)
+
+Foi criado um runner dedicado para o teste ponta a ponta com a Meta. Ele falha
+fechado por padrão e somente permite envio quando `META_E2E_ENABLED=true` é
+definido explicitamente. O destinatário também é isolado em
+`META_WHATSAPP_TEST_RECIPIENT` e validado no formato E.164 sem o sinal `+`.
+
+O comando `npm run crm:meta:e2e` retorna apenas evidência sanitizada: fornecedor,
+ID externo, horário de aceite e status. Tokens, destinatário e conteúdo não são
+incluídos na saída.
+
+Nenhum envio real foi executado porque as credenciais Meta e o número de teste
+não estão configurados no ambiente local. Por isso, F2.14 permanece aberta.
+
+### Evidência da preparação
+
+- 3 arquivos e 25 testes direcionados aprovados;
+- execução com o ambiente atual recusada antes de qualquer chamada de rede;
+- typecheck aprovado;
+- gate CRM: 35 arquivos e 150 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.14 requer teste ponta a ponta com o número de teste real da Meta e, portanto,
-depende de credenciais operacionais válidas.
+Executar e registrar o envio e o recebimento reais usando credenciais
+operacionais autorizadas. F2.15 somente começa após essa evidência concluir a
+F2.14.
