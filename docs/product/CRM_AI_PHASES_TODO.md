@@ -111,7 +111,7 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F2.01 Definir interface `MessagingProvider` e contratos normalizados.
+- [x] F2.01 Definir interface `MessagingProvider` e contratos normalizados.
 - [ ] F2.02 Criar fixtures sanitizadas de webhook Meta.
 - [ ] F2.03 Implementar desafio de verificação do webhook.
 - [ ] F2.04 Validar assinatura do payload antes de processar.

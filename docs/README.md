@@ -21,6 +21,7 @@
 - `docs/product/CRM_PHASE_0_BASELINE.md`: baseline técnico e gates iniciais.
 - `docs/product/CRM_PHASE_0_SECURITY_AUDIT.md`: inventário seguro de bancos, backups e arquivos de ambiente.
 - `docs/product/CRM_PHASE_1_BASELINE.md`: contrato observado de disponibilidade antes da extração do serviço único.
+- `docs/product/CRM_PHASE_2_BASELINE.md`: evolução do adaptador de mensageria e integração Meta.
 - `docs/ops/CRM_ROLLBACK_RUNBOOK.md`: rollback local, GitHub, Vercel, Turso e migração Meta.
 - `docs/TURSO_COUPONS_SQL.md`: notas de SQL/Turso.
 

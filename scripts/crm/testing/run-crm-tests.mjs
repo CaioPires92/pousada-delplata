@@ -25,6 +25,7 @@ const prismaCli = path.join(workspaceRoot, "node_modules/prisma/build/index.js")
 const vitestCli = path.join(workspaceRoot, "node_modules/vitest/vitest.mjs");
 const crmTestTargets = [
   "src/lib/crm",
+  "src/lib/messaging",
   "src/lib/availability/quote-service.test.ts",
   "src/lib/availability/routes-contract.test.ts",
   "src/app/api/crm",
