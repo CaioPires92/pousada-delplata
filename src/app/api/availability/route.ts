@@ -107,6 +107,11 @@ export async function GET(request: Request) {
     }));
 
     const response = NextResponse.json(rooms);
+    response.headers.set("x-quote-id", quote.quoteId);
+    response.headers.set("x-quote-version", String(quote.quoteVersion));
+    response.headers.set("x-quote-calculated-at", quote.calculatedAt);
+    response.headers.set("x-quote-expires-at", quote.expiresAt);
+    response.headers.set("x-quote-hash", quote.quoteHash);
     if (promoCode) {
       response.headers.set("x-promo-code", promoCode);
       response.headers.set("x-promo-applied", promoApplied ? "true" : "false");

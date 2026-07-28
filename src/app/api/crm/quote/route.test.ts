@@ -51,6 +51,11 @@ describe("POST /api/crm/quote", () => {
       checkin: "2026-06-15",
       checkout: "2026-06-17",
       nights: 2,
+      quoteId: "quote_0123456789abcdef01234567",
+      quoteVersion: 1,
+      calculatedAt: "2026-06-01T10:00:00.000Z",
+      expiresAt: "2026-06-01T10:15:00.000Z",
+      quoteHash: "a".repeat(64),
       options: [
         {
           roomTypeId: "room-1",
@@ -91,6 +96,8 @@ describe("POST /api/crm/quote", () => {
     expect(response.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.quote.options).toHaveLength(1);
+    expect(body.quote.quoteId).toBe("quote_0123456789abcdef01234567");
+    expect(body.quote.expiresAt).toBe("2026-06-01T10:15:00.000Z");
     expect(queryAvailabilityQuote).toHaveBeenCalledWith({
       checkin: "2026-06-15",
       checkout: "2026-06-17",
@@ -104,6 +111,9 @@ describe("POST /api/crm/quote", () => {
       metadata: expect.objectContaining({
         resultOk: true,
         optionsCount: 1,
+        quoteId: "quote_0123456789abcdef01234567",
+        calculatedAt: "2026-06-01T10:00:00.000Z",
+        expiresAt: "2026-06-01T10:15:00.000Z",
       }),
     }));
   });

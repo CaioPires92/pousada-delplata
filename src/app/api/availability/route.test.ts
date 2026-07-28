@@ -91,6 +91,11 @@ describe('Availability API - Pricing Logic', () => {
     expect(data[0].totalPrice).toBe(200); // Should match custom rate, not basePrice (100)
     expect(data[0].priceBreakdown).toBeDefined();
     expect(data[0].priceBreakdown.baseTotal).toBe(200);
+    expect(res.headers.get('x-quote-id')).toMatch(/^quote_[a-f0-9]{24}$/);
+    expect(res.headers.get('x-quote-version')).toBe('1');
+    expect(res.headers.get('x-quote-calculated-at')).toBeTruthy();
+    expect(res.headers.get('x-quote-expires-at')).toBeTruthy();
+    expect(res.headers.get('x-quote-hash')).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('should exclude room when InventoryAdjustment has totalUnits=0 in range', async () => {

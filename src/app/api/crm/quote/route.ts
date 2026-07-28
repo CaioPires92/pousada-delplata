@@ -111,6 +111,9 @@ export async function POST(request: Request) {
         resultOk: quote.ok,
         optionsCount: quote.ok ? quote.options.length : 0,
         error: quote.ok ? null : quote.error,
+        quoteId: quote.ok ? quote.quoteId : null,
+        calculatedAt: quote.ok ? quote.calculatedAt : null,
+        expiresAt: quote.ok ? quote.expiresAt : null,
       },
     });
 

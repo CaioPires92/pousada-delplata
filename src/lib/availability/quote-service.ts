@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { calculateBookingPrice, type BookingPriceBreakdown } from "@/lib/booking-price";
 import { compareDayKey, eachDayKeyInclusive, isDayKey, prevDayKey } from "@/lib/day-key";
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from "@/lib/guest-capacity";
@@ -40,6 +42,11 @@ export type AvailabilityQuoteResult =
       checkin: string;
       checkout: string;
       nights: number;
+      quoteId: string;
+      quoteVersion: 1;
+      calculatedAt: string;
+      expiresAt: string;
+      quoteHash: string;
       options: AvailabilityQuoteOption[];
     }
   | {
@@ -93,6 +100,13 @@ export async function queryAvailabilityQuote(
     return { ok: false, error: "invalid_guest_count" };
   }
 
+  const calculatedAtDate = new Date();
+  const calculatedAt = calculatedAtDate.toISOString();
+  const quoteTtlMinutes = Math.max(
+    1,
+    Number.parseInt(process.env.AVAILABILITY_QUOTE_TTL_MINUTES || "15", 10) || 15
+  );
+  const expiresAt = new Date(calculatedAtDate.getTime() + quoteTtlMinutes * 60 * 1000).toISOString();
   const nightKeys = eachDayKeyInclusive(input.checkin, prevDayKey(input.checkout));
   const nights = nightKeys.length;
   const roomTypes = await client.roomType.findMany({
@@ -102,7 +116,7 @@ export async function queryAvailabilityQuote(
     },
   });
   const ttlMinutes = Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || "15", 10) || 30);
-  const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
+  const pendingThreshold = new Date(calculatedAtDate.getTime() - ttlMinutes * 60 * 1000);
   const options: AvailabilityQuoteOption[] = [];
   let minRequiredAcrossRooms = Infinity;
   let eligibleMinLosCount = 0;
@@ -242,11 +256,38 @@ export async function queryAvailabilityQuote(
     return { ok: false, error: "min_stay_required", minLos: minRequiredAcrossRooms };
   }
 
+  const sortedOptions = options.sort((a, b) => a.totalPrice - b.totalPrice);
+  const quoteHash = createHash("sha256")
+    .update(JSON.stringify({
+      quoteVersion: 1,
+      calculatedAt,
+      expiresAt,
+      checkin: input.checkin,
+      checkout: input.checkout,
+      nights,
+      adults: input.adults,
+      childrenAges: input.childrenAges ?? [],
+      options: sortedOptions.map(option => ({
+        roomTypeId: option.roomTypeId,
+        maxGuests: option.maxGuests,
+        remainingUnits: option.remainingUnits,
+        minLos: option.minLos,
+        totalPrice: option.totalPrice,
+        priceBreakdown: option.priceBreakdown,
+      })),
+    }))
+    .digest("hex");
+
   return {
     ok: true,
     checkin: input.checkin,
     checkout: input.checkout,
     nights,
-    options: options.sort((a, b) => a.totalPrice - b.totalPrice),
+    quoteId: `quote_${quoteHash.slice(0, 24)}`,
+    quoteVersion: 1,
+    calculatedAt,
+    expiresAt,
+    quoteHash,
+    options: sortedOptions,
   };
 }

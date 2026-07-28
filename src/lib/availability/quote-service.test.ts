@@ -74,7 +74,7 @@ describe("queryAvailabilityQuote", () => {
       childrenAges: [],
     }, client);
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
       checkin: "2026-06-15",
       checkout: "2026-06-17",
@@ -133,5 +133,42 @@ describe("queryAvailabilityQuote", () => {
     }, client)).resolves.toEqual({ ok: false, error: "invalid_guest_count" });
 
     expect(client.roomType.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns deterministic identity, version, calculation time, expiry and hash", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T10:00:00.000Z"));
+    const previousTtl = process.env.AVAILABILITY_QUOTE_TTL_MINUTES;
+    process.env.AVAILABILITY_QUOTE_TTL_MINUTES = "10";
+
+    try {
+      const client = fakeClient();
+      client.roomType.findMany.mockResolvedValue([room()]);
+
+      const result = await queryAvailabilityQuote({
+        checkin: "2026-06-15",
+        checkout: "2026-06-17",
+        adults: 2,
+        childrenAges: [],
+      }, client);
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      expect(result).toMatchObject({
+        quoteVersion: 1,
+        calculatedAt: "2026-06-01T10:00:00.000Z",
+        expiresAt: "2026-06-01T10:10:00.000Z",
+      });
+      expect(result.quoteId).toMatch(/^quote_[a-f0-9]{24}$/);
+      expect(result.quoteHash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      if (previousTtl === undefined) {
+        delete process.env.AVAILABILITY_QUOTE_TTL_MINUTES;
+      } else {
+        process.env.AVAILABILITY_QUOTE_TTL_MINUTES = previousTtl;
+      }
+      vi.useRealTimers();
+    }
   });
 });

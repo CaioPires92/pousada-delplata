@@ -187,7 +187,32 @@ O teste da rota CRM garante que:
 - busca no código não encontra mais o antigo serviço sob `src/lib/crm`;
 - site e CRM importam `queryAvailabilityQuote` do mesmo arquivo.
 
+## F1.08 — Identidade e validade da cotação
+
+Toda cotação bem-sucedida agora contém:
+
+- `quoteId`, derivado do hash da versão calculada;
+- `quoteVersion`, atualmente igual a `1`;
+- `calculatedAt`, em ISO 8601 UTC;
+- `expiresAt`, em ISO 8601 UTC;
+- `quoteHash`, SHA-256 dos dados determinísticos da cotação.
+
+O TTL padrão é 15 minutos e pode ser configurado por
+`AVAILABILITY_QUOTE_TTL_MINUTES`. A variável foi adicionada ao `.env.example`.
+
+O CRM recebe os metadados no objeto `quote` e os registra no evento
+`QuoteRequested`. Para preservar o array legado de `/api/availability`, a rota
+pública expõe os mesmos valores nos cabeçalhos `x-quote-*`.
+
+### Evidência
+
+- testes direcionados do serviço, site e CRM: 3 arquivos e 40 testes aprovados;
+- teste com relógio controlado confirma cálculo e expiração;
+- ID e hash têm formato validado;
+- typecheck aprovado;
+- gate CRM: 20 arquivos e 59 testes aprovados;
+- gate do Mapa: 7 arquivos e 65 testes aprovados.
+
 ## Próxima microtarefa
 
-F1.08 deve adicionar identidade, horário de cálculo, validade e assinatura/hash
-determinístico aos dados da cotação.
+F1.09 deve impedir que uma ação de envio aceite uma cotação após `expiresAt`.
