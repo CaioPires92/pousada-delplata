@@ -1,0 +1,29 @@
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "id": "WABA_TEST_001",
+    "changes": [{
+      "field": "messages",
+      "value": {
+        "messaging_product": "whatsapp",
+        "metadata": {
+          "display_phone_number": "15550000000",
+          "phone_number_id": "PHONE_NUMBER_TEST_001"
+        },
+        "messages": [{
+          "from": "15550000001",
+          "id": "wamid.TEST_DOCUMENT_001",
+          "timestamp": "1785254404",
+          "type": "document",
+          "document": {
+            "id": "MEDIA_TEST_DOCUMENT_001",
+            "mime_type": "application/pdf",
+            "sha256": "TEST_SHA256_DOCUMENT",
+            "filename": "arquivo-teste.pdf",
+            "caption": "Documento sintético"
+          }
+        }]
+      }
+    }]
+  }]
+}

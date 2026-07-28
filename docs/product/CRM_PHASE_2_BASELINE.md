@@ -26,7 +26,31 @@ não foi migrada para essa interface; essa troca será incremental.
 - a pasta `src/lib/messaging` faz parte do runner isolado do CRM;
 - gate CRM: 22 arquivos e 77 testes aprovados.
 
+## F2.02 — Fixtures sanitizadas da Meta
+
+As fixtures em `src/lib/messaging/fixtures/meta` reproduzem o envelope oficial
+do webhook da Meta com dados exclusivamente sintéticos.
+
+O conjunto cobre:
+
+- mensagem de texto;
+- resposta de botão;
+- resposta de lista;
+- imagem;
+- documento;
+- estados `sent`, `delivered`, `read` e `failed`.
+
+Todos os identificadores usam marcadores explícitos de teste. Um teste de
+segurança percorre os arquivos e bloqueia URL externa, cabeçalho Bearer, nomes
+comuns de segredo, formato de telefone brasileiro e padrão de token Meta.
+
+### Evidência
+
+- testes direcionados de mensageria: 2 arquivos e 17 testes aprovados;
+- typecheck aprovado;
+- gate CRM: 23 arquivos e 80 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.02 deve adicionar fixtures sanitizadas e representativas dos webhooks da
-Meta, sem telefone, token ou conteúdo real de hóspedes.
+F2.03 deve implementar e testar o desafio GET de verificação do webhook Meta,
+sem afetar o endpoint legado da Evolution.
