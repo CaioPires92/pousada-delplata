@@ -95,6 +95,7 @@ describe("Meta webhook verification", () => {
       ok: true,
       acceptedEvents: 0,
       duplicateEvents: 0,
+      updatedMessages: 0,
     });
   });
 

@@ -119,7 +119,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F2.06 Deduplicar por ID externo e tipo de evento.
 - [x] F2.07 Implementar envio de texto pela Cloud API.
 - [x] F2.08 Implementar template aprovado e parâmetros tipados.
-- [ ] F2.09 Persistir status e erro sem vazar token/payload sensível.
+- [x] F2.09 Persistir status e erro sem vazar token/payload sensível.
 - [ ] F2.10 Implementar retry apenas para falhas transitórias com backoff e jitter.
 - [ ] F2.11 Implementar circuit breaker e dead-letter.
 - [ ] F2.12 Adicionar variáveis Meta ao `.env.example` sem valores reais.

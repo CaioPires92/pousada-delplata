@@ -40,6 +40,31 @@ describe("persistNormalizedWebhookEvents", () => {
     })).resolves.toEqual({ acceptedEvents: 0, duplicateEvents: 1 });
   });
 
+  it("redacts credentials before storing a status failure", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "event-status" });
+    const statusEvent: NormalizedMessagingEvent = {
+      kind: "status",
+      externalEventId: "status:wamid.TEST_FAILED:failed:1785254411",
+      externalMessageId: "wamid.TEST_FAILED",
+      channel: "whatsapp",
+      status: "failed",
+      occurredAt: "2026-07-28T12:00:11.000Z",
+      error: {
+        detail: "Bearer secret-token access_token=private-value",
+      },
+    };
+
+    await persistNormalizedWebhookEvents("meta", [statusEvent], {
+      messagingWebhookEvent: { create },
+    });
+
+    const stored = create.mock.calls[0]?.[0].data.normalizedEventJson;
+    expect(stored).toContain("Bearer [REDACTED]");
+    expect(stored).toContain("access_token=[REDACTED]");
+    expect(stored).not.toContain("secret-token");
+    expect(stored).not.toContain("private-value");
+  });
+
   it("does not hide database errors unrelated to deduplication", async () => {
     const create = vi.fn().mockRejectedValue(new Error("database unavailable"));
 

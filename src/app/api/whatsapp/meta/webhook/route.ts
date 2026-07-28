@@ -3,6 +3,7 @@ import { verifyMetaWebhookChallenge } from "@/lib/messaging/meta-webhook-verific
 import { verifyMetaWebhookSignature } from "@/lib/messaging/meta-webhook-signature";
 import { normalizeMetaWebhook } from "@/lib/messaging/meta-webhook-normalizer";
 import { persistNormalizedWebhookEvents } from "@/lib/messaging/webhook-event-store";
+import { persistMessageDeliveryStatus } from "@/lib/messaging/delivery-status-store";
 
 export async function GET(request: Request) {
   const result = verifyMetaWebhookChallenge(
@@ -64,5 +65,15 @@ export async function POST(request: Request) {
 
   const events = normalizeMetaWebhook(payload);
   const persisted = await persistNormalizedWebhookEvents("meta", events);
-  return NextResponse.json({ ok: true, ...persisted });
+  const statusResults = await Promise.all(
+    events
+      .filter(event => event.kind === "status")
+      .map(event => persistMessageDeliveryStatus(event)),
+  );
+  const updatedMessages = statusResults.reduce(
+    (total, result) => total + result.matchedMessages,
+    0,
+  );
+
+  return NextResponse.json({ ok: true, ...persisted, updatedMessages });
 }

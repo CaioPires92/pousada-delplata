@@ -354,6 +354,11 @@ model Message {
   messageType       String       @default("text")
   mediaUrl          String?
   metadataJson      String?
+  deliveryStatus    String?
+  deliveryErrorCode String?
+  deliveryErrorTitle String?
+  deliveryErrorDetail String?
+  deliveryUpdatedAt DateTime?
   sentAt            DateTime
   createdAt         DateTime     @default(now())
   conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -362,6 +367,7 @@ model Message {
   @@index([conversationId, sentAt])
   @@index([senderType])
   @@index([messageType])
+  @@index([externalMessageId])
 }
 
 model MessagingWebhookEvent {

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import type { NormalizedMessagingEvent } from "./provider";
+import { sanitizeStatusError } from "./status-error-sanitizer";
 
 type WebhookEventCreateClient = {
   messagingWebhookEvent: {
@@ -36,13 +37,21 @@ export async function persistNormalizedWebhookEvents(
 ): Promise<PersistWebhookEventsResult> {
   const results = await Promise.all(events.map(async event => {
     try {
+      const persistedEvent = event.kind === "status"
+        ? {
+            ...event,
+            ...(event.error
+              ? { error: sanitizeStatusError(event.error) }
+              : {}),
+          }
+        : event;
       await client.messagingWebhookEvent.create({
         data: {
           provider,
           externalEventId: event.externalEventId,
           eventKind: event.kind,
           externalMessageId: event.externalMessageId,
-          normalizedEventJson: JSON.stringify(event),
+          normalizedEventJson: JSON.stringify(persistedEvent),
         },
       });
       return "accepted" as const;

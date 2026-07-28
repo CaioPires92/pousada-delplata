@@ -200,7 +200,35 @@ não expõem token, payload sensível ou corpo retornado pela Meta.
 - typecheck aprovado;
 - gate CRM: 28 arquivos e 122 testes aprovados.
 
+## F2.09 — Persistência sanitizada de status e erro
+
+A migration `20260728174500_add_message_delivery_status` adiciona à mensagem
+correlacionada:
+
+- estado de entrega;
+- código, título e detalhe do erro;
+- horário da última atualização de entrega.
+
+O webhook Meta correlaciona cada evento pelo `externalMessageId`. A atualização
+é monotônica pelo horário informado pelo provedor, impedindo que um evento
+atrasado substitua um estado mais recente.
+
+Campos de erro são limitados a 500 caracteres e padrões de credencial são
+redigidos antes da persistência. A mesma sanitização protege tanto a mensagem
+quanto a inbox técnica de webhooks; token e payload bruto não são gravados.
+Um status bem-sucedido posterior limpa o erro anterior.
+
+### Evidência
+
+- testes direcionados: 3 arquivos e 20 testes aprovados;
+- teste com SQLite isolado confirma a migration, a correlação e a proteção
+  contra eventos fora de ordem;
+- teste de segurança confirma que credenciais sintéticas não chegam ao JSON
+  persistido;
+- typecheck aprovado;
+- gate CRM: 30 arquivos e 127 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.09 deve persistir status e erro sanitizado, sem armazenar token ou payload
-sensível.
+F2.10 deve implementar retry apenas para falhas transitórias, com backoff e
+jitter.
