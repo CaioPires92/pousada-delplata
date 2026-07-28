@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import prisma from "@/lib/prisma";
-import { queryAvailabilityQuote } from "@/lib/crm/availabilityQuote";
+import { queryAvailabilityQuote } from "@/lib/availability/quote-service";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { POST } from "./route";
 
@@ -13,7 +13,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/crm/availabilityQuote", () => ({
+vi.mock("@/lib/availability/quote-service", () => ({
   queryAvailabilityQuote: vi.fn(),
 }));
 

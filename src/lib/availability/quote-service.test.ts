@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryAvailabilityQuote } from "./availabilityQuote";
+import { queryAvailabilityQuote } from "./quote-service";
 
 function fakeClient(overrides: Partial<Record<string, unknown>> = {}) {
   return {

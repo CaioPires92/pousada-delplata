@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
-import { queryAvailabilityQuote } from "@/lib/crm/availabilityQuote";
+import { queryAvailabilityQuote } from "@/lib/availability/quote-service";
 import { recordCrmEvent } from "@/lib/crm/events";
 
 type JsonRecord = Record<string, unknown>;

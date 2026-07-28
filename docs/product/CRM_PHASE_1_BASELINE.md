@@ -122,7 +122,28 @@ Os testes usam relógio controlado para congelar o limite temporal:
 - duração observada do gate: aproximadamente 65 segundos;
 - nenhuma regra de produção foi alterada.
 
+## F1.05 — Serviço de cotação independente do CRM
+
+O cálculo reutilizável foi movido de `src/lib/crm/availabilityQuote.ts` para
+`src/lib/availability/quote-service.ts`.
+
+Com isso:
+
+- o domínio de disponibilidade não depende mais da pasta CRM;
+- os tipos de entrada, resultado e opções permanecem exportados pelo serviço;
+- os testes unitários foram movidos junto com o serviço;
+- o gate CRM inclui explicitamente os testes do serviço compartilhado;
+- `/api/crm/quote` continua usando o mesmo cálculo, agora pelo caminho neutro;
+- não houve alteração de contrato ou regra de produção.
+
+### Evidência
+
+- testes direcionados do serviço e da rota CRM: 2 arquivos e 9 testes aprovados;
+- typecheck aprovado;
+- gate CRM: 20 arquivos e 58 testes aprovados;
+- banco SQLite efêmero utilizado pelo gate.
+
 ## Próxima microtarefa
 
-F1.05 deve extrair o cálculo atual para `AvailabilityQuoteService`, preservando
-os resultados congelados pelas microtarefas F1.01–F1.04.
+F1.06 deve fazer `/api/availability` delegar preço, restrições e inventário ao
+serviço extraído, preservando integralmente o contrato público atual.
