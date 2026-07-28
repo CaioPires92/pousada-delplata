@@ -82,7 +82,30 @@ Os testes isolam as restrições tarifárias sem alterar o endpoint de produçã
 - duração observada do gate: aproximadamente 71 segundos;
 - nenhuma regra de produção foi alterada.
 
+## F1.03 — Inventário e reservas simultâneas
+
+Os testes de caracterização confirmam:
+
+- o inventário padrão parte de `totalUnits`;
+- ajustes manuais nunca ampliam o inventário além da capacidade física;
+- numa estadia de várias noites, `remainingUnits` corresponde à noite com menor
+  disponibilidade;
+- cada reserva ativa sobreposta reduz uma unidade em cada noite ocupada;
+- múltiplas reservas sobrepostas são descontadas individualmente;
+- estadias de quatro hóspedes também dependem do inventário específico;
+- reservas com menos de quatro hóspedes não consomem o inventário específico de
+  quatro hóspedes;
+- ajustes manuais do inventário de quatro hóspedes também são limitados pela
+  configuração física do quarto.
+
+### Evidência
+
+- testes direcionados de availability: 28 aprovados;
+- gate completo do Mapa: 7 arquivos e 63 testes aprovados;
+- duração observada do gate: aproximadamente 60 segundos;
+- nenhuma regra de produção foi alterada.
+
 ## Próxima microtarefa
 
-F1.03 deve caracterizar inventário padrão, inventário específico para quatro
-hóspedes e o efeito de reservas simultâneas.
+F1.04 deve caracterizar o limite temporal de reservas `PENDING`, garantindo que
+somente reservas ainda válidas reduzam o inventário.

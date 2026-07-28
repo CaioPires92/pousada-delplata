@@ -73,7 +73,7 @@ teste falha → menor implementação possível → teste passa
 
 - [x] F1.01 Caracterizar `/api/availability` com testes das regras atuais.
 - [x] F1.02 Testar mínimo de noites, `stopSell`, CTA e CTD isoladamente.
-- [ ] F1.03 Testar inventário padrão, quatro hóspedes e reservas simultâneas.
+- [x] F1.03 Testar inventário padrão, quatro hóspedes e reservas simultâneas.
 - [ ] F1.04 Testar expiração de reserva `PENDING`.
 - [ ] F1.05 Extrair `AvailabilityQuoteService` sem alterar resultados.
 - [ ] F1.06 Fazer `/api/availability` chamar o serviço extraído.

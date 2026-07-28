@@ -864,5 +864,103 @@ describe('Availability API - Pricing Logic', () => {
     expect(data.length).toBe(1);
     expect(data[0].remainingUnits).toBe(1);
   });
+
+  it('should use the lowest standard inventory across all occupied nights', async () => {
+    const req = new Request(
+      'http://localhost/api/availability?checkIn=2026-05-10&checkOut=2026-05-13&adults=2'
+    );
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-multi-night-inventory',
+      name: 'Multi-night Inventory Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 5,
+      photos: [],
+      rates: [],
+    }]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([
+      { dateKey: '2026-05-10', totalUnits: 4 },
+      { dateKey: '2026-05-11', totalUnits: 1 },
+      { dateKey: '2026-05-12', totalUnits: 3 },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].remainingUnits).toBe(1);
+  });
+
+  it('should subtract every simultaneous active booking from standard inventory', async () => {
+    const req = new Request(
+      'http://localhost/api/availability?checkIn=2026-05-10&checkOut=2026-05-11&adults=2'
+    );
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-simultaneous-bookings',
+      name: 'Simultaneous Bookings Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 3,
+      photos: [],
+      rates: [],
+    }]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      {
+        checkIn: new Date('2026-05-10T00:00:00.000Z'),
+        checkOut: new Date('2026-05-11T00:00:00.000Z'),
+        adults: 2,
+        childrenAges: null,
+      },
+      {
+        checkIn: new Date('2026-05-10T00:00:00.000Z'),
+        checkOut: new Date('2026-05-11T00:00:00.000Z'),
+        adults: 1,
+        childrenAges: null,
+      },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].remainingUnits).toBe(1);
+  });
+
+  it('should preserve four-guest inventory when existing bookings use fewer than four places', async () => {
+    const req = new Request(
+      'http://localhost/api/availability?checkIn=2026-05-10&checkOut=2026-05-11&adults=4'
+    );
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-separated-four-guest-inventory',
+      name: 'Separated Four Guest Inventory Room',
+      basePrice: 100,
+      includedAdults: 4,
+      maxGuests: 4,
+      totalUnits: 3,
+      inventoryFor4Guests: 1,
+      photos: [],
+      rates: [],
+    }]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      {
+        checkIn: new Date('2026-05-10T00:00:00.000Z'),
+        checkOut: new Date('2026-05-11T00:00:00.000Z'),
+        adults: 2,
+        childrenAges: null,
+      },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].remainingUnits).toBe(2);
+  });
 });
 
