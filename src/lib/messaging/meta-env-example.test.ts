@@ -34,5 +34,7 @@ describe("Meta environment example", () => {
 
     expect(contents.split(/\r?\n/)).toContain("WHATSAPP_PROVIDER=evolution");
     expect(contents.split(/\r?\n/)).toContain("META_E2E_ENABLED=false");
+    expect(contents.split(/\r?\n/)).toContain("META_E2E_WEBHOOK_TIMEOUT_MS=60000");
+    expect(contents.split(/\r?\n/)).toContain("META_E2E_WEBHOOK_POLL_INTERVAL_MS=1000");
   });
 });

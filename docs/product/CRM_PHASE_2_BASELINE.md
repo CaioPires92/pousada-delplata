@@ -337,15 +337,21 @@ O comando `npm run crm:meta:e2e` retorna apenas evidência sanitizada: fornecedo
 ID externo, horário de aceite e status. Tokens, destinatário e conteúdo não são
 incluídos na saída.
 
+Após o aceite da Cloud API, o runner aguarda no banco um evento de status
+recebido pelo webhook Meta com o mesmo ID externo. Assim, o resultado comprova
+o caminho completo CRM → Meta → webhook → persistência, em vez de somente a
+resposta inicial do envio. O tempo limite e o intervalo de consulta possuem
+valores seguros no `.env.example` e aceitam apenas inteiros positivos.
+
 Nenhum envio real foi executado porque as credenciais Meta e o número de teste
 não estão configurados no ambiente local. Por isso, F2.14 permanece aberta.
 
 ### Evidência da preparação
 
-- 3 arquivos e 25 testes direcionados aprovados;
+- 3 arquivos e 26 testes direcionados aprovados;
 - execução com o ambiente atual recusada antes de qualquer chamada de rede;
 - typecheck aprovado;
-- gate CRM: 35 arquivos e 150 testes aprovados.
+- gate CRM: 35 arquivos e 151 testes aprovados.
 
 ## Próxima microtarefa
 
