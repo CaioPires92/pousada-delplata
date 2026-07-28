@@ -143,7 +143,32 @@ Com isso:
 - gate CRM: 20 arquivos e 58 testes aprovados;
 - banco SQLite efêmero utilizado pelo gate.
 
+## F1.06 — Rota pública usando o serviço compartilhado
+
+`/api/availability` agora delega ao serviço compartilhado:
+
+- preço base e tarifas específicas;
+- precedência de tarifas;
+- mínimo de noites, `stopSell`, CTA e CTD;
+- inventário padrão e de quatro hóspedes;
+- reservas ativas e expiração de `PENDING`;
+- composição do preço por hóspedes.
+
+A rota mantém somente responsabilidades HTTP e específicas do canal público:
+
+- leitura dos query params;
+- status e formato legado da resposta;
+- dados de apresentação do quarto;
+- preview e cabeçalhos de cupom.
+
+### Evidência
+
+- testes direcionados da rota pública: 30 aprovados;
+- typecheck aprovado;
+- gate completo do Mapa: 7 arquivos e 65 testes aprovados;
+- o arquivo da rota deixou de conter fórmulas de disponibilidade e preço.
+
 ## Próxima microtarefa
 
-F1.06 deve fazer `/api/availability` delegar preço, restrições e inventário ao
-serviço extraído, preservando integralmente o contrato público atual.
+F1.07 deve verificar e congelar que `/api/crm/quote` chama exatamente
+`src/lib/availability/quote-service.ts`, o mesmo serviço usado pela rota pública.

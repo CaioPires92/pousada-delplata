@@ -20,6 +20,7 @@ export type AvailabilityQuoteInput = {
   checkout: string;
   adults: number;
   childrenAges?: number[];
+  includeRoomDetails?: boolean;
 };
 
 export type AvailabilityQuoteOption = {
@@ -30,6 +31,7 @@ export type AvailabilityQuoteOption = {
   minLos: number;
   totalPrice: number;
   priceBreakdown: BookingPriceBreakdown;
+  roomDetails?: Record<string, unknown>;
 };
 
 export type AvailabilityQuoteResult =
@@ -51,8 +53,8 @@ function dateFromDayKey(dayKey: string) {
 }
 
 function normalizeRate(rate: {
-  startDate: Date;
-  endDate: Date;
+  startDate: Date | string;
+  endDate: Date | string;
   price: unknown;
   minLos: unknown;
   stopSell: boolean;
@@ -60,8 +62,12 @@ function normalizeRate(rate: {
   ctd: boolean;
 }): NormalizedRate {
   return {
-    dayStart: rate.startDate.toISOString().split("T")[0],
-    dayEnd: rate.endDate.toISOString().split("T")[0],
+    dayStart: rate.startDate instanceof Date
+      ? rate.startDate.toISOString().split("T")[0]
+      : String(rate.startDate).slice(0, 10),
+    dayEnd: rate.endDate instanceof Date
+      ? rate.endDate.toISOString().split("T")[0]
+      : String(rate.endDate).slice(0, 10),
     price: Number(rate.price),
     minLos: Number(rate.minLos ?? 1),
     stopSell: Boolean(rate.stopSell),
@@ -91,6 +97,7 @@ export async function queryAvailabilityQuote(
   const nights = nightKeys.length;
   const roomTypes = await client.roomType.findMany({
     include: {
+      photos: { orderBy: { position: "asc" } },
       rates: { orderBy: { createdAt: "desc" } },
     },
   });
@@ -144,7 +151,14 @@ export async function queryAvailabilityQuote(
       }
     }
 
-    const rates = room.rates.map(normalizeRate);
+    const rates = room.rates
+      .slice()
+      .sort((a, b) => {
+        const aTimestamp = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTimestamp = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTimestamp - aTimestamp;
+      })
+      .map(normalizeRate);
     const findRateForDay = (dayKey: string) => rates.find(rate => dayKey >= rate.dayStart && dayKey <= rate.dayEnd);
 
     if (nightKeys.some(dayKey => Boolean(findRateForDay(dayKey)?.stopSell))) continue;
@@ -215,6 +229,9 @@ export async function queryAvailabilityQuote(
         minLos: requiredMinLos,
         totalPrice: priceBreakdown.total,
         priceBreakdown,
+        roomDetails: input.includeRoomDetails
+          ? Object.fromEntries(Object.entries(room).filter(([key]) => key !== "rates"))
+          : undefined,
       });
     } catch {
       // Ignore rooms whose pricing/capacity configuration rejects this guest mix.
