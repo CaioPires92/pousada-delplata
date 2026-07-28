@@ -302,6 +302,31 @@ ou inclusão acidental de valores reais nessas variáveis.
 - typecheck aprovado;
 - gate CRM: 32 arquivos e 140 testes aprovados.
 
+## F2.13 — Health check do provedor Meta
+
+O endpoint interno `GET /api/crm/messaging/health` consulta a lista de números
+do WABA pela Graph API e confirma que o `PHONE_NUMBER_ID` configurado pertence
+à conta.
+
+A verificação:
+
+- exige `CRM_INTERNAL_API_TOKEN`;
+- realiza somente leitura e nunca envia mensagem;
+- usa timeout de 5 segundos;
+- distingue configuração ausente, indisponibilidade, erro HTTP, resposta
+  inválida e número divergente;
+- retorna somente estado, motivo controlado, status HTTP e qualidade;
+- não expõe token, WABA, número exibido ou nome verificado.
+
+### Evidência
+
+- testes direcionados: 2 arquivos e 7 testes aprovados;
+- typecheck aprovado;
+- primeira execução do gate identificou timeout de infraestrutura em um teste
+  SQLite anterior; o limite explícito foi corrigido em microcommit separado;
+- gate CRM repetido: 34 arquivos e 147 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.13 deve criar o health check do provedor Meta.
+F2.14 requer teste ponta a ponta com o número de teste real da Meta e, portanto,
+depende de credenciais operacionais válidas.
