@@ -26,6 +26,7 @@ const vitestCli = path.join(workspaceRoot, "node_modules/vitest/vitest.mjs");
 const crmTestTargets = [
   "src/lib/crm",
   "src/lib/availability/quote-service.test.ts",
+  "src/lib/availability/routes-contract.test.ts",
   "src/app/api/crm",
   "src/app/api/whatsapp",
 ];

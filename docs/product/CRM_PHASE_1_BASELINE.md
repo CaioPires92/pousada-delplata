@@ -240,7 +240,29 @@ Quando bloqueada, a automação:
 - typecheck aprovado;
 - gate CRM: 20 arquivos e 60 testes aprovados.
 
+## F1.10 — Contrato comparativo entre site e CRM
+
+O teste `src/lib/availability/routes-contract.test.ts` executa as duas rotas
+reais sobre a mesma fixture de banco.
+
+Os contratos são comparados por:
+
+- `roomTypeId`;
+- preço total e detalhamento;
+- unidades restantes;
+- mínimo de noites;
+- erro e valor de `minLos` quando a estadia é curta.
+
+O teste faz parte dos gates CRM e Mapa, portanto qualquer divergência futura
+entre os canais bloqueia ambos.
+
+### Evidência
+
+- teste de contrato direcionado: 2 testes aprovados;
+- typecheck aprovado;
+- gate CRM: 21 arquivos e 62 testes aprovados;
+- gate do Mapa: 8 arquivos e 67 testes aprovados.
+
 ## Próxima microtarefa
 
-F1.10 deve criar um teste de contrato que execute site e CRM para a mesma entrada
-e compare quartos, totais e restrições.
+F1.11 deve medir as consultas executadas por cotação e eliminar o padrão N+1.

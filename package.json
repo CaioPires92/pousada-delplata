@@ -22,7 +22,7 @@
         "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
         "test": "vitest run",
     "test:crm": "node scripts/crm/testing/run-crm-tests.mjs",
-        "test:mapa": "vitest run src/app/admin/mapa src/app/api/admin/inventory src/app/api/rates src/app/api/availability",
+        "test:mapa": "vitest run src/app/admin/mapa src/app/api/admin/inventory src/app/api/rates src/app/api/availability src/lib/availability/routes-contract.test.ts",
         "test:reservas": "vitest run src/app/reservar src/app/api/bookings src/app/api/coupons src/app/api/mercadopago src/app/api/webhooks/mercadopago src/lib/booking-price.test.ts src/lib/coupons",
         "test:ui": "vitest run src/components src/app/politica-de-cancelamento",
         "test:gate:crm": "npm run typecheck && npm run test:crm",
