@@ -17,7 +17,7 @@ export type MetaMessagingProviderConfig = {
 export class MetaMessagingProviderError extends Error {
   constructor(
     message: string,
-    readonly code: "not_configured" | "unsupported_message" | "request_failed" | "invalid_response",
+    readonly code: "not_configured" | "invalid_message" | "request_failed" | "invalid_response",
     readonly status?: number,
   ) {
     super(message);
@@ -66,22 +66,8 @@ export class MetaMessagingProvider implements MessagingProvider {
   }
 
   async send(message: OutboundMessage): Promise<SendMessageResult> {
-    if (message.kind !== "text") {
-      throw new MetaMessagingProviderError(
-        "Meta template sending is not implemented",
-        "unsupported_message",
-      );
-    }
-
-    const response = await this.fetchImpl(
-      `https://graph.facebook.com/${encodeURIComponent(this.config.graphApiVersion)}/${encodeURIComponent(this.config.phoneNumberId)}/messages`,
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.config.accessToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
+    const requestPayload = message.kind === "text"
+      ? {
           messaging_product: "whatsapp",
           recipient_type: "individual",
           to: message.recipientId,
@@ -93,7 +79,18 @@ export class MetaMessagingProvider implements MessagingProvider {
             preview_url: false,
             body: message.text,
           },
-        }),
+        }
+      : this.buildTemplatePayload(message);
+
+    const response = await this.fetchImpl(
+      `https://graph.facebook.com/${encodeURIComponent(this.config.graphApiVersion)}/${encodeURIComponent(this.config.phoneNumberId)}/messages`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.config.accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
       },
     );
 
@@ -122,6 +119,82 @@ export class MetaMessagingProvider implements MessagingProvider {
       externalMessageId,
       acceptedAt: this.now().toISOString(),
       status: "accepted",
+    };
+  }
+
+  private buildTemplatePayload(message: Extract<OutboundMessage, { kind: "template" }>) {
+    if (!/^[a-z0-9_]+$/.test(message.templateName)) {
+      throw new MetaMessagingProviderError(
+        "Invalid Meta template name",
+        "invalid_message",
+      );
+    }
+    if (!/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(message.languageCode)) {
+      throw new MetaMessagingProviderError(
+        "Invalid Meta template language code",
+        "invalid_message",
+      );
+    }
+
+    const parameters = message.parameters.map(parameter => {
+      if (parameter.type === "text") {
+        if (!parameter.text.trim()) {
+          throw new MetaMessagingProviderError(
+            "Meta template text parameter cannot be empty",
+            "invalid_message",
+          );
+        }
+        return { type: "text", text: parameter.text };
+      }
+
+      if (parameter.type === "currency") {
+        const { fallbackValue, code, amount1000 } = parameter.currency;
+        if (
+          !fallbackValue.trim()
+          || !/^[A-Z]{3}$/.test(code)
+          || !Number.isSafeInteger(amount1000)
+        ) {
+          throw new MetaMessagingProviderError(
+            "Invalid Meta template currency parameter",
+            "invalid_message",
+          );
+        }
+        return {
+          type: "currency",
+          currency: {
+            fallback_value: fallbackValue,
+            code,
+            amount_1000: amount1000,
+          },
+        };
+      }
+
+      if (!parameter.dateTime.fallbackValue.trim()) {
+        throw new MetaMessagingProviderError(
+          "Meta template date/time parameter cannot be empty",
+          "invalid_message",
+        );
+      }
+      return {
+        type: "date_time",
+        date_time: {
+          fallback_value: parameter.dateTime.fallbackValue,
+        },
+      };
+    });
+
+    return {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: message.recipientId,
+      type: "template",
+      template: {
+        name: message.templateName,
+        language: { code: message.languageCode },
+        ...(parameters.length > 0
+          ? { components: [{ type: "body", parameters }] }
+          : {}),
+      },
     };
   }
 }

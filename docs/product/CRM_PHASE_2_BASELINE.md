@@ -175,7 +175,32 @@ Evolution continua sendo o padrão até a troca explícita por feature flag.
 - typecheck aprovado;
 - gate CRM: 28 arquivos e 116 testes aprovados.
 
+## F2.08 — Template aprovado e parâmetros tipados
+
+`MetaMessagingProvider` agora envia templates aprovados usando nome e idioma
+explícitos. O contrato interno aceita parâmetros tipados de:
+
+- texto;
+- moeda, com valor alternativo, código ISO e valor em milésimos;
+- data e hora, com valor alternativo.
+
+O adaptador converte o contrato interno em componentes no formato da Cloud
+API, incluindo os campos `fallback_value`, `amount_1000` e `date_time`.
+Templates sem parâmetros omitem `components`.
+
+Antes de qualquer chamada HTTP, o provedor valida o nome do template, o código
+de idioma e todos os parâmetros. Respostas de erro permanecem sanitizadas e
+não expõem token, payload sensível ou corpo retornado pela Meta.
+
+### Evidência
+
+- testes direcionados: 2 arquivos e 28 testes aprovados;
+- casos válidos cobrem texto, moeda, data/hora e template sem parâmetros;
+- casos inválidos comprovam que nenhuma chamada HTTP é iniciada;
+- typecheck aprovado;
+- gate CRM: 28 arquivos e 122 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.08 deve implementar envio de template aprovado com nome, idioma e
-parâmetros tipados.
+F2.09 deve persistir status e erro sanitizado, sem armazenar token ou payload
+sensível.

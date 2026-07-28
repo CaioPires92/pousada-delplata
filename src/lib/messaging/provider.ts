@@ -45,6 +45,23 @@ export type NormalizedMessagingEvent =
   | NormalizedInboundMessage
   | NormalizedStatusEvent;
 
+export type TemplateParameter =
+  | { type: "text"; text: string }
+  | {
+      type: "currency";
+      currency: {
+        fallbackValue: string;
+        code: string;
+        amount1000: number;
+      };
+    }
+  | {
+      type: "date_time";
+      dateTime: {
+        fallbackValue: string;
+      };
+    };
+
 export type OutboundMessage =
   | {
       kind: "text";
@@ -57,7 +74,7 @@ export type OutboundMessage =
       recipientId: string;
       templateName: string;
       languageCode: string;
-      parameters: ReadonlyArray<string>;
+      parameters: ReadonlyArray<TemplateParameter>;
     };
 
 export type SendMessageResult = {
