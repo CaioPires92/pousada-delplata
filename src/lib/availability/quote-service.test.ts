@@ -171,4 +171,31 @@ describe("queryAvailabilityQuote", () => {
       vi.useRealTimers();
     }
   });
+
+  it("loads bookings and inventory in constant queries instead of one set per room", async () => {
+    const client = fakeClient();
+    client.roomType.findMany.mockResolvedValue([
+      room({ id: "room-1" }),
+      room({ id: "room-2" }),
+      room({ id: "room-3" }),
+    ]);
+
+    const result = await queryAvailabilityQuote({
+      checkin: "2026-06-15",
+      checkout: "2026-06-17",
+      adults: 2,
+      childrenAges: [],
+    }, client);
+
+    expect(result.ok).toBe(true);
+    expect(client.roomType.findMany).toHaveBeenCalledTimes(1);
+    expect(client.booking.findMany).toHaveBeenCalledTimes(1);
+    expect(client.inventoryAdjustment.findMany).toHaveBeenCalledTimes(1);
+    expect(client.fourGuestInventoryAdjustment.findMany).toHaveBeenCalledTimes(1);
+    expect(client.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        roomTypeId: { in: ["room-1", "room-2", "room-3"] },
+      }),
+    }));
+  });
 });

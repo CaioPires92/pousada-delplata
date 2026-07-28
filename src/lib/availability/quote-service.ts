@@ -117,14 +117,11 @@ export async function queryAvailabilityQuote(
   });
   const ttlMinutes = Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || "15", 10) || 30);
   const pendingThreshold = new Date(calculatedAtDate.getTime() - ttlMinutes * 60 * 1000);
-  const options: AvailabilityQuoteOption[] = [];
-  let minRequiredAcrossRooms = Infinity;
-  let eligibleMinLosCount = 0;
-
-  for (const room of roomTypes) {
-    const activeBookings = await client.booking.findMany({
+  const roomTypeIds = roomTypes.map(room => room.id);
+  const [activeBookings, inventoryAdjustments, fourGuestInventoryAdjustments] = await Promise.all([
+    client.booking.findMany({
       where: {
-        roomTypeId: room.id,
+        roomTypeId: { in: roomTypeIds },
         checkIn: { lt: dateFromDayKey(input.checkout) },
         checkOut: { gt: dateFromDayKey(input.checkin) },
         OR: [
@@ -133,19 +130,62 @@ export async function queryAvailabilityQuote(
         ],
       },
       select: {
+        roomTypeId: true,
         checkIn: true,
         checkOut: true,
         adults: true,
         childrenAges: true,
       },
-    });
+    }),
+    client.inventoryAdjustment.findMany({
+      where: {
+        roomTypeId: { in: roomTypeIds },
+        dateKey: { in: nightKeys },
+      },
+    }),
+    client.fourGuestInventoryAdjustment.findMany({
+      where: {
+        roomTypeId: { in: roomTypeIds },
+        dateKey: { in: nightKeys },
+      },
+    }),
+  ]);
+  const bookingsByRoom = new Map<string, typeof activeBookings>();
+  const adjustmentsByRoom = new Map<string, typeof inventoryAdjustments>();
+  const fourGuestAdjustmentsByRoom = new Map<string, typeof fourGuestInventoryAdjustments>();
 
+  for (const booking of activeBookings) {
+    const roomTypeId = booking.roomTypeId ?? (roomTypes.length === 1 ? roomTypes[0].id : undefined);
+    if (!roomTypeId) continue;
+    const roomBookings = bookingsByRoom.get(roomTypeId) ?? [];
+    roomBookings.push(booking);
+    bookingsByRoom.set(roomTypeId, roomBookings);
+  }
+  for (const adjustment of inventoryAdjustments) {
+    const roomTypeId = adjustment.roomTypeId ?? (roomTypes.length === 1 ? roomTypes[0].id : undefined);
+    if (!roomTypeId) continue;
+    const roomAdjustments = adjustmentsByRoom.get(roomTypeId) ?? [];
+    roomAdjustments.push(adjustment);
+    adjustmentsByRoom.set(roomTypeId, roomAdjustments);
+  }
+  for (const adjustment of fourGuestInventoryAdjustments) {
+    const roomTypeId = adjustment.roomTypeId ?? (roomTypes.length === 1 ? roomTypes[0].id : undefined);
+    if (!roomTypeId) continue;
+    const roomAdjustments = fourGuestAdjustmentsByRoom.get(roomTypeId) ?? [];
+    roomAdjustments.push(adjustment);
+    fourGuestAdjustmentsByRoom.set(roomTypeId, roomAdjustments);
+  }
+  const options: AvailabilityQuoteOption[] = [];
+  let minRequiredAcrossRooms = Infinity;
+  let eligibleMinLosCount = 0;
+
+  for (const room of roomTypes) {
     const bookingsCountByDay = new Map<string, number>();
     const bookingsFor4GuestsByDay = new Map<string, number>();
     const firstNight = nightKeys[0];
     const lastNight = nightKeys[nightKeys.length - 1];
 
-    for (const booking of activeBookings) {
+    for (const booking of bookingsByRoom.get(room.id) ?? []) {
       const bookingStart = booking.checkIn.toISOString().split("T")[0];
       const bookingEndInclusive = prevDayKey(booking.checkOut.toISOString().split("T")[0]);
       const bookingGuestCounts = getEffectiveGuestCounts({
@@ -179,10 +219,8 @@ export async function queryAvailabilityQuote(
     if (findRateForDay(input.checkin)?.cta) continue;
     if (findRateForDay(input.checkout)?.ctd) continue;
 
-    const [adjustments, fourGuestAdjustments] = await Promise.all([
-      client.inventoryAdjustment.findMany({ where: { roomTypeId: room.id, dateKey: { in: nightKeys } } }),
-      client.fourGuestInventoryAdjustment.findMany({ where: { roomTypeId: room.id, dateKey: { in: nightKeys } } }),
-    ]);
+    const adjustments = adjustmentsByRoom.get(room.id) ?? [];
+    const fourGuestAdjustments = fourGuestAdjustmentsByRoom.get(room.id) ?? [];
     const adjustmentByDay = new Map(adjustments.map(adjustment => [adjustment.dateKey, adjustment.totalUnits]));
     const fourGuestAdjustmentByDay = new Map(fourGuestAdjustments.map(adjustment => [adjustment.dateKey, adjustment.totalUnits]));
     const capacityTotal = Number(room.totalUnits || 1);

@@ -263,6 +263,31 @@ entre os canais bloqueia ambos.
 - gate CRM: 21 arquivos e 62 testes aprovados;
 - gate do Mapa: 8 arquivos e 67 testes aprovados.
 
+## F1.11 — Consultas constantes no cálculo
+
+Antes desta mudança, uma cotação executava uma consulta de quartos e, para
+cada tipo de quarto, três novas consultas de reservas e ajustes. O custo era
+`1 + 3R`, sendo `R` a quantidade de tipos de quarto.
+
+Reservas, ajustes de inventário padrão e ajustes para quatro hóspedes agora
+são carregados em lote para todos os quartos e agrupados em memória. Assim,
+uma cotação executa quatro consultas, independentemente da quantidade de
+tipos de quarto:
+
+1. tipos de quarto e tarifas;
+2. reservas ativas;
+3. ajustes de inventário padrão;
+4. ajustes de inventário para quatro hóspedes.
+
+### Evidência
+
+- teste com três quartos confirma uma chamada por coleção e o filtro em lote;
+- testes direcionados: 3 arquivos e 38 testes aprovados;
+- typecheck aprovado;
+- gate CRM: 21 arquivos e 63 testes aprovados;
+- gate do Mapa: 8 arquivos e 67 testes aprovados.
+
 ## Próxima microtarefa
 
-F1.11 deve medir as consultas executadas por cotação e eliminar o padrão N+1.
+F1.12 deve documentar explicitamente o Mapa como fonte oficial de
+disponibilidade e tarifas.
