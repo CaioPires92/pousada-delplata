@@ -44,4 +44,8 @@ Principais caminhos:
 
 - integrações e orquestradores externos **não escrevem direto no banco fora das APIs do app**;
 - eventos externos retornam por APIs internas autenticadas do CRM;
-- o domínio do Mapa/motor é a fonte oficial de disponibilidade, tarifa, restrições e reserva.
+- o domínio do Mapa/motor é a fonte oficial de disponibilidade, tarifa,
+  inventário e restrições, conforme
+  `docs/architecture/MAPA_SOURCE_OF_TRUTH.md`;
+- reservas e pagamentos são confirmados pelos seus respectivos domínios e
+  eventos confiáveis.

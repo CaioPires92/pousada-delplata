@@ -82,7 +82,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F1.09 Impedir envio de cotação expirada.
 - [x] F1.10 Criar teste de contrato comparando site e CRM para a mesma entrada.
 - [x] F1.11 Medir e eliminar consultas N+1 do cálculo de disponibilidade.
-- [ ] F1.12 Documentar o Mapa como fonte oficial.
+- [x] F1.12 Documentar o Mapa como fonte oficial.
 
 ### Testes/gate
 

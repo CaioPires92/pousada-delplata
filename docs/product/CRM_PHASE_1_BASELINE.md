@@ -287,7 +287,22 @@ tipos de quarto:
 - gate CRM: 21 arquivos e 63 testes aprovados;
 - gate do Mapa: 8 arquivos e 67 testes aprovados.
 
+## F1.12 — Mapa como fonte oficial
+
+A decisão arquitetural está registrada em
+`docs/architecture/MAPA_SOURCE_OF_TRUTH.md`. O documento define:
+
+- quais dados comerciais pertencem ao domínio do Mapa;
+- `queryAvailabilityQuote` como serviço canônico;
+- Site e CRM como adaptadores do mesmo cálculo;
+- as ações proibidas ao CRM;
+- os gates obrigatórios para mudanças nesse domínio.
+
+O índice de documentação e as fronteiras dos projetos apontam para essa
+decisão. A Fase 1 está concluída: o cálculo foi caracterizado, extraído,
+compartilhado, protegido por contrato, identificado, expirável e otimizado.
+
 ## Próxima microtarefa
 
-F1.12 deve documentar explicitamente o Mapa como fonte oficial de
-disponibilidade e tarifas.
+F2.01 deve definir o contrato de `MessagingProvider` independente de Evolution
+e Meta.

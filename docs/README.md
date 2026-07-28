@@ -4,6 +4,7 @@
 
 - `docs/architecture/PROJECT_BOUNDARIES.md`: fronteiras entre os dois projetos no mesmo repositorio.
 - `docs/architecture/REPO_OWNERSHIP_MAP.md`: mapa por pasta (ownership) de cada projeto.
+- `docs/architecture/MAPA_SOURCE_OF_TRUTH.md`: decisão oficial sobre tarifas, inventário e disponibilidade.
 - `docs/architecture/DESIGN_SYSTEM.md`: padrao visual e tokens compartilhados.
 - `docs/projects/RESERVAS_SCOPE.md`: escopo do Site + Motor de Reservas.
 - `docs/projects/CRM_N8N_SCOPE.md`: escopo do CRM + Fluxos n8n.
