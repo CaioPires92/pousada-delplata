@@ -50,7 +50,29 @@ comuns de segredo, formato de telefone brasileiro e padrão de token Meta.
 - typecheck aprovado;
 - gate CRM: 23 arquivos e 80 testes aprovados.
 
+## F2.03 — Desafio de verificação do webhook
+
+`GET /api/whatsapp/meta/webhook` implementa o handshake de inscrição exigido
+pela Meta.
+
+A rota:
+
+- aceita somente `hub.mode=subscribe`;
+- compara `hub.verify_token` com `META_WHATSAPP_VERIFY_TOKEN`;
+- devolve exatamente `hub.challenge` em texto simples quando válida;
+- responde `403` sem expor o challenge quando a requisição é inválida;
+- falha fechada com `503` quando o token não está configurado.
+
+A comparação do token usa `timingSafeEqual`. O endpoint legado da Evolution
+permanece separado e inalterado.
+
+### Evidência
+
+- 5 testes direcionados aprovados;
+- typecheck aprovado;
+- gate CRM: 24 arquivos e 85 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.03 deve implementar e testar o desafio GET de verificação do webhook Meta,
-sem afetar o endpoint legado da Evolution.
+F2.04 deve validar a assinatura `X-Hub-Signature-256` sobre o corpo bruto antes
+de aceitar qualquer webhook POST da Meta.
