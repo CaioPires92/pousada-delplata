@@ -7,6 +7,32 @@ import type {
 } from "./provider";
 
 type FetchLike = typeof fetch;
+type Sleep = (delayMs: number) => Promise<void>;
+
+export type MetaMessagingRetryOptions = {
+  maxAttempts?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  sleep?: Sleep;
+  random?: () => number;
+};
+
+const DEFAULT_RETRY_OPTIONS = {
+  maxAttempts: 3,
+  baseDelayMs: 250,
+  maxDelayMs: 5_000,
+} as const;
+
+function defaultSleep(delayMs: number) {
+  return new Promise<void>(resolve => setTimeout(resolve, delayMs));
+}
+
+function isTransientStatus(status: number) {
+  return status === 408
+    || status === 425
+    || status === 429
+    || (status >= 500 && status <= 599);
+}
 
 export type MetaMessagingProviderConfig = {
   accessToken: string;
@@ -59,6 +85,7 @@ export class MetaMessagingProvider implements MessagingProvider {
     private readonly config: MetaMessagingProviderConfig,
     private readonly fetchImpl: FetchLike = fetch,
     private readonly now: () => Date = () => new Date(),
+    private readonly retryOptions: MetaMessagingRetryOptions = {},
   ) {}
 
   async normalizeWebhook(payload: unknown): Promise<ReadonlyArray<NormalizedMessagingEvent>> {
@@ -82,7 +109,7 @@ export class MetaMessagingProvider implements MessagingProvider {
         }
       : this.buildTemplatePayload(message);
 
-    const response = await this.fetchImpl(
+    const response = await this.fetchWithRetry(
       `https://graph.facebook.com/${encodeURIComponent(this.config.graphApiVersion)}/${encodeURIComponent(this.config.phoneNumberId)}/messages`,
       {
         method: "POST",
@@ -120,6 +147,51 @@ export class MetaMessagingProvider implements MessagingProvider {
       acceptedAt: this.now().toISOString(),
       status: "accepted",
     };
+  }
+
+  private async fetchWithRetry(url: string, init: RequestInit) {
+    const maxAttempts = Math.max(
+      1,
+      Math.floor(this.retryOptions.maxAttempts ?? DEFAULT_RETRY_OPTIONS.maxAttempts),
+    );
+    const baseDelayMs = Math.max(
+      0,
+      this.retryOptions.baseDelayMs ?? DEFAULT_RETRY_OPTIONS.baseDelayMs,
+    );
+    const maxDelayMs = Math.max(
+      baseDelayMs,
+      this.retryOptions.maxDelayMs ?? DEFAULT_RETRY_OPTIONS.maxDelayMs,
+    );
+    const sleep = this.retryOptions.sleep ?? defaultSleep;
+    const random = this.retryOptions.random ?? Math.random;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const response = await this.fetchImpl(url, init);
+        if (!isTransientStatus(response.status) || attempt === maxAttempts) {
+          return response;
+        }
+      } catch {
+        if (attempt === maxAttempts) {
+          throw new MetaMessagingProviderError(
+            "Meta message request failed",
+            "request_failed",
+          );
+        }
+      }
+
+      const exponentialCap = Math.min(
+        maxDelayMs,
+        baseDelayMs * (2 ** (attempt - 1)),
+      );
+      const jitteredDelay = Math.floor(exponentialCap * random());
+      await sleep(jitteredDelay);
+    }
+
+    throw new MetaMessagingProviderError(
+      "Meta message request failed",
+      "request_failed",
+    );
   }
 
   private buildTemplatePayload(message: Extract<OutboundMessage, { kind: "template" }>) {

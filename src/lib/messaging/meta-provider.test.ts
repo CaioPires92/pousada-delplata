@@ -104,6 +104,88 @@ describe("MetaMessagingProvider", () => {
     expect(error.message).not.toContain(config.accessToken);
   });
 
+  it("retries transient HTTP failures with exponential backoff and full jitter", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({ error: "temporary" }, 500))
+      .mockResolvedValueOnce(response({ error: "rate limited" }, 429))
+      .mockResolvedValueOnce(response({
+        messages: [{ id: "wamid.TEST_AFTER_RETRY" }],
+      }));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const random = vi.fn()
+      .mockReturnValueOnce(0.25)
+      .mockReturnValueOnce(0.5);
+    const provider = new MetaMessagingProvider(
+      config,
+      fetchMock,
+      () => new Date("2026-07-28T16:30:00.000Z"),
+      { maxAttempts: 3, baseDelayMs: 250, maxDelayMs: 5_000, sleep, random },
+    );
+
+    await expect(provider.send({
+      kind: "text",
+      recipientId: "15550000001",
+      text: "Mensagem sintética",
+    })).resolves.toMatchObject({
+      externalMessageId: "wamid.TEST_AFTER_RETRY",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenNthCalledWith(1, 62);
+    expect(sleep).toHaveBeenNthCalledWith(2, 250);
+  });
+
+  it.each([400, 401, 403, 404])("does not retry permanent HTTP %s failures", async status => {
+    const fetchMock = vi.fn().mockResolvedValue(response({ error: "permanent" }, status));
+    const sleep = vi.fn();
+    const provider = new MetaMessagingProvider(
+      config,
+      fetchMock,
+      undefined,
+      { sleep },
+    );
+
+    await expect(provider.send({
+      kind: "text",
+      recipientId: "15550000001",
+      text: "Mensagem sintética",
+    })).rejects.toMatchObject({ code: "request_failed", status });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("retries network failures and returns a sanitized error after exhaustion", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(
+      new Error(`network failure with ${config.accessToken}`),
+    );
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const provider = new MetaMessagingProvider(
+      config,
+      fetchMock,
+      undefined,
+      {
+        maxAttempts: 3,
+        baseDelayMs: 100,
+        maxDelayMs: 1_000,
+        sleep,
+        random: () => 1,
+      },
+    );
+
+    const error = await provider.send({
+      kind: "text",
+      recipientId: "15550000001",
+      text: "Mensagem sintética",
+    }).catch(value => value);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenNthCalledWith(1, 100);
+    expect(sleep).toHaveBeenNthCalledWith(2, 200);
+    expect(error).toMatchObject({ code: "request_failed" });
+    expect(error.message).not.toContain(config.accessToken);
+  });
+
   it("rejects a successful response without an external message ID", async () => {
     const provider = new MetaMessagingProvider(
       config,

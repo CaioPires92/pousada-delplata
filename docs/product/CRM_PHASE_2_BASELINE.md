@@ -228,7 +228,29 @@ Um status bem-sucedido posterior limpa o erro anterior.
 - typecheck aprovado;
 - gate CRM: 30 arquivos e 127 testes aprovados.
 
+## F2.10 — Retry transitório com backoff e jitter
+
+O envio pela Meta executa no máximo três tentativas por padrão. Somente falhas
+de rede e respostas HTTP `408`, `425`, `429` ou `5xx` são repetidas.
+
+Entre tentativas, o provedor usa backoff exponencial com full jitter, partindo
+de 250 ms e limitado a 5 segundos. Erros permanentes `4xx`, configuração
+ausente, mensagem inválida e resposta bem-sucedida sem ID externo falham sem
+retry.
+
+Após esgotar as tentativas, o erro retornado permanece controlado e não inclui
+token nem mensagem original da falha de rede. As opções de tempo, espera e
+aleatoriedade são injetáveis para testes determinísticos.
+
+### Evidência
+
+- 20 testes direcionados aprovados;
+- falhas `500` e `429` comprovam backoff crescente e jitter;
+- erros permanentes `400`, `401`, `403` e `404` comprovam tentativa única;
+- falha de rede comprova limite de tentativas e erro sanitizado;
+- typecheck aprovado;
+- gate CRM: 30 arquivos e 133 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.10 deve implementar retry apenas para falhas transitórias, com backoff e
-jitter.
+F2.11 deve implementar circuit breaker e dead-letter.
