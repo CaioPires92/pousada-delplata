@@ -9,6 +9,13 @@ type QueuePayload = {
   text?: string;
 };
 
+function sanitizeDeadLetterReason(reason: string) {
+  return reason
+    .replace(/\bBearer\s+[^\s;,]+/gi, "Bearer [REDACTED]")
+    .replace(/\b(access_token|token)=([^&\s;,]+)/gi, "$1=[REDACTED]")
+    .slice(0, 500);
+}
+
 function parsePayload(payloadJson: string): QueuePayload {
   try {
     const parsed = JSON.parse(payloadJson) as QueuePayload;
@@ -113,7 +120,9 @@ export async function processNextAutomationJobForConversation(
 
     return { ok: true as const, queued: false as const, processed: true as const, jobId: candidate.id };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown_error";
+    const message = sanitizeDeadLetterReason(
+      error instanceof Error ? error.message : "unknown_error",
+    );
 
     const failed = await prisma.automationQueueJob.update({
       where: { id: candidate.id },

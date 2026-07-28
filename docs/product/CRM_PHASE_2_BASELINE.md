@@ -251,6 +251,37 @@ aleatoriedade são injetáveis para testes determinísticos.
 - typecheck aprovado;
 - gate CRM: 30 arquivos e 133 testes aprovados.
 
+## F2.11 — Circuit breaker e dead-letter
+
+O worker de mensageria agora envolve somente a chamada externa com um circuit
+breaker independente do fornecedor. Validação de payload permanece fora do
+breaker e não afeta a saúde do provedor.
+
+O circuito:
+
+- abre após cinco falhas consecutivas contabilizáveis;
+- bloqueia novas chamadas por 30 segundos;
+- permite uma única sonda no estado `half_open`;
+- fecha após recuperação bem-sucedida;
+- não contabiliza falhas explicitamente marcadas como permanentes.
+
+O provedor Meta classifica erros transitórios e permanentes no erro controlado.
+Quando uma execução da fila falha ou encontra o circuito aberto, o job existente
+é encaminhado à dead-letter. O motivo é redigido e limitado a 500 caracteres
+antes de ser salvo, sem token ou credencial.
+
+O breaker está no ponto compartilhado do worker: protege Evolution enquanto ela
+é o rollback ativo e continuará protegendo a Meta após a troca por feature flag.
+
+### Evidência
+
+- testes direcionados: 3 arquivos e 28 testes aprovados;
+- testes cobrem abertura, bloqueio, recuperação, falha permanente e sonda única;
+- teste da fila comprova dead-letter com motivo sanitizado e limitado;
+- typecheck aprovado;
+- gate CRM: 31 arquivos e 138 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.11 deve implementar circuit breaker e dead-letter.
+F2.12 deve confirmar todas as variáveis Meta no `.env.example`, sem valores
+reais.

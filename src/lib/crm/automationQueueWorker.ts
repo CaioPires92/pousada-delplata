@@ -4,7 +4,19 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import { processNextAutomationJobForConversation } from "@/lib/crm/automationQueue";
 import { crmLog } from "@/lib/crm/logger";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { CircuitBreaker } from "@/lib/messaging/circuit-breaker";
 import { sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
+
+const messagingCircuitBreaker = new CircuitBreaker({
+  failureThreshold: 5,
+  resetTimeoutMs: 30_000,
+  shouldCountFailure: error => !(
+    error
+    && typeof error === "object"
+    && "retryable" in error
+    && error.retryable === false
+  ),
+});
 
 function extractEvolutionMessageId(response: unknown): string | null {
   if (!response || typeof response !== "object" || Array.isArray(response)) return null;
@@ -51,10 +63,12 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
         throw new Error("invalid_queue_payload");
       }
 
-      const evolutionResponse = await sendEvolutionTextWithRetry({
-        number: job.payload.target,
-        text: job.payload.text,
-      });
+      const evolutionResponse = await messagingCircuitBreaker.execute(() =>
+        sendEvolutionTextWithRetry({
+          number: job.payload.target!,
+          text: job.payload.text!,
+        })
+      );
 
       const now = new Date();
       const message = await prisma.message.create({

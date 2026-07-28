@@ -45,6 +45,7 @@ export class MetaMessagingProviderError extends Error {
     message: string,
     readonly code: "not_configured" | "invalid_message" | "request_failed" | "invalid_response",
     readonly status?: number,
+    readonly retryable = false,
   ) {
     super(message);
     this.name = "MetaMessagingProviderError";
@@ -126,6 +127,7 @@ export class MetaMessagingProvider implements MessagingProvider {
         "Meta message request failed",
         "request_failed",
         response.status,
+        isTransientStatus(response.status),
       );
     }
 
@@ -176,6 +178,8 @@ export class MetaMessagingProvider implements MessagingProvider {
           throw new MetaMessagingProviderError(
             "Meta message request failed",
             "request_failed",
+            undefined,
+            true,
           );
         }
       }
@@ -191,6 +195,8 @@ export class MetaMessagingProvider implements MessagingProvider {
     throw new MetaMessagingProviderError(
       "Meta message request failed",
       "request_failed",
+      undefined,
+      true,
     );
   }
 

@@ -121,7 +121,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F2.08 Implementar template aprovado e parâmetros tipados.
 - [x] F2.09 Persistir status e erro sem vazar token/payload sensível.
 - [x] F2.10 Implementar retry apenas para falhas transitórias com backoff e jitter.
-- [ ] F2.11 Implementar circuit breaker e dead-letter.
+- [x] F2.11 Implementar circuit breaker e dead-letter.
 - [ ] F2.12 Adicionar variáveis Meta ao `.env.example` sem valores reais.
 - [ ] F2.13 Criar health check do provedor.
 - [ ] F2.14 Rodar teste ponta a ponta com número de teste da Meta.

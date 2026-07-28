@@ -99,7 +99,11 @@ describe("MetaMessagingProvider", () => {
     }).catch(value => value);
 
     expect(error).toBeInstanceOf(MetaMessagingProviderError);
-    expect(error).toMatchObject({ code: "request_failed", status: 401 });
+    expect(error).toMatchObject({
+      code: "request_failed",
+      status: 401,
+      retryable: false,
+    });
     expect(error.message).not.toContain("sensitive provider detail");
     expect(error.message).not.toContain(config.accessToken);
   });
@@ -182,7 +186,10 @@ describe("MetaMessagingProvider", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenNthCalledWith(1, 100);
     expect(sleep).toHaveBeenNthCalledWith(2, 200);
-    expect(error).toMatchObject({ code: "request_failed" });
+    expect(error).toMatchObject({
+      code: "request_failed",
+      retryable: true,
+    });
     expect(error.message).not.toContain(config.accessToken);
   });
 
