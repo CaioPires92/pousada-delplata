@@ -557,16 +557,242 @@ describe('Availability API - Pricing Logic', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(data)).toBe(true);
     expect(data.length).toBe(0);
-  });  it('should return 400 for invalid date range (checkIn equals checkOut)', async () => {
+  });
+
+  it('should prioritize a newer open rate over an older overlapping stopSell rate', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-02-11&checkOut=2026-02-12&adults=2');
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-overlap-open',
+      name: 'Overlap Open Room',
+      basePrice: 80,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [
+        {
+          startDate: '2026-02-01',
+          endDate: '2026-02-20',
+          price: 90,
+          stopSell: true,
+          cta: false,
+          ctd: false,
+          minLos: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+        {
+          startDate: '2026-02-11',
+          endDate: '2026-02-11',
+          price: 140,
+          stopSell: false,
+          cta: false,
+          ctd: false,
+          minLos: 1,
+          createdAt: new Date('2026-02-10T00:00:00.000Z'),
+        },
+      ],
+    }]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].totalPrice).toBe(140);
+  });
+
+  it('should apply stopSell to any occupied night but not to the checkout date', async () => {
+    const room = {
+      id: 'room-stop-sell-boundary',
+      name: 'Stop Sell Boundary Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [{
+        startDate: '2026-04-11',
+        endDate: '2026-04-11',
+        price: 100,
+        stopSell: true,
+        cta: false,
+        ctd: false,
+        minLos: 1,
+      }],
+    };
+    (prisma.roomType.findMany as any).mockResolvedValue([room]);
+
+    const blocked = await GET(new Request(
+      'http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-12&adults=2'
+    ));
+    expect(await blocked.json()).toEqual([]);
+
+    const allowed = await GET(new Request(
+      'http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-11&adults=2'
+    ));
+    const allowedData = await allowed.json();
+    expect(allowedData).toHaveLength(1);
+  });
+
+  it('should ignore CTA after arrival and CTD before departure', async () => {
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-arrival-departure-boundary',
+      name: 'Arrival Departure Boundary Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [
+        {
+          startDate: '2026-04-11',
+          endDate: '2026-04-11',
+          price: 100,
+          stopSell: false,
+          cta: true,
+          ctd: true,
+          minLos: 1,
+        },
+      ],
+    }]);
+
+    const res = await GET(new Request(
+      'http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-12&adults=2'
+    ));
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+  });
+
+  it('should enforce the highest minLos found across all occupied nights', async () => {
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-min-los-boundary',
+      name: 'Minimum Stay Boundary Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [
+        {
+          startDate: '2026-04-10',
+          endDate: '2026-04-10',
+          price: 100,
+          stopSell: false,
+          cta: false,
+          ctd: false,
+          minLos: 1,
+        },
+        {
+          startDate: '2026-04-11',
+          endDate: '2026-04-11',
+          price: 100,
+          stopSell: false,
+          cta: false,
+          ctd: false,
+          minLos: 4,
+        },
+      ],
+    }]);
+
+    const res = await GET(new Request(
+      'http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-12&adults=2'
+    ));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'min_stay_required', minLos: 4 });
+  });
+
+  it('should return 400 for invalid date range (checkIn equals checkOut)', async () => {
     const checkIn = '2026-02-01';
     const checkOut = '2026-02-01'; // Same day = 0 nights
     const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0`);
 
     const res = await GET(req);
 
-    // API should validate and return 400 for 0 nights
     expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'invalid_date_range' });
   });
+
+  it('should exclude a room when arrival is closed by CTA', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-12&adults=2');
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-cta',
+      name: 'CTA Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [{
+        startDate: '2026-04-10',
+        endDate: '2026-04-10',
+        price: 100,
+        minLos: 1,
+        stopSell: false,
+        cta: true,
+        ctd: false,
+      }],
+    }]);
+
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual([]);
+  });
+
+  it('should exclude a room when departure is closed by CTD', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-12&adults=2');
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-ctd',
+      name: 'CTD Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [{
+        startDate: '2026-04-12',
+        endDate: '2026-04-12',
+        price: 100,
+        minLos: 1,
+        stopSell: false,
+        cta: false,
+        ctd: true,
+      }],
+    }]);
+
+    const res = await GET(req);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual([]);
+  });
+
+  it('should return the required minimum stay when every room fails minLos', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-04-10&checkOut=2026-04-11&adults=2');
+
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-min-los',
+      name: 'Minimum Stay Room',
+      basePrice: 100,
+      maxGuests: 2,
+      totalUnits: 2,
+      photos: [],
+      rates: [{
+        startDate: '2026-04-10',
+        endDate: '2026-04-10',
+        price: 100,
+        minLos: 3,
+        stopSell: false,
+        cta: false,
+        ctd: false,
+      }],
+    }]);
+
+    const res = await GET(req);
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'min_stay_required', minLos: 3 });
+  });
+
   it('should decrement manual inventory when a new booking occupies the day', async () => {
     const req = new Request('http://localhost/api/availability?checkIn=2026-03-08&checkOut=2026-03-09&adults=2&children=0');
 

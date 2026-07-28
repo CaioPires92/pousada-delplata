@@ -18,8 +18,12 @@
 - `docs/product/CRM_AI_PRD.md`: especificação atual do CRM com IA e WhatsApp oficial da Meta.
 - `docs/product/CRM_AI_PHASES_TODO.md`: fases, regras de negócio, testes e microtarefas do CRM.
 - `docs/product/CRM_PHASE_0_BASELINE.md`: baseline técnico e gates iniciais.
+- `docs/product/CRM_PHASE_0_SECURITY_AUDIT.md`: inventário seguro de bancos, backups e arquivos de ambiente.
+- `docs/product/CRM_PHASE_1_BASELINE.md`: contrato observado de disponibilidade antes da extração do serviço único.
+- `docs/ops/CRM_ROLLBACK_RUNBOOK.md`: rollback local, GitHub, Vercel, Turso e migração Meta.
 - `docs/TURSO_COUPONS_SQL.md`: notas de SQL/Turso.
 
 ## Historico
 
 - `docs/root-legacy/`: documentacao antiga preservada.
+- `docs/archive/crm-legacy/`: SPECs e SDDs anteriores do CRM, preservados apenas para consulta histórica.

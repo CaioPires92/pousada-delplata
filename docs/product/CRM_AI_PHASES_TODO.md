@@ -36,15 +36,15 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F0.01 Criar tag Git do baseline e registrar commit/ambiente.
-- [ ] F0.02 Inventariar arquivos `.env`, bancos, backups, zips e segredos versionados.
+- [x] F0.01 Criar tag Git local do baseline e registrar commit/ambiente.
+- [x] F0.02 Inventariar arquivos `.env`, bancos, backups, zips e segredos versionados.
 - [ ] F0.03 Remover segredos do Git de forma planejada e rotacioná-los quando necessário.
-- [ ] F0.04 Separar testes CRM, motor, WhatsApp e UI em scripts independentes.
-- [ ] F0.05 Corrigir suíte que excede timeout, identificando o teste responsável.
-- [ ] F0.06 Registrar tempos de typecheck, testes e rotas críticas.
-- [ ] F0.07 Criar banco isolado por execução de teste.
-- [ ] F0.08 Criar comando único de CI para o gate mínimo.
-- [ ] F0.09 Documentar rollback local e de produção.
+- [x] F0.04 Separar testes CRM, motor, WhatsApp e UI em scripts independentes.
+- [x] F0.05 Corrigir suíte que excede timeout, identificando o teste responsável.
+- [x] F0.06 Registrar tempos de typecheck e testes do gate CRM.
+- [x] F0.07 Criar banco isolado por execução da suíte CRM.
+- [x] F0.08 Criar gates separados de CI para typecheck, CRM, Mapa, reservas e UI.
+- [x] F0.09 Documentar rollback local, GitHub, Vercel, Turso e troca Meta/Evolution.
 
 ### Testes/gate
 
@@ -71,8 +71,8 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F1.01 Caracterizar `/api/availability` com testes das regras atuais.
-- [ ] F1.02 Testar mínimo de noites, `stopSell`, CTA e CTD isoladamente.
+- [x] F1.01 Caracterizar `/api/availability` com testes das regras atuais.
+- [x] F1.02 Testar mínimo de noites, `stopSell`, CTA e CTD isoladamente.
 - [ ] F1.03 Testar inventário padrão, quatro hóspedes e reservas simultâneas.
 - [ ] F1.04 Testar expiração de reserva `PENDING`.
 - [ ] F1.05 Extrair `AvailabilityQuoteService` sem alterar resultados.
