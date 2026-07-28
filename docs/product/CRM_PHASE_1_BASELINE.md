@@ -105,7 +105,24 @@ Os testes de caracterização confirmam:
 - duração observada do gate: aproximadamente 60 segundos;
 - nenhuma regra de produção foi alterada.
 
+## F1.04 — Expiração de reservas pendentes
+
+Os testes usam relógio controlado para congelar o limite temporal:
+
+- `CONFIRMED` e `PAID` permanecem ativos independentemente da idade;
+- `PENDING` reduz inventário somente quando `createdAt` está dentro do TTL;
+- o TTL padrão é 15 minutos;
+- `PENDING_BOOKING_TTL_MINUTES` permite configurar o período;
+- uma reserva criada antes do instante limite deixa de reduzir inventário.
+
+### Evidência
+
+- testes direcionados de availability: 30 aprovados;
+- gate completo do Mapa: 7 arquivos e 65 testes aprovados;
+- duração observada do gate: aproximadamente 65 segundos;
+- nenhuma regra de produção foi alterada.
+
 ## Próxima microtarefa
 
-F1.04 deve caracterizar o limite temporal de reservas `PENDING`, garantindo que
-somente reservas ainda válidas reduzam o inventário.
+F1.05 deve extrair o cálculo atual para `AvailabilityQuoteService`, preservando
+os resultados congelados pelas microtarefas F1.01–F1.04.

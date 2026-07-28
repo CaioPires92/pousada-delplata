@@ -962,5 +962,95 @@ describe('Availability API - Pricing Logic', () => {
     expect(data).toHaveLength(1);
     expect(data[0].remainingUnits).toBe(2);
   });
+
+  it('should hold inventory only for PENDING bookings created within the TTL', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-10T12:00:00.000Z'));
+    const previousTtl = process.env.PENDING_BOOKING_TTL_MINUTES;
+    process.env.PENDING_BOOKING_TTL_MINUTES = '20';
+
+    try {
+      (prisma.roomType.findMany as any).mockResolvedValue([{
+        id: 'room-pending-ttl',
+        name: 'Pending TTL Room',
+        basePrice: 100,
+        maxGuests: 2,
+        totalUnits: 2,
+        photos: [],
+        rates: [],
+      }]);
+      (prisma.booking.findMany as any).mockResolvedValue([{
+        checkIn: new Date('2026-05-10T00:00:00.000Z'),
+        checkOut: new Date('2026-05-11T00:00:00.000Z'),
+        adults: 2,
+        childrenAges: null,
+      }]);
+
+      const res = await GET(new Request(
+        'http://localhost/api/availability?checkIn=2026-05-10&checkOut=2026-05-11&adults=2'
+      ));
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data[0].remainingUnits).toBe(1);
+      expect(prisma.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { status: { in: ['CONFIRMED', 'PAID'] } },
+            {
+              status: 'PENDING',
+              createdAt: { gte: new Date('2026-05-10T11:40:00.000Z') },
+            },
+          ],
+        }),
+      }));
+    } finally {
+      if (previousTtl === undefined) {
+        delete process.env.PENDING_BOOKING_TTL_MINUTES;
+      } else {
+        process.env.PENDING_BOOKING_TTL_MINUTES = previousTtl;
+      }
+      vi.useRealTimers();
+    }
+  });
+
+  it('should leave inventory available when an expired PENDING booking is filtered out', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-10T12:00:00.000Z'));
+
+    try {
+      (prisma.roomType.findMany as any).mockResolvedValue([{
+        id: 'room-expired-pending',
+        name: 'Expired Pending Room',
+        basePrice: 100,
+        maxGuests: 2,
+        totalUnits: 1,
+        photos: [],
+        rates: [],
+      }]);
+      (prisma.booking.findMany as any).mockImplementation(async ({ where }: any) => {
+        const pendingCreatedAt = new Date('2026-05-10T11:44:59.000Z');
+        return pendingCreatedAt >= where.OR[1].createdAt.gte
+          ? [{
+              checkIn: new Date('2026-05-10T00:00:00.000Z'),
+              checkOut: new Date('2026-05-11T00:00:00.000Z'),
+              adults: 2,
+              childrenAges: null,
+            }]
+          : [];
+      });
+
+      const res = await GET(new Request(
+        'http://localhost/api/availability?checkIn=2026-05-10&checkOut=2026-05-11&adults=2'
+      ));
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data).toHaveLength(1);
+      expect(data[0].remainingUnits).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
