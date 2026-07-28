@@ -281,7 +281,27 @@ O breaker está no ponto compartilhado do worker: protege Evolution enquanto ela
 - typecheck aprovado;
 - gate CRM: 31 arquivos e 138 testes aprovados.
 
+## F2.12 — Variáveis Meta sanitizadas
+
+O `.env.example` contém, uma única vez e sem valor:
+
+- `META_WHATSAPP_ACCESS_TOKEN`;
+- `META_WHATSAPP_APP_SECRET`;
+- `META_WHATSAPP_VERIFY_TOKEN`;
+- `META_WHATSAPP_PHONE_NUMBER_ID`;
+- `META_WHATSAPP_BUSINESS_ACCOUNT_ID`;
+- `META_WHATSAPP_GRAPH_API_VERSION`.
+
+O padrão `WHATSAPP_PROVIDER=evolution` mantém a migração desligada até a troca
+explícita por feature flag. Um teste de contrato impede a remoção, duplicação
+ou inclusão acidental de valores reais nessas variáveis.
+
+### Evidência
+
+- 2 testes direcionados aprovados;
+- typecheck aprovado;
+- gate CRM: 32 arquivos e 140 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.12 deve confirmar todas as variáveis Meta no `.env.example`, sem valores
-reais.
+F2.13 deve criar o health check do provedor Meta.
