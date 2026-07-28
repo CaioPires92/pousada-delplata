@@ -77,7 +77,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F1.04 Testar expiração de reserva `PENDING`.
 - [x] F1.05 Extrair `AvailabilityQuoteService` sem alterar resultados.
 - [x] F1.06 Fazer `/api/availability` chamar o serviço extraído.
-- [ ] F1.07 Fazer `/api/crm/quote` chamar exatamente o mesmo serviço.
+- [x] F1.07 Fazer `/api/crm/quote` chamar exatamente o mesmo serviço.
 - [ ] F1.08 Adicionar `quoteId`, `calculatedAt`, `expiresAt` e assinatura/hash dos dados.
 - [ ] F1.09 Impedir envio de cotação expirada.
 - [ ] F1.10 Criar teste de contrato comparando site e CRM para a mesma entrada.

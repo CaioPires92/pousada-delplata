@@ -168,7 +168,26 @@ A rota mantém somente responsabilidades HTTP e específicas do canal público:
 - gate completo do Mapa: 7 arquivos e 65 testes aprovados;
 - o arquivo da rota deixou de conter fórmulas de disponibilidade e preço.
 
+## F1.07 — CRM usando o mesmo serviço
+
+`/api/crm/quote` importa e chama diretamente
+`src/lib/availability/quote-service.ts`, o mesmo módulo utilizado por
+`/api/availability`.
+
+O teste da rota CRM garante que:
+
+- a entrada validada é delegada ao serviço compartilhado;
+- o CRM não recalcula preço ou inventário;
+- o resultado é associado à conversa;
+- o evento `QuoteRequested` registra sucesso, quantidade de opções ou erro.
+
+### Evidência
+
+- testes direcionados do serviço e da rota CRM: 2 arquivos e 9 testes aprovados;
+- busca no código não encontra mais o antigo serviço sob `src/lib/crm`;
+- site e CRM importam `queryAvailabilityQuote` do mesmo arquivo.
+
 ## Próxima microtarefa
 
-F1.07 deve verificar e congelar que `/api/crm/quote` chama exatamente
-`src/lib/availability/quote-service.ts`, o mesmo serviço usado pela rota pública.
+F1.08 deve adicionar identidade, horário de cálculo, validade e assinatura/hash
+determinístico aos dados da cotação.

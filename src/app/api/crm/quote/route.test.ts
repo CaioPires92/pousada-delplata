@@ -45,7 +45,7 @@ describe("POST /api/crm/quote", () => {
     vi.mocked(recordCrmEvent).mockResolvedValue(null as any);
   });
 
-  it("returns a quote and records QuoteRequested", async () => {
+  it("delegates the CRM quote to the shared availability service and records QuoteRequested", async () => {
     vi.mocked(queryAvailabilityQuote).mockResolvedValue({
       ok: true,
       checkin: "2026-06-15",
