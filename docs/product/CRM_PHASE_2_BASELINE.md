@@ -72,7 +72,29 @@ permanece separado e inalterado.
 - typecheck aprovado;
 - gate CRM: 24 arquivos e 85 testes aprovados.
 
+## F2.04 — Assinatura do webhook Meta
+
+`POST /api/whatsapp/meta/webhook` lê o corpo como texto e valida
+`X-Hub-Signature-256` com HMAC SHA-256 e `META_WHATSAPP_APP_SECRET` antes de
+interpretar o JSON.
+
+A validação:
+
+- exige o prefixo `sha256=` e exatamente 64 caracteres hexadecimais;
+- calcula o HMAC sobre os bytes do corpo recebido;
+- compara os digests com `timingSafeEqual`;
+- responde `401` para assinatura ausente, malformada ou incorreta;
+- falha fechada com `503` quando o segredo não está configurado;
+- somente após autenticar tenta interpretar o JSON.
+
+### Evidência
+
+- 13 testes direcionados aprovados;
+- um caso com JSON inválido e assinatura inválida comprova a ordem da proteção;
+- typecheck aprovado;
+- gate CRM: 24 arquivos e 93 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.04 deve validar a assinatura `X-Hub-Signature-256` sobre o corpo bruto antes
-de aceitar qualquer webhook POST da Meta.
+F2.05 deve transformar as fixtures Meta em eventos normalizados de texto,
+botão, lista, imagem, documento e status.

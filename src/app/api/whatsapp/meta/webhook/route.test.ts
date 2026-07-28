@@ -1,5 +1,6 @@
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 function verificationRequest(params: Record<string, string>) {
   const url = new URL("http://localhost/api/whatsapp/meta/webhook");
@@ -9,13 +10,27 @@ function verificationRequest(params: Record<string, string>) {
   return new Request(url);
 }
 
+function signatureFor(body: string, secret = "synthetic-app-secret") {
+  return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+}
+
+function webhookRequest(body: string, signature?: string) {
+  return new Request("http://localhost/api/whatsapp/meta/webhook", {
+    method: "POST",
+    headers: signature ? { "x-hub-signature-256": signature } : undefined,
+    body,
+  });
+}
+
 describe("Meta webhook verification", () => {
   beforeEach(() => {
     process.env.META_WHATSAPP_VERIFY_TOKEN = "synthetic-verification-token";
+    process.env.META_WHATSAPP_APP_SECRET = "synthetic-app-secret";
   });
 
   afterEach(() => {
     delete process.env.META_WHATSAPP_VERIFY_TOKEN;
+    delete process.env.META_WHATSAPP_APP_SECRET;
   });
 
   it("returns the exact challenge for a valid subscription request", async () => {
@@ -68,6 +83,62 @@ describe("Meta webhook verification", () => {
     expect(await response.json()).toEqual({
       ok: false,
       error: "meta_webhook_not_configured",
+    });
+  });
+
+  it("accepts a webhook only when the signature matches the exact raw body", async () => {
+    const body = JSON.stringify({ object: "whatsapp_business_account", entry: [] });
+    const response = await POST(webhookRequest(body, signatureFor(body)));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it.each([
+    ["missing signature", undefined],
+    ["malformed signature", "sha256=not-hex"],
+    ["signature from another body", signatureFor('{"different":true}')],
+    ["signature from another secret", signatureFor('{"ok":true}', "wrong-secret")],
+  ])("rejects %s", async (_name, signature) => {
+    const response = await POST(webhookRequest('{"ok":true}', signature));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "invalid_meta_webhook_signature",
+    });
+  });
+
+  it("validates the signature before attempting to parse the body", async () => {
+    const response = await POST(webhookRequest("{invalid-json", "sha256=not-hex"));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "invalid_meta_webhook_signature",
+    });
+  });
+
+  it("rejects malformed JSON only after a valid signature", async () => {
+    const body = "{invalid-json";
+    const response = await POST(webhookRequest(body, signatureFor(body)));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "invalid_meta_webhook_payload",
+    });
+  });
+
+  it("fails closed when the Meta app secret is not configured", async () => {
+    delete process.env.META_WHATSAPP_APP_SECRET;
+    const body = JSON.stringify({ object: "whatsapp_business_account", entry: [] });
+    const response = await POST(webhookRequest(body, signatureFor(body)));
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: "meta_webhook_signature_not_configured",
     });
   });
 });

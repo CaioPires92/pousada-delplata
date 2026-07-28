@@ -114,7 +114,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F2.01 Definir interface `MessagingProvider` e contratos normalizados.
 - [x] F2.02 Criar fixtures sanitizadas de webhook Meta.
 - [x] F2.03 Implementar desafio de verificação do webhook.
-- [ ] F2.04 Validar assinatura do payload antes de processar.
+- [x] F2.04 Validar assinatura do payload antes de processar.
 - [ ] F2.05 Normalizar texto, botão, lista, imagem, documento e evento de status.
 - [ ] F2.06 Deduplicar por ID externo e tipo de evento.
 - [ ] F2.07 Implementar envio de texto pela Cloud API.
