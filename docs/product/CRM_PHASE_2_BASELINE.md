@@ -147,7 +147,35 @@ banco continuam interrompendo a operação.
 - typecheck aprovado;
 - gate CRM: 27 arquivos e 108 testes aprovados.
 
+## F2.07 — Envio de texto pela Cloud API
+
+`MetaMessagingProvider` implementa o contrato comum de mensageria e envia texto
+para `/{phone-number-id}/messages`.
+
+O envio inclui:
+
+- autenticação Bearer somente no servidor;
+- `messaging_product=whatsapp`;
+- destinatário individual;
+- texto com preview de URL desabilitado;
+- contexto opcional para resposta;
+- captura do `wamid` retornado pela Meta.
+
+A versão da Graph API é obrigatória em
+`META_WHATSAPP_GRAPH_API_VERSION`, evitando uma versão implícita no código.
+Erros retornam apenas categoria e status HTTP controlados, sem copiar resposta
+do provedor ou token. Templates permanecem bloqueados até F2.08.
+
+O provedor foi implementado, mas ainda não foi conectado aos fluxos ativos:
+Evolution continua sendo o padrão até a troca explícita por feature flag.
+
+### Evidência
+
+- 8 testes direcionados aprovados, sem chamada de rede real;
+- typecheck aprovado;
+- gate CRM: 28 arquivos e 116 testes aprovados.
+
 ## Próxima microtarefa
 
-F2.07 deve implementar o envio de texto pela Cloud API usando o contrato
-`MessagingProvider`, ainda sem alterar o provedor principal.
+F2.08 deve implementar envio de template aprovado com nome, idioma e
+parâmetros tipados.
