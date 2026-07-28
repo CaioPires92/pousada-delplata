@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isQuoteExpired,
   parseFlowDataJson,
   promptForFlowStep,
   shouldExpireQuoteFlow,
@@ -32,5 +33,15 @@ describe("quoteFlow", () => {
         now
       )
     ).toBe(true);
+  });
+
+  it("blocks missing, invalid and expired quotes at the send boundary", () => {
+    const now = new Date("2026-05-13T15:00:00.000Z");
+
+    expect(isQuoteExpired(undefined, now)).toBe(true);
+    expect(isQuoteExpired("invalid", now)).toBe(true);
+    expect(isQuoteExpired("2026-05-13T14:59:59.999Z", now)).toBe(true);
+    expect(isQuoteExpired("2026-05-13T15:00:00.000Z", now)).toBe(true);
+    expect(isQuoteExpired("2026-05-13T15:00:00.001Z", now)).toBe(false);
   });
 });

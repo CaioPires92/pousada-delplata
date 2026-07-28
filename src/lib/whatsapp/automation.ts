@@ -4,6 +4,7 @@ import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 import {
+    isQuoteExpired,
     parseFlowDataJson,
     promptForFlowStep,
     shouldExpireQuoteFlow,
@@ -343,6 +344,33 @@ export async function processAutoResponse(conversationId: string, phone: string,
             }
 
             const quote = quoteBody.quote;
+            if (isQuoteExpired(quote.expiresAt, new Date())) {
+                await recordCrmEvent({
+                    action: "QuoteExpired",
+                    contactId: conversation.contactId,
+                    conversationId: conversation.id,
+                    metadata: {
+                        quoteId: quote.quoteId ?? null,
+                        calculatedAt: quote.calculatedAt ?? null,
+                        expiresAt: quote.expiresAt ?? null,
+                        reason: "expired_before_send",
+                    },
+                });
+
+                await prisma.conversation.update({
+                    where: { id: conversation.id },
+                    data: {
+                        flowStep: "ready_to_quote",
+                        flowDataJson: JSON.stringify({
+                            ...flowData,
+                            quoteLockUntil: null,
+                        }),
+                        lastAutomationAt: null,
+                    },
+                });
+                return null;
+            }
+
             const quoteText = buildQuoteReplyText({
                 checkin: quote.checkin,
                 checkout: quote.checkout,

@@ -213,6 +213,34 @@ pública expõe os mesmos valores nos cabeçalhos `x-quote-*`.
 - gate CRM: 20 arquivos e 59 testes aprovados;
 - gate do Mapa: 7 arquivos e 65 testes aprovados.
 
+## F1.09 — Bloqueio de envio após expiração
+
+O fluxo automático de WhatsApp valida `expiresAt` imediatamente antes de montar
+e enviar a mensagem de cotação.
+
+A validação é fechada por padrão:
+
+- validade ausente bloqueia;
+- data malformada bloqueia;
+- `expiresAt` anterior ao relógio atual bloqueia;
+- o instante exato de `expiresAt` já é considerado expirado;
+- somente uma validade estritamente futura permite avançar.
+
+Quando bloqueada, a automação:
+
+- não chama `SEND_WHATSAPP_MESSAGE` com o preço vencido;
+- registra o evento `QuoteExpired` com os metadados disponíveis;
+- mantém a conversa em `ready_to_quote`;
+- libera o lock para permitir um novo cálculo.
+
+### Evidência
+
+- teste unitário cobre ausência, formato inválido e os dois lados do limite;
+- testes direcionados do fluxo: 5 aprovados;
+- typecheck aprovado;
+- gate CRM: 20 arquivos e 60 testes aprovados.
+
 ## Próxima microtarefa
 
-F1.09 deve impedir que uma ação de envio aceite uma cotação após `expiresAt`.
+F1.10 deve criar um teste de contrato que execute site e CRM para a mesma entrada
+e compare quartos, totais e restrições.
