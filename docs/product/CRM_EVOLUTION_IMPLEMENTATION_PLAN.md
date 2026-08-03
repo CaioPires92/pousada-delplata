@@ -22,7 +22,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
   texto, erros sanitizados e testes de contrato.
 - [x] E2 Normalizar webhooks Evolution no contrato comum, incluindo mensagens e
   estados de entrega, com fixtures sanitizadas e testes.
-- [ ] E3 Criar seleção central por `WHATSAPP_PROVIDER`, mantendo Meta isolada e
+- [x] E3 Criar seleção central por `WHATSAPP_PROVIDER`, mantendo Meta isolada e
   Evolution como padrão explícito.
 - [ ] E4 Migrar envio humano e worker de automação para o provider central,
   preservando pausa, auditoria, circuit breaker e dead-letter.
