@@ -18,7 +18,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
 
 ## Incrementos de implementação
 
-- [ ] E1 Criar configuração tipada e `EvolutionMessagingProvider` com envio de
+- [x] E1 Criar configuração tipada e `EvolutionMessagingProvider` com envio de
   texto, erros sanitizados e testes de contrato.
 - [ ] E2 Normalizar webhooks Evolution no contrato comum, incluindo mensagens e
   estados de entrega, com fixtures sanitizadas e testes.
