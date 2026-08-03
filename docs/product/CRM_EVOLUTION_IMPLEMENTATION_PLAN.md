@@ -33,7 +33,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
   payload, logs sem PII/segredos e documentação das variáveis.
 - [x] E8 Completar operações de instância: criar, conectar/QR, estado, webhook e
   exclusão segura, com testes sem rede real.
-- [ ] E9 Preparar E2E opt-in Evolution (envio + evidência do webhook), sem exigir
+- [x] E9 Preparar E2E opt-in Evolution (envio + evidência do webhook), sem exigir
   credenciais reais nos testes automatizados.
 - [ ] E10 Executar typecheck, suíte CRM, testes afetados e build; corrigir todas
   as regressões atribuíveis à integração.
