@@ -3,16 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/prisma";
 import { POST } from "./route";
 
-vi.mock("@/lib/whatsapp/evolution", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/whatsapp/evolution")>("@/lib/whatsapp/evolution");
-
-  return {
-    ...actual,
-    sendEvolutionTextWithRetry: vi.fn(),
-  };
+vi.mock("@/lib/messaging/provider-factory", () => {
+  return { createMessagingProvider: vi.fn() };
 });
 
-import { sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
+import { createMessagingProvider } from "@/lib/messaging/provider-factory";
+
+const send = vi.fn();
 
 function request(body: unknown) {
   return new Request("http://localhost/api/whatsapp/send", {
@@ -39,7 +36,12 @@ async function cleanupTestData() {
 
 describe("manual WhatsApp send hardening", () => {
   beforeEach(async () => {
-    vi.mocked(sendEvolutionTextWithRetry).mockReset();
+    send.mockReset();
+    vi.mocked(createMessagingProvider).mockReturnValue({
+      name: "evolution",
+      normalizeWebhook: vi.fn(),
+      send,
+    });
     await cleanupTestData();
   });
 
@@ -48,7 +50,7 @@ describe("manual WhatsApp send hardening", () => {
   });
 
   it("logs Evolution send failures and does not create a message", async () => {
-    vi.mocked(sendEvolutionTextWithRetry).mockRejectedValue(new Error("evolution offline"));
+    send.mockRejectedValue(Object.assign(new Error("evolution offline"), { code: "request_failed" }));
 
     const contact = await prisma.contact.create({
       data: {
@@ -72,7 +74,7 @@ describe("manual WhatsApp send hardening", () => {
     const body = await response.json();
 
     expect(response.status).toBe(502);
-    expect(body).toEqual({ ok: false, error: "evolution_send_failed" });
+    expect(body).toEqual({ ok: false, error: "messaging_send_failed" });
 
     const messages = await prisma.message.findMany({
       where: { conversationId: conversation.id },
@@ -87,6 +89,32 @@ describe("manual WhatsApp send hardening", () => {
 
     expect(messages).toHaveLength(0);
     expect(failureLog).not.toBeNull();
-    expect(failureLog?.metadataJson).toContain("evolution offline");
+    expect(failureLog?.metadataJson).toContain("request_failed");
+    expect(failureLog?.metadataJson).not.toContain("evolution offline");
+  });
+
+  it("persists a successful provider result without its raw response", async () => {
+    send.mockResolvedValue({
+      externalMessageId: "EVO_MANUAL_001",
+      acceptedAt: "2026-08-03T19:00:00.000Z",
+      status: "sent",
+    });
+    const contact = await prisma.contact.create({
+      data: { name: "Teste envio sucesso", phone: "551188880002", source: "test-whatsapp-send" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, channel: "whatsapp", status: "open" },
+    });
+
+    const response = await POST(request({ conversationId: conversation.id, text: "Mensagem manual" }));
+    expect(response.status).toBe(200);
+    expect(send).toHaveBeenCalledWith({
+      kind: "text",
+      recipientId: "551188880002",
+      text: "Mensagem manual",
+    });
+    const message = await prisma.message.findFirst({ where: { externalMessageId: "EVO_MANUAL_001" } });
+    expect(message?.metadataJson).toContain('"provider":"evolution"');
+    expect(message?.metadataJson).not.toContain("Mensagem manual");
   });
 });

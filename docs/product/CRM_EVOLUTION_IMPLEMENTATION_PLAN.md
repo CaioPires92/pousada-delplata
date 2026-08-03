@@ -24,7 +24,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
   estados de entrega, com fixtures sanitizadas e testes.
 - [x] E3 Criar seleção central por `WHATSAPP_PROVIDER`, mantendo Meta isolada e
   Evolution como padrão explícito.
-- [ ] E4 Migrar envio humano e worker de automação para o provider central,
+- [x] E4 Migrar envio humano e worker de automação para o provider central,
   preservando pausa, auditoria, circuit breaker e dead-letter.
 - [ ] E5 Migrar o webhook Evolution para persistência/deduplicação compartilhada
   e atualizar estados de entrega sem regressão no fluxo CRM existente.

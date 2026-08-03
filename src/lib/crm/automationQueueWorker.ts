@@ -5,7 +5,7 @@ import { processNextAutomationJobForConversation } from "@/lib/crm/automationQue
 import { crmLog } from "@/lib/crm/logger";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { CircuitBreaker } from "@/lib/messaging/circuit-breaker";
-import { sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
+import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 
 const messagingCircuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -17,20 +17,6 @@ const messagingCircuitBreaker = new CircuitBreaker({
     && error.retryable === false
   ),
 });
-
-function extractEvolutionMessageId(response: unknown): string | null {
-  if (!response || typeof response !== "object" || Array.isArray(response)) return null;
-  const root = response as Record<string, unknown>;
-  const data = root.data && typeof root.data === "object" ? root.data as Record<string, unknown> : undefined;
-  const key = root.key && typeof root.key === "object" ? root.key as Record<string, unknown> : data?.key && typeof data.key === "object" ? data.key as Record<string, unknown> : undefined;
-
-  const candidates = [root.id, root.messageId, data?.id, data?.messageId, key?.id];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
-  }
-
-  return null;
-}
 
 export async function runAutomationQueueWorker(input?: { maxConversations?: number }) {
   const maxConversations = Math.max(1, input?.maxConversations ?? 20);
@@ -63,9 +49,11 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
         throw new Error("invalid_queue_payload");
       }
 
-      const evolutionResponse = await messagingCircuitBreaker.execute(() =>
-        sendEvolutionTextWithRetry({
-          number: job.payload.target!,
+      const provider = createMessagingProvider();
+      const sendResult = await messagingCircuitBreaker.execute(() =>
+        provider.send({
+          kind: "text",
+          recipientId: job.payload.target!,
           text: job.payload.text!,
         })
       );
@@ -74,7 +62,7 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
       const message = await prisma.message.create({
         data: {
           conversationId: conversation.id,
-          externalMessageId: extractEvolutionMessageId(evolutionResponse),
+          externalMessageId: sendResult.externalMessageId,
           senderType: "bot",
           content: job.payload.text,
           messageType: "text",
@@ -82,7 +70,9 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
           metadataJson: JSON.stringify({
             actorType: "system",
             queueJobId: job.id,
-            evolutionResponse,
+            provider: provider.name,
+            acceptedAt: sendResult.acceptedAt,
+            status: sendResult.status,
           }),
         },
       });

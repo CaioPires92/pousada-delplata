@@ -3,7 +3,8 @@ import prisma from "@/lib/prisma";
 import { createAutomationPausedUntil, DEFAULT_AUTOMATION_PAUSE_MINUTES } from "@/lib/crm/automationPause";
 import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
-import { resolveEvolutionSendTarget, sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
+import { createMessagingProvider } from "@/lib/messaging/provider-factory";
+import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -28,23 +29,6 @@ function firstString(...values: unknown[]): string | undefined {
     }
 
     return undefined;
-}
-
-function extractEvolutionMessageId(response: unknown): string | null {
-    const root = asRecord(response);
-    const data = asRecord(root?.data);
-    const key = asRecord(root?.key) ?? asRecord(data?.key);
-    const message = asRecord(root?.message) ?? asRecord(data?.message);
-    const messageKey = asRecord(message?.key);
-
-    return firstString(
-        root?.id,
-        root?.messageId,
-        data?.id,
-        data?.messageId,
-        key?.id,
-        messageKey?.id,
-    ) ?? null;
 }
 
 export async function POST(request: Request) {
@@ -91,14 +75,20 @@ export async function POST(request: Request) {
             );
         }
 
-        let evolutionResponse: unknown;
+        let provider;
+        let sendResult;
         try {
-            evolutionResponse = await sendEvolutionTextWithRetry({
-                number: target,
+            provider = createMessagingProvider();
+            sendResult = await provider.send({
+                kind: "text",
+                recipientId: target,
                 text,
             });
         } catch (error) {
-            console.error("Erro ao enviar mensagem via Evolution:", error);
+            console.error("Erro ao enviar mensagem via provider WhatsApp", {
+                provider: process.env.WHATSAPP_PROVIDER || "evolution",
+                errorCode: asRecord(error)?.code ?? "unknown_error",
+            });
             await recordCrmEvent({
                 action: "WhatsAppSendFailed",
                 contactId: conversation.contactId,
@@ -106,11 +96,12 @@ export async function POST(request: Request) {
                 metadata: {
                     target,
                     textLength: text.length,
-                    error: error instanceof Error ? error.message : "unknown_error",
+                    provider: process.env.WHATSAPP_PROVIDER || "evolution",
+                    errorCode: asRecord(error)?.code ?? "unknown_error",
                 },
             });
             return NextResponse.json(
-                { ok: false, error: "evolution_send_failed" },
+                { ok: false, error: "messaging_send_failed" },
                 { status: 502 }
             );
         }
@@ -122,11 +113,15 @@ export async function POST(request: Request) {
             const message = await tx.message.create({
                 data: {
                     conversationId: conversation.id,
-                    externalMessageId: extractEvolutionMessageId(evolutionResponse),
+                    externalMessageId: sendResult.externalMessageId,
                     senderType: "human",
                     content: text,
                     messageType: "text",
-                    metadataJson: JSON.stringify(evolutionResponse),
+                    metadataJson: JSON.stringify({
+                        provider: provider.name,
+                        acceptedAt: sendResult.acceptedAt,
+                        status: sendResult.status,
+                    }),
                     sentAt: now,
                 },
             });
