@@ -20,7 +20,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
 
 - [x] E1 Criar configuração tipada e `EvolutionMessagingProvider` com envio de
   texto, erros sanitizados e testes de contrato.
-- [ ] E2 Normalizar webhooks Evolution no contrato comum, incluindo mensagens e
+- [x] E2 Normalizar webhooks Evolution no contrato comum, incluindo mensagens e
   estados de entrega, com fixtures sanitizadas e testes.
 - [ ] E3 Criar seleção central por `WHATSAPP_PROVIDER`, mantendo Meta isolada e
   Evolution como padrão explícito.

@@ -4,6 +4,7 @@ import type {
   OutboundMessage,
   SendMessageResult,
 } from "./provider";
+import { normalizeEvolutionWebhook } from "./evolution-webhook-normalizer";
 
 type FetchLike = typeof fetch;
 type Sleep = (delayMs: number) => Promise<void>;
@@ -87,8 +88,8 @@ export class EvolutionMessagingProvider implements MessagingProvider {
     private readonly retryOptions: EvolutionMessagingRetryOptions = {},
   ) {}
 
-  async normalizeWebhook(_payload: unknown): Promise<ReadonlyArray<NormalizedMessagingEvent>> {
-    return [];
+  async normalizeWebhook(payload: unknown): Promise<ReadonlyArray<NormalizedMessagingEvent>> {
+    return normalizeEvolutionWebhook(payload);
   }
 
   async send(message: OutboundMessage): Promise<SendMessageResult> {
