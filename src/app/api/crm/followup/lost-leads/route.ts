@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { recordCrmEvent } from "@/lib/crm/events";
-import { resolveEvolutionSendTarget, sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
+import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
+import { sendMessagingText } from "@/lib/messaging/send-text";
 
 function getBearerToken(request: Request): string | undefined {
   const authorization = request.headers.get("authorization");
@@ -87,21 +88,21 @@ export async function POST(request: Request) {
     }
 
     if (!dryRun) {
-      const evolutionResponse = await sendEvolutionTextWithRetry({
-        number: target,
-        text: template,
-      });
+      const sendResult = await sendMessagingText(target, template);
 
       await prisma.message.create({
         data: {
           conversationId: card.conversation.id,
+          externalMessageId: sendResult.externalMessageId,
           senderType: "bot",
           content: template,
           messageType: "text",
           sentAt: new Date(),
           metadataJson: JSON.stringify({
             followupType: "lost_lead",
-            evolutionResponse,
+            provider: sendResult.provider,
+            acceptedAt: sendResult.acceptedAt,
+            status: sendResult.status,
           }),
         },
       });

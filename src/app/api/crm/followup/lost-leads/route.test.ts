@@ -14,7 +14,9 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/whatsapp/evolution", () => ({
   resolveEvolutionSendTarget: vi.fn().mockReturnValue("5511999999999@s.whatsapp.net"),
-  sendEvolutionTextWithRetry: vi.fn().mockResolvedValue({ id: "ev-1" }),
+}));
+vi.mock("@/lib/messaging/send-text", () => ({
+  sendMessagingText: vi.fn().mockResolvedValue({ provider: "evolution", externalMessageId: "ev-1", acceptedAt: "2026-08-03T20:00:00.000Z", status: "sent" }),
 }));
 
 vi.mock("@/lib/crm/events", () => ({
