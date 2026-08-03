@@ -4,11 +4,13 @@ import {
   metaMessagingHealthConfigFromEnv,
 } from "@/lib/messaging/meta-health";
 import { GET } from "./route";
+import { checkEvolutionMessagingHealth } from "@/lib/messaging/evolution-health";
 
 vi.mock("@/lib/messaging/meta-health", () => ({
   checkMetaMessagingHealth: vi.fn(),
   metaMessagingHealthConfigFromEnv: vi.fn(),
 }));
+vi.mock("@/lib/messaging/evolution-health", () => ({ checkEvolutionMessagingHealth: vi.fn() }));
 
 const request = (token?: string) => new Request(
   "http://localhost/api/crm/messaging/health",
@@ -21,12 +23,28 @@ describe("GET /api/crm/messaging/health", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.CRM_INTERNAL_API_TOKEN = "synthetic-internal-token";
+    process.env.WHATSAPP_PROVIDER = "meta";
     vi.mocked(metaMessagingHealthConfigFromEnv).mockReturnValue({
       accessToken: "hidden",
       businessAccountId: "waba",
       phoneNumberId: "phone",
       graphApiVersion: "v99.0",
     });
+  });
+
+  it("checks Evolution when it is the active provider", async () => {
+    process.env.WHATSAPP_PROVIDER = "evolution";
+    process.env.EVOLUTION_API_URL = "http://evolution.test";
+    process.env.EVOLUTION_API_KEY = "synthetic-key";
+    process.env.EVOLUTION_INSTANCE_NAME = "delplata-test";
+    vi.mocked(checkEvolutionMessagingHealth).mockResolvedValue({ status: "healthy", connectionState: "open" });
+
+    const response = await GET(request("synthetic-internal-token"));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true, provider: "evolution", status: "healthy", connectionState: "open",
+    });
+    expect(checkMetaMessagingHealth).not.toHaveBeenCalled();
   });
 
   it("rejects unauthenticated requests before checking Meta", async () => {

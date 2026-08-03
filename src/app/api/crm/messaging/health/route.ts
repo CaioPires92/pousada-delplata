@@ -3,6 +3,9 @@ import {
   checkMetaMessagingHealth,
   metaMessagingHealthConfigFromEnv,
 } from "@/lib/messaging/meta-health";
+import { checkEvolutionMessagingHealth } from "@/lib/messaging/evolution-health";
+import { evolutionMessagingConfigFromEnv } from "@/lib/messaging/evolution-provider";
+import { messagingProviderNameFromEnv } from "@/lib/messaging/provider-factory";
 
 function bearerToken(request: Request) {
   const authorization = request.headers.get("authorization");
@@ -19,25 +22,35 @@ export async function GET(request: Request) {
     );
   }
 
-  let config;
+  let provider;
   try {
-    config = metaMessagingHealthConfigFromEnv();
+    provider = messagingProviderNameFromEnv();
   } catch {
     return NextResponse.json(
       {
         ok: false,
-        provider: "meta",
+        provider: "unknown",
         status: "unconfigured",
       },
       { status: 503 },
     );
   }
 
-  const health = await checkMetaMessagingHealth(config);
+  let health;
+  try {
+    health = provider === "evolution"
+      ? await checkEvolutionMessagingHealth(evolutionMessagingConfigFromEnv())
+      : await checkMetaMessagingHealth(metaMessagingHealthConfigFromEnv());
+  } catch {
+    return NextResponse.json(
+      { ok: false, provider, status: "unconfigured" },
+      { status: 503 },
+    );
+  }
   if (health.status === "healthy") {
     return NextResponse.json({
       ok: true,
-      provider: "meta",
+      provider,
       ...health,
     });
   }
@@ -45,7 +58,7 @@ export async function GET(request: Request) {
   return NextResponse.json(
     {
       ok: false,
-      provider: "meta",
+      provider,
       ...health,
     },
     { status: 503 },
