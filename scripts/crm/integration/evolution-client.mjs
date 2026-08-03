@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const command = process.argv[2];
 const cwd = process.cwd();
@@ -13,7 +14,7 @@ function requireEnv(name) {
   return value;
 }
 
-function getConfig() {
+export function getConfig() {
   const apiUrl = requireEnv("EVOLUTION_API_URL").replace(/\/$/, "");
   const apiKey = requireEnv("EVOLUTION_API_KEY");
   const instanceName = requireEnv("EVOLUTION_INSTANCE_NAME");
@@ -44,7 +45,7 @@ function resolveWebhookBaseUrl(rawBaseUrl) {
   }
 }
 
-async function evoFetch(url, init = {}) {
+export async function evoFetch(url, init = {}) {
   const { apiKey } = getConfig();
   const response = await fetch(url, {
     ...init,
@@ -55,13 +56,10 @@ async function evoFetch(url, init = {}) {
     },
   });
 
-  const data = await response.json().catch(() => null);
-
   if (!response.ok) {
-    throw new Error(`Evolution API error ${response.status}: ${JSON.stringify(data)}`);
+    throw new Error(`Evolution API request failed with status ${response.status}`);
   }
-
-  return data;
+  return response.json().catch(() => null);
 }
 
 async function evoFetchAllow404(url, init = {}) {
@@ -75,17 +73,15 @@ async function evoFetchAllow404(url, init = {}) {
     },
   });
 
-  const data = await response.json().catch(() => null);
-
   if (response.status === 404) {
-    return { notFound: true, data };
+    return { notFound: true, data: null };
   }
 
   if (!response.ok) {
-    throw new Error(`Evolution API error ${response.status}: ${JSON.stringify(data)}`);
+    throw new Error(`Evolution API request failed with status ${response.status}`);
   }
 
-  return { notFound: false, data };
+  return { notFound: false, data: await response.json().catch(() => null) };
 }
 
 function renderQrHtml(base64, instanceName) {
@@ -147,26 +143,25 @@ function persistQr(base64, instanceName) {
   console.log(`QR salvo em: ${qrHtmlPath}`);
 }
 
-async function createInstance() {
+export async function createInstance() {
   const { apiUrl, instanceName } = getConfig();
   const data = await evoFetch(`${apiUrl}/instance/create`, {
     method: "POST",
     body: JSON.stringify({
       instanceName,
-      token: instanceName,
       integration: "WHATSAPP-BAILEYS",
       qrcode: true,
     }),
   });
 
-  console.log(JSON.stringify(data, null, 2));
+  console.log(`Instancia ${instanceName} criada.`);
 
   if (data?.qrcode?.base64) {
     persistQr(data.qrcode.base64, instanceName);
   }
 }
 
-async function deleteInstance() {
+export async function deleteInstance() {
   const { apiUrl, instanceName } = getConfig();
   const result = await evoFetchAllow404(`${apiUrl}/instance/delete/${encodeURIComponent(instanceName)}`, {
     method: "DELETE",
@@ -175,26 +170,24 @@ async function deleteInstance() {
     console.log(`Instancia ${instanceName} nao existe na Evolution. Seguindo em frente.`);
     return;
   }
-  console.log(JSON.stringify(result.data, null, 2));
+  console.log(`Instancia ${instanceName} removida.`);
 }
 
-async function connectInstance() {
+export async function connectInstance() {
   const { apiUrl, instanceName } = getConfig();
   const data = await evoFetch(`${apiUrl}/instance/connect/${encodeURIComponent(instanceName)}`);
-  console.log(JSON.stringify(data, null, 2));
-
   const base64 = data?.base64 || data?.qrcode?.base64;
   if (base64) {
     persistQr(base64, instanceName);
   }
 }
 
-async function waitForQr() {
+export async function waitForQr() {
   const { apiUrl, instanceName } = getConfig();
 
   for (let attempt = 1; attempt <= 20; attempt += 1) {
     const data = await evoFetch(`${apiUrl}/instance/connect/${encodeURIComponent(instanceName)}`);
-    console.log(`Tentativa ${attempt}:`, JSON.stringify(data));
+    console.log(`Tentativa ${attempt}: aguardando QR.`);
 
     const base64 = data?.base64 || data?.qrcode?.base64;
     if (base64) {
@@ -208,10 +201,11 @@ async function waitForQr() {
   throw new Error("QR code nao foi gerado a tempo.");
 }
 
-async function setupWebhook() {
+export async function setupWebhook() {
   const { apiUrl, appBaseUrl, instanceName } = getConfig();
   const webhookBaseUrl = resolveWebhookBaseUrl(appBaseUrl);
   const webhookUrl = process.env.CRM_WEBHOOK_URL?.trim() || `${webhookBaseUrl}/api/whatsapp/webhook`;
+  const webhookSecret = requireEnv("EVOLUTION_WEBHOOK_SECRET");
 
   const data = await evoFetch(`${apiUrl}/webhook/set/${encodeURIComponent(instanceName)}`, {
     method: "POST",
@@ -221,13 +215,29 @@ async function setupWebhook() {
         url: webhookUrl,
         byEvents: true,
         base64: false,
+        headers: { "x-evolution-secret": webhookSecret },
         events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE", "SEND_MESSAGE"],
       },
     }),
   });
 
   console.log(`Webhook configurado para ${webhookUrl}`);
-  console.log(JSON.stringify(data, null, 2));
+  return data;
+}
+
+export async function connectionState() {
+  const { apiUrl, instanceName } = getConfig();
+  const data = await evoFetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instanceName)}`);
+  const state = data?.instance?.state || data?.instance?.status || data?.state || data?.status || "unknown";
+  console.log(`Estado da instancia ${instanceName}: ${String(state).slice(0, 50)}`);
+  return state;
+}
+
+export async function findWebhook() {
+  const { apiUrl, instanceName } = getConfig();
+  const data = await evoFetch(`${apiUrl}/webhook/find/${encodeURIComponent(instanceName)}`);
+  console.log(`Webhook da instancia ${instanceName}: ${data?.enabled ? "ativo" : "inativo"}`);
+  return data;
 }
 
 const commands = {
@@ -236,14 +246,18 @@ const commands = {
   "connect-instance": connectInstance,
   "wait-for-qr": waitForQr,
   "setup-webhook": setupWebhook,
+  "connection-state": connectionState,
+  "find-webhook": findWebhook,
 };
 
-if (!command || !commands[command]) {
-  console.error("Uso: node --env-file=.env scripts/crm/integration/evolution-client.mjs <create-instance|delete-instance|connect-instance|wait-for-qr|setup-webhook>");
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (!command || !commands[command]) {
+    console.error("Uso: evolution-client.mjs <create-instance|delete-instance|connect-instance|wait-for-qr|setup-webhook|connection-state|find-webhook>");
+    process.exitCode = 1;
+  } else {
+    commands[command]().catch((error) => {
+      console.error(error instanceof Error ? error.message : "Evolution operation failed");
+      process.exitCode = 1;
+    });
+  }
 }
-
-commands[command]().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});

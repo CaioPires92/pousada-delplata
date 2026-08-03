@@ -31,7 +31,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
 - [x] E6 Implementar health check Evolution protegido e independente da Meta.
 - [x] E7 Endurecer autenticação do webhook, validação de instância, limites de
   payload, logs sem PII/segredos e documentação das variáveis.
-- [ ] E8 Completar operações de instância: criar, conectar/QR, estado, webhook e
+- [x] E8 Completar operações de instância: criar, conectar/QR, estado, webhook e
   exclusão segura, com testes sem rede real.
 - [ ] E9 Preparar E2E opt-in Evolution (envio + evidência do webhook), sem exigir
   credenciais reais nos testes automatizados.
