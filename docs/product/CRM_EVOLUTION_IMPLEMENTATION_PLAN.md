@@ -26,7 +26,7 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
   Evolution como padrão explícito.
 - [x] E4 Migrar envio humano e worker de automação para o provider central,
   preservando pausa, auditoria, circuit breaker e dead-letter.
-- [ ] E5 Migrar o webhook Evolution para persistência/deduplicação compartilhada
+- [x] E5 Migrar o webhook Evolution para persistência/deduplicação compartilhada
   e atualizar estados de entrega sem regressão no fluxo CRM existente.
 - [ ] E6 Implementar health check Evolution protegido e independente da Meta.
 - [ ] E7 Endurecer autenticação do webhook, validação de instância, limites de

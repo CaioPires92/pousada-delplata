@@ -14,7 +14,9 @@ const event: NormalizedMessagingEvent = {
 
 describe("webhook event store database constraint", () => {
   afterEach(async () => {
-    await prisma.messagingWebhookEvent.deleteMany();
+    await prisma.messagingWebhookEvent.deleteMany({
+      where: { provider: "meta", externalEventId: event.externalEventId },
+    });
   });
 
   it("persists one row when the same event arrives concurrently", async () => {
@@ -25,6 +27,8 @@ describe("webhook event store database constraint", () => {
 
     expect(results.reduce((sum, result) => sum + result.acceptedEvents, 0)).toBe(1);
     expect(results.reduce((sum, result) => sum + result.duplicateEvents, 0)).toBe(1);
-    await expect(prisma.messagingWebhookEvent.count()).resolves.toBe(1);
+    await expect(prisma.messagingWebhookEvent.count({
+      where: { provider: "meta", externalEventId: event.externalEventId },
+    })).resolves.toBe(1);
   });
 });

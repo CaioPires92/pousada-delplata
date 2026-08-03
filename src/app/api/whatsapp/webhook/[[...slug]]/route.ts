@@ -13,6 +13,9 @@ import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from '@/lib/crm/pipel
 import { isConversationAutomationActive } from '@/lib/crm/automationPause';
 import { buildQuoteFlowState } from '@/lib/crm/conversationFlow';
 import { applyPipelineAutomationOnIncomingMessage } from '@/lib/crm/pipelineAutomation';
+import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-normalizer';
+import { persistNormalizedWebhookEvents } from '@/lib/messaging/webhook-event-store';
+import { persistMessageDeliveryStatus } from '@/lib/messaging/delivery-status-store';
 
 export const runtime = 'nodejs';
 
@@ -375,12 +378,24 @@ export async function POST(
     return NextResponse.json({ ok: false, reason: 'invalid_payload' }, { status: 400 });
   }
 
+  const normalizedEvents = normalizeEvolutionWebhook(payloadRecord);
+  const persistedWebhookEvents = await persistNormalizedWebhookEvents('evolution', normalizedEvents);
+  const statusEvents = normalizedEvents.filter(event => event.kind === 'status');
+  if (statusEvents.length > 0) {
+    const statusResults = await Promise.all(statusEvents.map(event => persistMessageDeliveryStatus(event)));
+    return NextResponse.json({
+      ok: true,
+      ...persistedWebhookEvents,
+      updatedMessages: statusResults.reduce((total, result) => total + result.matchedMessages, 0),
+    });
+  }
+
   // ETAPA 2 — LOGS DE DEBUG (AUDITORIA)
   console.log("FULL WEBHOOK", JSON.stringify(payloadRecord, null, 2));
 
   if (isMessageStatusUpdate(payloadRecord, eventName)) {
     console.log('--- [WEBHOOK] IGNORADO: ATUALIZAÇÃO DE STATUS DA MENSAGEM ---');
-    return NextResponse.json({ ok: true, ignored: true, reason: 'message_status_update' });
+    return NextResponse.json({ ok: true, ignored: true, reason: 'unsupported_message_status_update' });
   }
 
   let extracted = extractWebhookMessage(payloadRecord);

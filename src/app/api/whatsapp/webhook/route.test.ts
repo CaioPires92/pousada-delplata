@@ -79,6 +79,9 @@ function emptyMessagePayload(id: string, remoteJid: string) {
 }
 
 async function cleanupTestData() {
+  await prisma.messagingWebhookEvent.deleteMany({
+    where: { provider: "evolution", externalMessageId: { startsWith: "test-" } },
+  });
   const contacts = await prisma.contact.findMany({
     where: { source: "whatsapp", name: { startsWith: "Contato" } },
     select: { id: true },
@@ -133,6 +136,10 @@ describe("WhatsApp CRM webhook hardening", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].conversation.contact.phone).toBe("5511999990001");
+    const technicalEvents = await prisma.messagingWebhookEvent.findMany({
+      where: { provider: "evolution", externalMessageId: "test-phone-duplicate" },
+    });
+    expect(technicalEvents).toHaveLength(1);
   });
 
   it("handles two simultaneous deliveries for the same external message id", async () => {
@@ -228,5 +235,38 @@ describe("WhatsApp CRM webhook hardening", () => {
     expect(message?.senderType).toBe("human");
     expect(message?.content).toBe("Resposta direta pelo WhatsApp");
     expect(message?.conversation.contact.phone).toBe("5511999990005");
+  });
+
+  it("persists and correlates Evolution delivery status updates", async () => {
+    const contact = await prisma.contact.create({
+      data: { name: "Contato Status", phone: "5511999990006", source: "whatsapp" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, channel: "whatsapp", status: "open" },
+    });
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        externalMessageId: "test-status-message",
+        senderType: "bot",
+        content: "Mensagem",
+        messageType: "text",
+        sentAt: new Date("2026-08-03T19:59:00.000Z"),
+      },
+    });
+
+    const response = await POST(webhookRequest({
+      event: "messages.update",
+      instance: TEST_INSTANCE,
+      data: {
+        keyId: "test-status-message",
+        status: "DELIVERY_ACK",
+        timestamp: "2026-08-03T20:00:00.000Z",
+      },
+    }), { params: Promise.resolve({ slug: ["messages-update"] }) });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, acceptedEvents: 1, updatedMessages: 1 });
+    const message = await prisma.message.findFirst({ where: { externalMessageId: "test-status-message" } });
+    expect(message?.deliveryStatus).toBe("delivered");
   });
 });
