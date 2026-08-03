@@ -269,4 +269,34 @@ describe("WhatsApp CRM webhook hardening", () => {
     const message = await prisma.message.findFirst({ where: { externalMessageId: "test-status-message" } });
     expect(message?.deliveryStatus).toBe("delivered");
   });
+
+  it("fails closed without a webhook secret in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    delete process.env.EVOLUTION_WEBHOOK_SECRET;
+    try {
+      const response = await POST(webhookRequest(textPayload("test-prod-secret", "5511999990007@s.whatsapp.net")), routeParams());
+      expect(response.status).toBe(401);
+    } finally {
+      vi.unstubAllEnvs();
+      process.env.EVOLUTION_API_URL = "http://evolution.test";
+      process.env.EVOLUTION_API_KEY = "test-key";
+      process.env.EVOLUTION_INSTANCE_NAME = TEST_INSTANCE;
+    }
+  });
+
+  it("rejects a payload for another Evolution instance", async () => {
+    const payload = textPayload("test-wrong-instance", "5511999990008@s.whatsapp.net") as Record<string, unknown>;
+    payload.instance = "another-instance";
+    const response = await POST(webhookRequest(payload), routeParams());
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ ok: false, reason: "invalid_instance" });
+  });
+
+  it("rejects oversized payloads before parsing", async () => {
+    const response = await POST(new Request("http://localhost/api/whatsapp/webhook/messages-upsert", {
+      method: "POST",
+      body: JSON.stringify({ instance: TEST_INSTANCE, padding: "x".repeat(262_145) }),
+    }), routeParams());
+    expect(response.status).toBe(413);
+  });
 });
