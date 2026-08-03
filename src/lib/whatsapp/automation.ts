@@ -10,7 +10,7 @@ import {
     shouldExpireQuoteFlow,
     shouldSkipPromptRepeat,
 } from "@/lib/crm/quoteFlow";
-import { sendEvolutionTextWithRetry } from "./evolution";
+import { sendMessagingText } from "@/lib/messaging/send-text";
 import { POST as quotePost } from "@/app/api/crm/quote/route";
 import { POST as internalActionsPost } from "@/app/api/crm/internal-actions/route";
 
@@ -147,16 +147,17 @@ export async function processAutoResponse(conversationId: string, phone: string,
             else if (!draft.paymentMethod) prompt = "Qual forma de pagamento você prefere (PIX, cartão ou transferência)?";
 
             if (prompt) {
-                const evolutionResponse = await sendEvolutionTextWithRetry({ number: phone, text: prompt });
+                const sendResult = await sendMessagingText(phone, prompt);
                 await prisma.$transaction(async tx => {
                     await tx.message.create({
                         data: {
                             conversationId,
+                            externalMessageId: sendResult.externalMessageId,
                             senderType: "bot",
                             content: prompt!,
                             messageType: "text",
                             sentAt: now,
-                            metadataJson: JSON.stringify(evolutionResponse),
+                            metadataJson: JSON.stringify(sendResult),
                         },
                     });
 
@@ -463,20 +464,18 @@ export async function processAutoResponse(conversationId: string, phone: string,
                 return null;
             }
 
-            const evolutionResponse = await sendEvolutionTextWithRetry({
-                number: phone,
-                text: prompt.text
-            });
+            const sendResult = await sendMessagingText(phone, prompt.text);
 
             await prisma.$transaction(async tx => {
                 await tx.message.create({
                     data: {
                         conversationId,
+                        externalMessageId: sendResult.externalMessageId,
                         senderType: "bot",
                         content: prompt.text,
                         messageType: "text",
                         sentAt: now,
-                        metadataJson: JSON.stringify(evolutionResponse),
+                        metadataJson: JSON.stringify(sendResult),
                     }
                 });
 
@@ -512,21 +511,18 @@ export async function processAutoResponse(conversationId: string, phone: string,
     
     if (!responseText) return null;
 
-    // Enviar via Evolution API
-    const evolutionResponse = await sendEvolutionTextWithRetry({
-        number: phone,
-        text: responseText
-    });
+    const sendResult = await sendMessagingText(phone, responseText);
 
     // Registrar no banco de dados
     await prisma.message.create({
         data: {
             conversationId,
+            externalMessageId: sendResult.externalMessageId,
             senderType: "bot",
             content: responseText,
             messageType: "text",
             sentAt: now,
-            metadataJson: JSON.stringify(evolutionResponse)
+            metadataJson: JSON.stringify(sendResult)
         }
     });
 
