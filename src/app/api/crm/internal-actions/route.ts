@@ -7,7 +7,8 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import { cacheIncrWithTtl } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
-import { resolveEvolutionSendTarget, sendEvolutionTextWithRetry } from "@/lib/whatsapp/evolution";
+import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
+import { sendMessagingText } from "@/lib/messaging/send-text";
 
 export const runtime = "nodejs";
 
@@ -88,20 +89,6 @@ async function enforceConversationActionRateLimit(conversationId: string) {
   }
 
   return { ok: true as const };
-}
-
-function extractEvolutionMessageId(response: unknown): string | null {
-  if (!isRecord(response)) return null;
-
-  const data = isRecord(response.data) ? response.data : undefined;
-  const key = isRecord(response.key) ? response.key : isRecord(data?.key) ? data.key : undefined;
-
-  return asNonEmptyString(response.id) ??
-    asNonEmptyString(response.messageId) ??
-    asNonEmptyString(data?.id) ??
-    asNonEmptyString(data?.messageId) ??
-    asNonEmptyString(key?.id) ??
-    null;
 }
 
 async function handleMovePipelineCard(payload: JsonRecord) {
@@ -446,23 +433,22 @@ async function handleSendWhatsAppMessage(payload: JsonRecord) {
       throw new Error("invalid_queue_payload");
     }
 
-    const evolutionResponse = await sendEvolutionTextWithRetry({
-      number: job.payload.target,
-      text: job.payload.text,
-    });
+    const sendResult = await sendMessagingText(job.payload.target, job.payload.text);
     const now = new Date();
 
     const message = await prisma.message.create({
       data: {
         conversationId: conversation.id,
-        externalMessageId: extractEvolutionMessageId(evolutionResponse),
+        externalMessageId: sendResult.externalMessageId,
         senderType: "bot",
         content: job.payload.text,
         messageType: "text",
         sentAt: now,
         metadataJson: JSON.stringify({
           actorType: "n8n",
-          evolutionResponse,
+          provider: sendResult.provider,
+          acceptedAt: sendResult.acceptedAt,
+          status: sendResult.status,
           queueJobId: job.id,
         }),
       },
