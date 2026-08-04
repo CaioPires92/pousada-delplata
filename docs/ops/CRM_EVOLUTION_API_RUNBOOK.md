@@ -29,7 +29,7 @@ browser. Em produção, a rota falha fechada se o segredo estiver ausente.
 
 ## Subir a infraestrutura local
 
-O compose existente usa Evolution API `v2.3.5`, PostgreSQL e Redis. Desde a
+O compose existente usa Evolution API `v2.3.7`, PostgreSQL e Redis. Desde a
 versão 2.3.0, a imagem oficial é publicada como `evoapicloud/evolution-api`:
 
 ```bash
