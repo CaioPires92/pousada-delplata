@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Contact } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { fetchEvolutionContact, resolveEvolutionSendTarget } from '@/lib/whatsapp/evolution';
@@ -438,39 +438,58 @@ export async function POST(
       // ETAPA 4 — BUSCA UNIFICADA E DEDUPLICAÇÃO
       const identity = extractWhatsAppIdentity(extracted.rawPayload);
       
-      // Busca agressiva por qualquer identificador disponível
-      let contact = await tx.contact.findFirst({
+      // Busca todos os candidatos porque uma pessoa pode ter sido criada uma vez
+      // pelo telefone e outra pelo LID antes de a Evolution informar remoteJidAlt.
+      const matchingContacts = await tx.contact.findMany({
         where: {
           OR: [
             identity.jid ? { whatsappJid: identity.jid } : undefined,
             identity.lid ? { lid: identity.lid } : undefined,
             identity.phone ? { phone: identity.phone } : undefined,
           ].filter(Boolean) as any
-        }
+        },
       });
+      let contact: Contact | undefined = matchingContacts.find(candidate =>
+        (identity.phone && candidate.phone === identity.phone) ||
+        (identity.jid && !identity.jid.includes('@lid') && candidate.whatsappJid === identity.jid)
+      ) ?? matchingContacts.find(candidate => identity.lid && candidate.lid === identity.lid)
+        ?? matchingContacts[0];
 
       if (contact) {
-        // Atualização Incremental: Se achamos o contato, mas ele não tinha algum campo, preenchemos agora
-        const needsUpdate = 
-          (identity.jid && (!contact.whatsappJid || contact.whatsappJid.includes('@lid'))) ||
-          (identity.lid && !contact.lid) || 
-          (identity.phone && !contact.phone);
-
-        if (needsUpdate) {
-          contact = await tx.contact.update({
-            where: { id: contact.id },
-            data: {
-              whatsappJid: contact.whatsappJid?.includes('@lid')
-                ? identity.jid
-                : contact.whatsappJid || identity.jid,
-              lid: contact.lid || identity.lid,
-              phone: contact.phone || identity.phone,
-              phoneRaw: contact.phoneRaw || identity.phone,
-              name: contact.name || extracted.contactName || '.'
-            }
+        const canonicalContactId = contact.id;
+        const duplicates = matchingContacts.filter(candidate => candidate.id !== canonicalContactId);
+        for (const duplicate of duplicates) {
+          await tx.conversation.updateMany({
+            where: { contactId: duplicate.id },
+            data: { contactId: canonicalContactId },
           });
+          await tx.pipelineCard.updateMany({
+            where: { contactId: duplicate.id },
+            data: { contactId: canonicalContactId },
+          });
+          await tx.reservationDraft.updateMany({
+            where: { contactId: duplicate.id },
+            data: { contactId: canonicalContactId },
+          });
+          await tx.internalActionLog.updateMany({
+            where: { contactId: duplicate.id },
+            data: { contactId: canonicalContactId },
+          });
+          await tx.contact.delete({ where: { id: duplicate.id } });
         }
-        
+
+        contact = await tx.contact.update({
+          where: { id: canonicalContactId },
+          data: {
+            whatsappJid: identity.jid || contact.whatsappJid,
+            lid: identity.lid || contact.lid,
+            phone: identity.phone || contact.phone,
+            phoneRaw: contact.phoneRaw || identity.phone,
+            name: contact.name && contact.name !== '.'
+              ? contact.name
+              : extracted.contactName || contact.name || '.',
+          },
+        });
       } else {
         // RACE CONDITION PROTECTION: Se dois webhooks chegam juntos, um deles vai falhar no create (P2002)
         // Se falhar, tentamos buscar novamente pois o outro processo acabou de criar
@@ -490,15 +509,15 @@ export async function POST(
           createdNow = true;
         } catch (createError: any) {
           if (createError.code === 'P2002') {
-            contact = await tx.contact.findFirst({
+            contact = (await tx.contact.findFirst({
               where: {
                 OR: [
                   identity.jid ? { whatsappJid: identity.jid } : undefined,
                   identity.lid ? { lid: identity.lid } : undefined,
                   identity.phone ? { phone: identity.phone } : undefined,
                 ].filter(Boolean) as any
-              }
-            });
+              },
+            })) ?? undefined;
           } else {
             throw createError;
           }

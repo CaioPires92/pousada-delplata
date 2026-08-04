@@ -177,6 +177,60 @@ describe("WhatsApp CRM webhook hardening", () => {
     expect(contact?.phone).toBeNull();
   });
 
+  it("reconciles separate phone and LID contacts when remoteJidAlt becomes available", async () => {
+    const phoneContact = await prisma.contact.create({
+      data: {
+        name: "Contato Telefone Existente",
+        phone: "5511999990010",
+        phoneRaw: "5511999990010",
+        whatsappJid: "5511999990010@s.whatsapp.net",
+        source: "whatsapp",
+      },
+    });
+    const phoneConversation = await prisma.conversation.create({
+      data: { contactId: phoneContact.id, channel: "whatsapp", status: "open" },
+    });
+    const lidContact = await prisma.contact.create({
+      data: {
+        name: "Contato LID Duplicado",
+        lid: "123456789012346",
+        whatsappJid: "123456789012346@lid",
+        source: "whatsapp",
+      },
+    });
+    const lidConversation = await prisma.conversation.create({
+      data: { contactId: lidContact.id, channel: "whatsapp", status: "open" },
+    });
+    const payload = textPayload("test-lid-reconciliation", "123456789012346@lid", "Identidade reconciliada");
+    (payload.data.key as typeof payload.data.key & { remoteJidAlt: string }).remoteJidAlt =
+      "5511999990010@s.whatsapp.net";
+
+    const response = await POST(webhookRequest(payload), routeParams());
+
+    expect(response.status).toBe(200);
+    const contacts = await prisma.contact.findMany({
+      where: {
+        OR: [
+          { phone: "5511999990010" },
+          { lid: "123456789012346" },
+        ],
+      },
+    });
+    expect(contacts).toHaveLength(1);
+    expect(contacts[0]).toMatchObject({
+      id: phoneContact.id,
+      phone: "5511999990010",
+      lid: "123456789012346",
+      whatsappJid: "5511999990010@s.whatsapp.net",
+    });
+    const conversations = await prisma.conversation.findMany({
+      where: { id: { in: [phoneConversation.id, lidConversation.id] } },
+    });
+    expect(conversations).toHaveLength(2);
+    expect(conversations.every(conversation => conversation.contactId === phoneContact.id)).toBe(true);
+    await expect(prisma.contact.findUnique({ where: { id: lidContact.id } })).resolves.toBeNull();
+  });
+
   it("saves messages without text content", async () => {
     const payload = emptyMessagePayload("test-empty-message", "5511999990003@s.whatsapp.net");
 
