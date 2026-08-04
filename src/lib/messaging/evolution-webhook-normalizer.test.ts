@@ -27,6 +27,28 @@ describe("normalizeEvolutionWebhook", () => {
     expect(events.every(isNormalizedMessagingEvent)).toBe(true);
   });
 
+  it("uses the phone JID when Evolution addresses an incoming message by LID", () => {
+    const events = normalizeEvolutionWebhook({
+      event: "messages.upsert",
+      instance: "delplata-test",
+      data: {
+        key: {
+          id: "EVO_LID_001",
+          remoteJid: "23961740038256@lid",
+          remoteJidAlt: "5519998701203@s.whatsapp.net",
+          addressingMode: "lid",
+        },
+        messageTimestamp: 1785772800,
+        message: { conversation: "Olá via LID" },
+      },
+    });
+
+    expect(events[0]).toMatchObject({
+      kind: "message",
+      senderId: "5519998701203@s.whatsapp.net",
+    });
+  });
+
   it.each([
     ["SERVER_ACK", "sent"],
     ["DELIVERY_ACK", "delivered"],

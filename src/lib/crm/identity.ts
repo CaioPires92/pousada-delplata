@@ -72,6 +72,20 @@ export function extractWhatsAppIdentity(payload: any): WhatsAppIdentity {
   // Lógica de Identidade Híbrida
   if (isLid(rawJid)) {
     identity.lid = rawJid.replace('@lid', '');
+    const alternateJid = [
+      payload.data?.key?.remoteJidAlt,
+      payload.data?.remoteJidAlt,
+      payload.key?.remoteJidAlt,
+      payload.remoteJidAlt,
+    ].find((candidate): candidate is string =>
+      typeof candidate === 'string' && isWhatsappPhoneJid(candidate)
+    );
+
+    if (alternateJid) {
+      identity.jid = alternateJid;
+      identity.phone = normalizeBrazilianPhone(alternateJid.split('@')[0]);
+    }
+
     // Busca agressiva pelo número real em campos que representam o PARTICIPANTE (GUEST)
     const possibleSenderFields = [
       payload.data?.key?.participant,
@@ -82,7 +96,7 @@ export function extractWhatsAppIdentity(payload: any): WhatsAppIdentity {
       if (s && typeof s === 'string' && isWhatsappPhoneJid(s)) {
         const extractedPhone = normalizeBrazilianPhone(s.split('@')[0]);
         // Se o número extraído for o da própria pousada, ignoramos para não dar loop
-        if (extractedPhone && extractedPhone !== process.env.POUSADA_PHONE) {
+        if (!identity.phone && extractedPhone && extractedPhone !== process.env.POUSADA_PHONE) {
           identity.phone = extractedPhone;
           if (identity.phone) break; 
         }

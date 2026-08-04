@@ -452,7 +452,7 @@ export async function POST(
       if (contact) {
         // Atualização Incremental: Se achamos o contato, mas ele não tinha algum campo, preenchemos agora
         const needsUpdate = 
-          (identity.jid && !contact.whatsappJid) || 
+          (identity.jid && (!contact.whatsappJid || contact.whatsappJid.includes('@lid'))) ||
           (identity.lid && !contact.lid) || 
           (identity.phone && !contact.phone);
 
@@ -460,7 +460,9 @@ export async function POST(
           contact = await tx.contact.update({
             where: { id: contact.id },
             data: {
-              whatsappJid: contact.whatsappJid || identity.jid,
+              whatsappJid: contact.whatsappJid?.includes('@lid')
+                ? identity.jid
+                : contact.whatsappJid || identity.jid,
               lid: contact.lid || identity.lid,
               phone: contact.phone || identity.phone,
               phoneRaw: contact.phoneRaw || identity.phone,

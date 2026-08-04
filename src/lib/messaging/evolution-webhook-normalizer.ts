@@ -97,7 +97,11 @@ export function normalizeEvolutionWebhook(payload: unknown): ReadonlyArray<Norma
 
   if (name === "messages.upsert") {
     const message = record(data.message) ?? record(root.message);
-    const senderId = string(key?.remoteJid, data.remoteJid, data.sender);
+    const remoteJid = string(key?.remoteJid, data.remoteJid, data.sender);
+    const alternateJid = string(key?.remoteJidAlt, data.remoteJidAlt);
+    const senderId = remoteJid?.endsWith("@lid") && alternateJid
+      ? alternateJid
+      : remoteJid;
     const recipientId = string(data.instanceId, root.instance, root.instanceName);
     if (!message || !senderId || !recipientId) return [];
     const timestamp = occurredAt(root, data);

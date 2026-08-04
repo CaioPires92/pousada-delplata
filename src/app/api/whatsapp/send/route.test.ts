@@ -100,7 +100,13 @@ describe("manual WhatsApp send hardening", () => {
       status: "sent",
     });
     const contact = await prisma.contact.create({
-      data: { name: "Teste envio sucesso", phone: "551188880002", source: "test-whatsapp-send" },
+      data: {
+        name: "Teste envio sucesso",
+        phone: "551188880002",
+        lid: "998877665544332",
+        whatsappJid: "998877665544332@lid",
+        source: "test-whatsapp-send",
+      },
     });
     const conversation = await prisma.conversation.create({
       data: { contactId: contact.id, channel: "whatsapp", status: "open" },

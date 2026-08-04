@@ -15,11 +15,11 @@ export function resolveEvolutionSendTarget(contact: ContactSendTarget, fallback?
     const phone = contact.phone?.trim();
     const phoneRaw = contact.phoneRaw?.trim();
 
-    if (jid?.includes("@lid")) return jid;
-    if (fallbackTarget?.includes("@lid")) return fallbackTarget;
-    if (jid) return jid;
-    if (fallbackTarget?.includes("@")) return fallbackTarget;
-    return phone || phoneRaw || fallbackTarget || null;
+    if (phone) return phone;
+    if (jid && !jid.includes("@lid")) return jid;
+    if (phoneRaw && !phoneRaw.includes("@lid")) return phoneRaw;
+    if (fallbackTarget && !fallbackTarget.includes("@lid")) return fallbackTarget;
+    return jid || fallbackTarget || null;
 }
 
 export async function sendEvolutionText({ number, text }: SendTextParams) {
