@@ -58,8 +58,10 @@ Evolution API como transporte.
   automação pausada por atendimento humano.
 - [x] E15 Corrigir a continuação da cotação quando datas e hóspedes chegam logo
   após a pergunta automática.
-- [ ] E16 Validar deterministicamente datas, período e quantidade de hóspedes,
+- [x] E16 Validar deterministicamente datas, período e quantidade de hóspedes,
   solicitando novamente somente os campos inválidos.
+- [x] E16b Criar interruptor global persistente e auditado para bloquear todas as
+  respostas automáticas sem interromper recebimento ou atendimento manual.
 - [ ] E17 Tratar intenção desconhecida e baixa confiança com resposta segura e
   encaminhamento humano, sem inventar serviços ou políticas.
 - [ ] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
