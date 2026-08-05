@@ -65,7 +65,7 @@ Evolution API como transporte.
 - [x] E17 Tratar intenção desconhecida e baixa confiança com resposta segura e
   encaminhamento humano, sem inventar serviços ou políticas.
 - [x] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
-- [ ] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
+- [x] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
   preço, disponibilidade, reserva e envio sob autoridade do CRM.
   - [x] E19a Implementar allowlist sanitizada, autenticação dedicada, fila
     durável, timeout, retry, dead-letter e runbook, com envelope aderente à SPEC
@@ -75,7 +75,7 @@ Evolution API como transporte.
     Header Auth no n8n 2.33.3.
   - [x] E19c Criar bootstrap opt-in para importar credencial e workflow inativo
     sem gravar ou imprimir o segredo.
-  - [ ] E19d Configurar a credencial real no n8n e executar teste ponta a ponta
+  - [x] E19d Configurar a credencial real no n8n e executar teste ponta a ponta
     opt-in antes de definir `N8N_ENABLED=true` de forma permanente.
 
 ## Gate por incremento

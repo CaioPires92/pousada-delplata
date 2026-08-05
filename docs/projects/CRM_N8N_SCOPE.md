@@ -155,3 +155,12 @@ Opcionalmente, defina `N8N_E2E_CONVERSATION_ID` para escolher uma conversa
 ociosa. O runner recusa conversas com jobs pendentes, envia apenas um envelope
 sintético sem dados de hóspede e comprova que o job foi concluído. Depois do
 teste, mantenha `N8N_ENABLED=false` até revisar a execução no n8n.
+
+### Evidência local de homologação
+
+Em 2026-08-05, o workflow `crm-delplata-event-ingress` foi importado com Header
+Auth, publicado e validado na instância n8n 2.33.3. O runner opt-in produziu um
+único evento sintético, o job terminou como `completed` na primeira tentativa e
+o n8n registrou a execução com status `success`. Após o teste,
+`N8N_ENABLED=false`, `enabledGlobal=false` e `enabledWhatsapp=false` foram
+reconfirmados.
