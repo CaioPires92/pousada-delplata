@@ -27,3 +27,88 @@ Centralizar atendimento (WhatsApp/site), pipeline comercial e automações sem q
 
 ## Regra operacional
 - integrações externas não acessam banco diretamente; usam API interna autenticada.
+
+## Autoridade e limites
+
+O n8n é um orquestrador externo. Ele pode receber eventos sanitizados, criar
+notificações e chamar APIs internas explicitamente autorizadas. Ele não pode:
+
+- acessar o banco do CRM diretamente;
+- calcular preço ou disponibilidade;
+- confirmar reserva ou pagamento;
+- enviar WhatsApp diretamente pela Evolution API;
+- modificar o funil sem usar uma API interna autenticada e validada.
+
+O CRM continua sendo a fonte de verdade e o único responsável por autorizar
+ações de negócio e mensagens.
+
+## Configuração do webhook n8n
+
+No nó **Webhook** do n8n:
+
+1. use o método `POST`;
+2. em produção, use a URL `/webhook/...`, não `/webhook-test/...`;
+3. selecione autenticação por cabeçalho;
+4. configure o cabeçalho `Authorization` com o valor
+   `Bearer <N8N_WEBHOOK_TOKEN>`;
+5. responda com HTTP `2xx` rapidamente;
+6. use `eventId` ou o cabeçalho `X-CRM-Event-ID` para deduplicar execuções.
+
+No CRM:
+
+```dotenv
+N8N_ENABLED=false
+N8N_WEBHOOK_URL=http://localhost:5678/webhook/seu-id
+N8N_WEBHOOK_TOKEN=gere-um-segredo-exclusivo
+N8N_TIMEOUT_MS=3000
+N8N_MAX_ATTEMPTS=3
+```
+
+`N8N_WEBHOOK_TOKEN` deve ser diferente de `CRM_INTERNAL_API_TOKEN`. O primeiro
+protege eventos enviados pelo CRM ao n8n. O segundo autentica chamadas do n8n
+para APIs internas do CRM.
+
+## Contrato de eventos
+
+O CRM envia envelope JSON versão 1:
+
+```json
+{
+  "version": 1,
+  "eventId": "id-idempotente",
+  "event": "MessageReceived",
+  "occurredAt": "2026-08-05T18:30:00.000Z",
+  "resources": {
+    "contactId": "id-interno",
+    "conversationId": "id-interno"
+  },
+  "data": {
+    "channel": "whatsapp",
+    "messageType": "text"
+  }
+}
+```
+
+Texto da conversa, telefone, nome, e-mail, CPF, tokens e payloads brutos não são
+incluídos. Somente eventos e campos explicitamente permitidos atravessam essa
+fronteira.
+
+## Fila, retry e falhas
+
+- O evento é registrado primeiro no `InternalActionLog`.
+- Eventos permitidos entram em `AutomationQueueJob` com ação
+  `EMIT_N8N_EVENT`.
+- O worker usa timeout limitado e até três tentativas para rede, `408`, `425`,
+  `429` e respostas `5xx`.
+- Erros permanentes `4xx` não são repetidos.
+- Falha final segue para a dead-letter existente, sem interromper o atendimento.
+- `N8N_ENABLED=false` mantém toda emissão externa desligada.
+
+O processamento usa o endpoint protegido já existente:
+
+```bash
+curl -X POST http://localhost:3001/api/cron/crm-queue-worker \
+  -H "Authorization: Bearer $CRM_INTERNAL_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"maxConversations":20}'
+```
