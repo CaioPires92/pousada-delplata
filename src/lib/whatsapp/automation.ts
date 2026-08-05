@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
+import { isWhatsappChatbotGloballyEnabled } from "@/lib/crm/chatbotSettings";
 import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
@@ -94,6 +95,10 @@ export async function matchRule(text: string): Promise<string | null> {
 
 export async function processAutoResponse(conversationId: string, phone: string, text: string) {
     const now = new Date();
+    if (!(await isWhatsappChatbotGloballyEnabled())) {
+        return null;
+    }
+
     const conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
         select: {

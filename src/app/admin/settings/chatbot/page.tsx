@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X } from "lucide-react";
+import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X, Power } from "lucide-react";
 
 type ChatbotRule = {
     id: string;
@@ -17,6 +17,8 @@ export default function ChatbotSettingsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [globalEnabled, setGlobalEnabled] = useState(false);
+    const [isGlobalLoading, setIsGlobalLoading] = useState(true);
 
     const [newRule, setNewRule] = useState({ trigger: "", response: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -27,19 +29,60 @@ export default function ChatbotSettingsPage() {
             const response = await fetch("/api/admin/chatbot/rules");
             const data = await response.json();
             if (data.ok) setRules(data.rules);
-        } catch (err) {
+        } catch {
             setError("Erro ao carregar regras");
         } finally {
             setIsLoading(false);
         }
     }
 
+    async function fetchGlobalSettings() {
+        try {
+            const response = await fetch("/api/admin/chatbot/settings");
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error("Falha ao carregar estado global");
+            setGlobalEnabled(Boolean(data.settings.enabledGlobal && data.settings.enabledWhatsapp));
+        } catch {
+            setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
+            setGlobalEnabled(false);
+        } finally {
+            setIsGlobalLoading(false);
+        }
+    }
+
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
             void fetchRules();
+            void fetchGlobalSettings();
         }, 0);
         return () => window.clearTimeout(timeoutId);
     }, []);
+
+    async function handleGlobalToggle() {
+        const nextEnabled = !globalEnabled;
+        if (nextEnabled && !confirm("Ativar respostas automáticas para todas as conversas que estiverem com Chatbot ON?")) {
+            return;
+        }
+
+        setIsGlobalLoading(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/admin/chatbot/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ enabled: nextEnabled }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error("Falha ao atualizar estado global");
+            setGlobalEnabled(nextEnabled);
+            setSuccess(nextEnabled ? "Chatbot ativado globalmente." : "Chatbot desativado globalmente.");
+            setTimeout(() => setSuccess(null), 3000);
+        } catch {
+            setError("Erro ao atualizar o interruptor global do chatbot.");
+        } finally {
+            setIsGlobalLoading(false);
+        }
+    }
 
     async function handleAddRule() {
         if (!newRule.trigger || !newRule.response) return;
@@ -82,7 +125,7 @@ export default function ChatbotSettingsPage() {
                 setSuccess("Regra atualizada!");
                 setTimeout(() => setSuccess(null), 3000);
             }
-        } catch (err) {
+        } catch {
             setError("Erro ao atualizar regra");
         } finally {
             setIsSaving(false);
@@ -96,7 +139,7 @@ export default function ChatbotSettingsPage() {
             if (response.ok) {
                 setRules(rules.filter(r => r.id !== id));
             }
-        } catch (err) {
+        } catch {
             setError("Erro ao excluir regra");
         }
     }
@@ -111,7 +154,7 @@ export default function ChatbotSettingsPage() {
             if (response.ok) {
                 setRules(rules.map(r => r.id === id ? { ...r, isActive: !isActive } : r));
             }
-        } catch (err) {
+        } catch {
             setError("Erro ao atualizar regra");
         }
     }
@@ -127,6 +170,32 @@ export default function ChatbotSettingsPage() {
                 </div>
                 <p className="text-slate-500 font-medium">Gerencie as respostas automáticas do seu CRM de WhatsApp.</p>
             </header>
+
+            <section className={`rounded-2xl border p-6 shadow-sm ${globalEnabled ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className={`rounded-xl p-2 text-white ${globalEnabled ? "bg-emerald-600" : "bg-red-600"}`}>
+                            <Power size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black text-slate-800">Interruptor geral do chatbot</h2>
+                            <p className="text-sm font-medium text-slate-600">
+                                {globalEnabled
+                                    ? "Respostas automáticas estão liberadas nas conversas com Chatbot ON."
+                                    : "Todas as respostas automáticas do WhatsApp estão bloqueadas. O atendimento manual continua funcionando."}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleGlobalToggle}
+                        disabled={isGlobalLoading}
+                        className={`min-w-48 rounded-xl px-5 py-3 text-sm font-black text-white transition disabled:opacity-50 ${globalEnabled ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
+                    >
+                        {isGlobalLoading ? "Verificando..." : globalEnabled ? "DESATIVAR BOT GERAL" : "ATIVAR BOT GERAL"}
+                    </button>
+                </div>
+            </section>
 
             {/* Nova Regra */}
             <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
