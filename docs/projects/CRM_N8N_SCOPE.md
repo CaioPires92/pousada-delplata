@@ -112,3 +112,19 @@ curl -X POST http://localhost:3001/api/cron/crm-queue-worker \
   -H "Content-Type: application/json" \
   -d '{"maxConversations":20}'
 ```
+
+## Teste ponta a ponta opt-in
+
+Depois de ativar o workflow e configurar a URL de produção e o segredo, execute
+temporariamente:
+
+```bash
+N8N_E2E_ENABLED=true \
+N8N_ENABLED=true \
+node --env-file=.env --import tsx scripts/crm/integration/n8n-e2e.ts
+```
+
+Opcionalmente, defina `N8N_E2E_CONVERSATION_ID` para escolher uma conversa
+ociosa. O runner recusa conversas com jobs pendentes, envia apenas um envelope
+sintético sem dados de hóspede e comprova que o job foi concluído. Depois do
+teste, mantenha `N8N_ENABLED=false` até revisar a execução no n8n.
