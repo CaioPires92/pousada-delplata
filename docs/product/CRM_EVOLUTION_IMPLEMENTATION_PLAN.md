@@ -69,7 +69,9 @@ Evolution API como transporte.
   preço, disponibilidade, reserva e envio sob autoridade do CRM.
   - [x] E19a Implementar allowlist sanitizada, autenticação dedicada, fila
     durável, timeout, retry, dead-letter e runbook.
-  - [ ] E19b Configurar o workflow real no n8n e executar teste ponta a ponta
+  - [x] E19b Versionar e validar um workflow de entrada inativo e protegido por
+    Header Auth no n8n 2.33.3.
+  - [ ] E19c Configurar a credencial real no n8n e executar teste ponta a ponta
     opt-in antes de definir `N8N_ENABLED=true` de forma permanente.
 
 ## Gate por incremento
