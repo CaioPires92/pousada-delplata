@@ -3,6 +3,7 @@ import { isConversationAutomationActive } from "@/lib/crm/automationPause";
 import { isWhatsappChatbotGloballyEnabled } from "@/lib/crm/chatbotSettings";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
+import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
 import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
@@ -77,22 +78,7 @@ async function runInternalAction(token: string, action: string, payload: Record<
 const QUOTE_DEBOUNCE_LOCK_MS = 45 * 1000;
 
 export async function matchRule(text: string): Promise<string | null> {
-    if (!text) return null;
-
-    const normalizedInput = text.toLowerCase().trim();
-    
-    // Buscar regras ativas
-    const rules = await prisma.chatbotRule.findMany({
-        where: { isActive: true }
-    });
-
-    // Busca exata ou por inclusão simples
-    const matchedRule = rules.find(rule => 
-        normalizedInput === rule.trigger.toLowerCase().trim() ||
-        normalizedInput.includes(rule.trigger.toLowerCase().trim())
-    );
-
-    return matchedRule ? matchedRule.response : null;
+    return (await findApprovedKnowledge(text))?.response ?? null;
 }
 
 export async function processAutoResponse(conversationId: string, phone: string, text: string) {
