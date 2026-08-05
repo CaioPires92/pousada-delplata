@@ -68,7 +68,9 @@ Evolution API como transporte.
 - [ ] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
   preço, disponibilidade, reserva e envio sob autoridade do CRM.
   - [x] E19a Implementar allowlist sanitizada, autenticação dedicada, fila
-    durável, timeout, retry, dead-letter e runbook.
+    durável, timeout, retry, dead-letter e runbook, com envelope aderente à SPEC
+    (`eventId`, `eventType`, `occurredAt`, `entityId`, `correlationId`,
+    `causationId` e `schemaVersion`).
   - [x] E19b Versionar e validar um workflow de entrada inativo e protegido por
     Header Auth no n8n 2.33.3.
   - [ ] E19c Configurar a credencial real no n8n e executar teste ponta a ponta

@@ -88,10 +88,13 @@ O CRM envia envelope JSON versão 1:
 
 ```json
 {
-  "version": 1,
+  "schemaVersion": 1,
   "eventId": "id-idempotente",
-  "event": "MessageReceived",
+  "eventType": "MessageReceived",
   "occurredAt": "2026-08-05T18:30:00.000Z",
+  "entityId": "id-da-conversa",
+  "correlationId": "id-da-jornada",
+  "causationId": "id-do-evento-anterior",
   "resources": {
     "contactId": "id-interno",
     "conversationId": "id-interno"
@@ -102,6 +105,11 @@ O CRM envia envelope JSON versão 1:
   }
 }
 ```
+
+Os identificadores de correlação e causalidade permitem rastrear uma jornada
+sem transportar o conteúdo da conversa. Para um evento raiz, o CRM usa o
+próprio `eventId` como `causationId`; eventos derivados podem informar
+explicitamente o evento anterior.
 
 Texto da conversa, telefone, nome, e-mail, CPF, tokens e payloads brutos não são
 incluídos. Somente eventos e campos explicitamente permitidos atravessam essa

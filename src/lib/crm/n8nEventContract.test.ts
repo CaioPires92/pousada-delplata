@@ -20,12 +20,34 @@ describe("n8n CRM event contract", () => {
         },
       },
     })).toEqual({
-      version: 1,
+      schemaVersion: 1,
       eventId: "event-1",
-      event: "MessageReceived",
+      eventType: "MessageReceived",
       occurredAt: "2026-08-05T18:30:00.000Z",
+      entityId: "conversation-1",
+      correlationId: "conversation-1",
+      causationId: "event-1",
       resources: { contactId: "contact-1", conversationId: "conversation-1" },
       data: { channel: "whatsapp", messageType: "text" },
+    });
+  });
+
+  it("preserves explicit correlation and causation identifiers", () => {
+    const envelope = buildN8nEventEnvelope({
+      eventId: "event-child",
+      occurredAt: "2026-08-05T18:30:00.000Z",
+      event: {
+        action: "PipelineStageChanged",
+        conversationId: "conversation-1",
+        correlationId: "journey-1",
+        causationId: "event-parent",
+      },
+    });
+
+    expect(envelope).toMatchObject({
+      entityId: "conversation-1",
+      correlationId: "journey-1",
+      causationId: "event-parent",
     });
   });
 

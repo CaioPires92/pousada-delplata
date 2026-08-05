@@ -35,10 +35,13 @@ async function main() {
 
   const eventId = `n8n-e2e-${randomUUID()}`;
   const envelope: N8nEventEnvelope = {
-    version: 1,
+    schemaVersion: 1,
     eventId,
-    event: "LeadCreated",
+    eventType: "LeadCreated",
     occurredAt: new Date().toISOString(),
+    entityId: conversation.id,
+    correlationId: eventId,
+    causationId: eventId,
     resources: { conversationId: conversation.id },
     data: { source: "n8n_e2e" },
   };

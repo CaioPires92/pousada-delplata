@@ -17,10 +17,13 @@ export const N8N_EVENT_ALLOWLIST = [
 export type N8nAllowedEvent = typeof N8N_EVENT_ALLOWLIST[number];
 
 export type N8nEventEnvelope = {
-  version: 1;
+  schemaVersion: 1;
   eventId: string;
-  event: N8nAllowedEvent;
+  eventType: N8nAllowedEvent;
   occurredAt: string;
+  entityId: string;
+  correlationId: string;
+  causationId: string;
   resources: {
     contactId?: string;
     conversationId?: string;
@@ -74,10 +77,20 @@ export function buildN8nEventEnvelope(input: {
   }
 
   return {
-    version: 1,
+    schemaVersion: 1,
     eventId: input.eventId,
-    event: input.event.action,
+    eventType: input.event.action,
     occurredAt,
+    entityId: input.event.conversationId
+      ?? input.event.bookingId
+      ?? input.event.contactId
+      ?? input.eventId,
+    correlationId: input.event.correlationId
+      ?? input.event.conversationId
+      ?? input.event.bookingId
+      ?? input.event.contactId
+      ?? input.eventId,
+    causationId: input.event.causationId ?? input.eventId,
     resources: {
       ...(input.event.contactId ? { contactId: input.event.contactId } : {}),
       ...(input.event.conversationId ? { conversationId: input.event.conversationId } : {}),

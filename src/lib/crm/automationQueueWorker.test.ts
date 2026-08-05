@@ -34,10 +34,13 @@ describe("automation queue worker n8n delivery", () => {
         action: "EMIT_N8N_EVENT",
         payload: {
           event: {
-            version: 1,
+            schemaVersion: 1,
             eventId: "event-1",
-            event: "LeadCreated",
+            eventType: "LeadCreated",
             occurredAt: "2026-08-05T18:30:00.000Z",
+            entityId: "conversation-1",
+            correlationId: "conversation-1",
+            causationId: "event-1",
             resources: { conversationId: "conversation-1" },
             data: { source: "whatsapp" },
           },

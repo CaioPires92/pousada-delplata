@@ -4,10 +4,13 @@ import type { N8nEventEnvelope } from "./n8nEventContract";
 import { deliverN8nEvent, getN8nDeliveryConfig, type N8nDeliveryConfig } from "./n8nDelivery";
 
 const envelope: N8nEventEnvelope = {
-  version: 1,
+  schemaVersion: 1,
   eventId: "event-1",
-  event: "LeadCreated",
+  eventType: "LeadCreated",
   occurredAt: "2026-08-05T18:30:00.000Z",
+  entityId: "conversation-1",
+  correlationId: "conversation-1",
+  causationId: "event-1",
   resources: { contactId: "contact-1", conversationId: "conversation-1" },
   data: { source: "whatsapp" },
 };

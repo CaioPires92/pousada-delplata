@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/prisma";
 import { emitCrmEvent, recordCrmEvent } from "@/lib/crm/events";
@@ -23,10 +23,15 @@ vi.mock("@/lib/crm/automationQueue", () => ({
 describe("CRM external event safety", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn());
     process.env.N8N_ENABLED = "true";
     process.env.N8N_WEBHOOK_URL = "https://n8n.invalid/webhook";
     vi.mocked(prisma.internalActionLog.create).mockResolvedValue({ id: "log-1" } as never);
     vi.mocked(enqueueAutomationJob).mockResolvedValue({ id: "job-1" } as never);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("never emits external webhooks in the test environment", async () => {
@@ -53,7 +58,8 @@ describe("CRM external event safety", () => {
         payload: {
           event: expect.objectContaining({
             eventId: "event-1",
-            event: "MessageReceived",
+            eventType: "MessageReceived",
+            schemaVersion: 1,
             data: { channel: "whatsapp", messageType: "text" },
           }),
         },

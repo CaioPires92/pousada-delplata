@@ -6,6 +6,8 @@ import { getN8nDeliveryConfig } from "@/lib/crm/n8nDelivery";
 
 export interface CrmEventInput {
   action: string;
+  correlationId?: string;
+  causationId?: string;
   contactId?: string;
   conversationId?: string;
   bookingId?: string;
