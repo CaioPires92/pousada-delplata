@@ -6,12 +6,15 @@ import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { PIPELINE_STAGES } from "@/lib/crm/pipelineStages";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { upsertReservationDraftFromMessage } from "@/lib/crm/reservationDraft";
+import { isPipelineAutomationEnabled } from "@/lib/crm/chatbotSettings";
 
 export async function applyPipelineAutomationOnIncomingMessage(input: {
   conversationId: string;
   contactId: string;
   text?: string;
 }) {
+  if (!(await isPipelineAutomationEnabled())) return;
+
   const activeCard = await prisma.pipelineCard.findFirst({
     where: {
       conversationId: input.conversationId,

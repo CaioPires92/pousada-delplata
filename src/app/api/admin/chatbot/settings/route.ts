@@ -18,7 +18,9 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json().catch(() => null);
-    if (!body || typeof body.enabled !== "boolean") {
+    const changesChatbot = body && typeof body.enabled === "boolean";
+    const changesPipeline = body && typeof body.pipelineAutomationEnabled === "boolean";
+    if (!changesChatbot && !changesPipeline) {
       return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
     }
 
@@ -27,25 +29,36 @@ export async function PUT(request: Request) {
       select: { id: true },
     });
     const data = {
-      enabledGlobal: body.enabled,
-      enabledWhatsapp: body.enabled,
+      ...(changesChatbot ? { enabledGlobal: body.enabled, enabledWhatsapp: body.enabled } : {}),
+      ...(changesPipeline ? { pipelineAutomationEnabled: body.pipelineAutomationEnabled } : {}),
     };
     const settings = existing
       ? await prisma.chatbotSettings.update({ where: { id: existing.id }, data })
       : await prisma.chatbotSettings.create({ data: { id: "global", ...data } });
 
-    await prisma.internalActionLog.create({
-      data: {
-        action: body.enabled ? "ChatbotGlobalEnabled" : "ChatbotGlobalDisabled",
-        metadataJson: JSON.stringify({ channel: "whatsapp", origin: "admin_ui" }),
-      },
-    });
+    if (changesChatbot) {
+      await prisma.internalActionLog.create({
+        data: {
+          action: body.enabled ? "ChatbotGlobalEnabled" : "ChatbotGlobalDisabled",
+          metadataJson: JSON.stringify({ channel: "whatsapp", origin: "admin_ui" }),
+        },
+      });
+    }
+    if (changesPipeline) {
+      await prisma.internalActionLog.create({
+        data: {
+          action: body.pipelineAutomationEnabled ? "PipelineAutomationEnabled" : "PipelineAutomationDisabled",
+          metadataJson: JSON.stringify({ origin: "admin_ui" }),
+        },
+      });
+    }
 
     return NextResponse.json({
       ok: true,
       settings: {
         enabledGlobal: settings.enabledGlobal,
         enabledWhatsapp: settings.enabledWhatsapp,
+        pipelineAutomationEnabled: settings.pipelineAutomationEnabled,
       },
     });
   } catch (error) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X, Power } from "lucide-react";
+import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X, Power, Columns3 } from "lucide-react";
 
 type ChatbotRule = {
     id: string;
@@ -18,7 +18,9 @@ export default function ChatbotSettingsPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [globalEnabled, setGlobalEnabled] = useState(false);
+    const [pipelineAutomationEnabled, setPipelineAutomationEnabled] = useState(true);
     const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+    const [isPipelineLoading, setIsPipelineLoading] = useState(true);
 
     const [newRule, setNewRule] = useState({ trigger: "", response: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -42,11 +44,37 @@ export default function ChatbotSettingsPage() {
             const data = await response.json();
             if (!response.ok || !data.ok) throw new Error("Falha ao carregar estado global");
             setGlobalEnabled(Boolean(data.settings.enabledGlobal && data.settings.enabledWhatsapp));
+            setPipelineAutomationEnabled(Boolean(data.settings.pipelineAutomationEnabled));
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
         } finally {
             setIsGlobalLoading(false);
+            setIsPipelineLoading(false);
+        }
+    }
+
+    async function handlePipelineToggle() {
+        const nextEnabled = !pipelineAutomationEnabled;
+        setIsPipelineLoading(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/admin/chatbot/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pipelineAutomationEnabled: nextEnabled }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error("Falha ao atualizar automação do funil");
+            setPipelineAutomationEnabled(Boolean(data.settings.pipelineAutomationEnabled));
+            setSuccess(nextEnabled
+                ? "Monitoramento automático do Kanban ativado."
+                : "Monitoramento automático do Kanban desativado.");
+            setTimeout(() => setSuccess(null), 3000);
+        } catch {
+            setError("Erro ao atualizar o monitoramento automático do Kanban.");
+        } finally {
+            setIsPipelineLoading(false);
         }
     }
 
@@ -193,6 +221,32 @@ export default function ChatbotSettingsPage() {
                         className={`min-w-48 rounded-xl px-5 py-3 text-sm font-black text-white transition disabled:opacity-50 ${globalEnabled ? "bg-red-600 hover:bg-red-700" : "bg-emerald-600 hover:bg-emerald-700"}`}
                     >
                         {isGlobalLoading ? "Verificando..." : globalEnabled ? "DESATIVAR BOT GERAL" : "ATIVAR BOT GERAL"}
+                    </button>
+                </div>
+            </section>
+
+            <section className={`rounded-2xl border p-6 shadow-sm ${pipelineAutomationEnabled ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-slate-50"}`}>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className={`rounded-xl p-2 text-white ${pipelineAutomationEnabled ? "bg-sky-600" : "bg-slate-500"}`}>
+                            <Columns3 size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black text-slate-800">Monitoramento automático do Kanban</h2>
+                            <p className="text-sm font-medium text-slate-600">
+                                {pipelineAutomationEnabled
+                                    ? "O CRM acompanha as mensagens e move os cards somente quando identifica um marco válido. Isso não envia respostas ao hóspede."
+                                    : "As conversas continuam chegando, mas nenhuma coluna será alterada automaticamente."}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handlePipelineToggle}
+                        disabled={isPipelineLoading}
+                        className={`min-w-48 rounded-xl px-5 py-3 text-sm font-black text-white transition disabled:opacity-50 ${pipelineAutomationEnabled ? "bg-slate-600 hover:bg-slate-700" : "bg-sky-600 hover:bg-sky-700"}`}
+                    >
+                        {isPipelineLoading ? "Verificando..." : pipelineAutomationEnabled ? "DESATIVAR KANBAN AUTO" : "ATIVAR KANBAN AUTO"}
                     </button>
                 </div>
             </section>

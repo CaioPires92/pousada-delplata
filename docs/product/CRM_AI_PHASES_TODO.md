@@ -157,6 +157,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F3.01 Testar listagem, paginação e ordenação da Inbox.
 - [ ] F3.02 Testar recebimento em tempo real/SSE e reconexão.
 - [ ] F3.03 Criar estados `off`, `supervised` e `auto`.
+- [x] F3.03a Separar respostas do chatbot do monitoramento automático do Kanban.
 - [ ] F3.04 Implementar assumir, atribuir, pausar e devolver ao bot.
 - [ ] F3.05 Cancelar jobs pendentes na tomada humana.
 - [ ] F3.06 Exibir falha/entrega/leitura da mensagem.

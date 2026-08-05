@@ -466,6 +466,7 @@ model ChatbotSettings {
   id                            String   @id @default(uuid())
   enabledGlobal                 Boolean  @default(false)
   enabledWhatsapp               Boolean  @default(false)
+  pipelineAutomationEnabled     Boolean  @default(true)
   enabledSite                   Boolean  @default(false)
   defaultHandoffMessage         String?
   maxAutoReplyDelaySeconds      Int      @default(30)

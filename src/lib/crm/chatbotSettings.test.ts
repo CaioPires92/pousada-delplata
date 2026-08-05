@@ -9,7 +9,11 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import prisma from "@/lib/prisma";
-import { getChatbotRuntimeSettings, isWhatsappChatbotGloballyEnabled } from "./chatbotSettings";
+import {
+  getChatbotRuntimeSettings,
+  isPipelineAutomationEnabled,
+  isWhatsappChatbotGloballyEnabled,
+} from "./chatbotSettings";
 
 describe("chatbot global settings", () => {
   beforeEach(() => {
@@ -22,6 +26,7 @@ describe("chatbot global settings", () => {
     await expect(getChatbotRuntimeSettings()).resolves.toEqual({
       enabledGlobal: false,
       enabledWhatsapp: false,
+      pipelineAutomationEnabled: true,
     });
     await expect(isWhatsappChatbotGloballyEnabled()).resolves.toBe(false);
   });
@@ -39,5 +44,22 @@ describe("chatbot global settings", () => {
     vi.mocked(prisma.chatbotSettings.findFirst).mockRejectedValue(new Error("database unavailable"));
 
     await expect(isWhatsappChatbotGloballyEnabled()).resolves.toBe(false);
+  });
+
+  it("keeps pipeline automation independent from chatbot replies", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      enabledGlobal: false,
+      enabledWhatsapp: false,
+      pipelineAutomationEnabled: true,
+    } as never);
+
+    await expect(isWhatsappChatbotGloballyEnabled()).resolves.toBe(false);
+    await expect(isPipelineAutomationEnabled()).resolves.toBe(true);
+  });
+
+  it("fails closed when the pipeline setting query fails", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockRejectedValue(new Error("database unavailable"));
+
+    await expect(isPipelineAutomationEnabled()).resolves.toBe(false);
   });
 });

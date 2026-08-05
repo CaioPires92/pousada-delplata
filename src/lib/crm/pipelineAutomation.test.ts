@@ -6,6 +6,7 @@ import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { upsertReservationDraftFromMessage } from "@/lib/crm/reservationDraft";
 import { classifyIntent } from "@/lib/crm/aiIntentClassifier";
 import { applyPipelineAutomationOnIncomingMessage } from "./pipelineAutomation";
+import { isPipelineAutomationEnabled } from "@/lib/crm/chatbotSettings";
 
 vi.mock("@/lib/prisma", () => ({
   default: {
@@ -31,6 +32,10 @@ vi.mock("@/lib/crm/aiIntentClassifier", () => ({
   classifyIntent: vi.fn(),
 }));
 
+vi.mock("@/lib/crm/chatbotSettings", () => ({
+  isPipelineAutomationEnabled: vi.fn(),
+}));
+
 describe("applyPipelineAutomationOnIncomingMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,6 +47,21 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       confidence: 0.4,
       source: "heuristic",
     });
+    vi.mocked(isPipelineAutomationEnabled).mockResolvedValue(true);
+  });
+
+  it("does nothing when pipeline automation is disabled", async () => {
+    vi.mocked(isPipelineAutomationEnabled).mockResolvedValue(false);
+
+    await applyPipelineAutomationOnIncomingMessage({
+      conversationId: "conv-1",
+      contactId: "contact-1",
+      text: "quero reservar",
+    });
+
+    expect(prisma.pipelineCard.findFirst).not.toHaveBeenCalled();
+    expect(classifyIntent).not.toHaveBeenCalled();
+    expect(updatePipelineCard).not.toHaveBeenCalled();
   });
 
   it("moves ORCAMENTO_ENVIADO to AGUARDANDO_RESPOSTA when guest replies", async () => {
