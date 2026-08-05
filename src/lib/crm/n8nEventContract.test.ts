@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildN8nEventEnvelope } from "./n8nEventContract";
+import { buildN8nEventEnvelope, parseN8nEventEnvelope } from "./n8nEventContract";
 
 describe("n8n CRM event contract", () => {
   it("builds a versioned envelope with only allowlisted metadata", () => {
@@ -81,5 +81,41 @@ describe("n8n CRM event contract", () => {
       adults: 2,
       optionsCount: 3,
     });
+  });
+
+  it("accepts a canonical envelope after runtime validation", () => {
+    const envelope = buildN8nEventEnvelope({
+      eventId: "event-4",
+      occurredAt: "2026-08-05T18:30:00.000Z",
+      event: {
+        action: "LeadCreated",
+        conversationId: "conversation-1",
+        metadata: { source: "whatsapp" },
+      },
+    });
+
+    expect(parseN8nEventEnvelope(envelope)).toEqual(envelope);
+  });
+
+  it.each([
+    { name: "unknown event", patch: { eventType: "DeleteDatabase" } },
+    { name: "invalid timestamp", patch: { occurredAt: "today" } },
+    { name: "unexpected resource", patch: { resources: { conversationId: "conversation-1", token: "secret" } } },
+    { name: "unexpected data", patch: { data: { source: "whatsapp", messageText: "private" } } },
+    { name: "nested data", patch: { data: { source: { raw: true } } } },
+  ])("rejects $name at runtime", ({ patch }) => {
+    const base = {
+      schemaVersion: 1,
+      eventId: "event-5",
+      eventType: "LeadCreated",
+      occurredAt: "2026-08-05T18:30:00.000Z",
+      entityId: "conversation-1",
+      correlationId: "conversation-1",
+      causationId: "event-5",
+      resources: { conversationId: "conversation-1" },
+      data: { source: "whatsapp" },
+    };
+
+    expect(parseN8nEventEnvelope({ ...base, ...patch })).toBeNull();
   });
 });

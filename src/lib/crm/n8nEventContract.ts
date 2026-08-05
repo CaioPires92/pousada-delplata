@@ -50,6 +50,14 @@ function isAllowedEvent(action: string): action is N8nAllowedEvent {
   return (N8N_EVENT_ALLOWLIST as readonly string[]).includes(action);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isBoundedString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 200;
+}
+
 function sanitizeScalar(value: unknown): string | number | boolean | null | undefined {
   if (value === null) return null;
   if (typeof value === "boolean") return value;
@@ -96,6 +104,61 @@ export function buildN8nEventEnvelope(input: {
       ...(input.event.conversationId ? { conversationId: input.event.conversationId } : {}),
       ...(input.event.bookingId ? { bookingId: input.event.bookingId } : {}),
     },
+    data,
+  };
+}
+
+export function parseN8nEventEnvelope(value: unknown): N8nEventEnvelope | null {
+  if (!isRecord(value)
+    || value.schemaVersion !== 1
+    || !isBoundedString(value.eventId)
+    || !isBoundedString(value.eventType)
+    || !isAllowedEvent(value.eventType)
+    || !isBoundedString(value.occurredAt)
+    || !isBoundedString(value.entityId)
+    || !isBoundedString(value.correlationId)
+    || !isBoundedString(value.causationId)
+    || !isRecord(value.resources)
+    || !isRecord(value.data)) {
+    return null;
+  }
+
+  try {
+    if (new Date(value.occurredAt).toISOString() !== value.occurredAt) return null;
+  } catch {
+    return null;
+  }
+
+  const resourceKeys = ["contactId", "conversationId", "bookingId"] as const;
+  if (Object.keys(value.resources).some(key => !resourceKeys.includes(key as typeof resourceKeys[number]))) {
+    return null;
+  }
+  const resources: N8nEventEnvelope["resources"] = {};
+  for (const key of resourceKeys) {
+    const resource = value.resources[key];
+    if (resource === undefined) continue;
+    if (!isBoundedString(resource)) return null;
+    resources[key] = resource;
+  }
+
+  const allowedDataKeys = ALLOWED_METADATA[value.eventType];
+  if (Object.keys(value.data).some(key => !allowedDataKeys.includes(key))) return null;
+  const data: N8nEventEnvelope["data"] = {};
+  for (const [key, raw] of Object.entries(value.data)) {
+    const sanitized = sanitizeScalar(raw);
+    if (sanitized === undefined || sanitized !== raw) return null;
+    data[key] = sanitized;
+  }
+
+  return {
+    schemaVersion: 1,
+    eventId: value.eventId,
+    eventType: value.eventType,
+    occurredAt: value.occurredAt,
+    entityId: value.entityId,
+    correlationId: value.correlationId,
+    causationId: value.causationId,
+    resources,
     data,
   };
 }

@@ -70,7 +70,7 @@ Evolution API como transporte.
   - [x] E19a Implementar allowlist sanitizada, autenticação dedicada, fila
     durável, timeout, retry, dead-letter e runbook, com envelope aderente à SPEC
     (`eventId`, `eventType`, `occurredAt`, `entityId`, `correlationId`,
-    `causationId` e `schemaVersion`).
+    `causationId` e `schemaVersion`) e validação runtime antes da entrega.
   - [x] E19b Versionar e validar um workflow de entrada inativo e protegido por
     Header Auth no n8n 2.33.3.
   - [ ] E19c Configurar a credencial real no n8n e executar teste ponta a ponta

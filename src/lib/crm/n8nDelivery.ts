@@ -1,4 +1,4 @@
-import type { N8nEventEnvelope } from "@/lib/crm/n8nEventContract";
+import { parseN8nEventEnvelope } from "@/lib/crm/n8nEventContract";
 
 type FetchLike = typeof fetch;
 
@@ -43,13 +43,16 @@ async function defaultSleep(ms: number) {
 }
 
 export async function deliverN8nEvent(
-  envelope: N8nEventEnvelope,
+  envelope: unknown,
   options?: {
     config?: N8nDeliveryConfig;
     fetchImpl?: FetchLike;
     sleep?: (ms: number) => Promise<void>;
   }
 ) {
+  const validatedEnvelope = parseN8nEventEnvelope(envelope);
+  if (!validatedEnvelope) throw new Error("invalid_n8n_event_payload");
+
   const config = options?.config ?? getN8nDeliveryConfig();
   if (!config) return { delivered: false as const, reason: "disabled" as const };
 
@@ -64,9 +67,9 @@ export async function deliverN8nEvent(
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${config.token}`,
-          "X-CRM-Event-ID": envelope.eventId,
+          "X-CRM-Event-ID": validatedEnvelope.eventId,
         },
-        body: JSON.stringify(envelope),
+        body: JSON.stringify(validatedEnvelope),
         signal: AbortSignal.timeout(config.timeoutMs),
       });
       lastStatus = response.status;

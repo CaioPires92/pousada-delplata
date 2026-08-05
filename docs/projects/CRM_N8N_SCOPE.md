@@ -115,6 +115,11 @@ Texto da conversa, telefone, nome, e-mail, CPF, tokens e payloads brutos não s�
 incluídos. Somente eventos e campos explicitamente permitidos atravessam essa
 fronteira.
 
+Antes de abrir uma conexão HTTP, o entregador valida novamente o envelope em
+runtime. Evento desconhecido, versão incompatível, timestamp inválido, recurso
+extra, campo não permitido ou valor complexo é rejeitado e segue o tratamento
+de falha da fila.
+
 ## Fila, retry e falhas
 
 - O evento é registrado primeiro no `InternalActionLog`.

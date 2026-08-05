@@ -1,14 +1,13 @@
 import prisma from "@/lib/prisma";
 
 import { crmLog } from "@/lib/crm/logger";
-import type { N8nEventEnvelope } from "@/lib/crm/n8nEventContract";
 
 export type QueueAction = "SEND_WHATSAPP_MESSAGE" | "EMIT_N8N_EVENT";
 
 type QueuePayload = {
   target?: string;
   text?: string;
-  event?: N8nEventEnvelope;
+  event?: unknown;
 };
 
 function sanitizeDeadLetterReason(reason: string) {

@@ -78,4 +78,12 @@ describe("n8n event delivery", () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
     expect(sleep).not.toHaveBeenCalled();
   });
+
+  it("rejects a malformed envelope before making a request", async () => {
+    const fetchImpl = vi.fn();
+
+    await expect(deliverN8nEvent({ ...envelope, data: { token: "secret" } }, { config, fetchImpl }))
+      .rejects.toThrow("invalid_n8n_event_payload");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
