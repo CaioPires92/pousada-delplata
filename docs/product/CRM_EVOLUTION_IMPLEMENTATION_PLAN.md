@@ -62,7 +62,7 @@ Evolution API como transporte.
   solicitando novamente somente os campos inválidos.
 - [x] E16b Criar interruptor global persistente e auditado para bloquear todas as
   respostas automáticas sem interromper recebimento ou atendimento manual.
-- [ ] E17 Tratar intenção desconhecida e baixa confiança com resposta segura e
+- [x] E17 Tratar intenção desconhecida e baixa confiança com resposta segura e
   encaminhamento humano, sem inventar serviços ou políticas.
 - [ ] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
 - [ ] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
