@@ -161,7 +161,7 @@ function findDateCandidates(text: string): DateCandidate[] {
     });
   }
 
-  const rangeWithSharedMonthRegex = new RegExp(`\\b(\\d{1,2})\\s*(?:a|ate|-)\\s*(\\d{1,2})\\s*(?:de\\s*)?(${monthNames})(?:\\s*(?:de\\s*)?(\\d{2,4}))?\\b`, "g");
+  const rangeWithSharedMonthRegex = new RegExp(`\\b(\\d{1,2})\\s*(?:a|ate|e|-)\\s*(\\d{1,2})\\s*(?:de\\s*)?(${monthNames})(?:\\s*(?:de\\s*)?(\\d{2,4}))?\\b`, "g");
 
   while ((match = rangeWithSharedMonthRegex.exec(text))) {
     const month = MONTHS[match[3]];
@@ -344,4 +344,15 @@ export function parseCrmIntent(message: string, referenceDate = new Date()): Par
     ...parsed,
     confidence: confidenceFor(parsed),
   };
+}
+
+export function hasQuoteInput(parsed: ParsedCrmIntent): boolean {
+  return Boolean(
+    parsed.intent === "quote" ||
+    parsed.checkin ||
+    parsed.checkout ||
+    parsed.adults ||
+    parsed.children !== undefined ||
+    parsed.validationIssues.length > 0
+  );
 }

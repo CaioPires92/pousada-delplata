@@ -1,4 +1,4 @@
-import { parseCrmIntent, type CrmInputValidationIssue } from "@/lib/crm/intentParser";
+import { hasQuoteInput, parseCrmIntent, type CrmInputValidationIssue } from "@/lib/crm/intentParser";
 
 type FlowState = {
   currentFlow: string | null;
@@ -20,6 +20,9 @@ type FlowData = {
   children?: number;
   childrenAges?: number[];
   validationIssue?: CrmInputValidationIssue;
+  lastPromptStep?: string;
+  lastPromptAt?: string;
+  quoteLockUntil?: string;
 };
 
 function safeParseFlowData(value: string | null | undefined): FlowData {
@@ -49,15 +52,9 @@ function nextFlowStep(data: FlowData) {
 
 export function buildQuoteFlowState(messageText: string, existing?: ExistingFlow): FlowState {
   const parsed = parseCrmIntent(messageText);
-  const hasQuoteInput = Boolean(
-    parsed.checkin ||
-    parsed.checkout ||
-    parsed.adults ||
-    parsed.children !== undefined ||
-    parsed.validationIssues.length > 0
-  );
+  const containsQuoteInput = hasQuoteInput(parsed);
 
-  if (parsed.intent !== "quote" && !(existing?.currentFlow === "quote" && hasQuoteInput)) {
+  if (parsed.intent !== "quote" && !(existing?.currentFlow === "quote" && containsQuoteInput)) {
     return {
       currentFlow: existing?.currentFlow ?? null,
       flowStep: existing?.flowStep ?? null,
@@ -75,6 +72,7 @@ export function buildQuoteFlowState(messageText: string, existing?: ExistingFlow
   const incomingCheckin = isCheckoutOnlyReply ? undefined : parsed.checkin;
   const incomingCheckout = isCheckoutOnlyReply ? parsed.checkin : parsed.checkout;
   const mergedData: FlowData = {
+    ...priorData,
     checkin: validationIssue?.field === "checkin" ? undefined : incomingCheckin ?? priorData.checkin,
     checkout: validationIssue && ["checkin", "checkout", "dateRange"].includes(validationIssue.field)
       ? undefined

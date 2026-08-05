@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
+import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
@@ -191,6 +192,10 @@ export async function processAutoResponse(conversationId: string, phone: string,
     }
 
     if (conversation?.currentFlow === "quote") {
+        if (!hasQuoteInput(parseCrmIntent(text, now))) {
+            return null;
+        }
+
         const recentContext = await prisma.message.findMany({
             where: { conversationId },
             orderBy: { sentAt: "asc" },

@@ -78,4 +78,18 @@ describe("buildQuoteFlowState", () => {
     expect(result.flowStep).toBe("waiting_adults");
     expect(result.flowDataJson).toContain('"checkout":"2026-06-17"');
   });
+
+  it("preserves prompt debounce metadata while merging a partial reply", () => {
+    const result = buildQuoteFlowState("casal", {
+      currentFlow: "quote",
+      flowStep: "waiting_checkin",
+      flowDataJson: '{"lastPromptStep":"waiting_checkin","lastPromptAt":"2026-01-10T11:59:55.000Z"}',
+    });
+
+    expect(JSON.parse(result.flowDataJson ?? "{}")).toMatchObject({
+      adults: 2,
+      lastPromptStep: "waiting_checkin",
+      lastPromptAt: "2026-01-10T11:59:55.000Z",
+    });
+  });
 });

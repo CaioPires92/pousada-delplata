@@ -26,6 +26,14 @@ describe("parseCrmIntent", () => {
     });
   });
 
+  it("understands a shared-month range joined with e", () => {
+    expect(parseCrmIntent("Dia 12 e 13 de setembro", referenceDate)).toMatchObject({
+      checkin: "2026-09-12",
+      checkout: "2026-09-13",
+      validationIssues: [],
+    });
+  });
+
   it("returns partial fields when the guest asks price without dates", () => {
     expect(parseCrmIntent("Quanto fica para 3 pessoas?", referenceDate)).toMatchObject({
       intent: "quote",
