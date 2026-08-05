@@ -59,7 +59,6 @@ export default function ChatbotToggle({
         setError(null);
 
         try {
-            // 1. Desativar chatbot
             const response = await fetch(`/api/crm/conversations/${conversationId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -67,16 +66,6 @@ export default function ChatbotToggle({
             });
 
             if (!response.ok) throw new Error("Falha ao desativar chatbot");
-
-            // 2. Enviar mensagem de handoff
-            await fetch("/api/whatsapp/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    conversationId,
-                    text: "Olá! Sou o atendente e vou seguir com seu atendimento agora.",
-                }),
-            });
 
             router.refresh();
         } catch (err) {
