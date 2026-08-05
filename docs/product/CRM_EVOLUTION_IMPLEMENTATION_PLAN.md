@@ -73,7 +73,9 @@ Evolution API como transporte.
     `causationId` e `schemaVersion`) e validação runtime antes da entrega.
   - [x] E19b Versionar e validar um workflow de entrada inativo e protegido por
     Header Auth no n8n 2.33.3.
-  - [ ] E19c Configurar a credencial real no n8n e executar teste ponta a ponta
+  - [x] E19c Criar bootstrap opt-in para importar credencial e workflow inativo
+    sem gravar ou imprimir o segredo.
+  - [ ] E19d Configurar a credencial real no n8n e executar teste ponta a ponta
     opt-in antes de definir `N8N_ENABLED=true` de forma permanente.
 
 ## Gate por incremento

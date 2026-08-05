@@ -18,7 +18,7 @@
       "webhookId": "crm-delplata-events",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "CONFIGURE_IN_N8N",
+          "id": "crm-delplata-header-auth",
           "name": "CRM Delplata - Bearer"
         }
       }

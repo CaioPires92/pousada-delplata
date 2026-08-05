@@ -45,18 +45,18 @@ ações de negócio e mensagens.
 ## Configuração do webhook n8n
 
 O workflow inicial está versionado em
-`n8n/workflows/crm-event-ingress.json`. Ele é deliberadamente importado
-inativo e contém uma referência de credencial fictícia. Antes de ativá-lo:
+`n8n/workflows/crm-event-ingress.json` e é deliberadamente importado inativo.
+O bootstrap associa uma credencial com ID estável, sem versionar seu valor:
 
-1. importe o JSON no n8n;
-2. crie uma credencial **Header Auth** chamada `CRM Delplata - Bearer`;
-3. use `Authorization` como nome e `Bearer <N8N_WEBHOOK_TOKEN>` como valor;
-4. selecione essa credencial no nó `Receber evento do CRM`;
-5. salve e ative o workflow;
-6. use `http://localhost:5678/webhook/crm-delplata-events` no `.env` do CRM.
+```bash
+N8N_SETUP_ENABLED=true \
+node --env-file=.env scripts/crm/integration/setup-n8n.mjs
+```
 
-Não importe nem ative o workflow enquanto a credencial ainda aparecer como
-`CONFIGURE_IN_N8N`.
+O script exige token exclusivo com pelo menos 32 caracteres, URL de produção,
+container ativo e confirmação do importador. O segredo segue somente pelo stdin
+do processo e não é salvo em arquivo temporário nem impresso. Após importar,
+abra o n8n, revise o workflow e ative-o manualmente antes do E2E.
 
 No nó **Webhook** do n8n:
 
