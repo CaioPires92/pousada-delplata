@@ -28,6 +28,11 @@ type NavItem = {
     icon: React.ElementType;
 };
 
+type NavSection = {
+    label: string;
+    items: NavItem[];
+};
+
 interface AdminNavbarProps {
     isCollapsed?: boolean;
     onToggle?: () => void;
@@ -39,18 +44,38 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
 
     if (pathname === '/admin/login') return null;
 
-    const navItems: NavItem[] = [
-        { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
-        { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList },
-        { href: '/admin/quartos', label: 'Quartos', icon: Home },
-        { href: '/admin/settings/partial-payment', label: 'Pagamento Parcial', icon: CreditCard },
-        { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
-        { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
-        { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
-        { href: '/admin/inbox', label: 'Mensagens', icon: MessageSquare },
-        { href: '/admin/pipeline', label: 'CRM Kanban', icon: KanbanSquare },
-        { href: '/admin/settings/chatbot', label: 'Chatbot', icon: Bot },
+    const navSections: NavSection[] = [
+        {
+            label: 'Visão geral',
+            items: [
+                { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
+            ],
+        },
+        {
+            label: 'Operação',
+            items: [
+                { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
+                { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList },
+                { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
+                { href: '/admin/quartos', label: 'Quartos', icon: Home },
+            ],
+        },
+        {
+            label: 'Financeiro',
+            items: [
+                { href: '/admin/settings/partial-payment', label: 'Pagamento Parcial', icon: CreditCard },
+                { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
+            ],
+        },
+        {
+            label: 'Atendimento e CRM',
+            items: [
+                { href: '/admin/inbox', label: 'Caixa de Entrada', icon: MessageSquare },
+                { href: '/admin/pipeline', label: 'Kanban de Vendas', icon: KanbanSquare },
+                { href: '/admin/settings/chatbot', label: 'Chatbot e IA', icon: Bot },
+            ],
+        },
     ];
 
     const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -87,28 +112,37 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
                 </button>
             </div>
 
-            <nav className={cn("flex-1 space-y-1", isCollapsed ? "px-2" : "px-4")}>
-                {navItems.map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            title={isCollapsed ? item.label : undefined}
-                            className={cn(
-                                "flex items-center rounded-xl text-sm font-bold transition-all",
-                                isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3",
-                                active 
-                                    ? "bg-slate-800 text-white shadow-lg shadow-slate-200" 
-                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-                            )}
-                        >
-                            <Icon className={cn("h-5 w-5 shrink-0", active ? "text-white" : "text-slate-400")} />
-                            {!isCollapsed && <span className="overflow-hidden whitespace-nowrap">{item.label}</span>}
-                        </Link>
-                    );
-                })}
+            <nav className={cn("flex-1 overflow-y-auto pb-4", isCollapsed ? "space-y-3 px-2" : "space-y-5 px-4")}>
+                {navSections.map((section) => (
+                    <div key={section.label} className="space-y-1">
+                        {!isCollapsed && (
+                            <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                                {section.label}
+                            </p>
+                        )}
+                        {section.items.map((item) => {
+                            const Icon = item.icon;
+                            const active = isActive(item.href);
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    title={isCollapsed ? item.label : undefined}
+                                    className={cn(
+                                        "flex items-center rounded-xl text-sm font-bold transition-all",
+                                        isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3",
+                                        active
+                                            ? "bg-slate-800 text-white shadow-lg shadow-slate-200"
+                                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                                    )}
+                                >
+                                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-white" : "text-slate-400")} />
+                                    {!isCollapsed && <span className="overflow-hidden whitespace-nowrap">{item.label}</span>}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                ))}
             </nav>
 
             <div className={cn("p-4 border-t border-slate-100 space-y-1", isCollapsed && "px-2")}>
