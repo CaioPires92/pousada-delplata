@@ -38,7 +38,7 @@ teste falha → menor implementação possível → teste passa
 
 - [x] F0.01 Criar tag Git local do baseline e registrar commit/ambiente.
 - [x] F0.02 Inventariar arquivos `.env`, bancos, backups, zips e segredos versionados.
-- [ ] F0.03 Remover segredos do Git de forma planejada e rotacioná-los quando necessário.
+- [ ] F0.03 Remover segredos do Git de forma planejada e rotacioná-los quando necessário. _(adiado por decisão operacional até o fim das implementações)_
 - [x] F0.04 Separar testes CRM, motor, WhatsApp e UI em scripts independentes.
 - [x] F0.05 Corrigir suíte que excede timeout, identificando o teste responsável.
 - [x] F0.06 Registrar tempos de typecheck e testes do gate CRM.
@@ -154,7 +154,7 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F3.01 Testar listagem, paginação e ordenação da Inbox.
+- [x] F3.01 Testar listagem, paginação e ordenação da Inbox.
 - [ ] F3.02 Testar recebimento em tempo real/SSE e reconexão.
 - [ ] F3.03 Criar estados `off`, `supervised` e `auto`.
 - [ ] F3.04 Implementar assumir, atribuir, pausar e devolver ao bot.
