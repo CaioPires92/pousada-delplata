@@ -1,6 +1,8 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
 import { isWhatsappChatbotGloballyEnabled } from "@/lib/crm/chatbotSettings";
+import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
+import { decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
 import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
@@ -121,6 +123,21 @@ export async function processAutoResponse(conversationId: string, phone: string,
         return null;
     }
 
+    const parsedIncoming = parseCrmIntent(text, now);
+    const handoffDecision = decideAutomationHandoff(text, parsedIncoming);
+    const matchedRuleResponse = handoffDecision.reason === "unknown_intent"
+        ? await matchRule(text)
+        : null;
+    if (handoffDecision.shouldHandoff && !matchedRuleResponse) {
+        return executeAutomationHandoff({
+            conversationId,
+            contactId: conversation.contactId,
+            phone,
+            decision: handoffDecision,
+            now,
+        });
+    }
+
     const activeCard = await prisma.pipelineCard.findFirst({
         where: { conversationId },
         orderBy: { updatedAt: "desc" },
@@ -196,11 +213,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
         }
     }
 
-    if (conversation?.currentFlow === "quote") {
-        if (!hasQuoteInput(parseCrmIntent(text, now))) {
-            return null;
-        }
-
+    if (conversation?.currentFlow === "quote" && hasQuoteInput(parsedIncoming)) {
         const recentContext = await prisma.message.findMany({
             where: { conversationId },
             orderBy: { sentAt: "asc" },
@@ -499,9 +512,17 @@ export async function processAutoResponse(conversationId: string, phone: string,
         }
     }
 
-    const responseText = await matchRule(text);
+    const responseText = matchedRuleResponse ?? await matchRule(text);
     
-    if (!responseText) return null;
+    if (!responseText) {
+        return executeAutomationHandoff({
+            conversationId,
+            contactId: conversation.contactId,
+            phone,
+            decision: handoffDecision,
+            now,
+        });
+    }
 
     const sendResult = await sendMessagingText(phone, responseText);
 
