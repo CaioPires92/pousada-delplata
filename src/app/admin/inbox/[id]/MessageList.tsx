@@ -198,7 +198,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
         };
 
         source.onerror = () => {
-            source.close();
+            // EventSource reconecta automaticamente. O polling permanece como fallback.
         };
 
         return () => {
