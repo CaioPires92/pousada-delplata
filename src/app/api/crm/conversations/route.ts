@@ -1,14 +1,48 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { inferPresenceFromLastGuestMessage } from "@/lib/crm/presence";
-export async function GET() {
+
+export const runtime = "nodejs";
+
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+
+function parsePagination(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const limitParam = searchParams.get("limit");
+    const cursorParam = searchParams.get("cursor");
+    const limit = limitParam === null ? DEFAULT_LIMIT : Number(limitParam);
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) return null;
+    if (searchParams.has("cursor") && (!cursorParam || cursorParam.length > 100)) return null;
+
+    return {
+        limit,
+        cursor: cursorParam,
+        legacyResponse: !searchParams.has("limit") && !searchParams.has("cursor"),
+    };
+}
+
+export async function GET(request: Request) {
     try {
+        const pagination = parsePagination(request);
+        if (!pagination) {
+            return NextResponse.json(
+                { ok: false, error: "invalid_pagination" },
+                { status: 400 }
+            );
+        }
+
         const conversations = await prisma.conversation.findMany({
             orderBy: [
                 { lastMessageAt: "desc" },
                 { updatedAt: "desc" },
+                { id: "desc" },
             ],
-            take: 20,
+            take: pagination.limit + 1,
+            ...(pagination.cursor
+                ? { cursor: { id: pagination.cursor }, skip: 1 }
+                : {}),
             include: {
                 contact: {
                     select: {
@@ -33,8 +67,11 @@ export async function GET() {
             },
         });
 
+        const hasMore = conversations.length > pagination.limit;
+        const page = hasMore ? conversations.slice(0, pagination.limit) : conversations;
+
         const latestGuestByConversation = await Promise.all(
-            conversations.map(async (conversation) => {
+            page.map(async (conversation) => {
                 const latestGuest = await prisma.message.findFirst({
                     where: {
                         conversationId: conversation.id,
@@ -61,8 +98,7 @@ export async function GET() {
             latestGuestByConversation.map((item) => [item.conversationId, item.lastGuestAt])
         );
 
-        return NextResponse.json(
-            conversations.map((c) => ({
+        const items = page.map((c) => ({
                 id: c.id,
                 name: c.contact?.name || "Sem nome",
                 phone: c.contact?.phone || null,
@@ -71,8 +107,17 @@ export async function GET() {
                 lastMessageAt: c.lastMessageAt ?? c.messages[0]?.sentAt ?? c.messages[0]?.createdAt ?? null,
                 unreadCount: c.unreadCount,
                 presence: inferPresenceFromLastGuestMessage(latestGuestMap.get(c.id) ?? null),
-            }))
-        );
+            }));
+
+        if (pagination.legacyResponse) return NextResponse.json(items);
+
+        return NextResponse.json({
+            items,
+            pageInfo: {
+                hasMore,
+                nextCursor: hasMore ? page.at(-1)?.id ?? null : null,
+            },
+        });
     } catch (error) {
         console.error("Erro ao listar conversas:", error);
         return NextResponse.json(
