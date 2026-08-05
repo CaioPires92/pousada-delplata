@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { POST } from "./route";
@@ -8,6 +9,14 @@ vi.mock("@/lib/messaging/provider-factory", () => {
 });
 
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
+
+const authMocks = vi.hoisted(() => ({
+  requireAdminAuth: vi.fn(),
+}));
+
+vi.mock("@/lib/admin-auth", () => ({
+  requireAdminAuth: authMocks.requireAdminAuth,
+}));
 
 const send = vi.fn();
 
@@ -41,6 +50,11 @@ describe("manual WhatsApp send hardening", () => {
       name: "evolution",
       normalizeWebhook: vi.fn(),
       send,
+    });
+    authMocks.requireAdminAuth.mockResolvedValue({
+      adminId: "admin-1",
+      email: "recepcao@delplata.com.br",
+      role: "admin",
     });
     await cleanupTestData();
   });
@@ -93,6 +107,20 @@ describe("manual WhatsApp send hardening", () => {
     expect(failureLog?.metadataJson).not.toContain("evolution offline");
   });
 
+  it("rejects manual sends without an authenticated administrator", async () => {
+    authMocks.requireAdminAuth.mockResolvedValue(
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    );
+
+    const response = await POST(request({
+      conversationId: "conversation-1",
+      text: "Mensagem manual",
+    }));
+
+    expect(response.status).toBe(401);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("persists a successful provider result without its raw response", async () => {
     send.mockResolvedValue({
       externalMessageId: "EVO_MANUAL_001",
@@ -120,7 +148,14 @@ describe("manual WhatsApp send hardening", () => {
       text: "Mensagem manual",
     });
     const message = await prisma.message.findFirst({ where: { externalMessageId: "EVO_MANUAL_001" } });
+    const updatedConversation = await prisma.conversation.findUnique({ where: { id: conversation.id } });
+    const takeoverLog = await prisma.internalActionLog.findFirst({
+      where: { conversationId: conversation.id, action: "HumanTookOver" },
+    });
     expect(message?.metadataJson).toContain('"provider":"evolution"');
     expect(message?.metadataJson).not.toContain("Mensagem manual");
+    expect(updatedConversation?.assignedUserId).toBe("admin-1");
+    expect(updatedConversation?.automationPausedUntil).not.toBeNull();
+    expect(takeoverLog?.metadataJson).toContain('"actorId":"admin-1"');
   });
 });

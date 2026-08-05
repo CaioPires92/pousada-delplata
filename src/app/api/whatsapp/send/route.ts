@@ -5,6 +5,7 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -33,11 +34,14 @@ function firstString(...values: unknown[]): string | undefined {
 
 export async function POST(request: Request) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth instanceof NextResponse) return auth;
+
         const body = await request.json().catch(() => null);
         const bodyRecord = asRecord(body);
         const conversationId = firstString(bodyRecord?.conversationId);
         const text = firstString(bodyRecord?.text);
-        const actorId = firstString(bodyRecord?.userId, bodyRecord?.actorId);
+        const actorId = auth.adminId;
 
         if (!conversationId || !text) {
             return NextResponse.json(
@@ -131,6 +135,7 @@ export async function POST(request: Request) {
                 data: {
                     lastMessageAt: now,
                     automationPausedUntil,
+                    assignedUserId: actorId,
                 },
             });
 
