@@ -76,4 +76,40 @@ describe("parseCrmIntent", () => {
       confidence: "low",
     });
   });
+
+  it("rejects explicit dates in the past instead of silently quoting them", () => {
+    expect(parseCrmIntent("Cotacao de 01/01/2026 a 01/01/23 para 2 adultos", referenceDate)).toMatchObject({
+      intent: "quote",
+      checkin: undefined,
+      checkout: undefined,
+      missingFields: ["checkin", "checkout"],
+      validationIssues: [
+        { field: "checkin", code: "past_date" },
+        { field: "checkout", code: "past_date" },
+      ],
+    });
+  });
+
+  it("rejects impossible dates and checkout not later than checkin", () => {
+    expect(parseCrmIntent("Valor de 31/02/2027 a 02/03/2027 para 2 adultos", referenceDate).validationIssues)
+      .toContainEqual({ field: "checkin", code: "invalid_date" });
+    expect(parseCrmIntent("Valor de 17/06/2026 a 15/06/2026 para 2 adultos", referenceDate)).toMatchObject({
+      checkin: "2026-06-17",
+      checkout: undefined,
+      validationIssues: [{ field: "dateRange", code: "invalid_date_range" }],
+    });
+  });
+
+  it("rejects excessive stay duration and guest counts", () => {
+    expect(parseCrmIntent("Valor de 15/06/2026 a 20/09/2026 para 31 adultos", referenceDate)).toMatchObject({
+      checkout: undefined,
+      adults: undefined,
+      missingFields: ["checkout", "adults"],
+      validationIssues: [
+        { field: "dateRange", code: "stay_too_long" },
+        { field: "adults", code: "invalid_guest_count" },
+        { field: "guests", code: "too_many_guests" },
+      ],
+    });
+  });
 });

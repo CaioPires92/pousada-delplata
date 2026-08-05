@@ -20,6 +20,18 @@ export type ParsedCrmIntent = {
   childrenAges?: number[];
   missingFields: Array<"checkin" | "checkout" | "adults">;
   confidence: "low" | "medium" | "high";
+  validationIssues: CrmInputValidationIssue[];
+};
+
+export type CrmInputValidationIssue = {
+  field: "checkin" | "checkout" | "dateRange" | "adults" | "children" | "guests";
+  code:
+    | "invalid_date"
+    | "past_date"
+    | "invalid_date_range"
+    | "stay_too_long"
+    | "invalid_guest_count"
+    | "too_many_guests";
 };
 
 type DateCandidate = {
@@ -66,6 +78,11 @@ const INTENT_KEYWORDS: Array<{ intent: CrmIntent; patterns: RegExp[] }> = [
   { intent: "location", patterns: [/\b(localiza[cç][aã]o|endere[cç]o|onde fica|dist[aâ]ncia)\b/] },
   { intent: "amenity", patterns: [/\b(piscina|caf[eé]|wifi|internet|ar condicionado|frigobar)\b/] },
 ];
+
+export const MAX_QUOTE_NIGHTS = 90;
+export const MAX_QUOTE_ADULTS = 30;
+export const MAX_QUOTE_CHILDREN = 30;
+export const MAX_QUOTE_GUESTS = 30;
 
 function normalizeText(text: string) {
   return text
@@ -175,23 +192,51 @@ function inferMissingMonths(candidates: DateCandidate[]) {
   });
 }
 
+function daysBetween(start: string, end: string) {
+  const startMs = new Date(`${start}T00:00:00Z`).getTime();
+  const endMs = new Date(`${end}T00:00:00Z`).getTime();
+  return Math.round((endMs - startMs) / 86_400_000);
+}
+
 function extractDates(text: string, referenceDate: Date) {
   const rawCandidates = findDateCandidates(text);
-  const dateKeys = inferMissingMonths(rawCandidates)
-    .map(candidate => toDayKey(candidate, referenceDate))
-    .filter((value): value is string => Boolean(value));
-  const uniqueDateKeys = Array.from(new Set(dateKeys));
+  const candidates = inferMissingMonths(rawCandidates).slice(0, 2);
+  const referenceDayKey = dateFromReference(referenceDate);
+  const validationIssues: CrmInputValidationIssue[] = [];
+  const dateKeys = candidates.map((candidate, index) => {
+    const field = index === 0 ? "checkin" : "checkout";
+    const dayKey = toDayKey(candidate, referenceDate);
 
-  if (uniqueDateKeys.length < 2) {
-    return { checkin: uniqueDateKeys[0], checkout: undefined };
+    if (!dayKey) {
+      validationIssues.push({ field, code: "invalid_date" });
+      return undefined;
+    }
+
+    if (candidate.year !== undefined && compareDayKey(dayKey, referenceDayKey) < 0) {
+      validationIssues.push({ field, code: "past_date" });
+      return undefined;
+    }
+
+    return dayKey;
+  });
+
+  const checkin = dateKeys[0];
+  let checkout = dateKeys[1];
+
+  if (checkin && checkout && compareDayKey(checkin, checkout) >= 0) {
+    validationIssues.push({ field: "dateRange", code: "invalid_date_range" });
+    checkout = undefined;
+  } else if (checkin && checkout && daysBetween(checkin, checkout) > MAX_QUOTE_NIGHTS) {
+    validationIssues.push({ field: "dateRange", code: "stay_too_long" });
+    checkout = undefined;
   }
 
-  const [first, second] = uniqueDateKeys;
-  if (compareDayKey(first, second) < 0) {
-    return { checkin: first, checkout: second };
-  }
-
-  return { checkin: second, checkout: first };
+  return {
+    checkin,
+    checkout,
+    datesMentioned: rawCandidates.length > 0,
+    validationIssues,
+  };
 }
 
 function extractAdults(text: string) {
@@ -255,26 +300,44 @@ function confidenceFor(parsed: Omit<ParsedCrmIntent, "confidence">): ParsedCrmIn
 
 export function parseCrmIntent(message: string, referenceDate = new Date()): ParsedCrmIntent {
   const text = normalizeText(message);
-  const { checkin, checkout } = extractDates(text, referenceDate);
+  const { checkin, checkout, datesMentioned, validationIssues } = extractDates(text, referenceDate);
   const adults = extractAdults(text);
   const { children, childrenAges } = extractChildren(text);
-  const intent = detectIntent(text, Boolean(checkin || checkout));
+  const intent = detectIntent(text, datesMentioned);
   const missingFields: ParsedCrmIntent["missingFields"] = [];
+
+  if (adults !== undefined && (adults < 1 || adults > MAX_QUOTE_ADULTS)) {
+    validationIssues.push({ field: "adults", code: "invalid_guest_count" });
+  }
+  if (children !== undefined && (children < 0 || children > MAX_QUOTE_CHILDREN)) {
+    validationIssues.push({ field: "children", code: "invalid_guest_count" });
+  }
+  if ((adults ?? 0) + (children ?? 0) > MAX_QUOTE_GUESTS) {
+    validationIssues.push({ field: "guests", code: "too_many_guests" });
+  }
+
+  const validAdults = validationIssues.some(issue => issue.field === "adults" || issue.field === "guests")
+    ? undefined
+    : adults;
+  const validChildren = validationIssues.some(issue => issue.field === "children" || issue.field === "guests")
+    ? undefined
+    : children;
 
   if (intent === "quote") {
     if (!checkin) missingFields.push("checkin");
     if (!checkout) missingFields.push("checkout");
-    if (!adults) missingFields.push("adults");
+    if (!validAdults) missingFields.push("adults");
   }
 
   const parsed = {
     intent,
     checkin,
     checkout,
-    adults,
-    children,
+    adults: validAdults,
+    children: validChildren,
     childrenAges,
     missingFields,
+    validationIssues,
   };
 
   return {
