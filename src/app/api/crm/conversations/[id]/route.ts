@@ -4,6 +4,7 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { inferPresenceFromLastGuestMessage } from "@/lib/crm/presence";
 import { isAutomationMode, resolveAutomationMode } from "@/lib/crm/automationPause";
+import { requireAdminAuth } from "@/lib/admin-auth";
 
 type RouteParams = {
     params: Promise<{
@@ -111,6 +112,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
 export async function PATCH(request: Request, { params }: RouteParams) {
     try {
+        const auth = await requireAdminAuth();
+        if (auth instanceof NextResponse) return auth;
+
         const { id } = await params;
         const body = await request.json().catch(() => null);
         const bodyRecord = asRecord(body);
@@ -146,12 +150,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 automationMode: requestedMode,
                 chatbotEnabled: requestedMode === "auto",
                 automationPausedUntil: null,
+                assignedUserId: requestedMode === "auto" ? null : auth.adminId,
             },
             select: {
                 id: true,
                 chatbotEnabled: true,
                 automationMode: true,
                 automationPausedUntil: true,
+                assignedUserId: true,
             },
         });
 
@@ -163,9 +169,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 ...buildAuditMetadata({
                     actorType: "human",
                     origin: "admin_ui",
+                    actorId: auth.adminId,
                 }),
                 chatbotEnabled: conversation.chatbotEnabled,
                 automationMode: conversation.automationMode,
+                assignedUserId: conversation.assignedUserId,
             },
         });
 
@@ -175,6 +183,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             chatbotEnabled: conversation.chatbotEnabled,
             automationMode: conversation.automationMode,
             automationPausedUntil: conversation.automationPausedUntil,
+            assignedUserId: conversation.assignedUserId,
         });
     } catch (error) {
         console.error("Erro ao atualizar chatbot da conversa:", error);
