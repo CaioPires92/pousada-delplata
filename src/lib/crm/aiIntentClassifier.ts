@@ -62,7 +62,9 @@ async function classifyWithAI(message: string): Promise<IntentClassification | n
 }
 
 export async function classifyIntent(message: string): Promise<IntentClassification> {
-  const ai = await classifyWithAI(message);
+  const ai = process.env.CRM_AI_SHADOW_MODE === "true"
+    ? await classifyWithAI(message)
+    : null;
   if (ai) return ai;
 
   const parsed = parseCrmIntent(message);

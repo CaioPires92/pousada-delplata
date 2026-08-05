@@ -42,6 +42,9 @@ export async function applyPipelineAutomationOnIncomingMessage(input: {
       confidence: classified.confidence,
       source: classified.source,
       accepted: classified.confidence >= minConfidence,
+      mode: classified.source === "ai" ? "shadow" : "deterministic",
+      actionAuthorized: false,
+      heuristicIntent: parsed.intent,
     },
   });
 
@@ -67,9 +70,7 @@ export async function applyPipelineAutomationOnIncomingMessage(input: {
     });
   }
 
-  const reservationDetected = classified.confidence >= minConfidence
-    ? classified.intent === "reservation"
-    : parsed.intent === "reservation";
+  const reservationDetected = parsed.intent === "reservation";
 
   if (reservationDetected) {
     await upsertReservationDraftFromMessage({
