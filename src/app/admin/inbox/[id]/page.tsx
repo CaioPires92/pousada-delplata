@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import ChatbotToggle from "./ChatbotToggle";
 import ReplyBox from "./ReplyBox";
 import MessageList from "./MessageList";
-import SalesSidebar from "./SalesSidebar";
 
 type Message = {
     id: string;
@@ -11,21 +10,6 @@ type Message = {
     messageType: string;
     createdAt: string;
     sentAt: string | null;
-};
-
-type PipelineCard = {
-    id: string;
-    estimatedValue: number | null;
-    intendedArrival: string | null;
-    intendedCheckin: string | null;
-    intendedCheckout: string | null;
-    adults: number | null;
-    children: number | null;
-    roomTypeInterest: string | null;
-    lossReason: string | null;
-    lostReason: string | null;
-    stage: string;
-    bookingId: string | null;
 };
 
 type ConversationDetail = {
@@ -39,7 +23,6 @@ type ConversationDetail = {
         name: string;
         phone: string | null;
     };
-    pipelineCard: PipelineCard | null;
     messages: Message[];
 };
 
@@ -117,12 +100,6 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                         <ReplyBox conversationId={conversation.id} />
                     </div>
                 </section>
-
-                {/* Sales Sidebar */}
-                <SalesSidebar 
-                    conversationId={conversation.id} 
-                    initialCard={conversation.pipelineCard} 
-                />
             </div>
         </main>
     );
