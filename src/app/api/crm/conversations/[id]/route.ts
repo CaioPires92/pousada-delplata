@@ -134,7 +134,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
         const existingConversation = await prisma.conversation.findUnique({
             where: { id },
-            select: { id: true },
+            select: {
+                id: true,
+                contactId: true,
+                chatbotEnabled: true,
+                automationMode: true,
+                automationPausedUntil: true,
+            },
         });
 
         if (!existingConversation) {
@@ -162,9 +168,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         });
 
         await recordCrmEvent({
-            action: "AutomationModeChanged",
-            contactId: undefined,
+            action: requestedMode === "off"
+                ? "HumanTookOver"
+                : requestedMode === "auto"
+                    ? "AutomationResumed"
+                    : "AutomationModeChanged",
+            contactId: existingConversation.contactId,
             conversationId: conversation.id,
+            userId: auth.adminId,
             metadata: {
                 ...buildAuditMetadata({
                     actorType: "human",
@@ -172,8 +183,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                     actorId: auth.adminId,
                 }),
                 chatbotEnabled: conversation.chatbotEnabled,
+                previousMode: resolveAutomationMode(existingConversation),
                 automationMode: conversation.automationMode,
                 assignedUserId: conversation.assignedUserId,
+                pauseStrategy: requestedMode === "off" ? "indefinite" : "none",
+                pauseMinutes: null,
             },
         });
 

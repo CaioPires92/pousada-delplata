@@ -30,7 +30,13 @@ import { PATCH } from './route';
 describe('conversation automation mode', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.findUnique.mockResolvedValue({ id: 'conversation-1' });
+        mocks.findUnique.mockResolvedValue({
+            id: 'conversation-1',
+            contactId: 'contact-1',
+            chatbotEnabled: false,
+            automationMode: 'off',
+            automationPausedUntil: null,
+        });
         mocks.recordCrmEvent.mockResolvedValue(null);
         mocks.requireAdminAuth.mockResolvedValue({
             adminId: 'admin-1',
@@ -78,6 +84,13 @@ describe('conversation automation mode', () => {
             assignedUserId: automationMode === 'auto' ? null : 'admin-1',
         }));
         expect(mocks.recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
+            action: automationMode === 'off'
+                ? 'HumanTookOver'
+                : automationMode === 'auto'
+                    ? 'AutomationResumed'
+                    : 'AutomationModeChanged',
+            contactId: 'contact-1',
+            userId: 'admin-1',
             metadata: expect.objectContaining({
                 actorId: 'admin-1',
                 automationMode,

@@ -158,7 +158,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F3.02 Testar recebimento em tempo real/SSE e reconexão.
 - [x] F3.03 Criar estados `off`, `supervised` e `auto`.
 - [x] F3.03a Separar respostas do chatbot do monitoramento automático do Kanban.
-- [ ] F3.04 Implementar assumir, atribuir, pausar e devolver ao bot.
+- [x] F3.04 Implementar assumir, atribuir, pausar e devolver ao bot.
 - [ ] F3.05 Cancelar jobs pendentes na tomada humana.
 - [ ] F3.06 Exibir falha/entrega/leitura da mensagem.
 - [ ] F3.07 Criar ação segura de reenviar falha.
