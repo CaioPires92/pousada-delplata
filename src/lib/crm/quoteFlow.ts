@@ -10,7 +10,15 @@ type FlowData = {
 };
 
 export type QuoteFlowPrompt = {
-  step: "waiting_checkin" | "waiting_checkout" | "waiting_adults" | "ready_to_quote";
+  step:
+    | "waiting_checkin"
+    | "waiting_checkout"
+    | "waiting_adults"
+    | "ready_to_quote"
+    | "invalid_checkin"
+    | "invalid_checkout"
+    | "stay_too_long"
+    | "invalid_guests";
   text: string;
 };
 
@@ -64,6 +72,34 @@ export function isQuoteExpired(expiresAt: unknown, now = new Date()): boolean {
 }
 
 export function promptForFlowStep(step: string): QuoteFlowPrompt | null {
+  if (step === "invalid_checkin") {
+    return {
+      step: "invalid_checkin",
+      text: "A data de check-in informada é inválida ou já passou. Pode me enviar uma nova data, por favor?",
+    };
+  }
+
+  if (step === "invalid_checkout") {
+    return {
+      step: "invalid_checkout",
+      text: "A data de check-out precisa ser válida e posterior ao check-in. Pode me informar novamente?",
+    };
+  }
+
+  if (step === "stay_too_long") {
+    return {
+      step: "stay_too_long",
+      text: `A cotação automática aceita períodos de até ${MAX_QUOTE_NIGHTS} noites. Pode informar uma data de check-out mais próxima?`,
+    };
+  }
+
+  if (step === "invalid_guests") {
+    return {
+      step: "invalid_guests",
+      text: "A quantidade de hóspedes informada não é válida. Pode me dizer novamente quantos adultos vão se hospedar?",
+    };
+  }
+
   if (step === "waiting_checkin") {
     return {
       step: "waiting_checkin",
@@ -94,3 +130,4 @@ export function promptForFlowStep(step: string): QuoteFlowPrompt | null {
 
   return null;
 }
+import { MAX_QUOTE_NIGHTS } from "@/lib/crm/intentParser";

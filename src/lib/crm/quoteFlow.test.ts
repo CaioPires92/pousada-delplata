@@ -17,6 +17,10 @@ describe("quoteFlow", () => {
   it("returns prompt for known step", () => {
     expect(promptForFlowStep("waiting_adults")?.text).toContain("adultos");
     expect(promptForFlowStep("unknown")).toBeNull();
+    expect(promptForFlowStep("invalid_checkin")?.text).toContain("já passou");
+    expect(promptForFlowStep("invalid_checkout")?.text).toContain("posterior");
+    expect(promptForFlowStep("stay_too_long")?.text).toContain("90 noites");
+    expect(promptForFlowStep("invalid_guests")?.text).toContain("adultos");
   });
 
   it("expires flow after timeout", () => {

@@ -51,4 +51,31 @@ describe("buildQuoteFlowState", () => {
     expect(result.flowDataJson).toContain("2026-06-15");
     expect(result.flowDataJson).toContain('"adults":2');
   });
+
+  it("asks only for invalid dates and does not reuse stale quote dates", () => {
+    const result = buildQuoteFlowState("01/01/2026 a 01/01/23, 2 adultos", {
+      currentFlow: "quote",
+      flowStep: "ready_to_quote",
+      flowDataJson: '{"checkin":"2026-06-15","checkout":"2026-06-17","adults":2}',
+    });
+
+    expect(result.flowStep).toBe("invalid_checkin");
+    expect(JSON.parse(result.flowDataJson ?? "{}")).toMatchObject({
+      adults: 2,
+      validationIssue: { field: "checkin", code: "past_date" },
+    });
+    expect(JSON.parse(result.flowDataJson ?? "{}")).not.toHaveProperty("checkin");
+    expect(JSON.parse(result.flowDataJson ?? "{}")).not.toHaveProperty("checkout");
+  });
+
+  it("accepts a date-only reply while an existing quote flow is waiting", () => {
+    const result = buildQuoteFlowState("17/06", {
+      currentFlow: "quote",
+      flowStep: "waiting_checkout",
+      flowDataJson: '{"checkin":"2026-06-15"}',
+    });
+
+    expect(result.flowStep).toBe("waiting_adults");
+    expect(result.flowDataJson).toContain('"checkout":"2026-06-17"');
+  });
 });
