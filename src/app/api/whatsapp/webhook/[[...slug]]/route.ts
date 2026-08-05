@@ -14,6 +14,7 @@ import { applyPipelineAutomationOnIncomingMessage } from '@/lib/crm/pipelineAuto
 import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-normalizer';
 import { persistNormalizedWebhookEvents } from '@/lib/messaging/webhook-event-store';
 import { persistMessageDeliveryStatus } from '@/lib/messaging/delivery-status-store';
+import { withWebhookWriteLock } from '@/lib/messaging/webhook-write-lock';
 
 export const runtime = 'nodejs';
 
@@ -434,7 +435,7 @@ export async function POST(
   };
 
   try {
-    result = await prisma.$transaction(async (tx) => {
+    result = await withWebhookWriteLock(() => prisma.$transaction(async (tx) => {
       // ETAPA 4 — BUSCA UNIFICADA E DEDUPLICAÇÃO
       const identity = extractWhatsAppIdentity(extracted.rawPayload);
       
@@ -641,7 +642,7 @@ export async function POST(
         messageId: message.id,
         isNewLead: (tx as any)._isNewLead === true
       };
-    });
+    }));
 
     // ETAPA 5.1 — EMISSÃO DE EVENTOS (FORA DA TRANSAÇÃO PARA NÃO BLOQUEAR)
     // 1. LeadCreated
