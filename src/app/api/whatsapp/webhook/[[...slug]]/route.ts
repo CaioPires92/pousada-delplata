@@ -579,6 +579,7 @@ export async function POST(
             channel: 'whatsapp',
             status: 'open',
             chatbotEnabled: true,
+            automationMode: 'auto',
           },
           select: {
             id: true,
@@ -773,6 +774,7 @@ export async function POST(
     where: { id: result.conversationId },
     select: {
       chatbotEnabled: true,
+      automationMode: true,
       automationPausedUntil: true,
       contact: {
         select: {

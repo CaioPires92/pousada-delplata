@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   createAutomationPausedUntil,
+  isAutomationMode,
   isAutomationPaused,
   isConversationAutomationActive,
+  resolveAutomationMode,
 } from "./automationPause";
 
 describe("automationPause", () => {
@@ -23,5 +25,24 @@ describe("automationPause", () => {
     expect(isConversationAutomationActive({ chatbotEnabled: true, automationPausedUntil: null }, now)).toBe(true);
     expect(isConversationAutomationActive({ chatbotEnabled: false, automationPausedUntil: null }, now)).toBe(false);
     expect(isConversationAutomationActive({ chatbotEnabled: true, automationPausedUntil: "2026-05-10T12:10:00.000Z" }, now)).toBe(false);
+  });
+
+  it("supports off, supervised and auto while preserving legacy boolean records", () => {
+    expect(isAutomationMode("off")).toBe(true);
+    expect(isAutomationMode("supervised")).toBe(true);
+    expect(isAutomationMode("auto")).toBe(true);
+    expect(isAutomationMode("invalid")).toBe(false);
+    expect(resolveAutomationMode({ chatbotEnabled: true, automationPausedUntil: null })).toBe("auto");
+    expect(resolveAutomationMode({ chatbotEnabled: false, automationPausedUntil: null })).toBe("off");
+    expect(isConversationAutomationActive({
+      chatbotEnabled: false,
+      automationMode: "supervised",
+      automationPausedUntil: null,
+    }, now)).toBe(false);
+    expect(isConversationAutomationActive({
+      chatbotEnabled: true,
+      automationMode: "auto",
+      automationPausedUntil: null,
+    }, now)).toBe(true);
   });
 });

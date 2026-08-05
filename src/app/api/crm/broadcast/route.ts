@@ -137,6 +137,7 @@ export async function POST(request: Request) {
             channel: "whatsapp",
             status: "open",
             chatbotEnabled: true,
+            automationMode: "auto",
           },
           select: { id: true },
         });

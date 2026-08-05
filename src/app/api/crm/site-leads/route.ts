@@ -90,6 +90,7 @@ export async function POST(request: Request) {
             channel: "site_chat",
             status: "open",
             chatbotEnabled: true,
+            automationMode: "auto",
           },
         });
       }

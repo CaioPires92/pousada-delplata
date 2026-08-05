@@ -19,9 +19,11 @@ export async function executeAutomationHandoff(input: {
     where: {
       id: input.conversationId,
       chatbotEnabled: true,
+      automationMode: "auto",
     },
     data: {
       chatbotEnabled: false,
+      automationMode: "off",
       currentFlow: null,
       flowStep: null,
       flowDataJson: null,
