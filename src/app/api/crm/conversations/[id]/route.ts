@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { inferPresenceFromLastGuestMessage } from "@/lib/crm/presence";
+import { isAutomationMode, resolveAutomationMode } from "@/lib/crm/automationPause";
 
 type RouteParams = {
     params: Promise<{
@@ -83,6 +84,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
             status: conversation.status,
             channel: conversation.channel,
             chatbotEnabled: conversation.chatbotEnabled,
+            automationMode: resolveAutomationMode(conversation),
             automationPausedUntil: conversation.automationPausedUntil,
             lastMessageAt: conversation.lastMessageAt,
             contact: {
@@ -113,7 +115,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         const body = await request.json().catch(() => null);
         const bodyRecord = asRecord(body);
 
-        if (typeof bodyRecord?.chatbotEnabled !== "boolean") {
+        const requestedMode = isAutomationMode(bodyRecord?.automationMode)
+            ? bodyRecord.automationMode
+            : typeof bodyRecord?.chatbotEnabled === "boolean"
+                ? bodyRecord.chatbotEnabled ? "auto" : "off"
+                : null;
+
+        if (!requestedMode) {
             return NextResponse.json(
                 { ok: false, error: "invalid_body" },
                 { status: 400 }
@@ -135,18 +143,20 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         const conversation = await prisma.conversation.update({
             where: { id },
             data: {
-                chatbotEnabled: bodyRecord.chatbotEnabled,
+                automationMode: requestedMode,
+                chatbotEnabled: requestedMode === "auto",
                 automationPausedUntil: null,
             },
             select: {
                 id: true,
                 chatbotEnabled: true,
+                automationMode: true,
                 automationPausedUntil: true,
             },
         });
 
         await recordCrmEvent({
-            action: "ChatbotToggleChanged",
+            action: "AutomationModeChanged",
             contactId: undefined,
             conversationId: conversation.id,
             metadata: {
@@ -155,6 +165,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                     origin: "admin_ui",
                 }),
                 chatbotEnabled: conversation.chatbotEnabled,
+                automationMode: conversation.automationMode,
             },
         });
 
@@ -162,6 +173,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             ok: true,
             conversationId: conversation.id,
             chatbotEnabled: conversation.chatbotEnabled,
+            automationMode: conversation.automationMode,
             automationPausedUntil: conversation.automationPausedUntil,
         });
     } catch (error) {

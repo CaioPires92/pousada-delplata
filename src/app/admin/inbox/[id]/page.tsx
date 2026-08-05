@@ -17,6 +17,7 @@ type ConversationDetail = {
     status: string;
     channel: string;
     chatbotEnabled: boolean;
+    automationMode: "off" | "supervised" | "auto";
     automationPausedUntil: string | null;
     contact: {
         id: string;
@@ -34,6 +35,13 @@ function formatDateTime(value: string | null): string {
 }
 
 function getChatbotStatus(conversation: ConversationDetail): { label: string; tone: string; } {
+    if (conversation.automationMode === "off") {
+        return { label: "Automação desligada", tone: "border-slate-200 bg-slate-50 text-slate-600" };
+    }
+    if (conversation.automationMode === "supervised") {
+        return { label: "Modo supervisionado", tone: "border-sky-200 bg-sky-50 text-sky-700" };
+    }
+
     const pausedUntil = conversation.automationPausedUntil ? new Date(conversation.automationPausedUntil) : null;
     const isPaused = pausedUntil !== null && pausedUntil.getTime() > Date.now();
     if (isPaused) {
@@ -42,10 +50,7 @@ function getChatbotStatus(conversation: ConversationDetail): { label: string; to
             tone: "border-amber-200 bg-amber-50 text-amber-800",
         };
     }
-    if (conversation.chatbotEnabled) {
-        return { label: "Chatbot ativo", tone: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-    }
-    return { label: "Chatbot desligado", tone: "border-slate-200 bg-slate-50 text-slate-600" };
+    return { label: "Modo automático", tone: "border-emerald-200 bg-emerald-50 text-emerald-700" };
 }
 
 async function getConversation(id: string): Promise<ConversationDetail> {
@@ -82,7 +87,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                                     </span>
                                 </div>
                                 <ChatbotToggle
-                                    chatbotEnabled={conversation.chatbotEnabled}
+                                    automationMode={conversation.automationMode}
                                     conversationId={conversation.id}
                                 />
                             </div>
