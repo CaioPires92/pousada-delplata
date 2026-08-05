@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isQuoteExpired,
+  isQuoteExecutionLocked,
   parseFlowDataJson,
   promptForFlowStep,
   shouldExpireQuoteFlow,
@@ -32,6 +33,20 @@ describe("quoteFlow", () => {
         "waiting_checkout",
         now
       )
+    ).toBe(true);
+  });
+
+  it("does not treat a recent prompt as an active quote execution lock", () => {
+    const now = new Date("2026-05-13T15:00:00.000Z");
+
+    expect(
+      isQuoteExecutionLocked(
+        { lastPromptStep: "waiting_checkin", lastPromptAt: "2026-05-13T14:59:40.000Z" },
+        now
+      )
+    ).toBe(false);
+    expect(
+      isQuoteExecutionLocked({ quoteLockUntil: "2026-05-13T15:00:45.000Z" }, now)
     ).toBe(true);
   });
 

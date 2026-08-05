@@ -47,6 +47,13 @@ export function shouldSkipPromptRepeat(flowData: FlowData, step: string, now = n
   return now.getTime() - parsed.getTime() < QUOTE_FLOW_DEBOUNCE_MS;
 }
 
+export function isQuoteExecutionLocked(flowData: FlowData, now = new Date()): boolean {
+  if (!flowData.quoteLockUntil) return false;
+
+  const parsed = new Date(flowData.quoteLockUntil);
+  return !Number.isNaN(parsed.getTime()) && parsed > now;
+}
+
 export function isQuoteExpired(expiresAt: unknown, now = new Date()): boolean {
   if (typeof expiresAt !== "string" && !(expiresAt instanceof Date)) return true;
 

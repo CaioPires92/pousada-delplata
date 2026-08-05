@@ -5,6 +5,7 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 import {
     isQuoteExpired,
+    isQuoteExecutionLocked,
     parseFlowDataJson,
     promptForFlowStep,
     shouldExpireQuoteFlow,
@@ -230,20 +231,19 @@ export async function processAutoResponse(conversationId: string, phone: string,
             const adults = flowData.adults;
             const children = flowData.children ?? 0;
             const childrenAges = Array.isArray(flowData.childrenAges) ? flowData.childrenAges : [];
-            const lockUntil = flowData.quoteLockUntil ? new Date(flowData.quoteLockUntil) : null;
 
             if (!token || !checkin || !checkout || !adults) {
                 return null;
             }
 
-            if (lockUntil && !Number.isNaN(lockUntil.getTime()) && lockUntil > now) {
+            if (isQuoteExecutionLocked(flowData, now)) {
                 await recordCrmEvent({
                     action: "QuoteDebounced",
                     contactId: conversation.contactId,
                     conversationId: conversation.id,
                     metadata: {
                         reason: "active_lock",
-                        lockUntil: lockUntil.toISOString(),
+                        lockUntil: flowData.quoteLockUntil,
                     },
                 });
                 return null;
@@ -262,14 +262,8 @@ export async function processAutoResponse(conversationId: string, phone: string,
                 return null;
             }
 
-            const acquiredLock = await prisma.conversation.updateMany({
-                where: {
-                    id: conversationId,
-                    OR: [
-                        { lastAutomationAt: null },
-                        { lastAutomationAt: { lt: new Date(now.getTime() - QUOTE_DEBOUNCE_LOCK_MS) } },
-                    ],
-                },
+            await prisma.conversation.update({
+                where: { id: conversationId },
                 data: {
                     lastAutomationAt: now,
                     flowDataJson: JSON.stringify({
@@ -278,18 +272,6 @@ export async function processAutoResponse(conversationId: string, phone: string,
                     }),
                 },
             });
-
-            if (acquiredLock.count === 0) {
-                await recordCrmEvent({
-                    action: "QuoteDebounced",
-                    contactId: conversation.contactId,
-                    conversationId: conversation.id,
-                    metadata: {
-                        reason: "concurrent_execution",
-                    },
-                });
-                return null;
-            }
 
             const quoteRequest = new Request("http://localhost/api/crm/quote", {
                 method: "POST",
