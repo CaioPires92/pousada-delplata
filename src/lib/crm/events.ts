@@ -1,5 +1,8 @@
 import prisma from "@/lib/prisma";
 import { crmLog } from "@/lib/crm/logger";
+import { enqueueAutomationJob } from "@/lib/crm/automationQueue";
+import { buildN8nEventEnvelope } from "@/lib/crm/n8nEventContract";
+import { getN8nDeliveryConfig } from "@/lib/crm/n8nDelivery";
 
 export interface CrmEventInput {
   action: string;
@@ -27,9 +30,7 @@ export async function recordCrmEvent(input: CrmEventInput) {
       },
     });
 
-    // O CRM continua registrando eventos localmente.
-    // A emissão externa está desativada enquanto o n8n é reconstruído do zero.
-    await emitCrmEvent(input);
+    await emitCrmEvent(input, log.id, "createdAt" in log && log.createdAt ? log.createdAt : new Date());
     crmLog({
       level: "AUTOMATION",
       action: input.action,
@@ -58,10 +59,12 @@ export async function recordCrmEvent(input: CrmEventInput) {
 /**
  * Emite eventos do CRM para um Webhook externo (n8n).
  */
-export async function emitCrmEvent(input: CrmEventInput) {
-  const externalEmissionEnabled = process.env.N8N_ENABLED === "true";
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
-  if (process.env.NODE_ENV === "test" || !externalEmissionEnabled || !webhookUrl) {
+export async function emitCrmEvent(
+  input: CrmEventInput,
+  eventId: string,
+  occurredAt: Date | string = new Date()
+) {
+  if (process.env.NODE_ENV === "test" || process.env.N8N_ENABLED !== "true") {
     crmLog({
       level: "INFO",
       action: input.action,
@@ -69,48 +72,38 @@ export async function emitCrmEvent(input: CrmEventInput) {
       context: {
         reason: process.env.NODE_ENV === "test"
           ? "test_environment"
-          : !externalEmissionEnabled
-            ? "disabled"
-            : "webhook_not_configured",
+          : "disabled",
       },
     });
-    return;
+    return { queued: false as const };
   }
 
   try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event: input.action,
-        timestamp: new Date().toISOString(),
-        payload: {
-          contactId: input.contactId,
-          conversationId: input.conversationId,
-          bookingId: input.bookingId,
-          userId: input.userId,
-          metadata: input.metadata,
-        }
-      }),
-    });
+    getN8nDeliveryConfig();
+    if (!input.conversationId) return { queued: false as const, reason: "missing_conversation" as const };
+    const envelope = buildN8nEventEnvelope({ eventId, occurredAt, event: input });
+    if (!envelope) return { queued: false as const, reason: "event_not_allowed" as const };
 
-    if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
-    }
+    const job = await enqueueAutomationJob({
+      conversationId: input.conversationId,
+      action: "EMIT_N8N_EVENT",
+      payload: { event: envelope },
+    });
 
     crmLog({
       level: "INFO",
       action: input.action,
-      message: "Emitted CRM event to external webhook successfully",
+      message: "External CRM event queued",
+      context: { eventId, queueJobId: job.id },
     });
+    return { queued: true as const, jobId: job.id };
   } catch (error) {
     crmLog({
       level: "ERROR",
       action: input.action,
-      message: "Failed to emit external CRM event",
-      context: { error: error instanceof Error ? error.message : String(error) },
+      message: "Failed to queue external CRM event",
+      context: { errorCode: error instanceof Error ? error.message.slice(0, 100) : "unknown_error" },
     });
+    return { queued: false as const, reason: "queue_failed" as const };
   }
 }

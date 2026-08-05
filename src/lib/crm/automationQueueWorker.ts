@@ -4,6 +4,7 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import { processNextAutomationJobForConversation } from "@/lib/crm/automationQueue";
 import { crmLog } from "@/lib/crm/logger";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { deliverN8nEvent } from "@/lib/crm/n8nDelivery";
 import { CircuitBreaker } from "@/lib/messaging/circuit-breaker";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 
@@ -45,6 +46,13 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
     if (!conversation) continue;
 
     const result = await processNextAutomationJobForConversation(conversation.id, async job => {
+      if (job.action === "EMIT_N8N_EVENT") {
+        if (!job.payload.event) throw new Error("invalid_n8n_event_payload");
+        const delivery = await deliverN8nEvent(job.payload.event);
+        if (!delivery.delivered) throw new Error("n8n_delivery_disabled");
+        return;
+      }
+
       if (job.action !== "SEND_WHATSAPP_MESSAGE" || !job.payload.text || !job.payload.target) {
         throw new Error("invalid_queue_payload");
       }
