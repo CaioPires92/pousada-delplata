@@ -64,7 +64,7 @@ Evolution API como transporte.
   respostas automáticas sem interromper recebimento ou atendimento manual.
 - [x] E17 Tratar intenção desconhecida e baixa confiança com resposta segura e
   encaminhamento humano, sem inventar serviços ou políticas.
-- [ ] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
+- [x] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
 - [ ] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
   preço, disponibilidade, reserva e envio sob autoridade do CRM.
 
