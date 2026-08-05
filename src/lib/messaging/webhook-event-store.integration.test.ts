@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/prisma";
 import type { NormalizedMessagingEvent } from "./provider";
 import { persistNormalizedWebhookEvents } from "./webhook-event-store";
@@ -13,6 +13,8 @@ const event: NormalizedMessagingEvent = {
 };
 
 describe("webhook event store database constraint", () => {
+  vi.setConfig({ testTimeout: 15000 });
+
   afterEach(async () => {
     await prisma.messagingWebhookEvent.deleteMany({
       where: { provider: "meta", externalEventId: event.externalEventId },

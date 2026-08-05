@@ -432,10 +432,32 @@ export async function POST(
     contactId: string;
     conversationId: string;
     messageId: string;
+    duplicated?: boolean;
+    isNewLead?: boolean;
   };
 
   try {
     result = await withWebhookWriteLock(() => prisma.$transaction(async (tx) => {
+      if (extracted.externalMessageId) {
+        const duplicateInsideWriteLock = await tx.message.findFirst({
+          where: { externalMessageId: extracted.externalMessageId },
+          select: {
+            id: true,
+            conversationId: true,
+            conversation: { select: { contactId: true } },
+          },
+        });
+
+        if (duplicateInsideWriteLock) {
+          return {
+            contactId: duplicateInsideWriteLock.conversation.contactId,
+            conversationId: duplicateInsideWriteLock.conversationId,
+            messageId: duplicateInsideWriteLock.id,
+            duplicated: true,
+          };
+        }
+      }
+
       // ETAPA 4 — BUSCA UNIFICADA E DEDUPLICAÇÃO
       const identity = extractWhatsAppIdentity(extracted.rawPayload);
       
@@ -644,9 +666,19 @@ export async function POST(
       };
     }));
 
+    if (result.duplicated) {
+      return NextResponse.json({
+        ok: true,
+        duplicated: true,
+        contactId: result.contactId,
+        conversationId: result.conversationId,
+        messageId: result.messageId,
+      });
+    }
+
     // ETAPA 5.1 — EMISSÃO DE EVENTOS (FORA DA TRANSAÇÃO PARA NÃO BLOQUEAR)
     // 1. LeadCreated
-    if ((result as any).isNewLead) {
+    if (result.isNewLead) {
       recordCrmEvent({
         action: 'LeadCreated',
         contactId: result.contactId,
