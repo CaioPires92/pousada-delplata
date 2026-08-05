@@ -4,6 +4,12 @@ Este plano substitui o canal alvo da Fase 2 do CRM sem remover a implementação
 Meta. O contrato `MessagingProvider` continua sendo a fronteira do domínio; Meta
 fica isolada e inativa, disponível apenas para referência ou rollback futuro.
 
+Este é o plano operacional vigente para o canal WhatsApp. As referências à Meta
+em `CRM_AI_PRD.md` e `CRM_AI_PHASES_TODO.md` permanecem como histórico da
+tentativa anterior e não autorizam a troca do provedor ativo. A evolução das
+automações continua seguindo as fases de segurança desses documentos, mas usa a
+Evolution API como transporte.
+
 ## Diagnóstico inicial
 
 - [x] Confirmar branch de desenvolvimento (`codex/crm-meta-continuation`).
@@ -41,6 +47,24 @@ fica isolada e inativa, disponível apenas para referência ou rollback futuro.
   as regressões atribuíveis à integração.
 - [x] E11 Atualizar arquitetura, runbook de operação/rollback e instruções de
   implantação da Evolution API.
+
+## Estabilização funcional após a integração
+
+- [x] E12 Validar conexão real, QR Code, webhook, recebimento, envio humano e
+  estados de entrega com a instância Evolution.
+- [x] E13 Corrigir reconciliação de identidades telefone/LID e garantir
+  idempotência sob webhooks simultâneos.
+- [x] E14 Impedir respostas duplicadas do chatbot e validar o fluxo com a
+  automação pausada por atendimento humano.
+- [x] E15 Corrigir a continuação da cotação quando datas e hóspedes chegam logo
+  após a pergunta automática.
+- [ ] E16 Validar deterministicamente datas, período e quantidade de hóspedes,
+  solicitando novamente somente os campos inválidos.
+- [ ] E17 Tratar intenção desconhecida e baixa confiança com resposta segura e
+  encaminhamento humano, sem inventar serviços ou políticas.
+- [ ] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
+- [ ] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
+  preço, disponibilidade, reserva e envio sob autoridade do CRM.
 
 ## Gate por incremento
 
