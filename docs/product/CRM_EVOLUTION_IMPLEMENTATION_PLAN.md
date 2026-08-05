@@ -67,6 +67,10 @@ Evolution API como transporte.
 - [x] E18 Preparar base de conhecimento aprovada e IA em modo supervisionado.
 - [ ] E19 Integrar n8n apenas para orquestração externa autenticada, mantendo
   preço, disponibilidade, reserva e envio sob autoridade do CRM.
+  - [x] E19a Implementar allowlist sanitizada, autenticação dedicada, fila
+    durável, timeout, retry, dead-letter e runbook.
+  - [ ] E19b Configurar o workflow real no n8n e executar teste ponta a ponta
+    opt-in antes de definir `N8N_ENABLED=true` de forma permanente.
 
 ## Gate por incremento
 
