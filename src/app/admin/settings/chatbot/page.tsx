@@ -168,7 +168,7 @@ export default function ChatbotSettingsPage() {
                     </div>
                     <h1 className="text-3xl font-black text-slate-800 tracking-tight">Configurações do Chatbot</h1>
                 </div>
-                <p className="text-slate-500 font-medium">Gerencie as respostas automáticas do seu CRM de WhatsApp.</p>
+                <p className="text-slate-500 font-medium">Gerencie a base aprovada de respostas automáticas do WhatsApp.</p>
             </header>
 
             <section className={`rounded-2xl border p-6 shadow-sm ${globalEnabled ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
@@ -251,7 +251,10 @@ export default function ChatbotSettingsPage() {
 
             {/* Lista de Regras */}
             <div className="space-y-4">
-                <h2 className="text-xl font-black text-slate-800">Regras Ativas</h2>
+                <div>
+                    <h2 className="text-xl font-black text-slate-800">Base de respostas aprovadas</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-500">Somente regras marcadas como Ativo podem ser enviadas automaticamente.</p>
+                </div>
                 {isLoading ? (
                     <div className="animate-pulse space-y-4">
                         {[1, 2, 3].map(i => <div key={i} className="h-24 bg-slate-100 rounded-2xl" />)}
