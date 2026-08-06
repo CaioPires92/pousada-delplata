@@ -72,6 +72,9 @@ try {
   exitCode = await run(nodeExecutable, [
     vitestCli,
     "run",
+    // Integration files share one isolated SQLite database. Running files in
+    // parallel makes their cleanup hooks race and produces false P1008/FK failures.
+    "--no-file-parallelism",
     ...crmTestTargets,
     ...process.argv.slice(2),
   ]);
