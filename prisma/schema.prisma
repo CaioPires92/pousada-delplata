@@ -293,6 +293,11 @@ model Conversation {
   lastMessageAt         DateTime?           @default(now())
   lastCustomerMessageAt DateTime?
   lastHumanMessageAt    DateTime?
+  firstCustomerMessageAt DateTime?
+  firstHumanResponseAt   DateTime?
+  firstResponseTimeSeconds Int?
+  awaitingHumanResponse Boolean             @default(false)
+  waitingSince          DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -308,6 +313,7 @@ model Conversation {
   @@index([channel, status])
   @@index([assignedUserId])
   @@index([lastMessageAt])
+  @@index([awaitingHumanResponse, waitingSince])
 }
 
 model AutomationQueueJob {

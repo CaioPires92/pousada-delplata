@@ -150,8 +150,17 @@ describe("manual WhatsApp send hardening", () => {
         source: "test-whatsapp-send",
       },
     });
+    const customerMessageAt = new Date(Date.now() - 60_000);
     const conversation = await prisma.conversation.create({
-      data: { contactId: contact.id, channel: "whatsapp", status: "open" },
+      data: {
+        contactId: contact.id,
+        channel: "whatsapp",
+        status: "open",
+        lastCustomerMessageAt: customerMessageAt,
+        firstCustomerMessageAt: customerMessageAt,
+        awaitingHumanResponse: true,
+        waitingSince: customerMessageAt,
+      },
     });
     const pendingSend = await prisma.automationQueueJob.create({
       data: {
@@ -192,6 +201,10 @@ describe("manual WhatsApp send hardening", () => {
     expect(message?.deliveryUpdatedAt?.toISOString()).toBe("2026-08-03T19:00:00.000Z");
     expect(updatedConversation?.assignedUserId).toBe("admin-1");
     expect(updatedConversation?.automationPausedUntil).not.toBeNull();
+    expect(updatedConversation?.awaitingHumanResponse).toBe(false);
+    expect(updatedConversation?.waitingSince).toBeNull();
+    expect(updatedConversation?.firstHumanResponseAt).not.toBeNull();
+    expect(updatedConversation?.firstResponseTimeSeconds).toBeGreaterThanOrEqual(60);
     expect(takeoverLog?.metadataJson).toContain('"actorId":"admin-1"');
     expect(takeoverLog?.metadataJson).toContain('"cancelledJobs":1');
     expect(cancelledSend).toMatchObject({

@@ -7,6 +7,7 @@ import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { requireAdminAuth } from "@/lib/admin-auth";
 import { cancelPendingAutomationJobs } from "@/lib/crm/automationQueue";
+import { buildConversationResponseMetricUpdate } from "@/lib/crm/responseMetrics";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -194,6 +195,11 @@ export async function POST(request: Request) {
                 where: { id: conversation.id },
                 data: {
                     lastMessageAt: now,
+                    ...buildConversationResponseMetricUpdate({
+                        senderType: "human",
+                        occurredAt: now,
+                        state: conversation,
+                    }),
                 },
             });
 

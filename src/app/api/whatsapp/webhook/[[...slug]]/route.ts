@@ -15,6 +15,7 @@ import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-nor
 import { persistNormalizedWebhookEvents } from '@/lib/messaging/webhook-event-store';
 import { persistMessageDeliveryStatus } from '@/lib/messaging/delivery-status-store';
 import { withWebhookWriteLock } from '@/lib/messaging/webhook-write-lock';
+import { buildConversationResponseMetricUpdate } from '@/lib/crm/responseMetrics';
 
 export const runtime = 'nodejs';
 
@@ -569,6 +570,10 @@ export async function POST(
           currentFlow: true,
           flowStep: true,
           flowDataJson: true,
+          lastCustomerMessageAt: true,
+          lastHumanMessageAt: true,
+          firstCustomerMessageAt: true,
+          firstHumanResponseAt: true,
         },
       });
 
@@ -586,6 +591,10 @@ export async function POST(
             currentFlow: true,
             flowStep: true,
             flowDataJson: true,
+            lastCustomerMessageAt: true,
+            lastHumanMessageAt: true,
+            firstCustomerMessageAt: true,
+            firstHumanResponseAt: true,
           },
         });
       }
@@ -607,6 +616,11 @@ export async function POST(
       });
 
       const lastActivityAt = new Date();
+      const responseMetricUpdate = buildConversationResponseMetricUpdate({
+        senderType: extracted.fromMe ? 'human' : 'guest',
+        occurredAt: extracted.sentAt,
+        state: conversation,
+      });
       const flowState = !extracted.fromMe && extracted.textContent
         ? buildQuoteFlowState(extracted.textContent, {
             currentFlow: conversation.currentFlow,
@@ -621,6 +635,7 @@ export async function POST(
         },
         data: {
           lastMessageAt: extracted.sentAt,
+          ...responseMetricUpdate,
           ...(flowState ? {
             currentFlow: flowState.currentFlow,
             flowStep: flowState.flowStep,

@@ -10,6 +10,7 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import prisma from "@/lib/prisma";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
+import { buildConversationResponseMetricUpdate } from "@/lib/crm/responseMetrics";
 
 type RouteParams = {
     params: Promise<{ id: string }>;
@@ -47,6 +48,10 @@ export async function POST(_request: Request, { params }: RouteParams) {
                 conversation: {
                     select: {
                         contactId: true,
+                        lastCustomerMessageAt: true,
+                        lastHumanMessageAt: true,
+                        firstCustomerMessageAt: true,
+                        firstHumanResponseAt: true,
                         contact: {
                             select: {
                                 phone: true,
@@ -152,6 +157,14 @@ export async function POST(_request: Request, { params }: RouteParams) {
             if (updated.count === 0) {
                 throw Object.assign(new Error("retry_claim_lost"), { code: "retry_claim_lost" });
             }
+            await prisma.conversation.update({
+                where: { id: message.conversationId },
+                data: buildConversationResponseMetricUpdate({
+                    senderType: "human",
+                    occurredAt: new Date(sendResult.acceptedAt),
+                    state: message.conversation,
+                }),
+            });
 
             return NextResponse.json({
                 ok: true,

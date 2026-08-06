@@ -136,6 +136,10 @@ describe("WhatsApp CRM webhook hardening", () => {
 
     expect(messages).toHaveLength(1);
     expect(messages[0].conversation.contact.phone).toBe("5511999990001");
+    expect(messages[0].conversation.awaitingHumanResponse).toBe(true);
+    expect(messages[0].conversation.waitingSince).not.toBeNull();
+    expect(messages[0].conversation.firstCustomerMessageAt).not.toBeNull();
+    expect(messages[0].conversation.lastCustomerMessageAt).not.toBeNull();
     const technicalEvents = await prisma.messagingWebhookEvent.findMany({
       where: { provider: "evolution", externalMessageId: "test-phone-duplicate" },
     });
