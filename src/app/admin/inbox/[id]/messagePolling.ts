@@ -6,7 +6,7 @@ export type InboxMessage = {
     createdAt: string;
     sentAt: string | null;
     status?: "pending" | "sent" | "error";
-    deliveryStatus?: "sent" | "delivered" | "read" | "failed" | null;
+    deliveryStatus?: "sent" | "delivered" | "read" | "failed" | "retrying" | null;
     deliveryErrorTitle?: string | null;
     deliveryErrorDetail?: string | null;
     deliveryUpdatedAt?: string | null;

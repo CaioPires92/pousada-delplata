@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import MessageList from './MessageList';
@@ -107,7 +107,8 @@ describe('MessageList realtime updates', () => {
             expect(screen.getByLabelText('Entregue')).toBeInTheDocument();
             expect(screen.getByLabelText('Lida')).toBeInTheDocument();
             expect(screen.getByLabelText('Falha ao enviar')).toBeInTheDocument();
-            expect(screen.getByText('Número indisponível. Tente novamente.')).toBeInTheDocument();
+            expect(screen.getByText('Número indisponível.')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Tentar reenviar mensagem' })).toBeInTheDocument();
         });
     });
 
@@ -130,5 +131,47 @@ describe('MessageList realtime updates', () => {
 
         await waitFor(() => expect(screen.getByLabelText('Lida')).toBeInTheDocument());
         expect(screen.queryByLabelText('Enviada')).not.toBeInTheDocument();
+    });
+
+    it('retries a failed message once while a request is in progress', async () => {
+        const failedMessage = {
+            ...initialMessage,
+            id: 'failed-message',
+            senderType: 'human',
+            deliveryStatus: 'failed' as const,
+            deliveryErrorTitle: 'Falha ao enviar',
+        };
+        let resolveRetry!: () => void;
+        vi.mocked(fetch).mockImplementation((input) => {
+            if (String(input).includes('/retry')) {
+                return new Promise(resolve => {
+                    resolveRetry = () => resolve({
+                        ok: true,
+                        json: vi.fn().mockResolvedValue({
+                            ok: true,
+                            messageId: failedMessage.id,
+                            deliveryStatus: 'sent',
+                        }),
+                    } as unknown as Response);
+                });
+            }
+
+            return Promise.resolve({
+                ok: true,
+                json: vi.fn().mockResolvedValue({ messages: [failedMessage] }),
+            } as unknown as Response);
+        });
+
+        render(<MessageList initialMessages={[failedMessage]} conversationId="conversation-1" />);
+        const retryButton = screen.getByRole('button', { name: 'Tentar reenviar mensagem' });
+        fireEvent.click(retryButton);
+        fireEvent.click(retryButton);
+
+        await waitFor(() => expect(screen.getByLabelText('Reenviando')).toBeInTheDocument());
+        expect(vi.mocked(fetch).mock.calls.filter(([input]) => String(input).includes('/retry'))).toHaveLength(1);
+
+        resolveRetry();
+        await waitFor(() => expect(screen.getByLabelText('Enviada')).toBeInTheDocument());
+        expect(screen.queryByRole('button', { name: 'Tentar reenviar mensagem' })).not.toBeInTheDocument();
     });
 });

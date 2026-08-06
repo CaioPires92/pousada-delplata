@@ -35,6 +35,7 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
         }
 
         const tempId = `temp-${Date.now()}`;
+        let persistedFailureId: string | undefined;
         const optimisticMessage = {
             id: tempId,
             conversationId,
@@ -71,10 +72,7 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
             const data = await response.json();
 
             if (!response.ok) {
-                // Notificar erro para a mensagem específica
-                window.dispatchEvent(new CustomEvent('crm-message-error', { 
-                    detail: { conversationId, messageId: tempId } 
-                }));
+                persistedFailureId = typeof data.messageId === "string" ? data.messageId : undefined;
                 throw new Error(data.error || "Falha ao enviar mensagem");
             }
 
@@ -86,7 +84,7 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
             
             // Garantir que o ícone de erro apareça mesmo se o throw acontecer antes do dispatch acima
             window.dispatchEvent(new CustomEvent('crm-message-error', { 
-                detail: { conversationId, messageId: tempId } 
+                detail: { conversationId, messageId: tempId, persistedMessageId: persistedFailureId }
             }));
         } finally {
             setIsLoading(false);

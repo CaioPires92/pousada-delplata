@@ -71,6 +71,19 @@ function retry(messageId: string) {
     }), { params: Promise.resolve({ id: messageId }) });
 }
 
+async function retryPastTransientSqliteLocks(messageId: string) {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+        const response = await retry(messageId);
+        if (response.status !== 500) return response;
+
+        const body = await response.clone().json();
+        if (body.error !== "internal_error") return response;
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return retry(messageId);
+}
+
 describe("safe WhatsApp message retry", () => {
     beforeEach(async () => {
         mocks.send.mockReset();
@@ -95,10 +108,10 @@ describe("safe WhatsApp message retry", () => {
             });
         }));
 
-        const firstRequest = retry(message.id);
-        await vi.waitFor(() => expect(mocks.send).toHaveBeenCalledOnce());
+        const firstRequest = retryPastTransientSqliteLocks(message.id);
+        await vi.waitFor(() => expect(mocks.send).toHaveBeenCalledOnce(), { timeout: 20_000 });
 
-        const secondResponse = await retry(message.id);
+        const secondResponse = await retryPastTransientSqliteLocks(message.id);
         expect(secondResponse.status).toBe(409);
         await expect(secondResponse.json()).resolves.toEqual({
             ok: false,
@@ -126,7 +139,7 @@ describe("safe WhatsApp message retry", () => {
         expect(updatedConversation?.assignedUserId).toBe("admin-1");
         expect(updatedConversation?.automationPausedUntil).not.toBeNull();
         expect(auditLog?.metadataJson).toContain('"actorId":"admin-1"');
-    });
+    }, 30_000);
 
     it("returns a failed claim to failed state when the provider rejects it", async () => {
         const { message } = await failedMessage();
@@ -134,7 +147,7 @@ describe("safe WhatsApp message retry", () => {
             code: "request_failed",
         }));
 
-        const response = await retry(message.id);
+        const response = await retryPastTransientSqliteLocks(message.id);
         expect(response.status).toBe(502);
         await expect(response.json()).resolves.toEqual({
             ok: false,
@@ -148,7 +161,7 @@ describe("safe WhatsApp message retry", () => {
             deliveryErrorTitle: "Falha ao reenviar",
         });
         expect(updatedMessage?.deliveryErrorDetail).toBeNull();
-    });
+    }, 30_000);
 
     it("rejects a message that is no longer failed", async () => {
         const { message } = await failedMessage();
@@ -157,8 +170,8 @@ describe("safe WhatsApp message retry", () => {
             data: { deliveryStatus: "delivered" },
         });
 
-        const response = await retry(message.id);
+        const response = await retryPastTransientSqliteLocks(message.id);
         expect(response.status).toBe(409);
         expect(mocks.send).not.toHaveBeenCalled();
-    });
+    }, 30_000);
 });

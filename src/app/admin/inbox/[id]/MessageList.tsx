@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, RotateCcw } from "lucide-react";
 import { mergePolledMessages, type InboxMessage } from "./messagePolling";
 
 type Message = InboxMessage;
@@ -77,6 +77,9 @@ function deliveryPresentation(message: Message) {
     if (message.status === "pending") {
         return { label: "Enviando", icon: <Clock aria-hidden="true" className="h-3 w-3 animate-pulse" /> };
     }
+    if (message.deliveryStatus === "retrying") {
+        return { label: "Reenviando", icon: <Clock aria-hidden="true" className="h-3 w-3 animate-pulse" /> };
+    }
     if (message.status === "error" || message.deliveryStatus === "failed") {
         return { label: "Falha ao enviar", icon: <AlertCircle aria-hidden="true" className="h-3 w-3 text-red-200" /> };
     }
@@ -95,6 +98,7 @@ export default function MessageList({ initialMessages, conversationId }: Message
     const rootRef = useRef<HTMLDivElement | null>(null);
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const shouldAutoScrollRef = useRef(true);
+    const retryingIdsRef = useRef(new Set<string>());
     const lastMessageId = messages[messages.length - 1]?.id;
 
     // Sincronizar com props iniciais
@@ -147,10 +151,20 @@ export default function MessageList({ initialMessages, conversationId }: Message
     // Listener para erros de envio
     useEffect(() => {
         const handleMessageError = (event: Event) => {
-            const { detail } = event as CustomEvent<{ conversationId: string; messageId: string }>;
+            const { detail } = event as CustomEvent<{
+                conversationId: string;
+                messageId: string;
+                persistedMessageId?: string;
+            }>;
             if (detail.conversationId === conversationId) {
                 setMessages(prev => prev.map(m => 
-                    m.id === detail.messageId ? { ...m, status: 'error' } : m
+                    m.id === detail.messageId ? {
+                        ...m,
+                        id: detail.persistedMessageId ?? m.id,
+                        status: 'error',
+                        deliveryStatus: 'failed',
+                        deliveryErrorTitle: 'Falha ao enviar',
+                    } : m
                 ));
             }
         };
@@ -158,6 +172,42 @@ export default function MessageList({ initialMessages, conversationId }: Message
         window.addEventListener('crm-message-error', handleMessageError);
         return () => window.removeEventListener('crm-message-error', handleMessageError);
     }, [conversationId]);
+
+    async function retryMessage(messageId: string) {
+        if (retryingIdsRef.current.has(messageId)) return;
+        retryingIdsRef.current.add(messageId);
+        setMessages(prev => prev.map(message => message.id === messageId
+            ? {
+                ...message,
+                status: "sent",
+                deliveryStatus: "retrying",
+                deliveryErrorTitle: null,
+                deliveryErrorDetail: null,
+            }
+            : message));
+
+        try {
+            const response = await fetch(`/api/whatsapp/messages/${messageId}/retry`, {
+                method: "POST",
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Falha ao reenviar");
+
+            setMessages(prev => prev.map(message => message.id === messageId
+                ? { ...message, deliveryStatus: "sent", deliveryErrorTitle: null }
+                : message));
+        } catch {
+            setMessages(prev => prev.map(message => message.id === messageId
+                ? {
+                    ...message,
+                    deliveryStatus: "failed",
+                    deliveryErrorTitle: "Falha ao reenviar",
+                }
+                : message));
+        } finally {
+            retryingIdsRef.current.delete(messageId);
+        }
+    }
 
     // Polling controlado a cada 3 segundos
     useEffect(() => {
@@ -276,9 +326,22 @@ export default function MessageList({ initialMessages, conversationId }: Message
                                 )}
 
                                 {isOutbound && hasError && (
-                                    <p className="mt-2 rounded-md bg-red-50 px-2 py-1 text-right text-[11px] font-bold text-red-700">
-                                        {message.deliveryErrorTitle || "Falha ao enviar"}. Tente novamente.
-                                    </p>
+                                    <div className="mt-2 flex items-center justify-end gap-2 rounded-md bg-red-50 px-2 py-1 text-red-700">
+                                        <p className="text-right text-[11px] font-bold">
+                                            {message.deliveryErrorTitle || "Falha ao enviar"}.
+                                        </p>
+                                        {!message.id.startsWith("temp-") && (
+                                            <button
+                                                type="button"
+                                                onClick={() => retryMessage(message.id)}
+                                                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[11px] font-black hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                                aria-label="Tentar reenviar mensagem"
+                                            >
+                                                <RotateCcw aria-hidden="true" className="h-3 w-3" />
+                                                Tentar novamente
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>

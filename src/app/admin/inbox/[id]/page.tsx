@@ -8,7 +8,7 @@ type Message = {
     senderType: string;
     content: string | null;
     messageType: string;
-    deliveryStatus: "sent" | "delivered" | "read" | "failed" | null;
+    deliveryStatus: "sent" | "delivered" | "read" | "failed" | "retrying" | null;
     deliveryErrorTitle: string | null;
     deliveryErrorDetail: string | null;
     deliveryUpdatedAt: string | null;
