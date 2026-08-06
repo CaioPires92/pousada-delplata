@@ -163,7 +163,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F3.06 Exibir falha/entrega/leitura da mensagem.
 - [x] F3.07 Criar ação segura de reenviar falha.
 - [x] F3.08 Registrar nota interna sem enviá-la ao hóspede.
-- [ ] F3.09 Medir tempo de primeira resposta e fila sem atendimento.
+- [x] F3.09 Medir tempo de primeira resposta e fila sem atendimento.
 
 ### Testes/gate
 

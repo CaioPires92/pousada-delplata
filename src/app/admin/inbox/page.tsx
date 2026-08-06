@@ -27,10 +27,32 @@ function formatDateTime(value: string | null): string {
   }).format(parsed);
 }
 
+function formatDuration(totalSeconds: number | null): string {
+  if (totalSeconds === null || !Number.isFinite(totalSeconds)) return "—";
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}min` : `${hours}h`;
+}
+
+function elapsedSeconds(value: string | null): number | null {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : Math.max(0, (Date.now() - timestamp) / 1_000);
+}
+
 export default function AdminInboxPage() {
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [metrics, setMetrics] = useState({
+    awaitingHumanCount: 0,
+    oldestWaitingSince: null as string | null,
+    averageFirstResponseSeconds: null as number | null,
+  });
   const [pageInfo, setPageInfo] = useState<{ hasMore: boolean; nextCursor: string | null }>({
     hasMore: false,
     nextCursor: null,
@@ -59,6 +81,7 @@ export default function AdminInboxPage() {
       const page = parseConversationPage(await response.json());
       if (!page) throw new Error("Resposta inválida da Inbox");
       if (!mountedRef.current) return;
+      setMetrics(page.metrics);
 
       setConversations(current => {
         const next = append || hadAdditionalPages
@@ -87,7 +110,9 @@ export default function AdminInboxPage() {
 
   useEffect(() => {
     mountedRef.current = true;
-    void loadConversations({ initial: true });
+    const initialLoadId = window.setTimeout(() => {
+      void loadConversations({ initial: true });
+    }, 0);
 
     const intervalId = setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -103,6 +128,7 @@ export default function AdminInboxPage() {
 
     return () => {
       mountedRef.current = false;
+      window.clearTimeout(initialLoadId);
       clearInterval(intervalId);
       window.removeEventListener("focus", refreshOnFocus);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
@@ -121,6 +147,25 @@ export default function AdminInboxPage() {
             Conversas recentes recebidas pelo webhook da Evolution API.
           </p>
         </header>
+
+        <section aria-label="Indicadores de atendimento" className="mb-6 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Aguardando humano</p>
+            <p className="mt-2 text-2xl font-black text-amber-950">{metrics.awaitingHumanCount}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Maior espera atual</p>
+            <p className="mt-2 text-2xl font-black text-slate-900">
+              {formatDuration(elapsedSeconds(metrics.oldestWaitingSince))}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Média da 1ª resposta</p>
+            <p className="mt-2 text-2xl font-black text-slate-900">
+              {formatDuration(metrics.averageFirstResponseSeconds)}
+            </p>
+          </div>
+        </section>
 
         <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
           {loading ? (
@@ -154,6 +199,11 @@ export default function AdminInboxPage() {
                           <p className="mt-3 text-sm text-slate-700">
                             {conversation.lastMessage ?? "Sem mensagem visível"}
                           </p>
+                          {conversation.waitingSince ? (
+                            <span className="mt-3 inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                              Aguardando há {formatDuration(elapsedSeconds(conversation.waitingSince))}
+                            </span>
+                          ) : null}
                         </div>
 
                         <div className="flex shrink-0 flex-col items-end gap-2 text-sm text-slate-500">

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { inferPresenceFromLastGuestMessage } from "@/lib/crm/presence";
+import { resolveAutomationMode } from "@/lib/crm/automationPause";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -33,7 +35,12 @@ export async function GET(request: Request) {
             );
         }
 
-        const conversations = await prisma.conversation.findMany({
+        const humanQueueWhere: Prisma.ConversationWhereInput = {
+            awaitingHumanResponse: true,
+            automationMode: { in: ["off", "supervised"] },
+        };
+        const [conversations, awaitingHumanCount, humanQueueMetrics, responseMetrics] = await Promise.all([
+            prisma.conversation.findMany({
             orderBy: [
                 { lastMessageAt: "desc" },
                 { updatedAt: "desc" },
@@ -65,7 +72,17 @@ export async function GET(request: Request) {
                     },
                 },
             },
-        });
+            }),
+            prisma.conversation.count({ where: humanQueueWhere }),
+            prisma.conversation.aggregate({
+                where: humanQueueWhere,
+                _min: { waitingSince: true },
+            }),
+            prisma.conversation.aggregate({
+                where: { firstResponseTimeSeconds: { not: null } },
+                _avg: { firstResponseTimeSeconds: true },
+            }),
+        ]);
 
         const hasMore = conversations.length > pagination.limit;
         const page = hasMore ? conversations.slice(0, pagination.limit) : conversations;
@@ -106,6 +123,10 @@ export async function GET(request: Request) {
                 lastMessage: c.messages[0]?.content || null,
                 lastMessageAt: c.lastMessageAt ?? c.messages[0]?.sentAt ?? c.messages[0]?.createdAt ?? null,
                 unreadCount: c.unreadCount,
+                waitingSince: c.awaitingHumanResponse && resolveAutomationMode(c) !== "auto"
+                    ? c.waitingSince
+                    : null,
+                firstResponseTimeSeconds: c.firstResponseTimeSeconds,
                 presence: inferPresenceFromLastGuestMessage(latestGuestMap.get(c.id) ?? null),
             }));
 
@@ -113,6 +134,11 @@ export async function GET(request: Request) {
 
         return NextResponse.json({
             items,
+            metrics: {
+                awaitingHumanCount,
+                oldestWaitingSince: humanQueueMetrics._min.waitingSince,
+                averageFirstResponseSeconds: responseMetrics._avg.firstResponseTimeSeconds,
+            },
             pageInfo: {
                 hasMore,
                 nextCursor: hasMore ? page.at(-1)?.id ?? null : null,

@@ -11,6 +11,8 @@ function item(id: string, lastMessageAt: string): ConversationListItem {
     lastMessage: null,
     lastMessageAt,
     unreadCount: 0,
+    waitingSince: null,
+    firstResponseTimeSeconds: null,
   };
 }
 
@@ -28,8 +30,15 @@ describe("Inbox pagination client contract", () => {
         lastMessage: null,
         lastMessageAt: null,
         unreadCount: 0,
+        waitingSince: null,
+        firstResponseTimeSeconds: null,
         presence: undefined,
       }],
+      metrics: {
+        awaitingHumanCount: 0,
+        oldestWaitingSince: null,
+        averageFirstResponseSeconds: null,
+      },
       pageInfo: { hasMore: true, nextCursor: "conversation-1" },
     });
   });

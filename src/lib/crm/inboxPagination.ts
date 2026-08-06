@@ -6,6 +6,8 @@ export type ConversationListItem = {
   phone: string | null;
   lid: string | null;
   unreadCount: number;
+  waitingSince: string | null;
+  firstResponseTimeSeconds: number | null;
   presence?: {
     isOnline: boolean;
     typing: boolean;
@@ -20,6 +22,11 @@ export type ConversationListItem = {
 
 export type ConversationPage = {
   items: ConversationListItem[];
+  metrics: {
+    awaitingHumanCount: number;
+    oldestWaitingSince: string | null;
+    averageFirstResponseSeconds: number | null;
+  };
   pageInfo: {
     hasMore: boolean;
     nextCursor: string | null;
@@ -39,6 +46,10 @@ function normalizeItem(item: unknown): ConversationListItem | null {
     phone: typeof record.phone === "string" ? record.phone : null,
     lid: typeof record.lid === "string" ? record.lid : null,
     unreadCount: typeof record.unreadCount === "number" ? record.unreadCount : 0,
+    waitingSince: typeof record.waitingSince === "string" ? record.waitingSince : null,
+    firstResponseTimeSeconds: typeof record.firstResponseTimeSeconds === "number"
+      ? record.firstResponseTimeSeconds
+      : null,
     presence: typeof record.presence === "object" && record.presence !== null
       ? record.presence as ConversationListItem["presence"]
       : undefined,
@@ -52,12 +63,22 @@ export function parseConversationPage(data: unknown): ConversationPage | null {
   if (!Array.isArray(record.items) || !pageInfo || typeof pageInfo !== "object") return null;
 
   const pageRecord = pageInfo as Record<string, unknown>;
+  const metrics = record.metrics && typeof record.metrics === "object"
+    ? record.metrics as Record<string, unknown>
+    : {};
   if (typeof pageRecord.hasMore !== "boolean") return null;
   if (pageRecord.nextCursor !== null && typeof pageRecord.nextCursor !== "string") return null;
 
   const items = record.items.map(normalizeItem).filter((item): item is ConversationListItem => item !== null);
   return {
     items,
+    metrics: {
+      awaitingHumanCount: typeof metrics.awaitingHumanCount === "number" ? metrics.awaitingHumanCount : 0,
+      oldestWaitingSince: typeof metrics.oldestWaitingSince === "string" ? metrics.oldestWaitingSince : null,
+      averageFirstResponseSeconds: typeof metrics.averageFirstResponseSeconds === "number"
+        ? metrics.averageFirstResponseSeconds
+        : null,
+    },
     pageInfo: {
       hasMore: pageRecord.hasMore,
       nextCursor: pageRecord.nextCursor as string | null,
