@@ -162,7 +162,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F3.05 Cancelar jobs pendentes na tomada humana.
 - [x] F3.06 Exibir falha/entrega/leitura da mensagem.
 - [x] F3.07 Criar ação segura de reenviar falha.
-- [ ] F3.08 Registrar nota interna sem enviá-la ao hóspede.
+- [x] F3.08 Registrar nota interna sem enviá-la ao hóspede.
 - [ ] F3.09 Medir tempo de primeira resposta e fila sem atendimento.
 
 ### Testes/gate

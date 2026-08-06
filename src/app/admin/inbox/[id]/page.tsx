@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import ChatbotToggle from "./ChatbotToggle";
 import ReplyBox from "./ReplyBox";
 import MessageList from "./MessageList";
+import InternalNotesPanel from "./InternalNotesPanel";
 
 type Message = {
     id: string;
@@ -96,6 +97,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                                 />
                             </div>
                         </div>
+                        <InternalNotesPanel conversationId={conversation.id} />
                     </header>
 
                     <div className="flex-1 overflow-auto bg-slate-50 px-4 py-5 sm:px-6">
