@@ -105,6 +105,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
                     .find(message => message.senderType === "guest")?.sentAt ?? null
             ),
             messages: conversation.messages,
+            chatbotTestEnabled: conversation.chatbotTestEnabled,
         });
     } catch (error) {
         console.error("Erro ao buscar conversa:", error);
@@ -129,8 +130,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             : typeof bodyRecord?.chatbotEnabled === "boolean"
                 ? bodyRecord.chatbotEnabled ? "auto" : "off"
                 : null;
+        const requestedTestEnabled = typeof bodyRecord?.chatbotTestEnabled === "boolean"
+            ? bodyRecord.chatbotTestEnabled
+            : null;
 
-        if (!requestedMode) {
+        if (!requestedMode && requestedTestEnabled === null) {
             return NextResponse.json(
                 { ok: false, error: "invalid_body" },
                 { status: 400 }
@@ -145,6 +149,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 chatbotEnabled: true,
                 automationMode: true,
                 automationPausedUntil: true,
+                chatbotTestEnabled: true,
             },
         });
 
@@ -155,14 +160,24 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             );
         }
 
+        const effectiveMode = requestedTestEnabled === true ? "auto" : requestedMode;
+        const disablesTestOverride = requestedMode !== null && requestedMode !== "auto";
+        const nextTestEnabled = requestedTestEnabled
+            ?? (disablesTestOverride ? false : existingConversation.chatbotTestEnabled);
+
         const { conversation, cancelledJobs } = await prisma.$transaction(async (tx) => {
             const updatedConversation = await tx.conversation.update({
                 where: { id },
                 data: {
-                    automationMode: requestedMode,
-                    chatbotEnabled: requestedMode === "auto",
-                    automationPausedUntil: null,
-                    assignedUserId: requestedMode === "auto" ? null : auth.adminId,
+                    ...(effectiveMode ? {
+                        automationMode: effectiveMode,
+                        chatbotEnabled: effectiveMode === "auto",
+                        automationPausedUntil: null,
+                        assignedUserId: effectiveMode === "auto" ? null : auth.adminId,
+                    } : {}),
+                    ...(requestedTestEnabled !== null || disablesTestOverride
+                        ? { chatbotTestEnabled: nextTestEnabled }
+                        : {}),
                 },
                 select: {
                     id: true,
@@ -170,13 +185,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                     automationMode: true,
                     automationPausedUntil: true,
                     assignedUserId: true,
+                    chatbotTestEnabled: true,
                 },
             });
-            const cancelledCount = requestedMode === "auto"
+            const cancelledCount = !effectiveMode || effectiveMode === "auto"
                 ? 0
                 : await cancelPendingAutomationJobs({
                     conversationId: id,
-                    reason: `conversation_mode_${requestedMode}`,
+                    reason: `conversation_mode_${effectiveMode}`,
                     client: tx,
                 });
 
@@ -184,9 +200,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         });
 
         await recordCrmEvent({
-            action: requestedMode === "off"
+            action: requestedTestEnabled !== null
+                ? requestedTestEnabled ? "ChatbotTestEnabled" : "ChatbotTestDisabled"
+                : effectiveMode === "off"
                 ? "HumanTookOver"
-                : requestedMode === "auto"
+                : effectiveMode === "auto"
                     ? "AutomationResumed"
                     : "AutomationModeChanged",
             contactId: existingConversation.contactId,
@@ -202,8 +220,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 previousMode: resolveAutomationMode(existingConversation),
                 automationMode: conversation.automationMode,
                 assignedUserId: conversation.assignedUserId,
+                chatbotTestEnabled: conversation.chatbotTestEnabled,
+                previousChatbotTestEnabled: existingConversation.chatbotTestEnabled,
                 cancelledJobs,
-                pauseStrategy: requestedMode === "off" ? "indefinite" : "none",
+                pauseStrategy: effectiveMode === "off" ? "indefinite" : "none",
                 pauseMinutes: null,
             },
         });
@@ -215,6 +235,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             automationMode: conversation.automationMode,
             automationPausedUntil: conversation.automationPausedUntil,
             assignedUserId: conversation.assignedUserId,
+            chatbotTestEnabled: conversation.chatbotTestEnabled,
             cancelledJobs,
         });
     } catch (error) {

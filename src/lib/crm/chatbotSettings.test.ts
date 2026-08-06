@@ -13,6 +13,7 @@ import {
   getChatbotRuntimeSettings,
   isPipelineAutomationEnabled,
   isWhatsappChatbotGloballyEnabled,
+  isWhatsappChatbotEnabledForConversation,
 } from "./chatbotSettings";
 
 describe("chatbot global settings", () => {
@@ -61,5 +62,17 @@ describe("chatbot global settings", () => {
     vi.mocked(prisma.chatbotSettings.findFirst).mockRejectedValue(new Error("database unavailable"));
 
     await expect(isPipelineAutomationEnabled()).resolves.toBe(false);
+  });
+
+  it("allows one explicitly enabled test conversation while the global bot stays off", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      enabledGlobal: false,
+      enabledWhatsapp: false,
+      pipelineAutomationEnabled: true,
+    } as never);
+
+    await expect(isWhatsappChatbotEnabledForConversation(true)).resolves.toBe(true);
+    expect(prisma.chatbotSettings.findFirst).not.toHaveBeenCalled();
+    await expect(isWhatsappChatbotEnabledForConversation(false)).resolves.toBe(false);
   });
 });

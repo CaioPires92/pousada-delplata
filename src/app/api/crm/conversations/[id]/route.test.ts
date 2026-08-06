@@ -44,6 +44,7 @@ describe('conversation automation mode', () => {
             chatbotEnabled: false,
             automationMode: 'off',
             automationPausedUntil: null,
+            chatbotTestEnabled: false,
         });
         mocks.recordCrmEvent.mockResolvedValue(null);
         mocks.updateManyJobs.mockResolvedValue({ count: 2 });
@@ -65,6 +66,7 @@ describe('conversation automation mode', () => {
             chatbotEnabled,
             automationPausedUntil: null,
             assignedUserId: automationMode === 'auto' ? null : 'admin-1',
+            chatbotTestEnabled: false,
         });
         const request = new Request('http://localhost/api/crm/conversations/conversation-1', {
             method: 'PATCH',
@@ -84,6 +86,7 @@ describe('conversation automation mode', () => {
                 chatbotEnabled,
                 automationPausedUntil: null,
                 assignedUserId: automationMode === 'auto' ? null : 'admin-1',
+                ...(automationMode === 'auto' ? {} : { chatbotTestEnabled: false }),
             },
         }));
         await expect(response.json()).resolves.toEqual(expect.objectContaining({
@@ -121,6 +124,42 @@ describe('conversation automation mode', () => {
                 }),
             });
         }
+    });
+
+    it('enables the chatbot only for this test conversation', async () => {
+        mocks.update.mockResolvedValue({
+            id: 'conversation-1',
+            automationMode: 'auto',
+            chatbotEnabled: true,
+            automationPausedUntil: null,
+            assignedUserId: null,
+            chatbotTestEnabled: true,
+        });
+        const request = new Request('http://localhost/api/crm/conversations/conversation-1', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatbotTestEnabled: true }),
+        });
+
+        const response = await PATCH(request, {
+            params: Promise.resolve({ id: 'conversation-1' }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+            data: {
+                automationMode: 'auto',
+                chatbotEnabled: true,
+                automationPausedUntil: null,
+                assignedUserId: null,
+                chatbotTestEnabled: true,
+            },
+        }));
+        expect(mocks.recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
+            action: 'ChatbotTestEnabled',
+            metadata: expect.objectContaining({ chatbotTestEnabled: true }),
+        }));
+        expect(mocks.updateManyJobs).not.toHaveBeenCalled();
     });
 
     it('rejects unknown modes', async () => {

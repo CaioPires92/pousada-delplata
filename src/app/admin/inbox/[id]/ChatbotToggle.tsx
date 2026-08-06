@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 type ChatbotToggleProps = {
     automationMode: "off" | "supervised" | "auto";
     conversationId: string;
+    chatbotTestEnabled: boolean;
 };
 
 const MODE_OPTIONS = [
@@ -25,6 +26,7 @@ function getErrorMessage(error: unknown): string {
 export default function ChatbotToggle({
     automationMode,
     conversationId,
+    chatbotTestEnabled,
 }: ChatbotToggleProps) {
     const router = useRouter();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -83,6 +85,27 @@ export default function ChatbotToggle({
         }
     }
 
+    async function handleTestOverride() {
+        setIsUpdating(true);
+        setError(null);
+
+        try {
+            const response = await fetch(`/api/crm/conversations/${conversationId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chatbotTestEnabled: !chatbotTestEnabled }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Falha ao atualizar teste do chatbot");
+            router.refresh();
+        } catch (err) {
+            console.error("Erro ao alterar teste do chatbot:", err);
+            setError(getErrorMessage(err));
+        } finally {
+            setIsUpdating(false);
+        }
+    }
+
     return (
         <div className="flex flex-col items-start gap-2 sm:items-end">
             <div className="flex flex-wrap gap-2">
@@ -119,6 +142,25 @@ export default function ChatbotToggle({
                         </button>
                     ))}
                 </div>
+            </div>
+
+            <div className="flex flex-col items-start gap-1 sm:items-end">
+                <button
+                    type="button"
+                    aria-pressed={chatbotTestEnabled}
+                    disabled={isUpdating}
+                    onClick={handleTestOverride}
+                    className={`rounded-full border px-3 py-2 text-xs font-black transition-colors disabled:opacity-50 ${
+                        chatbotTestEnabled
+                            ? "border-amber-500 bg-amber-500 text-white hover:bg-amber-600"
+                            : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                    }`}
+                >
+                    {chatbotTestEnabled ? "Teste do bot ativo nesta conversa" : "Ativar bot só nesta conversa"}
+                </button>
+                <p className="text-[10px] font-semibold text-slate-400">
+                    O interruptor geral permanece desligado.
+                </p>
             </div>
 
             {error && (

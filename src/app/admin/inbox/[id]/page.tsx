@@ -22,6 +22,7 @@ type ConversationDetail = {
     status: string;
     channel: string;
     chatbotEnabled: boolean;
+    chatbotTestEnabled: boolean;
     automationMode: "off" | "supervised" | "auto";
     automationPausedUntil: string | null;
     contact: {
@@ -94,6 +95,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                                 <ChatbotToggle
                                     automationMode={conversation.automationMode}
                                     conversationId={conversation.id}
+                                    chatbotTestEnabled={conversation.chatbotTestEnabled}
                                 />
                             </div>
                         </div>

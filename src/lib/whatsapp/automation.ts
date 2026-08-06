@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
-import { isWhatsappChatbotGloballyEnabled } from "@/lib/crm/chatbotSettings";
+import { isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
 import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
@@ -83,16 +83,13 @@ export async function matchRule(text: string): Promise<string | null> {
 
 export async function processAutoResponse(conversationId: string, phone: string, text: string) {
     const now = new Date();
-    if (!(await isWhatsappChatbotGloballyEnabled())) {
-        return null;
-    }
-
     const conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
         select: {
             id: true,
             contactId: true,
             chatbotEnabled: true,
+            chatbotTestEnabled: true,
             automationMode: true,
             automationPausedUntil: true,
             currentFlow: true,
@@ -103,6 +100,10 @@ export async function processAutoResponse(conversationId: string, phone: string,
     });
 
     if (!conversation) {
+        return null;
+    }
+
+    if (!(await isWhatsappChatbotEnabledForConversation(conversation.chatbotTestEnabled))) {
         return null;
     }
 

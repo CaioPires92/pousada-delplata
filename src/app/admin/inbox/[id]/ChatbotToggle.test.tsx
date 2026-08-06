@@ -21,7 +21,7 @@ describe('ChatbotToggle', () => {
     });
 
     it('assumes the conversation without sending a WhatsApp message', async () => {
-        render(<ChatbotToggle automationMode="auto" conversationId="conversation-1" />);
+        render(<ChatbotToggle automationMode="auto" conversationId="conversation-1" chatbotTestEnabled />);
 
         fireEvent.click(screen.getByRole('button', { name: 'Assumir Conversa' }));
 
@@ -36,7 +36,7 @@ describe('ChatbotToggle', () => {
     });
 
     it('changes to supervised mode without authorizing automatic replies', async () => {
-        render(<ChatbotToggle automationMode="off" conversationId="conversation-1" />);
+        render(<ChatbotToggle automationMode="off" conversationId="conversation-1" chatbotTestEnabled={false} />);
 
         fireEvent.click(screen.getByRole('button', { name: 'Supervisionado' }));
 
@@ -44,6 +44,18 @@ describe('ChatbotToggle', () => {
         expect(fetch).toHaveBeenCalledWith('/api/crm/conversations/conversation-1', expect.objectContaining({
             method: 'PATCH',
             body: JSON.stringify({ automationMode: 'supervised' }),
+        }));
+    });
+
+    it('enables the test exception only for the current conversation', async () => {
+        render(<ChatbotToggle automationMode="off" conversationId="conversation-1" chatbotTestEnabled={false} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ativar bot só nesta conversa' }));
+
+        await waitFor(() => expect(routerMocks.refresh).toHaveBeenCalledOnce());
+        expect(fetch).toHaveBeenCalledWith('/api/crm/conversations/conversation-1', expect.objectContaining({
+            method: 'PATCH',
+            body: JSON.stringify({ chatbotTestEnabled: true }),
         }));
     });
 });

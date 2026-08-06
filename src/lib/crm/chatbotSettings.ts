@@ -48,3 +48,10 @@ export async function isWhatsappChatbotGloballyEnabled(): Promise<boolean> {
     return false;
   }
 }
+
+export async function isWhatsappChatbotEnabledForConversation(
+  chatbotTestEnabled: boolean,
+): Promise<boolean> {
+  if (chatbotTestEnabled) return true;
+  return isWhatsappChatbotGloballyEnabled();
+}

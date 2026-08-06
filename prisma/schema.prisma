@@ -281,6 +281,7 @@ model Conversation {
   channel               String
   status                String              @default("open")
   chatbotEnabled        Boolean             @default(false)
+  chatbotTestEnabled    Boolean             @default(false)
   automationMode        String              @default("off")
   automationPausedUntil DateTime?
   currentFlow           String?
