@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/prisma";
 import {
+  cancelPendingAutomationJobs,
   enqueueAutomationJob,
   processNextAutomationJobForConversation,
   replayDeadLetterItem,
@@ -42,6 +43,60 @@ describe("automationQueue", () => {
     });
 
     expect(job).toEqual({ id: "job-1" });
+  });
+
+  it("cancels only pending WhatsApp sends and records a bounded reason", async () => {
+    vi.mocked(prisma.automationQueueJob.updateMany).mockResolvedValue({ count: 2 });
+    const now = new Date("2026-08-06T12:00:00.000Z");
+
+    await expect(cancelPendingAutomationJobs({
+      conversationId: "conv-1",
+      reason: "human_takeover",
+      now,
+    })).resolves.toBe(2);
+
+    expect(prisma.automationQueueJob.updateMany).toHaveBeenCalledWith({
+      where: {
+        conversationId: "conv-1",
+        action: "SEND_WHATSAPP_MESSAGE",
+        status: "pending",
+      },
+      data: {
+        status: "cancelled",
+        cancelledAt: now,
+        cancelReason: "human_takeover",
+        finishedAt: now,
+      },
+    });
+  });
+
+  it("marks a claimed job cancelled when the runner revokes authorization", async () => {
+    vi.mocked(prisma.automationQueueJob.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "job-cancelled",
+        conversationId: "conv-1",
+        action: "SEND_WHATSAPP_MESSAGE",
+        payloadJson: "{\"target\":\"551199\",\"text\":\"oi\"}",
+      } as any);
+    vi.mocked(prisma.automationQueueJob.updateMany)
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    const result = await processNextAutomationJobForConversation("conv-1", async () => ({
+      cancelled: true,
+      reason: "human_takeover_or_automation_paused",
+    }));
+
+    expect(result).toMatchObject({ ok: true, cancelled: true, processed: false });
+    expect(prisma.automationQueueJob.update).not.toHaveBeenCalled();
+    expect(prisma.automationQueueJob.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "job-cancelled", status: "processing" },
+      data: expect.objectContaining({
+        status: "cancelled",
+        cancelReason: "human_takeover_or_automation_paused",
+      }),
+    });
   });
 
   it("skips processing when another job is in processing status", async () => {

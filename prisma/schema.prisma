@@ -322,6 +322,8 @@ model AutomationQueueJob {
   updatedAt      DateTime     @updatedAt
   startedAt      DateTime?
   finishedAt     DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, status, createdAt])

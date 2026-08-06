@@ -10,6 +10,38 @@ type QueuePayload = {
   event?: unknown;
 };
 
+type AutomationQueueClient = Pick<typeof prisma, "automationQueueJob">;
+
+export type AutomationJobRunnerResult = {
+  cancelled: true;
+  reason: string;
+} | void;
+
+export async function cancelPendingAutomationJobs(input: {
+  conversationId: string;
+  reason: string;
+  now?: Date;
+  client?: AutomationQueueClient;
+}) {
+  const client = input.client ?? prisma;
+  const now = input.now ?? new Date();
+  const result = await client.automationQueueJob.updateMany({
+    where: {
+      conversationId: input.conversationId,
+      action: "SEND_WHATSAPP_MESSAGE",
+      status: "pending",
+    },
+    data: {
+      status: "cancelled",
+      cancelledAt: now,
+      cancelReason: input.reason.slice(0, 200),
+      finishedAt: now,
+    },
+  });
+
+  return result.count;
+}
+
 function sanitizeDeadLetterReason(reason: string) {
   return reason
     .replace(/\bBearer\s+[^\s;,]+/gi, "Bearer [REDACTED]")
@@ -66,7 +98,7 @@ export async function processNextAutomationJobForConversation(
     id: string;
     action: string;
     payload: QueuePayload;
-  }) => Promise<void>
+  }) => Promise<AutomationJobRunnerResult>
 ) {
   const existingProcessing = await prisma.automationQueueJob.findFirst({
     where: {
@@ -108,7 +140,28 @@ export async function processNextAutomationJobForConversation(
   const payload = parsePayload(candidate.payloadJson);
 
   try {
-    await runner({ id: candidate.id, action: candidate.action, payload });
+    const runnerResult = await runner({ id: candidate.id, action: candidate.action, payload });
+
+    if (runnerResult?.cancelled) {
+      const now = new Date();
+      await prisma.automationQueueJob.updateMany({
+        where: { id: candidate.id, status: "processing" },
+        data: {
+          status: "cancelled",
+          cancelledAt: now,
+          cancelReason: runnerResult.reason.slice(0, 200),
+          finishedAt: now,
+        },
+      });
+
+      return {
+        ok: true as const,
+        queued: false as const,
+        processed: false as const,
+        cancelled: true as const,
+        jobId: candidate.id,
+      };
+    }
 
     await prisma.automationQueueJob.update({
       where: { id: candidate.id },

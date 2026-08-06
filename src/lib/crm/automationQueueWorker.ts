@@ -7,6 +7,7 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { deliverN8nEvent } from "@/lib/crm/n8nDelivery";
 import { CircuitBreaker } from "@/lib/messaging/circuit-breaker";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
+import { isConversationAutomationActive } from "@/lib/crm/automationPause";
 
 const messagingCircuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -55,6 +56,18 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
 
       if (job.action !== "SEND_WHATSAPP_MESSAGE" || !job.payload.text || !job.payload.target) {
         throw new Error("invalid_queue_payload");
+      }
+
+      const currentConversation = await prisma.conversation.findUnique({
+        where: { id: conversation.id },
+        select: {
+          chatbotEnabled: true,
+          automationMode: true,
+          automationPausedUntil: true,
+        },
+      });
+      if (!isConversationAutomationActive(currentConversation)) {
+        return { cancelled: true as const, reason: "human_takeover_or_automation_paused" };
       }
 
       const provider = createMessagingProvider();

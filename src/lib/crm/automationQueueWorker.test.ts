@@ -53,4 +53,29 @@ describe("automation queue worker n8n delivery", () => {
     expect(deliverN8nEvent).toHaveBeenCalledOnce();
     expect(createMessagingProvider).not.toHaveBeenCalled();
   });
+
+  it("cancels a claimed WhatsApp send when a human has paused automation", async () => {
+    vi.mocked(prisma.conversation.findUnique)
+      .mockResolvedValueOnce({ id: "conversation-1", contactId: "contact-1" } as never)
+      .mockResolvedValueOnce({
+        chatbotEnabled: true,
+        automationMode: "auto",
+        automationPausedUntil: new Date("2099-08-06T12:00:00.000Z"),
+      } as never);
+    vi.mocked(processNextAutomationJobForConversation).mockImplementation(async (_conversationId, runner) => {
+      const result = await runner({
+        id: "job-send-1",
+        action: "SEND_WHATSAPP_MESSAGE",
+        payload: { target: "5511999999999", text: "Resposta automática" },
+      });
+      expect(result).toEqual({
+        cancelled: true,
+        reason: "human_takeover_or_automation_paused",
+      });
+      return { ok: true, queued: false, processed: false, cancelled: true, jobId: "job-send-1" };
+    });
+
+    await expect(runAutomationQueueWorker()).resolves.toMatchObject({ processed: 0, failed: 0 });
+    expect(createMessagingProvider).not.toHaveBeenCalled();
+  });
 });
