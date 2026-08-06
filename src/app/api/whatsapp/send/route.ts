@@ -133,9 +133,25 @@ export async function POST(request: Request) {
                 text,
             });
         } catch (error) {
+            const providerName = process.env.WHATSAPP_PROVIDER || "evolution";
+            const errorCode = firstString(asRecord(error)?.code) ?? "unknown_error";
             console.error("Erro ao enviar mensagem via provider WhatsApp", {
-                provider: process.env.WHATSAPP_PROVIDER || "evolution",
-                errorCode: asRecord(error)?.code ?? "unknown_error",
+                provider: providerName,
+                errorCode,
+            });
+            const failedMessage = await prisma.message.create({
+                data: {
+                    conversationId: conversation.id,
+                    senderType: "human",
+                    content: text,
+                    messageType: "text",
+                    deliveryStatus: "failed",
+                    deliveryErrorCode: errorCode,
+                    deliveryErrorTitle: "Falha ao enviar",
+                    deliveryUpdatedAt: now,
+                    metadataJson: JSON.stringify({ provider: providerName }),
+                    sentAt: now,
+                },
             });
             await recordCrmEvent({
                 action: "WhatsAppSendFailed",
@@ -144,12 +160,13 @@ export async function POST(request: Request) {
                 metadata: {
                     target,
                     textLength: text.length,
-                    provider: process.env.WHATSAPP_PROVIDER || "evolution",
-                    errorCode: asRecord(error)?.code ?? "unknown_error",
+                    provider: providerName,
+                    errorCode,
+                    messageId: failedMessage.id,
                 },
             });
             return NextResponse.json(
-                { ok: false, error: "messaging_send_failed" },
+                { ok: false, error: "messaging_send_failed", messageId: failedMessage.id },
                 { status: 502 }
             );
         }

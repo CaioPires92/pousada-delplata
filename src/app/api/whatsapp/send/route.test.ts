@@ -64,7 +64,7 @@ describe("manual WhatsApp send hardening", () => {
     await cleanupTestData();
   });
 
-  it("logs Evolution send failures and does not create a message", async () => {
+  it("persists an Evolution send failure so it can be retried safely", async () => {
     send.mockRejectedValue(Object.assign(new Error("evolution offline"), { code: "request_failed" }));
 
     const contact = await prisma.contact.create({
@@ -89,7 +89,11 @@ describe("manual WhatsApp send hardening", () => {
     const body = await response.json();
 
     expect(response.status).toBe(502);
-    expect(body).toEqual({ ok: false, error: "messaging_send_failed" });
+    expect(body).toEqual({
+      ok: false,
+      error: "messaging_send_failed",
+      messageId: expect.any(String),
+    });
 
     const messages = await prisma.message.findMany({
       where: { conversationId: conversation.id },
@@ -102,7 +106,16 @@ describe("manual WhatsApp send hardening", () => {
       },
     });
 
-    expect(messages).toHaveLength(0);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      id: body.messageId,
+      content: "Mensagem manual",
+      senderType: "human",
+      deliveryStatus: "failed",
+      deliveryErrorCode: "request_failed",
+      deliveryErrorTitle: "Falha ao enviar",
+    });
+    expect(messages[0].metadataJson).toBe('{"provider":"evolution"}');
     expect(failureLog).not.toBeNull();
     expect(failureLog?.metadataJson).toContain("request_failed");
     expect(failureLog?.metadataJson).not.toContain("evolution offline");
