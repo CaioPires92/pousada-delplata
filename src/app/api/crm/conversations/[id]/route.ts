@@ -5,6 +5,7 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { inferPresenceFromLastGuestMessage } from "@/lib/crm/presence";
 import { isAutomationMode, resolveAutomationMode } from "@/lib/crm/automationPause";
 import { requireAdminAuth } from "@/lib/admin-auth";
+import { cancelPendingAutomationJobs } from "@/lib/crm/automationQueue";
 
 type RouteParams = {
     params: Promise<{
@@ -150,21 +151,32 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             );
         }
 
-        const conversation = await prisma.conversation.update({
-            where: { id },
-            data: {
-                automationMode: requestedMode,
-                chatbotEnabled: requestedMode === "auto",
-                automationPausedUntil: null,
-                assignedUserId: requestedMode === "auto" ? null : auth.adminId,
-            },
-            select: {
-                id: true,
-                chatbotEnabled: true,
-                automationMode: true,
-                automationPausedUntil: true,
-                assignedUserId: true,
-            },
+        const { conversation, cancelledJobs } = await prisma.$transaction(async (tx) => {
+            const updatedConversation = await tx.conversation.update({
+                where: { id },
+                data: {
+                    automationMode: requestedMode,
+                    chatbotEnabled: requestedMode === "auto",
+                    automationPausedUntil: null,
+                    assignedUserId: requestedMode === "auto" ? null : auth.adminId,
+                },
+                select: {
+                    id: true,
+                    chatbotEnabled: true,
+                    automationMode: true,
+                    automationPausedUntil: true,
+                    assignedUserId: true,
+                },
+            });
+            const cancelledCount = requestedMode === "auto"
+                ? 0
+                : await cancelPendingAutomationJobs({
+                    conversationId: id,
+                    reason: `conversation_mode_${requestedMode}`,
+                    client: tx,
+                });
+
+            return { conversation: updatedConversation, cancelledJobs: cancelledCount };
         });
 
         await recordCrmEvent({
@@ -186,6 +198,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 previousMode: resolveAutomationMode(existingConversation),
                 automationMode: conversation.automationMode,
                 assignedUserId: conversation.assignedUserId,
+                cancelledJobs,
                 pauseStrategy: requestedMode === "off" ? "indefinite" : "none",
                 pauseMinutes: null,
             },
@@ -198,6 +211,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
             automationMode: conversation.automationMode,
             automationPausedUntil: conversation.automationPausedUntil,
             assignedUserId: conversation.assignedUserId,
+            cancelledJobs,
         });
     } catch (error) {
         console.error("Erro ao atualizar chatbot da conversa:", error);

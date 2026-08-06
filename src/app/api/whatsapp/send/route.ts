@@ -6,6 +6,7 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { requireAdminAuth } from "@/lib/admin-auth";
+import { cancelPendingAutomationJobs } from "@/lib/crm/automationQueue";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -79,6 +80,49 @@ export async function POST(request: Request) {
             );
         }
 
+        const now = new Date();
+        const automationPausedUntil = createAutomationPausedUntil(now);
+        const cancelledJobs = await prisma.$transaction(async (tx) => {
+            await tx.conversation.update({
+                where: { id: conversation.id },
+                data: {
+                    automationPausedUntil,
+                    assignedUserId: actorId,
+                },
+            });
+            const cancelledCount = await cancelPendingAutomationJobs({
+                conversationId: conversation.id,
+                reason: "human_manual_message",
+                now,
+                client: tx,
+            });
+            const eventMetadata = {
+                target,
+                cancelledJobs: cancelledCount,
+                pauseStrategy: "temporary",
+                pauseMinutes: DEFAULT_AUTOMATION_PAUSE_MINUTES,
+                pausedUntil: automationPausedUntil.toISOString(),
+                ...buildAuditMetadata({
+                    actorType: "human",
+                    origin: "human_api",
+                    actorId,
+                }),
+            };
+
+            for (const action of ["HumanTookOver", "AutomationPaused"]) {
+                await tx.internalActionLog.create({
+                    data: {
+                        action,
+                        contactId: conversation.contactId,
+                        conversationId: conversation.id,
+                        metadataJson: JSON.stringify(eventMetadata),
+                    },
+                });
+            }
+
+            return cancelledCount;
+        });
+
         let provider;
         let sendResult;
         try {
@@ -110,9 +154,6 @@ export async function POST(request: Request) {
             );
         }
 
-        const now = new Date();
-        const automationPausedUntil = createAutomationPausedUntil(now);
-
         const result = await prisma.$transaction(async (tx) => {
             const message = await tx.message.create({
                 data: {
@@ -134,40 +175,6 @@ export async function POST(request: Request) {
                 where: { id: conversation.id },
                 data: {
                     lastMessageAt: now,
-                    automationPausedUntil,
-                    assignedUserId: actorId,
-                },
-            });
-
-            const eventMetadata = {
-                messageId: message.id,
-                externalMessageId: message.externalMessageId,
-                target,
-                pauseStrategy: "temporary",
-                pauseMinutes: DEFAULT_AUTOMATION_PAUSE_MINUTES,
-                pausedUntil: automationPausedUntil.toISOString(),
-                ...buildAuditMetadata({
-                    actorType: "human",
-                    origin: "human_api",
-                    actorId,
-                }),
-            };
-
-            await tx.internalActionLog.create({
-                data: {
-                    action: "HumanTookOver",
-                    contactId: conversation.contactId,
-                    conversationId: conversation.id,
-                    metadataJson: JSON.stringify(eventMetadata),
-                },
-            });
-
-            await tx.internalActionLog.create({
-                data: {
-                    action: "AutomationPaused",
-                    contactId: conversation.contactId,
-                    conversationId: conversation.id,
-                    metadataJson: JSON.stringify(eventMetadata),
                 },
             });
 
@@ -178,6 +185,7 @@ export async function POST(request: Request) {
             ok: true,
             messageId: result.id,
             conversationId: conversation.id,
+            cancelledJobs,
         });
     } catch (error) {
         console.error("Erro interno no envio de mensagem:", error);

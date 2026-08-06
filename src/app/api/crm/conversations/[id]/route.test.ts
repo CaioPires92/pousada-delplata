@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 const mocks = vi.hoisted(() => ({
     findUnique: vi.fn(),
     update: vi.fn(),
+    updateManyJobs: vi.fn(),
     recordCrmEvent: vi.fn(),
     requireAdminAuth: vi.fn(),
 }));
@@ -14,6 +15,13 @@ vi.mock('@/lib/prisma', () => ({
             findUnique: mocks.findUnique,
             update: mocks.update,
         },
+        automationQueueJob: {
+            updateMany: mocks.updateManyJobs,
+        },
+        $transaction: vi.fn(async (callback) => callback({
+            conversation: { update: mocks.update },
+            automationQueueJob: { updateMany: mocks.updateManyJobs },
+        })),
     },
 }));
 
@@ -38,6 +46,7 @@ describe('conversation automation mode', () => {
             automationPausedUntil: null,
         });
         mocks.recordCrmEvent.mockResolvedValue(null);
+        mocks.updateManyJobs.mockResolvedValue({ count: 2 });
         mocks.requireAdminAuth.mockResolvedValue({
             adminId: 'admin-1',
             email: 'recepcao@delplata.com.br',
@@ -94,8 +103,24 @@ describe('conversation automation mode', () => {
             metadata: expect.objectContaining({
                 actorId: 'admin-1',
                 automationMode,
+                cancelledJobs: automationMode === 'auto' ? 0 : 2,
             }),
         }));
+        if (automationMode === 'auto') {
+            expect(mocks.updateManyJobs).not.toHaveBeenCalled();
+        } else {
+            expect(mocks.updateManyJobs).toHaveBeenCalledWith({
+                where: {
+                    conversationId: 'conversation-1',
+                    action: 'SEND_WHATSAPP_MESSAGE',
+                    status: 'pending',
+                },
+                data: expect.objectContaining({
+                    status: 'cancelled',
+                    cancelReason: `conversation_mode_${automationMode}`,
+                }),
+            });
+        }
     });
 
     it('rejects unknown modes', async () => {

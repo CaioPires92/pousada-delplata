@@ -38,6 +38,7 @@ async function cleanupTestData() {
   if (contactIds.length === 0) return;
 
   await prisma.internalActionLog.deleteMany({ where: { contactId: { in: contactIds } } });
+  await prisma.automationQueueJob.deleteMany({ where: { conversation: { contactId: { in: contactIds } } } });
   await prisma.pipelineCard.deleteMany({ where: { contactId: { in: contactIds } } });
   await prisma.conversation.deleteMany({ where: { contactId: { in: contactIds } } });
   await prisma.contact.deleteMany({ where: { id: { in: contactIds } } });
@@ -139,6 +140,22 @@ describe("manual WhatsApp send hardening", () => {
     const conversation = await prisma.conversation.create({
       data: { contactId: contact.id, channel: "whatsapp", status: "open" },
     });
+    const pendingSend = await prisma.automationQueueJob.create({
+      data: {
+        conversationId: conversation.id,
+        action: "SEND_WHATSAPP_MESSAGE",
+        payloadJson: JSON.stringify({ target: "551188880002", text: "Resposta antiga" }),
+        status: "pending",
+      },
+    });
+    const pendingN8n = await prisma.automationQueueJob.create({
+      data: {
+        conversationId: conversation.id,
+        action: "EMIT_N8N_EVENT",
+        payloadJson: JSON.stringify({ event: { type: "MessageReceived" } }),
+        status: "pending",
+      },
+    });
 
     const response = await POST(request({ conversationId: conversation.id, text: "Mensagem manual" }));
     expect(response.status).toBe(200);
@@ -152,10 +169,21 @@ describe("manual WhatsApp send hardening", () => {
     const takeoverLog = await prisma.internalActionLog.findFirst({
       where: { conversationId: conversation.id, action: "HumanTookOver" },
     });
+    const [cancelledSend, preservedN8n] = await Promise.all([
+      prisma.automationQueueJob.findUnique({ where: { id: pendingSend.id } }),
+      prisma.automationQueueJob.findUnique({ where: { id: pendingN8n.id } }),
+    ]);
     expect(message?.metadataJson).toContain('"provider":"evolution"');
     expect(message?.metadataJson).not.toContain("Mensagem manual");
     expect(updatedConversation?.assignedUserId).toBe("admin-1");
     expect(updatedConversation?.automationPausedUntil).not.toBeNull();
     expect(takeoverLog?.metadataJson).toContain('"actorId":"admin-1"');
+    expect(takeoverLog?.metadataJson).toContain('"cancelledJobs":1');
+    expect(cancelledSend).toMatchObject({
+      status: "cancelled",
+      cancelReason: "human_manual_message",
+    });
+    expect(cancelledSend?.cancelledAt).not.toBeNull();
+    expect(preservedN8n?.status).toBe("pending");
   });
 });
