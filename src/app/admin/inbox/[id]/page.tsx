@@ -8,6 +8,10 @@ type Message = {
     senderType: string;
     content: string | null;
     messageType: string;
+    deliveryStatus: "sent" | "delivered" | "read" | "failed" | null;
+    deliveryErrorTitle: string | null;
+    deliveryErrorDetail: string | null;
+    deliveryUpdatedAt: string | null;
     createdAt: string;
     sentAt: string | null;
 };

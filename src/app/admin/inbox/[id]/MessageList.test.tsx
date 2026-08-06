@@ -77,4 +77,58 @@ describe('MessageList realtime updates', () => {
         unmount();
         expect(source.close).toHaveBeenCalledOnce();
     });
+
+    it('shows sent, delivered, read and failed states for outbound messages', async () => {
+        const statusMessages = [
+            { ...initialMessage, id: 'sent', senderType: 'human', deliveryStatus: 'sent' as const },
+            { ...initialMessage, id: 'delivered', senderType: 'human', deliveryStatus: 'delivered' as const },
+            { ...initialMessage, id: 'read', senderType: 'bot', deliveryStatus: 'read' as const },
+            {
+                ...initialMessage,
+                id: 'failed',
+                senderType: 'human',
+                deliveryStatus: 'failed' as const,
+                deliveryErrorTitle: 'Número indisponível',
+            },
+        ];
+        vi.mocked(fetch).mockResolvedValue({
+            ok: true,
+            json: vi.fn().mockResolvedValue({ messages: statusMessages }),
+        } as unknown as Response);
+        render(
+            <MessageList
+                conversationId="conversation-1"
+                initialMessages={statusMessages}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByLabelText('Enviada')).toBeInTheDocument();
+            expect(screen.getByLabelText('Entregue')).toBeInTheDocument();
+            expect(screen.getByLabelText('Lida')).toBeInTheDocument();
+            expect(screen.getByLabelText('Falha ao enviar')).toBeInTheDocument();
+            expect(screen.getByText('Número indisponível. Tente novamente.')).toBeInTheDocument();
+        });
+    });
+
+    it('updates a delivery state received through SSE', async () => {
+        render(
+            <MessageList
+                initialMessages={[{ ...initialMessage, senderType: 'human', deliveryStatus: 'sent' }]}
+                conversationId="conversation-1"
+            />
+        );
+        const source = EventSourceMock.instances[0];
+
+        expect(screen.getByLabelText('Enviada')).toBeInTheDocument();
+        act(() => source.onmessage?.({
+            data: JSON.stringify({
+                ok: true,
+                messages: [{ ...initialMessage, senderType: 'human', deliveryStatus: 'read' }],
+            }),
+        }));
+
+        await waitFor(() => expect(screen.getByLabelText('Lida')).toBeInTheDocument());
+        expect(screen.queryByLabelText('Enviada')).not.toBeInTheDocument();
+    });
 });

@@ -175,6 +175,8 @@ describe("manual WhatsApp send hardening", () => {
     ]);
     expect(message?.metadataJson).toContain('"provider":"evolution"');
     expect(message?.metadataJson).not.toContain("Mensagem manual");
+    expect(message?.deliveryStatus).toBe("sent");
+    expect(message?.deliveryUpdatedAt?.toISOString()).toBe("2026-08-03T19:00:00.000Z");
     expect(updatedConversation?.assignedUserId).toBe("admin-1");
     expect(updatedConversation?.automationPausedUntil).not.toBeNull();
     expect(takeoverLog?.metadataJson).toContain('"actorId":"admin-1"');

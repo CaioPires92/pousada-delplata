@@ -30,6 +30,10 @@ describe('conversation SSE stream', () => {
                 content: 'Olá',
                 messageType: 'text',
                 mediaUrl: null,
+                deliveryStatus: 'read',
+                deliveryErrorTitle: null,
+                deliveryErrorDetail: null,
+                deliveryUpdatedAt: new Date('2026-08-05T12:01:00.000Z'),
                 createdAt: new Date('2026-08-05T12:00:00.000Z'),
                 sentAt: new Date('2026-08-05T12:00:00.000Z'),
             }],
@@ -58,8 +62,26 @@ describe('conversation SSE stream', () => {
             conversationId: 'conversation-1',
             updatedAt: '2026-08-05T12:01:00.000Z',
             lastMessageAt: '2026-08-05T12:00:00.000Z',
-            messages: [expect.objectContaining({ id: 'message-1', content: 'Olá' })],
+            messages: [expect.objectContaining({
+                id: 'message-1',
+                content: 'Olá',
+                deliveryStatus: 'read',
+                deliveryUpdatedAt: '2026-08-05T12:01:00.000Z',
+            })],
         });
+
+        expect(prismaMocks.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+            select: expect.objectContaining({
+                messages: expect.objectContaining({
+                    select: expect.objectContaining({
+                        deliveryStatus: true,
+                        deliveryErrorTitle: true,
+                        deliveryErrorDetail: true,
+                        deliveryUpdatedAt: true,
+                    }),
+                }),
+            }),
+        }));
 
         abortController.abort();
         await expect(reader!.read()).resolves.toEqual({ done: true, value: undefined });

@@ -162,6 +162,8 @@ export async function POST(request: Request) {
                     senderType: "human",
                     content: text,
                     messageType: "text",
+                    deliveryStatus: "sent",
+                    deliveryUpdatedAt: new Date(sendResult.acceptedAt),
                     metadataJson: JSON.stringify({
                         provider: provider.name,
                         acceptedAt: sendResult.acceptedAt,

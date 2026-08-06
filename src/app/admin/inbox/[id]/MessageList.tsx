@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
 import { mergePolledMessages, type InboxMessage } from "./messagePolling";
 
 type Message = InboxMessage;
@@ -71,6 +71,23 @@ function getMessageStyle(senderType: string): {
         bubble: "border border-slate-200 bg-white text-slate-950 shadow-sm",
         label: "Hóspede",
     };
+}
+
+function deliveryPresentation(message: Message) {
+    if (message.status === "pending") {
+        return { label: "Enviando", icon: <Clock aria-hidden="true" className="h-3 w-3 animate-pulse" /> };
+    }
+    if (message.status === "error" || message.deliveryStatus === "failed") {
+        return { label: "Falha ao enviar", icon: <AlertCircle aria-hidden="true" className="h-3 w-3 text-red-200" /> };
+    }
+    if (message.deliveryStatus === "read") {
+        return { label: "Lida", icon: <CheckCheck aria-hidden="true" className="h-3 w-3 text-sky-200" /> };
+    }
+    if (message.deliveryStatus === "delivered") {
+        return { label: "Entregue", icon: <CheckCheck aria-hidden="true" className="h-3 w-3" /> };
+    }
+
+    return { label: "Enviada", icon: <Check aria-hidden="true" className="h-3 w-3" /> };
 }
 
 export default function MessageList({ initialMessages, conversationId }: MessageListProps) {
@@ -215,8 +232,9 @@ export default function MessageList({ initialMessages, conversationId }: Message
             ) : (
                 messages.map((message) => {
                     const style = getMessageStyle(message.senderType);
-                    const isHuman = message.senderType === "human";
-                    const hasError = message.status === "error";
+                    const isOutbound = message.senderType === "human" || message.senderType === "bot";
+                    const delivery = isOutbound ? deliveryPresentation(message) : null;
+                    const hasError = delivery?.label === "Falha ao enviar";
 
                     return (
                         <div
@@ -244,30 +262,22 @@ export default function MessageList({ initialMessages, conversationId }: Message
                                         {formatMessageTime(message)}
                                     </span>
                                     
-                                    {isHuman && (
-                                        <div className="flex items-center">
-                                            {message.status === 'pending' && (
-                                                <Clock className="h-3 w-3 animate-pulse" />
-                                            )}
-                                            {message.status === 'error' && (
-                                                <AlertCircle className="h-3 w-3 text-red-200" />
-                                            )}
-                                            {(!message.status || message.status === 'sent') && (
-                                                <CheckCheck className="h-3 w-3" />
-                                            )}
+                                    {delivery && (
+                                        <div className="flex items-center" aria-label={delivery.label} title={delivery.label}>
+                                            {delivery.icon}
                                         </div>
                                     )}
                                 </div>
 
-                                {isHuman && message.status === "pending" && (
+                                {isOutbound && message.status === "pending" && (
                                     <p className="mt-2 text-right text-[10px] font-bold uppercase tracking-widest opacity-70">
                                         Enviando
                                     </p>
                                 )}
 
-                                {isHuman && hasError && (
+                                {isOutbound && hasError && (
                                     <p className="mt-2 rounded-md bg-red-50 px-2 py-1 text-right text-[11px] font-bold text-red-700">
-                                        Falha ao enviar. Tente novamente.
+                                        {message.deliveryErrorTitle || "Falha ao enviar"}. Tente novamente.
                                     </p>
                                 )}
                             </div>
