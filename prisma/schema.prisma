@@ -288,6 +288,7 @@ model Conversation {
   flowStep              String?
   flowDataJson          String?
   lastAutomationAt      DateTime?
+  automationFailureCount Int                @default(0)
   assignedUserId        String?
   unreadCount           Int                 @default(0)
   lastReadAt            DateTime?

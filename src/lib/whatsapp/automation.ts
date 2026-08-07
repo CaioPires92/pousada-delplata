@@ -65,6 +65,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
             flowStep: true,
             flowDataJson: true,
             lastAutomationAt: true,
+            automationFailureCount: true,
         },
     });
 
@@ -81,7 +82,9 @@ export async function processAutoResponse(conversationId: string, phone: string,
     }
 
     const parsedIncoming = parseCrmIntent(text, now);
-    const handoffDecision = decideAutomationHandoff(text, parsedIncoming);
+    const handoffDecision = decideAutomationHandoff(text, parsedIncoming, {
+        consecutiveFailures: conversation.automationFailureCount,
+    });
     const matchedKnowledge = handoffDecision.reason === "unknown_intent"
         ? await findApprovedKnowledge(text)
         : null;
@@ -92,6 +95,58 @@ export async function processAutoResponse(conversationId: string, phone: string,
             phone,
             decision: handoffDecision,
             now,
+        });
+    }
+
+    if (handoffDecision.reason === "unknown_intent" && handoffDecision.message && !matchedKnowledge) {
+        const clarificationText = handoffDecision.message;
+        const sendResult = await sendMessagingText(phone, clarificationText);
+
+        await prisma.$transaction(async tx => {
+            await tx.message.create({
+                data: {
+                    conversationId,
+                    externalMessageId: sendResult.externalMessageId,
+                    senderType: "bot",
+                    content: clarificationText,
+                    messageType: "text",
+                    sentAt: now,
+                    metadataJson: JSON.stringify({
+                        ...sendResult,
+                        automationAction: "clarification",
+                        failureCount: conversation.automationFailureCount + 1,
+                    }),
+                },
+            });
+
+            await tx.conversation.update({
+                where: { id: conversationId },
+                data: {
+                    automationFailureCount: conversation.automationFailureCount + 1,
+                    lastAutomationAt: now,
+                    lastMessageAt: now,
+                },
+            });
+        });
+
+        await recordCrmEvent({
+            action: "AutomationClarificationRequested",
+            contactId: conversation.contactId,
+            conversationId: conversation.id,
+            metadata: {
+                reason: "unknown_intent",
+                failureCount: conversation.automationFailureCount + 1,
+                messageSent: true,
+            },
+        });
+
+        return clarificationText;
+    }
+
+    if (conversation.automationFailureCount > 0) {
+        await prisma.conversation.update({
+            where: { id: conversationId },
+            data: { automationFailureCount: 0 },
         });
     }
 

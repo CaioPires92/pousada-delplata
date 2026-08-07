@@ -1,0 +1,110 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/prisma", () => ({
+  default: {
+    conversation: { findUnique: vi.fn(), update: vi.fn() },
+    message: { create: vi.fn() },
+    pipelineCard: { findFirst: vi.fn() },
+    reservationDraft: { findFirst: vi.fn() },
+    $transaction: vi.fn(),
+  },
+}));
+vi.mock("@/lib/crm/chatbotSettings", () => ({
+  isWhatsappChatbotEnabledForConversation: vi.fn(),
+}));
+vi.mock("@/lib/crm/automationPause", () => ({
+  isConversationAutomationActive: vi.fn(),
+}));
+vi.mock("@/lib/crm/automationHandoff", () => ({ executeAutomationHandoff: vi.fn() }));
+vi.mock("@/lib/crm/approvedKnowledge", () => ({ findApprovedKnowledge: vi.fn() }));
+vi.mock("@/lib/crm/cacheStore", () => ({ cacheSetNx: vi.fn() }));
+vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
+vi.mock("@/lib/messaging/send-text", () => ({ sendMessagingText: vi.fn() }));
+vi.mock("@/app/api/crm/quote/route", () => ({ POST: vi.fn() }));
+vi.mock("@/app/api/crm/internal-actions/route", () => ({ POST: vi.fn() }));
+
+import prisma from "@/lib/prisma";
+import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
+import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
+import { isConversationAutomationActive } from "@/lib/crm/automationPause";
+import { isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
+import { recordCrmEvent } from "@/lib/crm/events";
+import { DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE } from "@/lib/crm/handoffPolicy";
+import { sendMessagingText } from "@/lib/messaging/send-text";
+import { processAutoResponse } from "./automation";
+
+function conversation(failureCount: number) {
+  return {
+    id: "conversation-1",
+    contactId: "contact-1",
+    chatbotEnabled: true,
+    chatbotTestEnabled: true,
+    automationMode: "auto",
+    automationPausedUntil: null,
+    currentFlow: null,
+    flowStep: null,
+    flowDataJson: null,
+    lastAutomationAt: null,
+    automationFailureCount: failureCount,
+  };
+}
+
+describe("processAutoResponse handoff supervision", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isWhatsappChatbotEnabledForConversation).mockResolvedValue(true);
+    vi.mocked(isConversationAutomationActive).mockReturnValue(true);
+    vi.mocked(findApprovedKnowledge).mockResolvedValue(null);
+    vi.mocked(recordCrmEvent).mockResolvedValue(null as never);
+    vi.mocked(sendMessagingText).mockResolvedValue({
+      externalMessageId: "message-1",
+      acceptedAt: "2026-08-07T19:00:00.000Z",
+      status: "sent",
+      provider: "evolution",
+    });
+    vi.mocked(prisma.message.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.conversation.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.$transaction).mockImplementation(async callback => {
+      if (typeof callback === "function") {
+        return callback(prisma as never);
+      }
+      return [];
+    });
+  });
+
+  it("asks for clarification and records the first comprehension failure", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(0) as never);
+
+    await expect(processAutoResponse(
+      "conversation-1",
+      "5519999999999",
+      "Quero uma coisa diferente",
+    )).resolves.toBe(DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE);
+
+    expect(sendMessagingText).toHaveBeenCalledWith("5519999999999", DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE);
+    expect(prisma.conversation.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "conversation-1" },
+      data: expect.objectContaining({ automationFailureCount: 1 }),
+    }));
+    expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: "AutomationClarificationRequested",
+    }));
+    expect(executeAutomationHandoff).not.toHaveBeenCalled();
+  });
+
+  it("hands off on the second consecutive comprehension failure", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(1) as never);
+    vi.mocked(executeAutomationHandoff).mockResolvedValue("handoff");
+
+    await expect(processAutoResponse(
+      "conversation-1",
+      "5519999999999",
+      "Ainda não foi isso",
+    )).resolves.toBe("handoff");
+
+    expect(executeAutomationHandoff).toHaveBeenCalledWith(expect.objectContaining({
+      decision: expect.objectContaining({ reason: "repeated_failure", shouldHandoff: true }),
+    }));
+    expect(sendMessagingText).not.toHaveBeenCalled();
+  });
+});

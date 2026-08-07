@@ -28,6 +28,7 @@ export async function executeAutomationHandoff(input: {
       currentFlow: null,
       flowStep: null,
       flowDataJson: null,
+      automationFailureCount: 0,
       lastAutomationAt: now,
     },
   });

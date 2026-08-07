@@ -53,6 +53,7 @@ describe("executeAutomationHandoff", () => {
         chatbotTestEnabled: false,
         automationMode: "off",
         currentFlow: null,
+        automationFailureCount: 0,
       }),
     }));
     expect(sendMessagingText).toHaveBeenCalledOnce();
