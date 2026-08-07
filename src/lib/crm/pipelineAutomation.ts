@@ -7,6 +7,7 @@ import { PIPELINE_STAGES } from "@/lib/crm/pipelineStages";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { upsertReservationDraftFromMessage } from "@/lib/crm/reservationDraft";
 import { isPipelineAutomationEnabled } from "@/lib/crm/chatbotSettings";
+import { CRM_AUTOMATION_POLICY_VERSION } from "@/lib/crm/automationVersions";
 
 export async function applyPipelineAutomationOnIncomingMessage(input: {
   conversationId: string;
@@ -48,6 +49,10 @@ export async function applyPipelineAutomationOnIncomingMessage(input: {
       mode: classified.source === "ai" ? "shadow" : "deterministic",
       actionAuthorized: false,
       heuristicIntent: parsed.intent,
+      model: classified.model,
+      promptVersion: classified.promptVersion ?? null,
+      decisionSchemaVersion: classified.decision?.schemaVersion ?? null,
+      policyVersion: CRM_AUTOMATION_POLICY_VERSION,
     },
   });
 

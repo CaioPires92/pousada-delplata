@@ -23,6 +23,7 @@ describe("approved chatbot knowledge", () => {
       ruleId: "rule-wifi",
       response: "Temos Wi-Fi.",
       category: "faq",
+      version: 1,
     });
     expect(prisma.chatbotRule.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {

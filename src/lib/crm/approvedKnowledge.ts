@@ -4,6 +4,7 @@ export type ApprovedKnowledgeMatch = {
   ruleId: string;
   response: string;
   category: string;
+  version: number;
 };
 
 function normalizeForMatch(value: string) {
@@ -47,6 +48,6 @@ export async function findApprovedKnowledge(message: string): Promise<ApprovedKn
   });
 
   return matched
-    ? { ruleId: matched.id, response: matched.response, category: matched.category }
+    ? { ruleId: matched.id, response: matched.response, category: matched.category, version: matched.version }
     : null;
 }

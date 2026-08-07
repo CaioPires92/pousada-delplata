@@ -188,7 +188,7 @@ teste falha → menor implementação possível → teste passa
 
 - [ ] F4.01 Criar dataset anonimizado de intenções reais.
 - [x] F4.02 Definir schema estrito e versionado de `AiDecision`.
-- [ ] F4.03 Versionar prompt, modelo, FAQ e policy.
+- [x] F4.03 Versionar prompt, modelo, FAQ e policy nos eventos de decisão.
 - [x] F4.04 Implementar classificador com timeout limitado e fallback determinístico.
 - [ ] F4.05 Implementar extração de datas e hóspedes com validação determinística.
 - [x] F4.05a Comparar diárias declaradas com o intervalo e solicitar correção do check-out.

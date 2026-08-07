@@ -9,6 +9,7 @@ import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 import { buildQuoteReplyText } from "@/lib/crm/quoteReply";
+import { CRM_AUTOMATION_POLICY_VERSION, CRM_FAQ_SCHEMA_VERSION } from "@/lib/crm/automationVersions";
 import {
     isQuoteExpired,
     isQuoteExecutionLocked,
@@ -81,10 +82,10 @@ export async function processAutoResponse(conversationId: string, phone: string,
 
     const parsedIncoming = parseCrmIntent(text, now);
     const handoffDecision = decideAutomationHandoff(text, parsedIncoming);
-    const matchedRuleResponse = handoffDecision.reason === "unknown_intent"
-        ? await matchRule(text)
+    const matchedKnowledge = handoffDecision.reason === "unknown_intent"
+        ? await findApprovedKnowledge(text)
         : null;
-    if (handoffDecision.shouldHandoff && !matchedRuleResponse) {
+    if (handoffDecision.shouldHandoff && !matchedKnowledge) {
         return executeAutomationHandoff({
             conversationId,
             contactId: conversation.contactId,
@@ -468,7 +469,8 @@ export async function processAutoResponse(conversationId: string, phone: string,
         }
     }
 
-    const responseText = matchedRuleResponse ?? await matchRule(text);
+    const approvedKnowledge = matchedKnowledge ?? await findApprovedKnowledge(text);
+    const responseText = approvedKnowledge?.response ?? null;
     
     if (!responseText) {
         return executeAutomationHandoff({
@@ -479,6 +481,19 @@ export async function processAutoResponse(conversationId: string, phone: string,
             now,
         });
     }
+
+    await recordCrmEvent({
+        action: "ApprovedKnowledgeMatched",
+        contactId: conversation.contactId,
+        conversationId: conversation.id,
+        metadata: {
+            ruleId: approvedKnowledge?.ruleId,
+            ruleVersion: approvedKnowledge?.version,
+            category: approvedKnowledge?.category,
+            faqSchemaVersion: CRM_FAQ_SCHEMA_VERSION,
+            policyVersion: CRM_AUTOMATION_POLICY_VERSION,
+        },
+    });
 
     const sendResult = await sendMessagingText(phone, responseText);
 

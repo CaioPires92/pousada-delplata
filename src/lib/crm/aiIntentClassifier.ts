@@ -1,5 +1,6 @@
 import { parseCrmIntent } from "@/lib/crm/intentParser";
 import { parseAiDecision, type AiDecision } from "@/lib/crm/aiDecision";
+import { CRM_AI_PROMPT_VERSION, CRM_HEURISTIC_MODEL_VERSION } from "@/lib/crm/automationVersions";
 
 type SupportedIntent = AiDecision["intent"];
 
@@ -9,6 +10,8 @@ export type IntentClassification = {
   source: "heuristic" | "ai";
   raw?: string;
   decision?: AiDecision;
+  model: string;
+  promptVersion?: string;
 };
 
 function clampConfidence(value: number) {
@@ -66,6 +69,8 @@ async function classifyWithAI(message: string): Promise<IntentClassification | n
       source: "ai",
       raw: text,
       decision,
+      model,
+      promptVersion: CRM_AI_PROMPT_VERSION,
     };
   } catch {
     return null;
@@ -89,5 +94,6 @@ export async function classifyIntent(message: string): Promise<IntentClassificat
     intent: parsed.intent,
     confidence: confidenceMap[parsed.confidence] ?? 0.5,
     source: "heuristic",
+    model: CRM_HEURISTIC_MODEL_VERSION,
   };
 }

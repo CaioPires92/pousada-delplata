@@ -46,6 +46,7 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       intent: "unknown",
       confidence: 0.4,
       source: "heuristic",
+      model: "deterministic-intent-v1",
     });
     vi.mocked(isPipelineAutomationEnabled).mockResolvedValue(true);
   });
@@ -105,6 +106,7 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       intent: "reservation",
       confidence: 0.99,
       source: "ai",
+      model: "gpt-test",
     });
 
     await applyPipelineAutomationOnIncomingMessage({
