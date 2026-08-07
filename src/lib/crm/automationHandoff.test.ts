@@ -48,7 +48,12 @@ describe("executeAutomationHandoff", () => {
 
     expect(prisma.conversation.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "conversation-1", chatbotEnabled: true, automationMode: "auto" },
-      data: expect.objectContaining({ chatbotEnabled: false, automationMode: "off", currentFlow: null }),
+      data: expect.objectContaining({
+        chatbotEnabled: false,
+        chatbotTestEnabled: false,
+        automationMode: "off",
+        currentFlow: null,
+      }),
     }));
     expect(sendMessagingText).toHaveBeenCalledOnce();
     expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({

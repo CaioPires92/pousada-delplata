@@ -23,6 +23,7 @@ export async function executeAutomationHandoff(input: {
     },
     data: {
       chatbotEnabled: false,
+      chatbotTestEnabled: false,
       automationMode: "off",
       currentFlow: null,
       flowStep: null,
