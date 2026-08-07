@@ -197,7 +197,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F4.07 Implementar busca somente em FAQ pública e aprovada, com fonte, versão e responsável.
 - [x] F4.08 Implementar regras de handoff e mensagem de transição.
 - [x] F4.09 Persistir decisão, confiança, latência, tokens e resultado.
-- [ ] F4.10 Criar shadow mode sem envio ao cliente.
+- [x] F4.10 Criar shadow mode sem envio ao cliente.
 - [ ] F4.11 Criar painel/amostra para revisar decisões.
 - [ ] F4.12 Liberar automaticamente uma intent por vez.
 

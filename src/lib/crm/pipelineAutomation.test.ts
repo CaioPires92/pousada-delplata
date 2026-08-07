@@ -51,6 +51,7 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       inputTokens: null,
       outputTokens: null,
       result: "deterministic",
+      evaluationMode: "deterministic",
     });
     vi.mocked(isPipelineAutomationEnabled).mockResolvedValue(true);
   });
@@ -115,6 +116,15 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       inputTokens: 20,
       outputTokens: 8,
       result: "classified",
+      evaluationMode: "shadow",
+      decision: {
+        schemaVersion: 1,
+        intent: "reservation",
+        confidence: 0.99,
+        suggestedAction: "handoff",
+        reasonCode: "recognized_intent",
+        entities: {},
+      },
     });
 
     await applyPipelineAutomationOnIncomingMessage({
@@ -138,6 +148,8 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
         inputTokens: 20,
         outputTokens: 8,
         result: "classified",
+        agreementWithHeuristic: false,
+        suggestedAction: "handoff",
       }),
     }));
   });

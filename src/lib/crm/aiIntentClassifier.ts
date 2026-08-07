@@ -16,6 +16,7 @@ export type IntentClassification = {
   inputTokens: number | null;
   outputTokens: number | null;
   result: "classified" | "deterministic" | "fallback_disabled" | "fallback_provider_error" | "fallback_invalid_response" | "fallback_timeout";
+  evaluationMode: "deterministic" | "shadow";
 };
 
 type AiAttempt = {
@@ -137,6 +138,7 @@ async function classifyWithAI(message: string): Promise<AiAttempt> {
         inputTokens,
         outputTokens,
         result: "classified",
+        evaluationMode: "shadow",
       },
       latencyMs,
       inputTokens,
@@ -178,5 +180,6 @@ export async function classifyIntent(message: string): Promise<IntentClassificat
     inputTokens: aiAttempt?.inputTokens ?? null,
     outputTokens: aiAttempt?.outputTokens ?? null,
     result: aiAttempt?.result ?? (shadowEnabled ? "fallback_disabled" : "deterministic"),
+    evaluationMode: shadowEnabled ? "shadow" : "deterministic",
   };
 }
