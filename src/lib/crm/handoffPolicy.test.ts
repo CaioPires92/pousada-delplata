@@ -11,7 +11,9 @@ describe("automation handoff policy", () => {
   });
 
   it("uses a short, natural handoff message", () => {
-    expect(DEFAULT_AUTOMATION_HANDOFF_MESSAGE).toBe("Vou conferir com a equipe e retorno por aqui.");
+    expect(DEFAULT_AUTOMATION_HANDOFF_MESSAGE).toBe(
+      "Só um momento, por favor. Vou confirmar essa informação com nossa equipe e retorno por aqui."
+    );
   });
 
   it.each([

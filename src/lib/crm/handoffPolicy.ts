@@ -13,7 +13,7 @@ export type AutomationHandoffDecision = {
 };
 
 export const DEFAULT_AUTOMATION_HANDOFF_MESSAGE =
-  "Vou conferir com a equipe e retorno por aqui.";
+  "Só um momento, por favor. Vou confirmar essa informação com nossa equipe e retorno por aqui.";
 
 const HUMAN_REQUEST = /\b(atendente|humano|pessoa|recep[cç][aã]o|falar com algu[eé]m)\b/i;
 const COMPLAINT_OR_EMERGENCY = /\b(emerg[eê]ncia|urgente|acidente|problema|reclama[cç][aã]o|insatisfeit|p[eé]ssim|pessim)\b/i;
