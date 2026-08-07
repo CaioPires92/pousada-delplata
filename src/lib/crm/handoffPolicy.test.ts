@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { decideAutomationHandoff } from "./handoffPolicy";
+import { DEFAULT_AUTOMATION_HANDOFF_MESSAGE, decideAutomationHandoff } from "./handoffPolicy";
 
 describe("automation handoff policy", () => {
   it("hands unknown service requests to a human without inventing an answer", () => {
@@ -8,6 +8,10 @@ describe("automation handoff policy", () => {
       shouldHandoff: true,
       reason: "unknown_intent",
     });
+  });
+
+  it("uses a short, natural handoff message", () => {
+    expect(DEFAULT_AUTOMATION_HANDOFF_MESSAGE).toBe("Vou conferir com a equipe e retorno por aqui.");
   });
 
   it.each([
