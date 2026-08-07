@@ -8,7 +8,21 @@ type ChatbotRule = {
     trigger: string;
     response: string;
     category: string;
+    audience: "public" | "verified_guest" | "staff" | "admin";
+    source: string | null;
+    version: number;
+    approvedAt: string | null;
+    approvedBy: string | null;
     isActive: boolean;
+};
+
+type EditableRule = Pick<ChatbotRule, "trigger" | "response" | "audience"> & { source: string };
+
+const AUDIENCE_LABELS: Record<ChatbotRule["audience"], string> = {
+    public: "Público",
+    verified_guest: "Hóspede verificado",
+    staff: "Equipe",
+    admin: "Administração",
 };
 
 export default function ChatbotSettingsPage() {
@@ -22,9 +36,9 @@ export default function ChatbotSettingsPage() {
     const [isGlobalLoading, setIsGlobalLoading] = useState(true);
     const [isPipelineLoading, setIsPipelineLoading] = useState(true);
 
-    const [newRule, setNewRule] = useState({ trigger: "", response: "" });
+    const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editRule, setEditRule] = useState({ trigger: "", response: "" });
+    const [editRule, setEditRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
 
     async function fetchRules() {
         try {
@@ -124,7 +138,7 @@ export default function ChatbotSettingsPage() {
             const data = await response.json();
             if (data.ok) {
                 setRules([data.rule, ...rules]);
-                setNewRule({ trigger: "", response: "" });
+                setNewRule({ trigger: "", response: "", audience: "public", source: "" });
                 setSuccess("Regra adicionada!");
                 setTimeout(() => setSuccess(null), 3000);
             } else {
@@ -148,7 +162,7 @@ export default function ChatbotSettingsPage() {
                 body: JSON.stringify({ id: editingId, ...editRule }),
             });
             if (response.ok) {
-                setRules(rules.map(r => r.id === editingId ? { ...r, ...editRule } : r));
+                setRules(rules.map(r => r.id === editingId ? { ...r, ...editRule, version: r.version + 1, approvedAt: new Date().toISOString() } : r));
                 setEditingId(null);
                 setSuccess("Regra atualizada!");
                 setTimeout(() => setSuccess(null), 3000);
@@ -257,7 +271,7 @@ export default function ChatbotSettingsPage() {
                     <Plus size={20} className="text-emerald-600" />
                     Nova Regra de Resposta
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Palavra-chave (Gatilho)</label>
                         <input
@@ -277,11 +291,33 @@ export default function ChatbotSettingsPage() {
                             className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-medium h-[46px] min-h-[46px] resize-none"
                         />
                     </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Público autorizado</label>
+                        <select
+                            value={newRule.audience}
+                            onChange={e => setNewRule({ ...newRule, audience: e.target.value as ChatbotRule["audience"] })}
+                            className="w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none transition-all focus:ring-2 focus:ring-emerald-500"
+                        >
+                            {Object.entries(AUDIENCE_LABELS).map(([value, label]) => (
+                                <option key={value} value={value}>{label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fonte da informação</label>
+                        <input
+                            type="text"
+                            placeholder="Ex: Confirmado pela administração em 07/08/2026"
+                            value={newRule.source}
+                            onChange={e => setNewRule({ ...newRule, source: e.target.value })}
+                            className="w-full rounded-xl border border-slate-200 px-4 py-3 font-medium outline-none transition-all focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
                 </div>
                 <div className="flex justify-end">
                     <button
                         onClick={handleAddRule}
-                        disabled={isSaving || !newRule.trigger || !newRule.response}
+                        disabled={isSaving || !newRule.trigger || !newRule.response || !newRule.source}
                         className="bg-slate-800 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 transition-all disabled:opacity-50"
                     >
                         {isSaving ? "Salvando..." : "Adicionar Regra"}
@@ -307,7 +343,7 @@ export default function ChatbotSettingsPage() {
             <div className="space-y-4">
                 <div>
                     <h2 className="text-xl font-black text-slate-800">Base de respostas aprovadas</h2>
-                    <p className="mt-1 text-sm font-medium text-slate-500">Somente regras marcadas como Ativo podem ser enviadas automaticamente.</p>
+                    <p className="mt-1 text-sm font-medium text-slate-500">Somente regras públicas, aprovadas e marcadas como Ativo podem ser enviadas automaticamente.</p>
                 </div>
                 {isLoading ? (
                     <div className="animate-pulse space-y-4">
@@ -323,7 +359,7 @@ export default function ChatbotSettingsPage() {
                         {rules.map(rule => (
                             <div key={rule.id} className={`bg-white p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${rule.isActive ? 'border-slate-200 shadow-sm' : 'border-slate-100 opacity-60 grayscale'}`}>
                                 {editingId === rule.id ? (
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
                                         <div className="space-y-1">
                                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gatilho</label>
                                             <input
@@ -341,6 +377,27 @@ export default function ChatbotSettingsPage() {
                                                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 outline-none h-10 resize-none font-medium"
                                             />
                                         </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Público</label>
+                                            <select
+                                                value={editRule.audience}
+                                                onChange={e => setEditRule({ ...editRule, audience: e.target.value as ChatbotRule["audience"] })}
+                                                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                                            >
+                                                {Object.entries(AUDIENCE_LABELS).map(([value, label]) => (
+                                                    <option key={value} value={value}>{label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fonte</label>
+                                            <input
+                                                type="text"
+                                                value={editRule.source}
+                                                onChange={e => setEditRule({ ...editRule, source: e.target.value })}
+                                                className="w-full rounded-lg border border-slate-300 px-3 py-2 font-medium outline-none focus:ring-2 focus:ring-emerald-500"
+                                            />
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-1 flex-1">
@@ -351,6 +408,13 @@ export default function ChatbotSettingsPage() {
                                         <p className="text-slate-600 font-medium line-clamp-2 italic text-sm">
                                             &quot;{rule.response}&quot;
                                         </p>
+                                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-bold">
+                                            <span className={rule.audience === "public" ? "rounded-full bg-emerald-100 px-2 py-1 text-emerald-700" : "rounded-full bg-amber-100 px-2 py-1 text-amber-800"}>
+                                                {AUDIENCE_LABELS[rule.audience]}
+                                            </span>
+                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">Versão {rule.version}</span>
+                                            <span className="text-slate-400">{rule.source || "Sem fonte registrada"}</span>
+                                        </div>
                                     </div>
                                 )}
                                 
@@ -377,7 +441,12 @@ export default function ChatbotSettingsPage() {
                                             <button
                                                 onClick={() => {
                                                     setEditingId(rule.id);
-                                                    setEditRule({ trigger: rule.trigger, response: rule.response });
+                                                    setEditRule({
+                                                        trigger: rule.trigger,
+                                                        response: rule.response,
+                                                        audience: rule.audience,
+                                                        source: rule.source || "",
+                                                    });
                                                 }}
                                                 className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                                                 title="Editar"

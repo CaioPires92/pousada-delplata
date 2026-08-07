@@ -32,8 +32,8 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { trigger, response, category, audience = "public", source } = body;
 
-        if (!trigger || !response || !ALLOWED_AUDIENCES.has(audience)) {
-            return NextResponse.json({ ok: false, error: "Gatilho e resposta são obrigatórios" }, { status: 400 });
+        if (!trigger || !response || typeof source !== "string" || !source.trim() || !ALLOWED_AUDIENCES.has(audience)) {
+            return NextResponse.json({ ok: false, error: "Gatilho, resposta, público e fonte são obrigatórios" }, { status: 400 });
         }
 
         const newRule = await prisma.chatbotRule.create({
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
                 response,
                 category: category || "faq",
                 audience,
-                source: typeof source === "string" && source.trim() ? source.trim() : null,
+                source: source.trim(),
                 approvedAt: new Date(),
                 approvedBy: authorization.auth.adminId,
                 isActive: true
