@@ -24,6 +24,7 @@ describe("quoteFlow", () => {
       validationIssue: { code: "nights_mismatch", statedNights: 3, calculatedNights: 2 },
     })?.text).toContain("correspondem a 2 diárias");
     expect(promptForFlowStep("invalid_guests")?.text).toContain("adultos");
+    expect(promptForFlowStep("waiting_children_ages")?.text).toContain("idades das crianças");
   });
 
   it("expires flow after timeout", () => {

@@ -32,6 +32,7 @@ export type CrmInputValidationIssue = {
     | "invalid_date_range"
     | "stay_too_long"
     | "nights_mismatch"
+    | "missing_children_ages"
     | "invalid_guest_count"
     | "too_many_guests";
   statedNights?: number;
@@ -265,8 +266,14 @@ function extractAdults(text: string) {
 
 function extractChildren(text: string) {
   const explicitMatch = /\b(\d{1,2})\s*(criancas?|filhos?|menores|beb[eê]s?)\b/.exec(text);
-  const ages = Array.from(text.matchAll(/\b(?:crianca|filho|filha|menor|idade|idades)?\s*(?:de|com)?\s*(\d{1,2})\s*anos?\b/g))
+  const ageListMatch = /\b(?:idades?\s*)?((?:\d{1,2}\s*(?:,|e)\s*)+\d{1,2})\s*anos?\b/.exec(text);
+  const listedAges = ageListMatch
+    ? Array.from(ageListMatch[1].matchAll(/\d{1,2}/g)).map(match => Number.parseInt(match[0], 10))
+    : [];
+  const individualAges = Array.from(text.matchAll(/\b(?:crianca|filho|filha|menor|idade|idades)?\s*(?:de|com)?\s*(\d{1,2})\s*anos?\b/g))
     .map(match => Number.parseInt(match[1], 10))
+    .filter(age => age >= 0 && age <= 17);
+  const ages = (listedAges.length > 0 ? listedAges : individualAges)
     .filter(age => age >= 0 && age <= 17);
 
   if (explicitMatch) {
@@ -276,7 +283,7 @@ function extractChildren(text: string) {
     };
   }
 
-  if (ages.length > 0 && /\b(criancas?|filhos?|menores)\b/.test(text)) {
+  if (ages.length > 0) {
     return {
       children: ages.length,
       childrenAges: ages,
@@ -303,7 +310,7 @@ function detectIntent(text: string, datesFound: boolean): CrmIntent {
 
 function confidenceFor(parsed: Omit<ParsedCrmIntent, "confidence">): ParsedCrmIntent["confidence"] {
   if (parsed.intent === "unknown") return "low";
-  if (parsed.intent === "quote" && parsed.checkin && parsed.checkout && parsed.adults) return "high";
+  if (parsed.intent === "quote" && parsed.checkin && parsed.checkout && parsed.adults && parsed.validationIssues.length === 0) return "high";
   return "medium";
 }
 
@@ -335,6 +342,9 @@ export function parseCrmIntent(message: string, referenceDate = new Date()): Par
   if (children !== undefined && (children < 0 || children > MAX_QUOTE_CHILDREN)) {
     validationIssues.push({ field: "children", code: "invalid_guest_count" });
   }
+  if (children !== undefined && children > childrenAges.length) {
+    validationIssues.push({ field: "children", code: "missing_children_ages" });
+  }
   if ((adults ?? 0) + (children ?? 0) > MAX_QUOTE_GUESTS) {
     validationIssues.push({ field: "guests", code: "too_many_guests" });
   }
@@ -342,7 +352,9 @@ export function parseCrmIntent(message: string, referenceDate = new Date()): Par
   const validAdults = validationIssues.some(issue => issue.field === "adults" || issue.field === "guests")
     ? undefined
     : adults;
-  const validChildren = validationIssues.some(issue => issue.field === "children" || issue.field === "guests")
+  const validChildren = validationIssues.some(issue =>
+    issue.field === "guests" || (issue.field === "children" && issue.code === "invalid_guest_count")
+  )
     ? undefined
     : children;
 

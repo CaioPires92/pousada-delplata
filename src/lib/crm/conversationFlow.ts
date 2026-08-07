@@ -44,11 +44,13 @@ function nextFlowStep(data: FlowData) {
     return data.validationIssue.code === "stay_too_long" ? "stay_too_long" : "invalid_checkout";
   }
   if (["adults", "children", "guests"].includes(data.validationIssue?.field ?? "")) {
+    if (data.validationIssue?.code === "missing_children_ages") return "waiting_children_ages";
     return "invalid_guests";
   }
   if (!data.checkin) return "waiting_checkin";
   if (!data.checkout) return "waiting_checkout";
   if (!data.adults) return "waiting_adults";
+  if (data.children && (data.childrenAges?.length ?? 0) < data.children) return "waiting_children_ages";
   return "ready_to_quote";
 }
 
@@ -83,7 +85,9 @@ export function buildQuoteFlowState(messageText: string, existing?: ExistingFlow
     adults: validationIssue && ["adults", "guests"].includes(validationIssue.field)
       ? undefined
       : parsed.adults ?? priorData.adults,
-    children: parsed.children ?? priorData.children,
+    children: existing?.flowStep === "waiting_children_ages"
+      ? priorData.children
+      : parsed.children ?? priorData.children,
     childrenAges: (parsed.childrenAges?.length ?? 0) > 0 ? parsed.childrenAges : priorData.childrenAges,
     statedNights: parsed.statedNights ?? priorData.statedNights,
     validationIssue,

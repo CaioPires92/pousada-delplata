@@ -107,4 +107,22 @@ describe("buildQuoteFlowState", () => {
       adults: 2,
     });
   });
+
+  it("waits for all children ages before quoting", () => {
+    const waiting = buildQuoteFlowState(
+      "Orçamento de 20/07 a 22/07 para 2 adultos e 2 crianças"
+    );
+    expect(waiting.flowStep).toBe("waiting_children_ages");
+
+    const partial = buildQuoteFlowState("7 anos", waiting);
+    expect(partial.flowStep).toBe("waiting_children_ages");
+
+    const complete = buildQuoteFlowState("5 e 8 anos", waiting);
+    expect(complete.flowStep).toBe("ready_to_quote");
+    expect(JSON.parse(complete.flowDataJson || "{}")).toMatchObject({
+      adults: 2,
+      children: 2,
+      childrenAges: [5, 8],
+    });
+  });
 });

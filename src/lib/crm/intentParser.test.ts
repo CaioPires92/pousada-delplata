@@ -74,6 +74,24 @@ describe("parseCrmIntent", () => {
     });
   });
 
+  it("requires every child age and understands a natural age list", () => {
+    expect(parseCrmIntent(
+      "Orçamento 20/07 a 22/07 para 2 adultos e 2 crianças",
+      referenceDate
+    )).toMatchObject({
+      children: 2,
+      childrenAges: [],
+      confidence: "medium",
+      validationIssues: [{ field: "children", code: "missing_children_ages" }],
+    });
+
+    expect(parseCrmIntent("As idades são 5 e 8 anos", referenceDate)).toMatchObject({
+      children: 2,
+      childrenAges: [5, 8],
+      validationIssues: [],
+    });
+  });
+
   it("rolls month-only past dates to the next year", () => {
     expect(parseCrmIntent("Valor de 10/01 a 12/01 para 2 adultos", referenceDate)).toMatchObject({
       checkin: "2027-01-10",

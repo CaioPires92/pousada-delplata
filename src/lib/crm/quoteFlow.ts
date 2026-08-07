@@ -19,6 +19,7 @@ export type QuoteFlowPrompt = {
     | "waiting_checkin"
     | "waiting_checkout"
     | "waiting_adults"
+    | "waiting_children_ages"
     | "ready_to_quote"
     | "invalid_checkin"
     | "invalid_checkout"
@@ -136,6 +137,13 @@ export function promptForFlowStep(step: string, flowData: FlowData = {}): QuoteF
     return {
       step: "waiting_adults",
       text: "Ótimo. Quantos adultos vão se hospedar?",
+    };
+  }
+
+  if (step === "waiting_children_ages") {
+    return {
+      step: "waiting_children_ages",
+      text: "Para calcular corretamente, quais são as idades das crianças?",
     };
   }
 
