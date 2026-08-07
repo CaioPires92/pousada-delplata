@@ -10,6 +10,7 @@ describe("classifyIntent", () => {
   afterEach(() => {
     delete process.env.CRM_AI_SHADOW_MODE;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.CRM_AI_TIMEOUT_MS;
     vi.unstubAllGlobals();
   });
 
@@ -66,5 +67,20 @@ describe("classifyIntent", () => {
 
     expect(result.source).toBe("heuristic");
     expect(result.intent).toBe("parking");
+  });
+
+  it("uses a bounded timeout and falls back when the AI request fails", async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    process.env.CRM_AI_SHADOW_MODE = "true";
+    process.env.CRM_AI_TIMEOUT_MS = "900";
+    vi.mocked(global.fetch).mockRejectedValueOnce(new DOMException("timeout", "AbortError"));
+
+    const result = await classifyIntent("Tem estacionamento?");
+
+    expect(result).toMatchObject({ source: "heuristic", intent: "parking" });
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 });

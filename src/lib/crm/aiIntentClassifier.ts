@@ -16,6 +16,12 @@ function clampConfidence(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
+function aiTimeoutMs() {
+  const configured = Number.parseInt(process.env.CRM_AI_TIMEOUT_MS ?? "1500", 10);
+  if (!Number.isFinite(configured)) return 1500;
+  return Math.max(250, Math.min(5000, configured));
+}
+
 async function classifyWithAI(message: string): Promise<IntentClassification | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -31,26 +37,26 @@ async function classifyWithAI(message: string): Promise<IntentClassification | n
     `Mensagem: ${message}`,
   ].join("\n");
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: prompt,
-      max_output_tokens: 120,
-    }),
-  });
-
-  if (!response.ok) return null;
-  const data = await response.json().catch(() => null) as any;
-  const text = String(data?.output?.[0]?.content?.[0]?.text ?? "").trim();
-
-  if (!text) return null;
-
   try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: prompt,
+        max_output_tokens: 120,
+      }),
+      signal: AbortSignal.timeout(aiTimeoutMs()),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json().catch(() => null) as any;
+    const text = String(data?.output_text ?? data?.output?.[0]?.content?.[0]?.text ?? "").trim();
+    if (!text) return null;
+
     const decision = parseAiDecision(JSON.parse(text));
     if (!decision) return null;
 
