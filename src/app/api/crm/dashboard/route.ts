@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: PIPELINE_STAGES.RESERVA_CONFIRMADA } }),
       prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: PIPELINE_STAGES.PERDIDO } }),
       prisma.pipelineCard.groupBy({ by: ["source"], where: { createdAt: { gte: since } }, _count: { source: true } }),
-      prisma.pipelineCard.groupBy({ by: ["lostReason"], where: { createdAt: { gte: since }, lostReason: { not: null } }, _count: { lostReason: true } }),
+      prisma.pipelineCard.groupBy({ by: ["lossReason"], where: { createdAt: { gte: since }, lossReason: { not: null } }, _count: { lossReason: true } }),
       prisma.pipelineCard.groupBy({ by: ["stage"], where: { NOT: { stage: "perdido" } }, _count: { stage: true } }),
       prisma.internalActionLog.count({ where: { action: "QuoteSent", createdAt: { gte: since } } }),
       prisma.internalActionLog.count({ where: { action: "ReservationStarted", createdAt: { gte: since } } }),
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
         quoteToReservationRate,
       },
       leadsBySource: cardsBySource.map(item => ({ source: item.source ?? "unknown", count: item._count.source })),
-      lostReasons: cardsByLossReason.map(item => ({ reason: item.lostReason ?? "sem motivo", count: item._count.lostReason })),
+      lostReasons: cardsByLossReason.map(item => ({ reason: item.lossReason ?? "sem motivo", count: item._count.lossReason })),
       funnel,
     });
   } catch (error) {

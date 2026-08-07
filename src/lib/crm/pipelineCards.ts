@@ -67,6 +67,29 @@ function parseNullableString(value: unknown): string | null | undefined {
   return trimmed || null;
 }
 
+export function resolveLossReasonInput(input: Pick<UpdatePipelineCardInput, "lossReason" | "lostReason">):
+  | { ok: true; provided: false }
+  | { ok: true; provided: true; value: string | null }
+  | { ok: false; error: "invalid_loss_reason" | "invalid_lost_reason" | "conflicting_loss_reason" } {
+  if (input.lossReason === undefined && input.lostReason === undefined) {
+    return { ok: true, provided: false };
+  }
+
+  const canonical = parseNullableString(input.lossReason);
+  if (input.lossReason !== undefined && canonical === undefined) {
+    return { ok: false, error: "invalid_loss_reason" };
+  }
+  const legacy = parseNullableString(input.lostReason);
+  if (input.lostReason !== undefined && legacy === undefined) {
+    return { ok: false, error: "invalid_lost_reason" };
+  }
+  if (input.lossReason !== undefined && input.lostReason !== undefined && canonical !== legacy) {
+    return { ok: false, error: "conflicting_loss_reason" };
+  }
+
+  return { ok: true, provided: true, value: canonical ?? legacy ?? null };
+}
+
 async function updatePipelineCardUnchecked(
   id: string,
   data: Prisma.PipelineCardUpdateInput
@@ -186,20 +209,14 @@ export async function updatePipelineCard(
     changedFields.push("roomTypeInterest");
   }
 
-  const lossReason = parseNullableString(input.lossReason);
-  if (input.lossReason !== undefined) {
-    if (lossReason === undefined) return { ok: false, status: 400, error: "invalid_loss_reason" };
-    updateData.lossReason = lossReason;
-    updateData.lostReason = lossReason;
-    changedFields.push("lossReason", "lostReason");
+  const resolvedLossReason = resolveLossReasonInput(input);
+  if (!resolvedLossReason.ok) {
+    return { ok: false, status: 400, error: resolvedLossReason.error };
   }
-
-  const lostReason = parseNullableString(input.lostReason);
-  if (input.lostReason !== undefined) {
-    if (lostReason === undefined) return { ok: false, status: 400, error: "invalid_lost_reason" };
-    updateData.lostReason = lostReason;
-    updateData.lossReason = lostReason;
-    changedFields.push("lostReason", "lossReason");
+  if (resolvedLossReason.provided) {
+    updateData.lossReason = resolvedLossReason.value;
+    updateData.lostReason = resolvedLossReason.value;
+    changedFields.push("lossReason");
   }
 
   const bookingId = parseNullableString(input.bookingId);

@@ -226,7 +226,7 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F5.01 Unificar `lossReason`/`lostReason` por migration aditiva.
+- [x] F5.01 Unificar `lossReason`/`lostReason` por migration aditiva.
 - [ ] F5.02 Normalizar default para `NOVO_LEAD`.
 - [ ] F5.03 Definir vínculo Booking ↔ Contact ↔ Conversation ↔ PipelineCard.
 - [ ] F5.04 Testar matriz completa de transições permitidas/negadas.

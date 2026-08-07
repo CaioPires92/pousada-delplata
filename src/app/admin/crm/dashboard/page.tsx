@@ -23,7 +23,7 @@ export default async function CrmDashboardPage({
     prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: "RESERVA_CONFIRMADA" } }),
     prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: "PERDIDO" } }),
     prisma.pipelineCard.groupBy({ by: ["source"], where: { createdAt: { gte: since } }, _count: { source: true } }),
-    prisma.pipelineCard.groupBy({ by: ["lostReason"], where: { createdAt: { gte: since }, lostReason: { not: null } }, _count: { lostReason: true } }),
+    prisma.pipelineCard.groupBy({ by: ["lossReason"], where: { createdAt: { gte: since }, lossReason: { not: null } }, _count: { lossReason: true } }),
     prisma.pipelineCard.groupBy({ by: ["stage"], _count: { stage: true } }),
     prisma.internalActionLog.count({ where: { action: "QuoteSent", createdAt: { gte: since } } }),
     prisma.internalActionLog.count({ where: { action: "ReservationStarted", createdAt: { gte: since } } }),
@@ -96,9 +96,9 @@ export default async function CrmDashboardPage({
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Motivos de perda</h2>
           <div className="space-y-2">
             {byLostReason.length === 0 ? <p className="text-sm text-slate-500">Sem perdas categorizadas no período.</p> : byLostReason.map(item => (
-              <div key={String(item.lostReason)} className="flex items-center justify-between rounded border border-slate-100 px-3 py-2">
-                <span className="text-sm text-slate-700">{item.lostReason || "sem motivo"}</span>
-                <span className="text-sm font-semibold text-slate-900">{item._count.lostReason}</span>
+              <div key={String(item.lossReason)} className="flex items-center justify-between rounded border border-slate-100 px-3 py-2">
+                <span className="text-sm text-slate-700">{item.lossReason || "sem motivo"}</span>
+                <span className="text-sm font-semibold text-slate-900">{item._count.lossReason}</span>
               </div>
             ))}
           </div>

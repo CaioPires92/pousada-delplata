@@ -52,9 +52,13 @@ const actionSchemas = {
     lossReason: nullableText.optional(),
     lostReason: nullableText.optional(),
     bookingId: nullableText.optional(),
-  }).strict().refine(value => Object.keys(value).some(key => key !== "pipelineCardId"), {
-    message: "Informe ao menos um campo para atualizar",
-  }),
+  }).strict()
+    .refine(value => Object.keys(value).some(key => key !== "pipelineCardId"), {
+      message: "Informe ao menos um campo para atualizar",
+    })
+    .refine(value => value.lossReason === undefined || value.lostReason === undefined || value.lossReason === value.lostReason, {
+      message: "Motivos de perda conflitantes",
+    }),
   ADD_CARD_NOTE: z.object({
     pipelineCardId: identifier,
     content: z.string().trim().min(1).max(4000),
