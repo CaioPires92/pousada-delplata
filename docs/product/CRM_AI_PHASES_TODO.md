@@ -187,7 +187,7 @@ teste falha → menor implementação possível → teste passa
 ### TODOs
 
 - [ ] F4.01 Criar dataset anonimizado de intenções reais.
-- [ ] F4.02 Definir schema validado de `AiDecision`.
+- [x] F4.02 Definir schema estrito e versionado de `AiDecision`.
 - [ ] F4.03 Versionar prompt, modelo, FAQ e policy.
 - [ ] F4.04 Implementar classificador com timeout e fallback.
 - [ ] F4.05 Implementar extração de datas e hóspedes com validação determinística.

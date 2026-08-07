@@ -1,12 +1,14 @@
 import { parseCrmIntent } from "@/lib/crm/intentParser";
+import { parseAiDecision, type AiDecision } from "@/lib/crm/aiDecision";
 
-type SupportedIntent = "quote" | "reservation" | "checkin_info" | "checkout_info" | "amenity" | "pet" | "parking" | "location" | "unknown";
+type SupportedIntent = AiDecision["intent"];
 
 export type IntentClassification = {
   intent: SupportedIntent;
   confidence: number;
   source: "heuristic" | "ai";
   raw?: string;
+  decision?: AiDecision;
 };
 
 function clampConfidence(value: number) {
@@ -23,7 +25,9 @@ async function classifyWithAI(message: string): Promise<IntentClassification | n
   const prompt = [
     "Classifique a intenção da mensagem de hospedagem.",
     "Categorias: quote,reservation,checkin_info,checkout_info,amenity,pet,parking,location,unknown.",
-    "Responda apenas JSON: {\"intent\":\"...\",\"confidence\":0..1}",
+    "Responda apenas JSON estrito no formato:",
+    '{"schemaVersion":1,"intent":"...","confidence":0.0,"suggestedAction":"none|handoff|answer_approved_faq|collect_quote_fields","reasonCode":"recognized_intent|missing_information|sensitive_request|low_confidence|unknown_intent","entities":{}}',
+    "Não inclua campos adicionais e não execute nenhuma ação.",
     `Mensagem: ${message}`,
   ].join("\n");
 
@@ -47,14 +51,15 @@ async function classifyWithAI(message: string): Promise<IntentClassification | n
   if (!text) return null;
 
   try {
-    const parsed = JSON.parse(text) as { intent?: SupportedIntent; confidence?: number };
-    if (!parsed.intent) return null;
+    const decision = parseAiDecision(JSON.parse(text));
+    if (!decision) return null;
 
     return {
-      intent: parsed.intent,
-      confidence: clampConfidence(parsed.confidence ?? 0.5),
+      intent: decision.intent,
+      confidence: clampConfidence(decision.confidence),
       source: "ai",
       raw: text,
+      decision,
     };
   } catch {
     return null;
