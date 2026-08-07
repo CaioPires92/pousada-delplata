@@ -1,4 +1,9 @@
-import { PIPELINE_STAGES, type PipelineStage, normalizePipelineStage } from "@/lib/crm/pipelineStages";
+import {
+  PIPELINE_STAGES,
+  isPipelineStage,
+  type PipelineStage,
+  normalizePipelineStage,
+} from "@/lib/crm/pipelineStages";
 
 const ALLOWED_TRANSITIONS: Record<PipelineStage, PipelineStage[]> = {
   [PIPELINE_STAGES.NOVO_LEAD]: [PIPELINE_STAGES.QUALIFICANDO, PIPELINE_STAGES.PERDIDO],
@@ -38,6 +43,15 @@ const ALLOWED_TRANSITIONS: Record<PipelineStage, PipelineStage[]> = {
 export function canTransitionPipelineStage(from: string, to: string) {
   const normalizedFrom = normalizePipelineStage(from);
   const normalizedTo = normalizePipelineStage(to);
+
+  if (!isPipelineStage(from) || !isPipelineStage(to)) {
+    return {
+      ok: false as const,
+      normalizedFrom,
+      normalizedTo,
+      message: `Estágio inválido: ${!isPipelineStage(from) ? from : to}`,
+    };
+  }
 
   if (normalizedFrom === normalizedTo) {
     return { ok: true as const, normalizedFrom, normalizedTo };
