@@ -2,7 +2,7 @@
 
 **Princípios:** testes primeiro, segurança por padrão, respostas rápidas, mudanças pequenas e reversíveis.
 **Fonte comercial:** domínio do Mapa de Tarifas do motor de reservas.
-**Canal alvo:** WhatsApp Cloud API oficial da Meta.
+**Canal alvo:** Evolution API. O adaptador Meta permanece preservado, isolado e inativo.
 **Regra de entrega:** uma fase só termina quando seu gate de testes passa.
 
 ## Definição global de pronto
@@ -97,17 +97,17 @@ teste falha → menor implementação possível → teste passa
 - Validar datas, hóspedes, idades e limites antes de consultar banco.
 - Meta de p95 local para cotação simples: menor que 500ms após otimização e medição real.
 
-## Fase 2 — Adaptador de canal e WhatsApp oficial da Meta
+## Fase 2 — Adaptador de canal e WhatsApp via Evolution API
 
 ### Regras de negócio
 
-- Código de domínio não conhece Evolution nem payload bruto da Meta.
+- Código de domínio não conhece payload bruto da Evolution nem da Meta.
 - Um `MessagingProvider` normaliza entrada, saída, IDs e status.
 - Webhook responde rápido, persiste/deduplica e delega trabalho à fila.
 - Toda mensagem usa `wamid`/ID externo para idempotência.
-- Mensagens fora da janela de atendimento permitida pela Meta usam template aprovado quando exigido.
+- Evolution é o transporte ativo; regras específicas da Meta só se aplicam se esse adaptador for deliberadamente reativado no futuro.
 - Status enviado, entregue, lido e falhou atualizam a mensagem existente.
-- Evolution permanece apenas como rollback temporário, nunca com consumo simultâneo do mesmo número.
+- Meta permanece preservada apenas como referência/rollback futuro, nunca consumindo simultaneamente o mesmo número.
 
 ### TODOs
 
@@ -124,10 +124,10 @@ teste falha → menor implementação possível → teste passa
 - [x] F2.11 Implementar circuit breaker e dead-letter.
 - [x] F2.12 Adicionar variáveis Meta ao `.env.example` sem valores reais.
 - [x] F2.13 Criar health check do provedor.
-- [ ] F2.14 Rodar teste ponta a ponta com número de teste da Meta.
-- [ ] F2.15 Executar canário com baixo volume e métricas comparativas.
-- [ ] F2.16 Trocar o provedor principal por feature flag.
-- [ ] F2.17 Remover Evolution somente após janela estável e backup.
+- [x] F2.14 Rodar teste ponta a ponta real com instância Evolution conectada.
+- [x] F2.15 Executar homologação de baixo volume com recebimento, envio e status.
+- [x] F2.16 Selecionar Evolution como provedor principal por feature flag.
+- [x] F2.17 Manter a implementação Meta isolada e inativa, sem remover arquivos ou variáveis.
 
 ### Testes/gate
 
@@ -261,7 +261,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F6.03 Implementar cadência configurável.
 - [ ] F6.04 Implementar cancelamento por resposta, reserva, opt-out e humano.
 - [ ] F6.05 Implementar quiet hours e reagendamento.
-- [ ] F6.06 Validar janela/template da Meta antes do envio.
+- [ ] F6.06 Aplicar as restrições do provedor ativo; validar janela/template somente se Meta for reativada.
 - [ ] F6.07 Revalidar cotação no serviço do Mapa.
 - [ ] F6.08 Criar limite por contato e limite global.
 - [ ] F6.09 Criar métricas de envio, resposta, conversão e cancelamento.
@@ -296,7 +296,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F7.07 Criar `CouponGrant` ligado a contato, booking e cupom.
 - [ ] F7.08 Gerar cupom 10% com uso único e vínculo antifraude.
 - [ ] F7.09 Criar link do site com cupom pré-aplicado.
-- [ ] F7.10 Enviar código/link com template aprovado quando necessário.
+- [ ] F7.10 Enviar código/link pelo provedor ativo com o mecanismo aprovado aplicável.
 - [ ] F7.11 Registrar emissão, envio, clique e resgate.
 - [ ] F7.12 Impedir segunda emissão para a mesma hospedagem.
 - [ ] F7.13 Revisar texto conforme política da plataforma de avaliação.
@@ -320,7 +320,7 @@ teste falha → menor implementação possível → teste passa
 ### TODOs
 
 - [ ] F8.01 Criar dashboard de saúde, latência, erro, custo e conversão.
-- [ ] F8.02 Criar alertas de webhook, fila, Meta, IA, Mapa e dead-letter.
+- [ ] F8.02 Criar alertas de webhook, fila, Evolution, IA, Mapa e dead-letter.
 - [ ] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
 - [ ] F8.04 Executar testes de segurança e abuso.
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
@@ -329,7 +329,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.
 - [ ] F8.09 Ensaiar kill switch, rollback e replay de fila.
 - [ ] F8.10 Criar runbook de incidentes e responsável de plantão.
-- [ ] F8.11 Remover código Evolution após estabilidade e aceite formal.
+- [x] F8.11 Preservar Meta isolada e inativa; não remover seus arquivos nem variáveis.
 
 ### Testes/gate
 

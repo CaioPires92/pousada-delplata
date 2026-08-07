@@ -6,9 +6,9 @@
 
 ## 1. Visão
 
-Transformar o CRM existente em uma operação confiável de atendimento via WhatsApp Cloud API oficial da Meta, com IA supervisionada, atualização automática do Kanban, follow-ups e pós-venda com pedido de avaliação e cupom individual de 10% para nova reserva direta.
+Transformar o CRM existente em uma operação confiável de atendimento via Evolution API, com IA supervisionada, atualização automática do Kanban, follow-ups e pós-venda com pedido de avaliação e cupom individual de 10% para nova reserva direta. A implementação Meta permanece preservada, isolada e inativa.
 
-O projeto não parte do zero. Já existem banco, Inbox, integração legada com WhatsApp/Evolution, pipeline, eventos, fila, regras de chatbot, classificação de intenção, orçamento, rascunho de reserva, consentimento e endpoints de follow-up. A prioridade é estabilizar e integrar essas partes, migrando o transporte para a API oficial da Meta sem outro ciclo de apagar e reconstruir.
+O projeto não parte do zero. Já existem banco, Inbox, integração com WhatsApp/Evolution, pipeline, eventos, fila, regras de chatbot, classificação de intenção, orçamento, rascunho de reserva, consentimento e endpoints de follow-up. A prioridade é estabilizar e integrar essas partes usando Evolution como transporte, sem apagar a tentativa anterior da Meta.
 
 O plano executável, dividido em fases, regras de negócio, testes e microtarefas, está em [CRM_AI_PHASES_TODO.md](./CRM_AI_PHASES_TODO.md).
 
@@ -69,7 +69,7 @@ Meta inicial recomendada: automatizar com segurança 50–70% das mensagens eleg
 
 ### Incluído
 
-- WhatsApp via WhatsApp Cloud API oficial da Meta;
+- WhatsApp via Evolution API, atrás do contrato `MessagingProvider`;
 - Inbox e handoff humano;
 - IA para intenção, extração de dados e composição de respostas;
 - FAQ baseada em conteúdo aprovado;
@@ -93,7 +93,7 @@ Meta inicial recomendada: automatizar com segurança 50–70% das mensagens eleg
 
 ### 5.1 Mensagem e qualificação
 
-1. A WhatsApp Cloud API da Meta chama o webhook verificado.
+1. A Evolution API chama o webhook autenticado e validado por instância.
 2. CRM valida, deduplica e resolve JID/LID/telefone.
 3. Cria/atualiza contato, conversa, mensagem e card `NOVO_LEAD`.
 4. Gera `MessageReceived` e agenda processamento fora do webhook.
@@ -171,9 +171,9 @@ Resposta automática apenas acima do limiar e com `risk=low`.
 ## 7. Arquitetura
 
 ```text
-WhatsApp Cloud API (Meta) → webhook idempotente → CRM/Banco → fila de eventos
+Evolution API → webhook idempotente → CRM/Banco → fila de eventos
 → worker/n8n → IA + APIs internas → policy engine
-→ outbox → WhatsApp Cloud API (Meta)
+→ outbox → Evolution API
 
 Motor de reservas/pagamento → eventos de Booking
 → CRM → Kanban + agenda/cancelamento de automações
@@ -245,12 +245,12 @@ Todo evento terá `eventId`, `eventType`, `occurredAt`, `entityId`, `correlation
 - outbox e health check;
 - alinhar documentação ao runtime.
 
-### Fase 1B — Migração para Meta (3–6 dias)
+### Fase 1B — Estabilização da Evolution (3–6 dias)
 
-- criar adaptador de canal e implementação da WhatsApp Cloud API;
+- consolidar o adaptador de canal e a implementação Evolution API;
 - verificar webhook e assinatura, normalizar mensagens e status;
 - executar testes de contrato e homologação com número de teste;
-- fazer canário, rollback e só então retirar Evolution do caminho principal.
+- fazer canário e rollback mantendo Meta isolada, sem consumo simultâneo do número.
 
 ### Fase 2 — IA supervisionada (4–7 dias)
 

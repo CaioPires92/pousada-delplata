@@ -4,11 +4,10 @@ Este plano substitui o canal alvo da Fase 2 do CRM sem remover a implementação
 Meta. O contrato `MessagingProvider` continua sendo a fronteira do domínio; Meta
 fica isolada e inativa, disponível apenas para referência ou rollback futuro.
 
-Este é o plano operacional vigente para o canal WhatsApp. As referências à Meta
-em `CRM_AI_PRD.md` e `CRM_AI_PHASES_TODO.md` permanecem como histórico da
-tentativa anterior e não autorizam a troca do provedor ativo. A evolução das
-automações continua seguindo as fases de segurança desses documentos, mas usa a
-Evolution API como transporte.
+Este é o plano operacional vigente para o canal WhatsApp. O PRD e o plano por
+fases foram alinhados para registrar a Evolution API como transporte ativo. A
+Meta permanece no código somente como implementação isolada e inativa; qualquer
+troca futura exige decisão explícita, webhook exclusivo e nova homologação.
 
 ## Diagnóstico inicial
 
