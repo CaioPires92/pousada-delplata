@@ -53,6 +53,13 @@ export async function applyPipelineAutomationOnIncomingMessage(input: {
       promptVersion: classified.promptVersion ?? null,
       decisionSchemaVersion: classified.decision?.schemaVersion ?? null,
       policyVersion: CRM_AUTOMATION_POLICY_VERSION,
+      suggestedAction: classified.decision?.suggestedAction ?? null,
+      reasonCode: classified.decision?.reasonCode ?? null,
+      entities: classified.decision?.entities ?? {},
+      latencyMs: classified.latencyMs,
+      inputTokens: classified.inputTokens,
+      outputTokens: classified.outputTokens,
+      result: classified.result,
     },
   });
 

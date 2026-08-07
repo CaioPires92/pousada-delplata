@@ -47,6 +47,10 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       confidence: 0.4,
       source: "heuristic",
       model: "deterministic-intent-v1",
+      latencyMs: 0,
+      inputTokens: null,
+      outputTokens: null,
+      result: "deterministic",
     });
     vi.mocked(isPipelineAutomationEnabled).mockResolvedValue(true);
   });
@@ -107,6 +111,10 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
       confidence: 0.99,
       source: "ai",
       model: "gpt-test",
+      latencyMs: 12,
+      inputTokens: 20,
+      outputTokens: 8,
+      result: "classified",
     });
 
     await applyPipelineAutomationOnIncomingMessage({
@@ -122,7 +130,15 @@ describe("applyPipelineAutomationOnIncomingMessage", () => {
     );
     expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
       action: "IntentClassified",
-      metadata: expect.objectContaining({ mode: "shadow", actionAuthorized: false }),
+      metadata: expect.objectContaining({
+        mode: "shadow",
+        actionAuthorized: false,
+        confidence: 0.99,
+        latencyMs: 12,
+        inputTokens: 20,
+        outputTokens: 8,
+        result: "classified",
+      }),
     }));
   });
 });

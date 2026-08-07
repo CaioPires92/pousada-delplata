@@ -38,6 +38,7 @@ describe("classifyIntent", () => {
     vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
+        usage: { input_tokens: 42, output_tokens: 18 },
         output: [{ content: [{ text: JSON.stringify({
           schemaVersion: 1,
           intent: "parking",
@@ -53,6 +54,12 @@ describe("classifyIntent", () => {
 
     expect(result.source).toBe("ai");
     expect(result.decision?.schemaVersion).toBe(1);
+    expect(result).toMatchObject({
+      result: "classified",
+      inputTokens: 42,
+      outputTokens: 18,
+      latencyMs: expect.any(Number),
+    });
   });
 
   it("falls back safely when shadow output violates the schema", async () => {
@@ -67,6 +74,7 @@ describe("classifyIntent", () => {
 
     expect(result.source).toBe("heuristic");
     expect(result.intent).toBe("parking");
+    expect(result.result).toBe("fallback_invalid_response");
   });
 
   it("uses a bounded timeout and falls back when the AI request fails", async () => {
@@ -78,6 +86,7 @@ describe("classifyIntent", () => {
     const result = await classifyIntent("Tem estacionamento?");
 
     expect(result).toMatchObject({ source: "heuristic", intent: "parking" });
+    expect(result.result).toBe("fallback_timeout");
     expect(global.fetch).toHaveBeenCalledWith(
       "https://api.openai.com/v1/responses",
       expect.objectContaining({ signal: expect.any(AbortSignal) })

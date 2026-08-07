@@ -12,6 +12,18 @@ export type IntentClassification = {
   decision?: AiDecision;
   model: string;
   promptVersion?: string;
+  latencyMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  result: "classified" | "deterministic" | "fallback_disabled" | "fallback_provider_error" | "fallback_invalid_response" | "fallback_timeout";
+};
+
+type AiAttempt = {
+  classification: IntentClassification | null;
+  latencyMs: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  result: IntentClassification["result"];
 };
 
 function clampConfidence(value: number) {
@@ -25,9 +37,18 @@ function aiTimeoutMs() {
   return Math.max(250, Math.min(5000, configured));
 }
 
-async function classifyWithAI(message: string): Promise<IntentClassification | null> {
+async function classifyWithAI(message: string): Promise<AiAttempt> {
+  const startedAt = Date.now();
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    return {
+      classification: null,
+      latencyMs: 0,
+      inputTokens: null,
+      outputTokens: null,
+      result: "fallback_disabled",
+    };
+  }
 
   const model = process.env.OPENAI_LIGHT_MODEL ?? "gpt-4o-mini";
 
@@ -55,33 +76,91 @@ async function classifyWithAI(message: string): Promise<IntentClassification | n
       signal: AbortSignal.timeout(aiTimeoutMs()),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return {
+        classification: null,
+        latencyMs: Date.now() - startedAt,
+        inputTokens: null,
+        outputTokens: null,
+        result: "fallback_provider_error",
+      };
+    }
     const data = await response.json().catch(() => null) as any;
     const text = String(data?.output_text ?? data?.output?.[0]?.content?.[0]?.text ?? "").trim();
-    if (!text) return null;
+    const inputTokens = Number.isFinite(data?.usage?.input_tokens) ? Number(data.usage.input_tokens) : null;
+    const outputTokens = Number.isFinite(data?.usage?.output_tokens) ? Number(data.usage.output_tokens) : null;
+    if (!text) {
+      return {
+        classification: null,
+        latencyMs: Date.now() - startedAt,
+        inputTokens,
+        outputTokens,
+        result: "fallback_invalid_response",
+      };
+    }
 
-    const decision = parseAiDecision(JSON.parse(text));
-    if (!decision) return null;
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(text);
+    } catch {
+      return {
+        classification: null,
+        latencyMs: Date.now() - startedAt,
+        inputTokens,
+        outputTokens,
+        result: "fallback_invalid_response",
+      };
+    }
 
+    const decision = parseAiDecision(parsedJson);
+    if (!decision) {
+      return {
+        classification: null,
+        latencyMs: Date.now() - startedAt,
+        inputTokens,
+        outputTokens,
+        result: "fallback_invalid_response",
+      };
+    }
+
+    const latencyMs = Date.now() - startedAt;
     return {
-      intent: decision.intent,
-      confidence: clampConfidence(decision.confidence),
-      source: "ai",
-      raw: text,
-      decision,
-      model,
-      promptVersion: CRM_AI_PROMPT_VERSION,
+      classification: {
+        intent: decision.intent,
+        confidence: clampConfidence(decision.confidence),
+        source: "ai",
+        raw: text,
+        decision,
+        model,
+        promptVersion: CRM_AI_PROMPT_VERSION,
+        latencyMs,
+        inputTokens,
+        outputTokens,
+        result: "classified",
+      },
+      latencyMs,
+      inputTokens,
+      outputTokens,
+      result: "classified",
     };
-  } catch {
-    return null;
+  } catch (error) {
+    return {
+      classification: null,
+      latencyMs: Date.now() - startedAt,
+      inputTokens: null,
+      outputTokens: null,
+      result: error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")
+        ? "fallback_timeout"
+        : "fallback_provider_error",
+    };
   }
 }
 
 export async function classifyIntent(message: string): Promise<IntentClassification> {
-  const ai = process.env.CRM_AI_SHADOW_MODE === "true"
-    ? await classifyWithAI(message)
-    : null;
-  if (ai) return ai;
+  const startedAt = Date.now();
+  const shadowEnabled = process.env.CRM_AI_SHADOW_MODE === "true";
+  const aiAttempt = shadowEnabled ? await classifyWithAI(message) : null;
+  if (aiAttempt?.classification) return aiAttempt.classification;
 
   const parsed = parseCrmIntent(message);
   const confidenceMap: Record<string, number> = {
@@ -95,5 +174,9 @@ export async function classifyIntent(message: string): Promise<IntentClassificat
     confidence: confidenceMap[parsed.confidence] ?? 0.5,
     source: "heuristic",
     model: CRM_HEURISTIC_MODEL_VERSION,
+    latencyMs: aiAttempt?.latencyMs ?? Date.now() - startedAt,
+    inputTokens: aiAttempt?.inputTokens ?? null,
+    outputTokens: aiAttempt?.outputTokens ?? null,
+    result: aiAttempt?.result ?? (shadowEnabled ? "fallback_disabled" : "deterministic"),
   };
 }
