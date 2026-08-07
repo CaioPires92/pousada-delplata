@@ -20,6 +20,7 @@ export type UpdatePipelineCardInput = {
   lossReason?: unknown;
   lostReason?: unknown;
   bookingId?: unknown;
+  upsellStatus?: unknown;
 };
 
 export type UpdatePipelineCardResult =
@@ -206,6 +207,15 @@ export async function updatePipelineCard(
     if (bookingId === undefined) return { ok: false, status: 400, error: "invalid_booking_id" };
     updateData.bookingId = bookingId;
     changedFields.push("bookingId");
+  }
+
+  const upsellStatus = parseNullableString(input.upsellStatus);
+  if (input.upsellStatus !== undefined) {
+    if (upsellStatus === undefined || !["ofertado", "aceito", "recusado"].includes(upsellStatus ?? "")) {
+      return { ok: false, status: 400, error: "invalid_upsell_status" };
+    }
+    updateData.upsellStatus = upsellStatus;
+    changedFields.push("upsellStatus");
   }
 
   const card = await updatePipelineCardUnchecked(id, updateData);

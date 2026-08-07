@@ -6,52 +6,14 @@ import { enqueueAutomationJob, processNextAutomationJobForConversation } from "@
 import { buildAuditMetadata } from "@/lib/crm/audit";
 import { cacheIncrWithTtl } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { InternalAction, parseInternalAction, parseInternalActionResult } from "@/lib/crm/internalActionContract";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { sendMessagingText } from "@/lib/messaging/send-text";
 
 export const runtime = "nodejs";
 
-type InternalAction =
-  | "MOVE_PIPELINE_CARD"
-  | "SEND_WHATSAPP_MESSAGE"
-  | "PAUSE_AUTOMATION"
-  | "SET_CONVERSATION_AUTOMATION_PAUSED"
-  | "UPDATE_LEAD_FIELDS"
-  | "ADD_CARD_NOTE"
-  | "SET_CARD_TAGS"
-  | "CREATE_FOLLOW_UP_TASK"
-  | "MARK_QUOTE_SENT"
-  | "MARK_RESERVATION_INTENT"
-  | "MARK_PAYMENT_PENDING"
-  | "MARK_RESERVATION_CONFIRMED"
-  | "REGISTER_UPSELL_OFFER"
-  | "REGISTER_UPSELL_ACCEPTED"
-  | "REGISTER_UPSELL_REJECTED";
-
 type JsonRecord = Record<string, unknown>;
-
-const SUPPORTED_ACTIONS = new Set<InternalAction>([
-  "MOVE_PIPELINE_CARD",
-  "SEND_WHATSAPP_MESSAGE",
-  "PAUSE_AUTOMATION",
-  "SET_CONVERSATION_AUTOMATION_PAUSED",
-  "UPDATE_LEAD_FIELDS",
-  "ADD_CARD_NOTE",
-  "SET_CARD_TAGS",
-  "CREATE_FOLLOW_UP_TASK",
-  "MARK_QUOTE_SENT",
-  "MARK_RESERVATION_INTENT",
-  "MARK_PAYMENT_PENDING",
-  "MARK_RESERVATION_CONFIRMED",
-  "REGISTER_UPSELL_OFFER",
-  "REGISTER_UPSELL_ACCEPTED",
-  "REGISTER_UPSELL_REJECTED",
-]);
-
-function isRecord(value: unknown): value is JsonRecord {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
 
 function asNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -73,6 +35,14 @@ function getInternalToken(request: Request): string | undefined {
 
 function jsonError(status: number, error: string, message: string) {
   return NextResponse.json({ ok: false, error, message }, { status });
+}
+
+function jsonSuccess(action: InternalAction, result: unknown) {
+  return NextResponse.json({
+    ok: true,
+    action,
+    result: parseInternalActionResult(action, result),
+  });
 }
 
 async function enforceConversationActionRateLimit(conversationId: string) {
@@ -122,18 +92,17 @@ async function handleMovePipelineCard(payload: JsonRecord) {
     return jsonError(result.status, error, message);
   }
 
-  return NextResponse.json({
-    ok: true,
-    action: "MOVE_PIPELINE_CARD",
-    result: {
-      pipelineCardId: result.card.id,
-      stage: result.card.stage,
-      stageChanged: result.stageChanged,
-    },
+  return jsonSuccess("MOVE_PIPELINE_CARD", {
+    pipelineCardId: result.card.id,
+    stage: result.card.stage,
+    stageChanged: result.stageChanged,
   });
 }
 
-async function handleUpdateLeadFields(payload: JsonRecord) {
+async function handleUpdateLeadFields(
+  payload: JsonRecord,
+  actionName: "UPDATE_LEAD_FIELDS" | "REGISTER_UPSELL_OFFER" | "REGISTER_UPSELL_ACCEPTED" | "REGISTER_UPSELL_REJECTED" = "UPDATE_LEAD_FIELDS",
+) {
   const pipelineCardId = asNonEmptyString(payload.pipelineCardId);
 
   if (!pipelineCardId) {
@@ -168,17 +137,16 @@ async function handleUpdateLeadFields(payload: JsonRecord) {
     return jsonError(result.status, error, message);
   }
 
-  return NextResponse.json({
-    ok: true,
-    action: "UPDATE_LEAD_FIELDS",
-    result: {
-      pipelineCardId: result.card.id,
-      updatedFields: Object.keys(fields),
-    },
+  return jsonSuccess(actionName, {
+    pipelineCardId: result.card.id,
+    updatedFields: Object.keys(fields),
   });
 }
 
-async function handlePauseAutomation(payload: JsonRecord) {
+async function handlePauseAutomation(
+  payload: JsonRecord,
+  actionName: "PAUSE_AUTOMATION" | "SET_CONVERSATION_AUTOMATION_PAUSED",
+) {
   const conversationId = asNonEmptyString(payload.conversationId);
   const minutes = typeof payload.minutes === "number" && Number.isInteger(payload.minutes) && payload.minutes > 0
     ? payload.minutes
@@ -230,13 +198,9 @@ async function handlePauseAutomation(payload: JsonRecord) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    action: "PAUSE_AUTOMATION",
-    result: {
-      conversationId: conversation.id,
-      pausedUntil: conversation.automationPausedUntil,
-    },
+  return jsonSuccess(actionName, {
+    conversationId: conversation.id,
+    pausedUntil: conversation.automationPausedUntil,
   });
 }
 
@@ -280,11 +244,7 @@ async function handleAddCardNote(payload: JsonRecord) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    action: "ADD_CARD_NOTE",
-    result: { noteId: note.id },
-  });
+  return jsonSuccess("ADD_CARD_NOTE", { noteId: note.id });
 }
 
 async function handleSetCardTags(payload: JsonRecord) {
@@ -312,11 +272,7 @@ async function handleSetCardTags(payload: JsonRecord) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    action: "SET_CARD_TAGS",
-    result: { pipelineCardId: card.id, tags },
-  });
+  return jsonSuccess("SET_CARD_TAGS", { pipelineCardId: card.id, tags });
 }
 
 async function handleCreateFollowUpTask(payload: JsonRecord) {
@@ -349,14 +305,14 @@ async function handleCreateFollowUpTask(payload: JsonRecord) {
     },
   });
 
-  return NextResponse.json({
-    ok: true,
-    action: "CREATE_FOLLOW_UP_TASK",
-    result: { pipelineCardId: card.id, followUpAt: card.followUpAt },
-  });
+  return jsonSuccess("CREATE_FOLLOW_UP_TASK", { pipelineCardId: card.id, followUpAt: card.followUpAt });
 }
 
-async function handleMarkState(payload: JsonRecord, stage: string, actionName: string) {
+async function handleMarkState(
+  payload: JsonRecord,
+  stage: string,
+  actionName: "MARK_QUOTE_SENT" | "MARK_RESERVATION_INTENT" | "MARK_PAYMENT_PENDING" | "MARK_RESERVATION_CONFIRMED",
+) {
   const pipelineCardId = asNonEmptyString(payload.pipelineCardId);
   const reason = asNonEmptyString(payload.reason) ?? `Marked as ${stage} via n8n`;
 
@@ -374,14 +330,10 @@ async function handleMarkState(payload: JsonRecord, stage: string, actionName: s
     return jsonError(result.status, "UPDATE_FAILED", result.error || "Falha ao atualizar card");
   }
 
-  return NextResponse.json({
-    ok: true,
-    action: actionName,
-    result: {
-      pipelineCardId: result.card.id,
-      stage: result.card.stage,
-      stageChanged: result.stageChanged,
-    },
+  return jsonSuccess(actionName, {
+    pipelineCardId: result.card.id,
+    stage: result.card.stage,
+    stageChanged: result.stageChanged,
   });
 }
 
@@ -477,30 +429,22 @@ async function handleSendWhatsAppMessage(payload: JsonRecord) {
   });
 
   if (!processingResult.ok) {
-    return NextResponse.json({
-      ok: true,
-      action: "SEND_WHATSAPP_MESSAGE",
-      result: {
-        conversationId: conversation.id,
-        queued: true,
-        processedNow: processingResult.processed,
-        queueJobId: processingResult.jobId ?? null,
-        deliveryStatus: "queued_failed",
-        queueError: processingResult.error ?? "unknown_queue_error",
-      },
-    });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    action: "SEND_WHATSAPP_MESSAGE",
-    result: {
+    return jsonSuccess("SEND_WHATSAPP_MESSAGE", {
       conversationId: conversation.id,
       queued: true,
       processedNow: processingResult.processed,
       queueJobId: processingResult.jobId ?? null,
-      deliveryStatus: "sent",
-    },
+      deliveryStatus: "queued_failed",
+      queueError: processingResult.error ?? "unknown_queue_error",
+    });
+  }
+
+  return jsonSuccess("SEND_WHATSAPP_MESSAGE", {
+    conversationId: conversation.id,
+    queued: true,
+    processedNow: processingResult.processed,
+    queueJobId: processingResult.jobId ?? null,
+    deliveryStatus: "sent",
   });
 }
 
@@ -513,48 +457,47 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json().catch(() => null);
-
-    if (!isRecord(body) || !isRecord(body.payload)) {
+    const parsedAction = parseInternalAction(await request.json().catch(() => null));
+    if (!parsedAction.success) {
+      if (parsedAction.reason === "unsupported_action") {
+        return jsonError(400, "INVALID_ACTION", "Ação não suportada");
+      }
       return jsonError(400, "INVALID_PAYLOAD", "Payload com formato incorreto");
     }
 
-    const action = asNonEmptyString(body.action) as InternalAction | undefined;
-
-    if (!action || !SUPPORTED_ACTIONS.has(action)) {
-      return jsonError(400, "INVALID_ACTION", "Ação não suportada");
-    }
+    const { action } = parsedAction.data;
+    const payload = parsedAction.data.payload as JsonRecord;
 
     switch (action) {
       case "MOVE_PIPELINE_CARD":
-        return handleMovePipelineCard(body.payload);
+        return handleMovePipelineCard(payload);
       case "SEND_WHATSAPP_MESSAGE":
-        return handleSendWhatsAppMessage(body.payload);
+        return handleSendWhatsAppMessage(payload);
       case "PAUSE_AUTOMATION":
       case "SET_CONVERSATION_AUTOMATION_PAUSED":
-        return handlePauseAutomation(body.payload);
+        return handlePauseAutomation(payload, action);
       case "UPDATE_LEAD_FIELDS":
-        return handleUpdateLeadFields(body.payload);
+        return handleUpdateLeadFields(payload);
       case "ADD_CARD_NOTE":
-        return handleAddCardNote(body.payload);
+        return handleAddCardNote(payload);
       case "SET_CARD_TAGS":
-        return handleSetCardTags(body.payload);
+        return handleSetCardTags(payload);
       case "CREATE_FOLLOW_UP_TASK":
-        return handleCreateFollowUpTask(body.payload);
+        return handleCreateFollowUpTask(payload);
       case "MARK_QUOTE_SENT":
-        return handleMarkState(body.payload, "ORCAMENTO_ENVIADO", "MARK_QUOTE_SENT");
+        return handleMarkState(payload, "ORCAMENTO_ENVIADO", "MARK_QUOTE_SENT");
       case "MARK_RESERVATION_INTENT":
-        return handleMarkState(body.payload, "RESERVA_EM_ANDAMENTO", "MARK_RESERVATION_INTENT");
+        return handleMarkState(payload, "RESERVA_EM_ANDAMENTO", "MARK_RESERVATION_INTENT");
       case "MARK_PAYMENT_PENDING":
-        return handleMarkState(body.payload, "PAGAMENTO_PENDENTE", "MARK_PAYMENT_PENDING");
+        return handleMarkState(payload, "PAGAMENTO_PENDENTE", "MARK_PAYMENT_PENDING");
       case "MARK_RESERVATION_CONFIRMED":
-        return handleMarkState(body.payload, "RESERVA_CONFIRMADA", "MARK_RESERVATION_CONFIRMED");
+        return handleMarkState(payload, "RESERVA_CONFIRMADA", "MARK_RESERVATION_CONFIRMED");
       case "REGISTER_UPSELL_OFFER":
-        return handleUpdateLeadFields({ ...body.payload, upsellStatus: "ofertado" });
+        return handleUpdateLeadFields({ ...payload, upsellStatus: "ofertado" }, action);
       case "REGISTER_UPSELL_ACCEPTED":
-        return handleUpdateLeadFields({ ...body.payload, upsellStatus: "aceito" });
+        return handleUpdateLeadFields({ ...payload, upsellStatus: "aceito" }, action);
       case "REGISTER_UPSELL_REJECTED":
-        return handleUpdateLeadFields({ ...body.payload, upsellStatus: "recusado" });
+        return handleUpdateLeadFields({ ...payload, upsellStatus: "recusado" }, action);
     }
   } catch (error) {
     console.error("[CRM_INTERNAL_ACTION] Error:", error);
