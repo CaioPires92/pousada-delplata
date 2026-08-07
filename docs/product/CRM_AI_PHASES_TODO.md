@@ -192,7 +192,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F4.04 Implementar classificador com timeout e fallback.
 - [ ] F4.05 Implementar extração de datas e hóspedes com validação determinística.
 - [ ] F4.06 Criar allowlist de ferramentas e schemas de entrada/saída.
-- [ ] F4.07 Implementar busca somente em FAQ aprovada.
+- [x] F4.07 Implementar busca somente em FAQ pública e aprovada, com fonte, versão e responsável.
 - [ ] F4.08 Implementar regras de handoff e mensagem de transição.
 - [ ] F4.09 Persistir decisão, confiança, latência, tokens e resultado.
 - [ ] F4.10 Criar shadow mode sem envio ao cliente.

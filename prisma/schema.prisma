@@ -490,6 +490,11 @@ model ChatbotRule {
   trigger   String   @unique
   response  String
   category  String   @default("faq")
+  audience  String   @default("public")
+  source    String?
+  version   Int      @default(1)
+  approvedAt DateTime?
+  approvedBy String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -26,13 +26,18 @@ export async function findApprovedKnowledge(message: string): Promise<ApprovedKn
   if (!normalizedMessage) return null;
 
   const rules = await prisma.chatbotRule.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      audience: "public",
+      approvedAt: { not: null },
+    },
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
       trigger: true,
       response: true,
       category: true,
+      version: true,
     },
   });
 

@@ -13,8 +13,8 @@ describe("approved chatbot knowledge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([
-      { id: "rule-oi", trigger: "oi", response: "Olá!", category: "saudacao" },
-      { id: "rule-wifi", trigger: "Wi-Fi", response: "Temos Wi-Fi.", category: "faq" },
+      { id: "rule-oi", trigger: "oi", response: "Olá!", category: "saudacao", version: 1 },
+      { id: "rule-wifi", trigger: "Wi-Fi", response: "Temos Wi-Fi.", category: "faq", version: 1 },
     ] as never);
   });
 
@@ -25,7 +25,11 @@ describe("approved chatbot knowledge", () => {
       category: "faq",
     });
     expect(prisma.chatbotRule.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        audience: "public",
+        approvedAt: { not: null },
+      },
     }));
   });
 
