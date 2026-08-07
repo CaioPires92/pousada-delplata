@@ -8,6 +8,7 @@ import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
+import { buildQuoteReplyText } from "@/lib/crm/quoteReply";
 import {
     isQuoteExpired,
     isQuoteExecutionLocked,
@@ -19,39 +20,6 @@ import {
 import { sendMessagingText } from "@/lib/messaging/send-text";
 import { POST as quotePost } from "@/app/api/crm/quote/route";
 import { POST as internalActionsPost } from "@/app/api/crm/internal-actions/route";
-
-function formatDateForGuest(dayKey: string) {
-    const date = new Date(`${dayKey}T00:00:00Z`);
-    if (Number.isNaN(date.getTime())) return dayKey;
-    return new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit" }).format(date);
-}
-
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        minimumFractionDigits: 2,
-    }).format(value);
-}
-
-function buildQuoteReplyText(input: {
-    checkin: string;
-    checkout: string;
-    nights: number;
-    options: Array<{ roomTypeName: string; totalPrice: number; remainingUnits: number }>;
-}) {
-    const lines = [
-        `Período: ${formatDateForGuest(input.checkin)} até ${formatDateForGuest(input.checkout)} (${input.nights} noite(s)).`,
-        "Encontrei estas opções:",
-    ];
-
-    input.options.slice(0, 3).forEach((option, index) => {
-        lines.push(`${index + 1}) ${option.roomTypeName}: ${formatCurrency(option.totalPrice)} (${option.remainingUnits} unidade(s) disponível(is))`);
-    });
-
-    lines.push("Se quiser, eu já te explico as condições de pagamento para avançarmos com a reserva.");
-    return lines.join("\n");
-}
 
 function summarizeContextForAudit(messages: Array<{ senderType: string; content: string | null }>) {
     return messages
