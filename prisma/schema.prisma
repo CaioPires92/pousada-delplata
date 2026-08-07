@@ -403,7 +403,7 @@ model PipelineCard {
   id             String        @id @default(uuid())
   contactId      String
   conversationId String?
-  stage          String        @default("novo")
+  stage          String        @default("NOVO_LEAD")
   priority       String        @default("media")
   assignedUserId String?
   source         String        @default("manual")

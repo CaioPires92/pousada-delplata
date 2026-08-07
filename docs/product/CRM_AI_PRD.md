@@ -34,7 +34,7 @@ O plano executável, dividido em fases, regras de negócio, testes e microtarefa
 - pós-estadia seleciona cards em `HOSPEDADO`, sem comprovar checkout e sem emitir cupom;
 - follow-up não é uma agenda cancelável por resposta ou reserva;
 - IA cobre poucas intenções, sem schema estrito, versionamento de prompt ou telemetria completa;
-- `PipelineCard.lossReason` é o campo canônico; `lostReason` permanece apenas como alias legado durante a migração aditiva. O default `novo` ainda precisa ser normalizado para `NOVO_LEAD`;
+- `PipelineCard.lossReason` é o campo canônico; `lostReason` permanece apenas como alias legado durante a migração aditiva. O estágio padrão foi normalizado para `NOVO_LEAD`;
 - `bookingId` é texto no card, sem relacionamento oficial com `Booking`;
 - documentação e runtime divergem sobre a emissão para n8n;
 - typecheck + testes agregados excederam 120 segundos sem resultado, portanto o baseline ainda não está comprovado;
