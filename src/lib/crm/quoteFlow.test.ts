@@ -20,6 +20,9 @@ describe("quoteFlow", () => {
     expect(promptForFlowStep("invalid_checkin")?.text).toContain("já passou");
     expect(promptForFlowStep("invalid_checkout")?.text).toContain("posterior");
     expect(promptForFlowStep("stay_too_long")?.text).toContain("90 noites");
+    expect(promptForFlowStep("nights_mismatch", {
+      validationIssue: { code: "nights_mismatch", statedNights: 3, calculatedNights: 2 },
+    })?.text).toContain("correspondem a 2 diárias");
     expect(promptForFlowStep("invalid_guests")?.text).toContain("adultos");
   });
 

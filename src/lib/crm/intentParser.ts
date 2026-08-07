@@ -18,6 +18,7 @@ export type ParsedCrmIntent = {
   adults?: number;
   children?: number;
   childrenAges?: number[];
+  statedNights?: number;
   missingFields: Array<"checkin" | "checkout" | "adults">;
   confidence: "low" | "medium" | "high";
   validationIssues: CrmInputValidationIssue[];
@@ -30,8 +31,11 @@ export type CrmInputValidationIssue = {
     | "past_date"
     | "invalid_date_range"
     | "stay_too_long"
+    | "nights_mismatch"
     | "invalid_guest_count"
     | "too_many_guests";
+  statedNights?: number;
+  calculatedNights?: number;
 };
 
 type DateCandidate = {
@@ -198,6 +202,11 @@ function daysBetween(start: string, end: string) {
   return Math.round((endMs - startMs) / 86_400_000);
 }
 
+function extractStatedNights(text: string) {
+  const match = /\b(\d{1,2})\s*(?:diarias?|noites?)\b/.exec(text);
+  return match ? Number.parseInt(match[1], 10) : undefined;
+}
+
 function extractDates(text: string, referenceDate: Date) {
   const rawCandidates = findDateCandidates(text);
   const candidates = inferMissingMonths(rawCandidates).slice(0, 2);
@@ -301,6 +310,20 @@ function confidenceFor(parsed: Omit<ParsedCrmIntent, "confidence">): ParsedCrmIn
 export function parseCrmIntent(message: string, referenceDate = new Date()): ParsedCrmIntent {
   const text = normalizeText(message);
   const { checkin, checkout, datesMentioned, validationIssues } = extractDates(text, referenceDate);
+  const statedNights = extractStatedNights(text);
+  let validatedCheckout = checkout;
+  if (checkin && checkout && statedNights !== undefined) {
+    const calculatedNights = daysBetween(checkin, checkout);
+    if (statedNights !== calculatedNights) {
+      validationIssues.push({
+        field: "dateRange",
+        code: "nights_mismatch",
+        statedNights,
+        calculatedNights,
+      });
+      validatedCheckout = undefined;
+    }
+  }
   const adults = extractAdults(text);
   const { children, childrenAges } = extractChildren(text);
   const intent = detectIntent(text, datesMentioned);
@@ -325,17 +348,18 @@ export function parseCrmIntent(message: string, referenceDate = new Date()): Par
 
   if (intent === "quote") {
     if (!checkin) missingFields.push("checkin");
-    if (!checkout) missingFields.push("checkout");
+    if (!validatedCheckout) missingFields.push("checkout");
     if (!validAdults) missingFields.push("adults");
   }
 
   const parsed = {
     intent,
     checkin,
-    checkout,
+    checkout: validatedCheckout,
     adults: validAdults,
     children: validChildren,
     childrenAges,
+    statedNights,
     missingFields,
     validationIssues,
   };

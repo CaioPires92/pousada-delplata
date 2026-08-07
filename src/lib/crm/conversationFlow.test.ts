@@ -92,4 +92,19 @@ describe("buildQuoteFlowState", () => {
       lastPromptAt: "2026-01-10T11:59:55.000Z",
     });
   });
+
+  it("asks for checkout again after a nights mismatch and accepts the correction", () => {
+    const mismatched = buildQuoteFlowState(
+      "Quero 3 diárias de 18/09/2026 a 20/09/2026 para 2 adultos"
+    );
+    expect(mismatched.flowStep).toBe("nights_mismatch");
+
+    const corrected = buildQuoteFlowState("21/09/2026", mismatched);
+    expect(corrected.flowStep).toBe("ready_to_quote");
+    expect(JSON.parse(corrected.flowDataJson || "{}")).toMatchObject({
+      checkin: "2026-09-18",
+      checkout: "2026-09-21",
+      adults: 2,
+    });
+  });
 });

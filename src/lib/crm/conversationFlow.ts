@@ -23,6 +23,7 @@ type FlowData = {
   lastPromptStep?: string;
   lastPromptAt?: string;
   quoteLockUntil?: string;
+  statedNights?: number;
 };
 
 function safeParseFlowData(value: string | null | undefined): FlowData {
@@ -39,6 +40,7 @@ function safeParseFlowData(value: string | null | undefined): FlowData {
 function nextFlowStep(data: FlowData) {
   if (data.validationIssue?.field === "checkin") return "invalid_checkin";
   if (data.validationIssue?.field === "checkout" || data.validationIssue?.field === "dateRange") {
+    if (data.validationIssue.code === "nights_mismatch") return "nights_mismatch";
     return data.validationIssue.code === "stay_too_long" ? "stay_too_long" : "invalid_checkout";
   }
   if (["adults", "children", "guests"].includes(data.validationIssue?.field ?? "")) {
@@ -68,7 +70,8 @@ export function buildQuoteFlowState(messageText: string, existing?: ExistingFlow
   const validationIssue = existing?.flowStep === "waiting_checkout" && firstIssue?.field === "checkin"
     ? { ...firstIssue, field: "checkout" as const }
     : firstIssue;
-  const isCheckoutOnlyReply = existing?.flowStep === "waiting_checkout" && parsed.checkin && !parsed.checkout;
+  const expectsCheckout = existing?.flowStep === "waiting_checkout" || existing?.flowStep === "nights_mismatch";
+  const isCheckoutOnlyReply = expectsCheckout && parsed.checkin && !parsed.checkout;
   const incomingCheckin = isCheckoutOnlyReply ? undefined : parsed.checkin;
   const incomingCheckout = isCheckoutOnlyReply ? parsed.checkin : parsed.checkout;
   const mergedData: FlowData = {
@@ -82,6 +85,7 @@ export function buildQuoteFlowState(messageText: string, existing?: ExistingFlow
       : parsed.adults ?? priorData.adults,
     children: parsed.children ?? priorData.children,
     childrenAges: (parsed.childrenAges?.length ?? 0) > 0 ? parsed.childrenAges : priorData.childrenAges,
+    statedNights: parsed.statedNights ?? priorData.statedNights,
     validationIssue,
   };
 

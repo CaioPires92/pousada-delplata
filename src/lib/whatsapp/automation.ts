@@ -410,7 +410,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
             return quoteText;
         }
 
-        const prompt = promptForFlowStep(conversation.flowStep ?? "");
+        const prompt = promptForFlowStep(conversation.flowStep ?? "", flowData);
         if (prompt) {
             if (shouldSkipPromptRepeat(flowData, prompt.step, now)) {
                 await recordCrmEvent({

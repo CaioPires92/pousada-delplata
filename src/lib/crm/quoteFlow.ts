@@ -7,6 +7,11 @@ type FlowData = {
   lastPromptStep?: string;
   lastPromptAt?: string;
   quoteLockUntil?: string;
+  validationIssue?: {
+    code?: string;
+    statedNights?: number;
+    calculatedNights?: number;
+  };
 };
 
 export type QuoteFlowPrompt = {
@@ -18,6 +23,7 @@ export type QuoteFlowPrompt = {
     | "invalid_checkin"
     | "invalid_checkout"
     | "stay_too_long"
+    | "nights_mismatch"
     | "invalid_guests";
   text: string;
 };
@@ -71,7 +77,7 @@ export function isQuoteExpired(expiresAt: unknown, now = new Date()): boolean {
   return parsed.getTime() <= now.getTime();
 }
 
-export function promptForFlowStep(step: string): QuoteFlowPrompt | null {
+export function promptForFlowStep(step: string, flowData: FlowData = {}): QuoteFlowPrompt | null {
   if (step === "invalid_checkin") {
     return {
       step: "invalid_checkin",
@@ -90,6 +96,18 @@ export function promptForFlowStep(step: string): QuoteFlowPrompt | null {
     return {
       step: "stay_too_long",
       text: `A cotação automática aceita períodos de até ${MAX_QUOTE_NIGHTS} noites. Pode informar uma data de check-out mais próxima?`,
+    };
+  }
+
+  if (step === "nights_mismatch") {
+    const stated = flowData.validationIssue?.statedNights;
+    const calculated = flowData.validationIssue?.calculatedNights;
+    const detail = stated && calculated
+      ? `As datas informadas correspondem a ${calculated} ${calculated === 1 ? "diária" : "diárias"}, mas você mencionou ${stated}. `
+      : "A quantidade de diárias não corresponde às datas informadas. ";
+    return {
+      step: "nights_mismatch",
+      text: `${detail}Qual é a data correta de check-out?`,
     };
   }
 

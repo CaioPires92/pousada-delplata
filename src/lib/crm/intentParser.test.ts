@@ -34,6 +34,25 @@ describe("parseCrmIntent", () => {
     });
   });
 
+  it("rejects a stated number of nights that conflicts with the date range", () => {
+    expect(parseCrmIntent(
+      "Quero 3 diárias de 18/09/2026 a 20/09/2026 para 2 adultos",
+      referenceDate
+    )).toMatchObject({
+      intent: "quote",
+      checkin: "2026-09-18",
+      checkout: undefined,
+      statedNights: 3,
+      missingFields: ["checkout"],
+      validationIssues: [{
+        field: "dateRange",
+        code: "nights_mismatch",
+        statedNights: 3,
+        calculatedNights: 2,
+      }],
+    });
+  });
+
   it("returns partial fields when the guest asks price without dates", () => {
     expect(parseCrmIntent("Quanto fica para 3 pessoas?", referenceDate)).toMatchObject({
       intent: "quote",
