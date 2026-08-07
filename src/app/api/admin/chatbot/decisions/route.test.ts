@@ -1,0 +1,69 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextResponse } from "next/server";
+
+const mocks = vi.hoisted(() => ({
+  findMany: vi.fn(),
+  requireAdminAuth: vi.fn(),
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  default: { internalActionLog: { findMany: mocks.findMany } },
+}));
+vi.mock("@/lib/admin-auth", () => ({ requireAdminAuth: mocks.requireAdminAuth }));
+
+import { GET } from "./route";
+
+describe("admin chatbot decision review", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.requireAdminAuth.mockResolvedValue({ adminId: "admin-1" });
+    mocks.findMany.mockResolvedValue([]);
+  });
+
+  it("rejects unauthenticated access", async () => {
+    mocks.requireAdminAuth.mockResolvedValue(
+      NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 }),
+    );
+
+    const response = await GET();
+
+    expect(response.status).toBe(401);
+    expect(mocks.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns a bounded and sanitized review sample", async () => {
+    mocks.findMany.mockResolvedValue([{
+      id: "log-1",
+      createdAt: new Date("2026-08-07T19:00:00.000Z"),
+      conversationId: "conversation-1",
+      conversation: { contact: { name: "Hóspede teste", phone: "5519999999999" } },
+      metadataJson: JSON.stringify({
+        intent: "parking",
+        heuristicIntent: "amenity",
+        confidence: 0.91,
+        source: "ai",
+        mode: "shadow",
+        accepted: true,
+        actionAuthorized: false,
+        agreementWithHeuristic: false,
+        suggestedAction: "answer_approved_faq",
+        result: "classified",
+        latencyMs: 320,
+        inputTokens: 42,
+        outputTokens: 18,
+      }),
+    }]);
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 25 }));
+    expect(body.decisions[0]).toMatchObject({
+      contactLabel: "Hóspede teste",
+      mode: "shadow",
+      actionAuthorized: false,
+      totalTokens: 60,
+      agreementWithHeuristic: false,
+    });
+  });
+});
