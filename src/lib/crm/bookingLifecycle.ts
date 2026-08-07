@@ -4,6 +4,7 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/crm/pipelineStages";
 import { crmLog } from "@/lib/crm/logger";
+import { claimCrmEvent, completeCrmEvent, releaseCrmEvent } from "@/lib/crm/eventIdempotency";
 
 export type BookingLifecycleEvent =
   | "ReservationStarted"
@@ -25,8 +26,22 @@ export async function publishBookingLifecycleEvent(input: {
   origin?: AuditOrigin;
   reason?: string;
   metadata?: Record<string, unknown>;
+  eventId?: string;
 }) {
+  let claimedEventId: string | null = null;
   try {
+    if (input.eventId) {
+      const claim = await claimCrmEvent({
+        eventId: input.eventId,
+        source: input.origin ?? "system",
+        eventType: input.event,
+      });
+      if (!claim.claimed) {
+        return { ok: true as const, duplicate: true as const, pipelineUpdated: false };
+      }
+      claimedEventId = input.eventId;
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { id: input.bookingId },
       select: {
@@ -37,7 +52,10 @@ export async function publishBookingLifecycleEvent(input: {
       },
     });
 
-    if (!booking) return { ok: false as const, reason: "booking_not_found" as const };
+    if (!booking) {
+      if (claimedEventId) await releaseCrmEvent(claimedEventId);
+      return { ok: false as const, reason: "booking_not_found" as const };
+    }
 
     const targetStage = TARGET_STAGE[input.event];
     let pipelineUpdated = false;
@@ -72,13 +90,17 @@ export async function publishBookingLifecycleEvent(input: {
       },
     });
 
-    return {
+    const result = {
       ok: true as const,
+      duplicate: false as const,
       pipelineUpdated,
       pipelineError,
       pipelineCardId: booking.pipelineCard?.id ?? null,
     };
+    if (claimedEventId) await completeCrmEvent(claimedEventId, result);
+    return result;
   } catch (error) {
+    if (claimedEventId) await releaseCrmEvent(claimedEventId).catch(() => undefined);
     crmLog({
       level: "ERROR",
       action: input.event,

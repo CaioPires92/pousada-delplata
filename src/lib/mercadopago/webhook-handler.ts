@@ -655,10 +655,23 @@ export async function handleMercadoPagoWebhook(request: Request) {
             gaPurchaseError = gaResult.error;
         }
 
+        if (result.paymentStatus === 'PENDING') {
+            await publishBookingLifecycleEvent({
+                bookingId,
+                event: 'PaymentPending',
+                eventId: `mercadopago:payment:${paymentId}:pending`,
+                origin: 'webhook',
+                actorType: 'webhook',
+                reason: 'Pagamento aguardando confirmação do Mercado Pago',
+                metadata: { provider: 'MERCADOPAGO', paymentStatus: result.paymentStatus },
+            });
+        }
+
         if (result.purchaseEventQueued && result.paymentStatus === 'APPROVED') {
             await publishBookingLifecycleEvent({
                 bookingId,
                 event: 'PaymentApproved',
+                eventId: `mercadopago:payment:${paymentId}:approved`,
                 origin: 'webhook',
                 actorType: 'webhook',
                 reason: 'Pagamento aprovado pelo Mercado Pago',
@@ -669,6 +682,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             await publishBookingLifecycleEvent({
                 bookingId,
                 event: 'BookingConfirmed',
+                eventId: `booking:${bookingId}:confirmed:mercadopago:${paymentId}`,
                 origin: 'webhook',
                 actorType: 'webhook',
                 reason: 'Reserva confirmada após pagamento aprovado',

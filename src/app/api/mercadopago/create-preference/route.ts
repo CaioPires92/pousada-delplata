@@ -97,6 +97,7 @@ export async function POST(request: Request) {
         await publishBookingLifecycleEvent({
             bookingId: booking.id,
             event: 'PaymentPending',
+            eventId: `mercadopago:preference:${String(result.id)}:pending`,
             origin: 'human_api',
             actorType: 'human',
             reason: 'Preferência de pagamento criada',

@@ -137,12 +137,14 @@ export const INTERNAL_ACTION_ALLOWLIST = Object.freeze(
   Object.keys(actionSchemas) as InternalAction[],
 );
 
-export type ParsedInternalAction = {
+type ParsedInternalActionPayload = {
   [Action in InternalAction]: {
     action: Action;
     payload: z.infer<(typeof actionSchemas)[Action]>;
   }
 }[InternalAction];
+
+export type ParsedInternalAction = ParsedInternalActionPayload & { eventId?: string };
 
 export function parseInternalAction(input: unknown):
   | { success: true; data: ParsedInternalAction }
@@ -153,7 +155,14 @@ export function parseInternalAction(input: unknown):
 
   const envelope = input as Record<string, unknown>;
   const envelopeKeys = Object.keys(envelope);
-  if (envelopeKeys.some(key => key !== "action" && key !== "payload") || !("payload" in envelope)) {
+  if (envelopeKeys.some(key => key !== "action" && key !== "payload" && key !== "eventId") || !("payload" in envelope)) {
+    return { success: false, reason: "invalid_envelope" };
+  }
+
+  const parsedEventId = envelope.eventId === undefined
+    ? undefined
+    : identifier.safeParse(envelope.eventId);
+  if (parsedEventId !== undefined && !parsedEventId.success) {
     return { success: false, reason: "invalid_envelope" };
   }
 
@@ -169,7 +178,11 @@ export function parseInternalAction(input: unknown):
 
   return {
     success: true,
-    data: { action, payload: parsedPayload.data } as ParsedInternalAction,
+    data: {
+      action,
+      payload: parsedPayload.data,
+      ...(parsedEventId ? { eventId: parsedEventId.data } : {}),
+    } as ParsedInternalAction,
   };
 }
 

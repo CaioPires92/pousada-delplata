@@ -40,6 +40,27 @@ describe("internalActionContract", () => {
     });
   });
 
+  it("aceita eventId limitado para processamento idempotente", () => {
+    expect(parseInternalAction({
+      eventId: " event-123 ",
+      action: "MARK_PAYMENT_PENDING",
+      payload: { pipelineCardId: "card-1" },
+    })).toEqual({
+      success: true,
+      data: {
+        eventId: "event-123",
+        action: "MARK_PAYMENT_PENDING",
+        payload: { pipelineCardId: "card-1" },
+      },
+    });
+
+    expect(parseInternalAction({
+      eventId: "x".repeat(129),
+      action: "MARK_PAYMENT_PENDING",
+      payload: { pipelineCardId: "card-1" },
+    })).toEqual({ success: false, reason: "invalid_envelope" });
+  });
+
   it("rejeita ação fora da allowlist", () => {
     expect(parseInternalAction({
       action: "DELETE_ALL_CONVERSATIONS",

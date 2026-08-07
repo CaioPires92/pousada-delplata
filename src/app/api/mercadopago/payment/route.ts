@@ -612,6 +612,7 @@ export async function POST(request: Request) {
             await publishBookingLifecycleEvent({
                 bookingId,
                 event: 'PaymentApproved',
+                eventId: `mercadopago:payment:${String(result.id)}:approved`,
                 origin: 'human_api',
                 actorType: 'human',
                 reason: 'Pagamento aprovado pelo Mercado Pago',
@@ -624,6 +625,7 @@ export async function POST(request: Request) {
             await publishBookingLifecycleEvent({
                 bookingId,
                 event: 'PaymentPending',
+                eventId: `mercadopago:payment:${String(result.id)}:pending`,
                 origin: 'human_api',
                 actorType: 'human',
                 reason: 'Pagamento aguardando confirmação do Mercado Pago',
@@ -649,6 +651,7 @@ export async function POST(request: Request) {
                 await publishBookingLifecycleEvent({
                     bookingId,
                     event: 'BookingConfirmed',
+                    eventId: `booking:${bookingId}:confirmed:mercadopago:${String(result.id)}`,
                     origin: 'human_api',
                     actorType: 'human',
                     reason: 'Reserva confirmada após pagamento aprovado',

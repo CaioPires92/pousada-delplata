@@ -75,6 +75,7 @@ export async function POST(
         await publishBookingLifecycleEvent({
             bookingId,
             event: 'BookingConfirmed',
+            eventId: `booking:${bookingId}:confirmed:admin`,
             actorType: 'human',
             origin: 'admin_ui',
             reason: 'Reserva confirmada manualmente',

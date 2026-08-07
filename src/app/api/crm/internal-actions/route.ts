@@ -10,6 +10,7 @@ import { InternalAction, parseInternalAction, parseInternalActionResult } from "
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { sendMessagingText } from "@/lib/messaging/send-text";
+import { claimCrmEvent, completeCrmEvent, releaseCrmEvent } from "@/lib/crm/eventIdempotency";
 
 export const runtime = "nodejs";
 
@@ -467,6 +468,40 @@ async function handleSendWhatsAppMessage(payload: JsonRecord) {
   });
 }
 
+async function dispatchInternalAction(action: InternalAction, payload: JsonRecord) {
+  switch (action) {
+    case "MOVE_PIPELINE_CARD":
+      return handleMovePipelineCard(payload);
+    case "SEND_WHATSAPP_MESSAGE":
+      return handleSendWhatsAppMessage(payload);
+    case "PAUSE_AUTOMATION":
+    case "SET_CONVERSATION_AUTOMATION_PAUSED":
+      return handlePauseAutomation(payload, action);
+    case "UPDATE_LEAD_FIELDS":
+      return handleUpdateLeadFields(payload);
+    case "ADD_CARD_NOTE":
+      return handleAddCardNote(payload);
+    case "SET_CARD_TAGS":
+      return handleSetCardTags(payload);
+    case "CREATE_FOLLOW_UP_TASK":
+      return handleCreateFollowUpTask(payload);
+    case "MARK_QUOTE_SENT":
+      return handleMarkState(payload, "ORCAMENTO_ENVIADO", "MARK_QUOTE_SENT");
+    case "MARK_RESERVATION_INTENT":
+      return handleMarkState(payload, "RESERVA_EM_ANDAMENTO", "MARK_RESERVATION_INTENT");
+    case "MARK_PAYMENT_PENDING":
+      return handleMarkState(payload, "PAGAMENTO_PENDENTE", "MARK_PAYMENT_PENDING");
+    case "MARK_RESERVATION_CONFIRMED":
+      return handleMarkState(payload, "RESERVA_CONFIRMADA", "MARK_RESERVATION_CONFIRMED");
+    case "REGISTER_UPSELL_OFFER":
+      return handleUpdateLeadFields({ ...payload, upsellStatus: "ofertado" }, action);
+    case "REGISTER_UPSELL_ACCEPTED":
+      return handleUpdateLeadFields({ ...payload, upsellStatus: "aceito" }, action);
+    case "REGISTER_UPSELL_REJECTED":
+      return handleUpdateLeadFields({ ...payload, upsellStatus: "recusado" }, action);
+  }
+}
+
 export async function POST(request: Request) {
   const expectedToken = process.env.CRM_INTERNAL_API_TOKEN;
   const token = getInternalToken(request);
@@ -475,6 +510,7 @@ export async function POST(request: Request) {
     return jsonError(401, "UNAUTHORIZED", "Token não fornecido ou inválido");
   }
 
+  let claimedEventId: string | null = null;
   try {
     const parsedAction = parseInternalAction(await request.json().catch(() => null));
     if (!parsedAction.success) {
@@ -484,41 +520,34 @@ export async function POST(request: Request) {
       return jsonError(400, "INVALID_PAYLOAD", "Payload com formato incorreto");
     }
 
-    const { action } = parsedAction.data;
+    const { action, eventId } = parsedAction.data;
     const payload = parsedAction.data.payload as JsonRecord;
 
-    switch (action) {
-      case "MOVE_PIPELINE_CARD":
-        return handleMovePipelineCard(payload);
-      case "SEND_WHATSAPP_MESSAGE":
-        return handleSendWhatsAppMessage(payload);
-      case "PAUSE_AUTOMATION":
-      case "SET_CONVERSATION_AUTOMATION_PAUSED":
-        return handlePauseAutomation(payload, action);
-      case "UPDATE_LEAD_FIELDS":
-        return handleUpdateLeadFields(payload);
-      case "ADD_CARD_NOTE":
-        return handleAddCardNote(payload);
-      case "SET_CARD_TAGS":
-        return handleSetCardTags(payload);
-      case "CREATE_FOLLOW_UP_TASK":
-        return handleCreateFollowUpTask(payload);
-      case "MARK_QUOTE_SENT":
-        return handleMarkState(payload, "ORCAMENTO_ENVIADO", "MARK_QUOTE_SENT");
-      case "MARK_RESERVATION_INTENT":
-        return handleMarkState(payload, "RESERVA_EM_ANDAMENTO", "MARK_RESERVATION_INTENT");
-      case "MARK_PAYMENT_PENDING":
-        return handleMarkState(payload, "PAGAMENTO_PENDENTE", "MARK_PAYMENT_PENDING");
-      case "MARK_RESERVATION_CONFIRMED":
-        return handleMarkState(payload, "RESERVA_CONFIRMADA", "MARK_RESERVATION_CONFIRMED");
-      case "REGISTER_UPSELL_OFFER":
-        return handleUpdateLeadFields({ ...payload, upsellStatus: "ofertado" }, action);
-      case "REGISTER_UPSELL_ACCEPTED":
-        return handleUpdateLeadFields({ ...payload, upsellStatus: "aceito" }, action);
-      case "REGISTER_UPSELL_REJECTED":
-        return handleUpdateLeadFields({ ...payload, upsellStatus: "recusado" }, action);
+    if (eventId) {
+      const claim = await claimCrmEvent({ eventId, source: "n8n_api", eventType: action });
+      if (!claim.claimed) {
+        if (claim.receipt?.status === "completed" && claim.receipt.resultJson) {
+          const cached = JSON.parse(claim.receipt.resultJson) as { httpStatus: number; body: unknown };
+          return NextResponse.json(cached.body, { status: cached.httpStatus });
+        }
+        return NextResponse.json({ ok: true, action, eventId, processing: true }, { status: 202 });
+      }
+      claimedEventId = eventId;
     }
+
+    const response = await dispatchInternalAction(action, payload);
+    if (claimedEventId) {
+      if (response.status >= 200 && response.status < 400) {
+        const body = await response.clone().json().catch(() => null);
+        await completeCrmEvent(claimedEventId, { httpStatus: response.status, body });
+      } else {
+        await releaseCrmEvent(claimedEventId);
+      }
+      claimedEventId = null;
+    }
+    return response;
   } catch (error) {
+    if (claimedEventId) await releaseCrmEvent(claimedEventId).catch(() => undefined);
     console.error("[CRM_INTERNAL_ACTION] Error:", error);
     return jsonError(500, "INTERNAL_ERROR", "Erro interno no servidor");
   }

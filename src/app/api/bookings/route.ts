@@ -290,6 +290,7 @@ export async function POST(request: Request) {
                 await publishBookingLifecycleEvent({
                     bookingId: booking.id,
                     event: 'ReservationStarted',
+                    eventId: `booking:${booking.id}:reservation-started`,
                     origin: 'system',
                     reason: 'Reserva iniciada pelo motor de reservas',
                     metadata: { source: 'booking_created' },
