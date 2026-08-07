@@ -7,6 +7,9 @@ export type AutomationHandoffReason =
   | "low_confidence"
   | "repeated_failure"
   | "intent_not_released"
+  | "prompt_injection"
+  | "sensitive_request"
+  | "commercial_exception"
   | "unknown_intent";
 
 export type AutomationHandoffDecision = {
@@ -24,6 +27,9 @@ export const DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE =
 const HUMAN_REQUEST = /\b(atendente|humano|pessoa|recep[cç][aã]o|falar com algu[eé]m)\b/i;
 const COMPLAINT_OR_EMERGENCY = /\b(emerg[eê]ncia|urgente|acidente|problema|reclama[cç][aã]o|insatisfeit|p[eé]ssim|pessim)\b/i;
 const CANCELLATION_OR_REFUND = /\b(cancelar|cancelamento|reembolso|estorno|devolver dinheiro)\b/i;
+const PROMPT_INJECTION = /\b(ignore (?:as |todas as )?instru[cç][oõ]es|prompt do sistema|system prompt|revele (?:seu|o) prompt|modo desenvolvedor)\b/i;
+const SENSITIVE_REQUEST = /\b(senha (?:do|de) sistema|senha administrativa|token de acesso|chave (?:da )?api|c[oó]digo de seguran[cç]a do cart[aã]o)\b/i;
+const COMMERCIAL_EXCEPTION = /\b(desconto|cortesia|abatimento|pre[cç]o especial|promo[cç][aã]o exclusiva)\b/i;
 
 export function decideAutomationHandoff(
   message: string,
@@ -40,6 +46,18 @@ export function decideAutomationHandoff(
 
   if (CANCELLATION_OR_REFUND.test(message)) {
     return { shouldHandoff: true, reason: "cancellation_or_refund", message: DEFAULT_AUTOMATION_HANDOFF_MESSAGE };
+  }
+
+  if (PROMPT_INJECTION.test(message)) {
+    return { shouldHandoff: true, reason: "prompt_injection", message: DEFAULT_AUTOMATION_HANDOFF_MESSAGE };
+  }
+
+  if (SENSITIVE_REQUEST.test(message)) {
+    return { shouldHandoff: true, reason: "sensitive_request", message: DEFAULT_AUTOMATION_HANDOFF_MESSAGE };
+  }
+
+  if (COMMERCIAL_EXCEPTION.test(message)) {
+    return { shouldHandoff: true, reason: "commercial_exception", message: DEFAULT_AUTOMATION_HANDOFF_MESSAGE };
   }
 
   if (typeof options.confidence === "number" && options.confidence < 0.5) {

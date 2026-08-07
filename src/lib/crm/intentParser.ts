@@ -74,11 +74,11 @@ const MONTHS: Record<string, number> = {
 };
 
 const INTENT_KEYWORDS: Array<{ intent: CrmIntent; patterns: RegExp[] }> = [
-  { intent: "reservation", patterns: [/\b(reserv|fechar|confirmar|pagamento|pagar|pix|cart[aã]o)\b/] },
+  { intent: "reservation", patterns: [/\b(reserv\w*|fechar|confirmar|pagamento|pagar|pix|cart[aã]o)\b/] },
   { intent: "quote", patterns: [/\b(pre[cç]o|valor|di[aá]ria|or[cç]amento|cot(a|ar)|disponibilidade|tem vaga|quanto fica|quanto sai)\b/] },
   { intent: "checkin_info", patterns: [/\bcheck[\s-]?in\b/, /\bentrada\b/] },
   { intent: "checkout_info", patterns: [/\bcheck[\s-]?out\b/, /\bsa[ií]da\b/] },
-  { intent: "pet", patterns: [/\b(pet|cachorro|gato|animal)\b/] },
+  { intent: "pet", patterns: [/\b(pets?|cachorros?|gatos?|animais|animal)\b/] },
   { intent: "parking", patterns: [/\b(estacionamento|garagem|vaga)\b/] },
   { intent: "location", patterns: [/\b(localiza[cç][aã]o|endere[cç]o|onde fica|dist[aâ]ncia)\b/] },
   { intent: "amenity", patterns: [/\b(piscina|caf[eé]|wifi|internet|ar condicionado|frigobar)\b/] },

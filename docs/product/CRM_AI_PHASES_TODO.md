@@ -186,11 +186,11 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F4.01 Criar dataset anonimizado de intenções reais.
+- [x] F4.01 Criar dataset anonimizado de intenções reais.
 - [x] F4.02 Definir schema estrito e versionado de `AiDecision`.
 - [x] F4.03 Versionar prompt, modelo, FAQ e policy nos eventos de decisão.
 - [x] F4.04 Implementar classificador com timeout limitado e fallback determinístico.
-- [ ] F4.05 Implementar extração de datas e hóspedes com validação determinística.
+- [x] F4.05 Implementar extração de datas e hóspedes com validação determinística.
 - [x] F4.05a Comparar diárias declaradas com o intervalo e solicitar correção do check-out.
 - [x] F4.05b Exigir e validar as idades de todas as crianças antes da cotação.
 - [x] F4.06 Criar allowlist de ferramentas e schemas de entrada/saída.
