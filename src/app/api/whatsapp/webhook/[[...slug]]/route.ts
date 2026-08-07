@@ -640,6 +640,7 @@ export async function POST(
             currentFlow: flowState.currentFlow,
             flowStep: flowState.flowStep,
             flowDataJson: flowState.flowDataJson,
+            ...(flowState.shouldTouchAutomationTime ? { lastAutomationAt: lastActivityAt } : {}),
           } : {}),
           ...(extracted.fromMe ? {} : {
             unreadCount: {

@@ -164,6 +164,39 @@ describe("WhatsApp CRM webhook hardening", () => {
     expect(messages).toHaveLength(1);
   });
 
+  it("refreshes an expired quote flow when the guest sends new quote data", async () => {
+    const remoteJid = "5511999990099@s.whatsapp.net";
+    const firstResponse = await POST(
+      webhookRequest(textPayload("test-expired-quote-start", remoteJid, "Quero uma cotação")),
+      routeParams()
+    );
+    const firstBody = await firstResponse.json();
+    const staleAutomationAt = new Date("2026-01-01T00:00:00.000Z");
+
+    await prisma.conversation.update({
+      where: { id: firstBody.conversationId },
+      data: { lastAutomationAt: staleAutomationAt },
+    });
+
+    const response = await POST(
+      webhookRequest(textPayload(
+        "test-expired-quote-resume",
+        remoteJid,
+        "Quero uma cotação de 12/09/2026 a 13/09/2026 para 2 adultos"
+      )),
+      routeParams()
+    );
+    const conversation = await prisma.conversation.findUniqueOrThrow({
+      where: { id: firstBody.conversationId },
+      select: { currentFlow: true, flowStep: true, lastAutomationAt: true },
+    });
+
+    expect(response.status).toBe(200);
+    expect(conversation.currentFlow).toBe("quote");
+    expect(conversation.flowStep).toBe("ready_to_quote");
+    expect(conversation.lastAutomationAt?.getTime()).toBeGreaterThan(staleAutomationAt.getTime());
+  });
+
   it("saves a LID contact without a phone number", async () => {
     const payload = textPayload("test-lid-message", "123456789012345@lid", "Mensagem via LID");
 
