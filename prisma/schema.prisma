@@ -117,11 +117,19 @@ model Booking {
   confirmationEmailSentAt DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  crmContactId            String?
+  crmConversationId       String?
   roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
   guest              Guest             @relation(fields: [guestId], references: [id])
+  crmContact              Contact?          @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
+  crmConversation         Conversation?     @relation(fields: [crmConversationId], references: [id], onDelete: SetNull)
+  pipelineCard            PipelineCard?
   couponRedemption   CouponRedemption?
   issuedCoupons      Coupon[]           @relation("CouponOriginBooking")
   payment            Payment?
+
+  @@index([crmContactId])
+  @@index([crmConversationId])
 }
 
 model PartialPaymentSettings {
@@ -268,6 +276,7 @@ model Contact {
   pipelineCards   PipelineCard[]
   reservationDrafts ReservationDraft[]
   actionLogs      InternalActionLog[]
+  bookings          Booking[]
 
   @@index([email])
   @@index([source])
@@ -310,6 +319,7 @@ model Conversation {
   deadLetterItems       DeadLetterQueueItem[]
   internalNotes         InternalNote[]
   actionLogs            InternalActionLog[]
+  bookings                 Booking[]
 
   @@index([contactId])
   @@index([channel, status])
@@ -419,13 +429,14 @@ model PipelineCard {
   roomTypeInterest String?
   lossReason     String?
   lostReason     String?
-  bookingId      String?
+  bookingId         String?                @unique
   tags           String?
   followUpAt     DateTime?
   quoteStatus    String?
   upsellStatus   String?
   contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  booking           Booking?               @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   stageHistory   PipelineStageHistory[]
   reservationDrafts ReservationDraft[]
 

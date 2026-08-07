@@ -7,6 +7,7 @@ import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/
 import { compareDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
 
 export async function POST(request: Request) {
     try {
@@ -277,6 +278,16 @@ export async function POST(request: Request) {
             return bookingRecord;
         });
         if (!booking) return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 });
+
+        try {
+            await reconcileBookingToCrm({
+                bookingId: booking.id,
+                guestEmail: booking.guest?.email ?? guest.email,
+                guestPhone: booking.guest?.phone ?? guest.phone,
+            });
+        } catch (reconciliationError) {
+            console.error('[Booking API] Failed to reconcile booking with CRM:', reconciliationError);
+        }
 
         try {
             await sendBookingStatusAlertEmail(booking, {

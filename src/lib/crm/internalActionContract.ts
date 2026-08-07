@@ -51,7 +51,6 @@ const actionSchemas = {
     roomTypeInterest: nullableText.optional(),
     lossReason: nullableText.optional(),
     lostReason: nullableText.optional(),
-    bookingId: nullableText.optional(),
   }).strict()
     .refine(value => Object.keys(value).some(key => key !== "pipelineCardId"), {
       message: "Informe ao menos um campo para atualizar",

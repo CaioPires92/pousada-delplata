@@ -34,6 +34,10 @@ vi.mock('@/lib/prisma', () => ({
     },
 }));
 
+vi.mock('@/lib/crm/bookingCrmLink', () => ({
+    reconcileBookingToCrm: vi.fn().mockResolvedValue({ ok: false, reason: 'contact_not_found' }),
+}));
+
 describe('Booking Integration Tests', () => {
     beforeEach(() => {
         vi.clearAllMocks();

@@ -80,6 +80,11 @@ describe("internalActionContract", () => {
       action: "UPDATE_LEAD_FIELDS",
       payload: { pipelineCardId: "id", lossReason: "Preço", lostReason: "Datas" },
     })).toEqual({ success: false, reason: "invalid_payload" });
+
+    expect(parseInternalAction({
+      action: "UPDATE_LEAD_FIELDS",
+      payload: { pipelineCardId: "id", bookingId: "booking-id" },
+    })).toEqual({ success: false, reason: "invalid_payload" });
   });
 
   it("valida também a saída de cada ferramenta", () => {
