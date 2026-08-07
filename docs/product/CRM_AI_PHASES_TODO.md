@@ -199,7 +199,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F4.09 Persistir decisão, confiança, latência, tokens e resultado.
 - [x] F4.10 Criar shadow mode sem envio ao cliente.
 - [x] F4.11 Criar painel/amostra para revisar decisões.
-- [ ] F4.12 Liberar automaticamente uma intent por vez.
+- [x] F4.12 Liberar automaticamente uma intent por vez.
 
 ### Testes/gate
 

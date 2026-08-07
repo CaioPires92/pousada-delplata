@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X, Power, Columns3 } from "lucide-react";
+import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X, Power, Columns3, ShieldCheck } from "lucide-react";
 import { DecisionReviewPanel } from "./DecisionReviewPanel";
 
 type ChatbotRule = {
@@ -26,6 +26,19 @@ const AUDIENCE_LABELS: Record<ChatbotRule["audience"], string> = {
     admin: "Administração",
 };
 
+const AUTO_REPLY_INTENT_LABELS = {
+    quote: "Cotação",
+    reservation: "Reserva",
+    checkin_info: "Informações de check-in",
+    checkout_info: "Informações de check-out",
+    amenity: "Comodidades",
+    pet: "Pets",
+    parking: "Estacionamento",
+    location: "Localização",
+} as const;
+
+type AutoReplyIntent = keyof typeof AUTO_REPLY_INTENT_LABELS;
+
 export default function ChatbotSettingsPage() {
     const [rules, setRules] = useState<ChatbotRule[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -36,6 +49,8 @@ export default function ChatbotSettingsPage() {
     const [pipelineAutomationEnabled, setPipelineAutomationEnabled] = useState(true);
     const [isGlobalLoading, setIsGlobalLoading] = useState(true);
     const [isPipelineLoading, setIsPipelineLoading] = useState(true);
+    const [releasedIntents, setReleasedIntents] = useState<AutoReplyIntent[]>(["quote"]);
+    const [isIntentSaving, setIsIntentSaving] = useState(false);
 
     const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,12 +75,39 @@ export default function ChatbotSettingsPage() {
             if (!response.ok || !data.ok) throw new Error("Falha ao carregar estado global");
             setGlobalEnabled(Boolean(data.settings.enabledGlobal && data.settings.enabledWhatsapp));
             setPipelineAutomationEnabled(Boolean(data.settings.pipelineAutomationEnabled));
+            setReleasedIntents(Array.isArray(data.settings.releasedAutoReplyIntents)
+                ? data.settings.releasedAutoReplyIntents
+                : ["quote"]);
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
         } finally {
             setIsGlobalLoading(false);
             setIsPipelineLoading(false);
+        }
+    }
+
+    async function handleIntentToggle(intent: AutoReplyIntent) {
+        const nextIntents = releasedIntents.includes(intent)
+            ? releasedIntents.filter(item => item !== intent)
+            : [...releasedIntents, intent];
+        setIsIntentSaving(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/admin/chatbot/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ releasedAutoReplyIntents: nextIntents }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error("Falha ao atualizar rollout");
+            setReleasedIntents(data.settings.releasedAutoReplyIntents);
+            setSuccess("Liberação por intenção atualizada.");
+            setTimeout(() => setSuccess(null), 3000);
+        } catch {
+            setError("Erro ao atualizar as intenções liberadas.");
+        } finally {
+            setIsIntentSaving(false);
         }
     }
 
@@ -263,6 +305,40 @@ export default function ChatbotSettingsPage() {
                     >
                         {isPipelineLoading ? "Verificando..." : pipelineAutomationEnabled ? "DESATIVAR KANBAN AUTO" : "ATIVAR KANBAN AUTO"}
                     </button>
+                </div>
+            </section>
+
+            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+                <div className="flex items-start gap-3">
+                    <div className="rounded-xl bg-amber-500 p-2 text-white">
+                        <ShieldCheck size={24} />
+                    </div>
+                    <div className="flex-1">
+                        <h2 className="text-lg font-black text-slate-800">Liberação gradual por intenção</h2>
+                        <p className="mt-1 text-sm font-medium text-slate-600">
+                            Selecione somente intenções já revisadas. As demais são encaminhadas à equipe sem resposta improvisada. Conversas marcadas para teste continuam liberadas isoladamente.
+                        </p>
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            {(Object.entries(AUTO_REPLY_INTENT_LABELS) as Array<[AutoReplyIntent, string]>).map(([intent, label]) => {
+                                const enabled = releasedIntents.includes(intent);
+                                return (
+                                    <button
+                                        key={intent}
+                                        type="button"
+                                        onClick={() => handleIntentToggle(intent)}
+                                        disabled={isIntentSaving || isGlobalLoading}
+                                        aria-pressed={enabled}
+                                        className={`rounded-xl border px-3 py-3 text-left text-sm font-bold transition disabled:opacity-50 ${enabled
+                                            ? "border-emerald-300 bg-white text-emerald-700 shadow-sm"
+                                            : "border-amber-200 bg-amber-100/50 text-slate-500 hover:bg-white"}`}
+                                    >
+                                        <span className="block">{label}</span>
+                                        <span className="mt-1 block text-[11px] uppercase tracking-wider">{enabled ? "Liberada" : "Em revisão"}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -1,8 +1,8 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
-import { isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
+import { isAutoReplyIntentReleased, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
-import { decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
+import { DEFAULT_AUTOMATION_HANDOFF_MESSAGE, decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
 import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
 import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
@@ -147,6 +147,20 @@ export async function processAutoResponse(conversationId: string, phone: string,
         await prisma.conversation.update({
             where: { id: conversationId },
             data: { automationFailureCount: 0 },
+        });
+    }
+
+    if (!(await isAutoReplyIntentReleased(parsedIncoming.intent, conversation.chatbotTestEnabled))) {
+        return executeAutomationHandoff({
+            conversationId,
+            contactId: conversation.contactId,
+            phone,
+            decision: {
+                shouldHandoff: true,
+                reason: "intent_not_released",
+                message: DEFAULT_AUTOMATION_HANDOFF_MESSAGE,
+            },
+            now,
         });
     }
 

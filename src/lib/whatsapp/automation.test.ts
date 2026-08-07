@@ -11,6 +11,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/crm/chatbotSettings", () => ({
   isWhatsappChatbotEnabledForConversation: vi.fn(),
+  isAutoReplyIntentReleased: vi.fn(),
 }));
 vi.mock("@/lib/crm/automationPause", () => ({
   isConversationAutomationActive: vi.fn(),
@@ -27,18 +28,18 @@ import prisma from "@/lib/prisma";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
-import { isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
+import { isAutoReplyIntentReleased, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE } from "@/lib/crm/handoffPolicy";
 import { sendMessagingText } from "@/lib/messaging/send-text";
 import { processAutoResponse } from "./automation";
 
-function conversation(failureCount: number) {
+function conversation(failureCount: number, chatbotTestEnabled = true) {
   return {
     id: "conversation-1",
     contactId: "contact-1",
     chatbotEnabled: true,
-    chatbotTestEnabled: true,
+    chatbotTestEnabled,
     automationMode: "auto",
     automationPausedUntil: null,
     currentFlow: null,
@@ -53,6 +54,7 @@ describe("processAutoResponse handoff supervision", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isWhatsappChatbotEnabledForConversation).mockResolvedValue(true);
+    vi.mocked(isAutoReplyIntentReleased).mockResolvedValue(true);
     vi.mocked(isConversationAutomationActive).mockReturnValue(true);
     vi.mocked(findApprovedKnowledge).mockResolvedValue(null);
     vi.mocked(recordCrmEvent).mockResolvedValue(null as never);
@@ -106,5 +108,22 @@ describe("processAutoResponse handoff supervision", () => {
       decision: expect.objectContaining({ reason: "repeated_failure", shouldHandoff: true }),
     }));
     expect(sendMessagingText).not.toHaveBeenCalled();
+  });
+
+  it("hands off a production intent that has not been released", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(0, false) as never);
+    vi.mocked(isAutoReplyIntentReleased).mockResolvedValue(false);
+    vi.mocked(executeAutomationHandoff).mockResolvedValue("handoff");
+
+    await expect(processAutoResponse(
+      "conversation-1",
+      "5519999999999",
+      "Qual é o horário do check-in?",
+    )).resolves.toBe("handoff");
+
+    expect(isAutoReplyIntentReleased).toHaveBeenCalledWith("checkin_info", false);
+    expect(executeAutomationHandoff).toHaveBeenCalledWith(expect.objectContaining({
+      decision: expect.objectContaining({ reason: "intent_not_released" }),
+    }));
   });
 });

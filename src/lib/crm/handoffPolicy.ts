@@ -6,6 +6,7 @@ export type AutomationHandoffReason =
   | "cancellation_or_refund"
   | "low_confidence"
   | "repeated_failure"
+  | "intent_not_released"
   | "unknown_intent";
 
 export type AutomationHandoffDecision = {

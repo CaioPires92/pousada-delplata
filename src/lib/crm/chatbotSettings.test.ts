@@ -11,6 +11,7 @@ vi.mock("@/lib/prisma", () => ({
 import prisma from "@/lib/prisma";
 import {
   getChatbotRuntimeSettings,
+  isAutoReplyIntentReleased,
   isPipelineAutomationEnabled,
   isWhatsappChatbotGloballyEnabled,
   isWhatsappChatbotEnabledForConversation,
@@ -28,6 +29,7 @@ describe("chatbot global settings", () => {
       enabledGlobal: false,
       enabledWhatsapp: false,
       pipelineAutomationEnabled: true,
+      releasedAutoReplyIntents: ["quote"],
     });
     await expect(isWhatsappChatbotGloballyEnabled()).resolves.toBe(false);
   });
@@ -74,5 +76,26 @@ describe("chatbot global settings", () => {
     await expect(isWhatsappChatbotEnabledForConversation(true)).resolves.toBe(true);
     expect(prisma.chatbotSettings.findFirst).not.toHaveBeenCalled();
     await expect(isWhatsappChatbotEnabledForConversation(false)).resolves.toBe(false);
+  });
+
+  it("releases only configured production intents and lets a test conversation exercise known intents", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      enabledGlobal: true,
+      enabledWhatsapp: true,
+      pipelineAutomationEnabled: true,
+      autoReplyIntentsJson: '["quote","parking","unknown-value"]',
+    } as never);
+
+    await expect(isAutoReplyIntentReleased("parking", false)).resolves.toBe(true);
+
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      enabledGlobal: true,
+      enabledWhatsapp: true,
+      pipelineAutomationEnabled: true,
+      autoReplyIntentsJson: '["quote"]',
+    } as never);
+    await expect(isAutoReplyIntentReleased("parking", false)).resolves.toBe(false);
+    await expect(isAutoReplyIntentReleased("parking", true)).resolves.toBe(true);
+    await expect(isAutoReplyIntentReleased("unknown", true)).resolves.toBe(false);
   });
 });

@@ -1,10 +1,22 @@
 import { NextResponse } from "next/server";
 
+import { requireAdminAuth } from "@/lib/admin-auth";
 import prisma from "@/lib/prisma";
-import { getChatbotRuntimeSettings } from "@/lib/crm/chatbotSettings";
+import {
+  AUTO_REPLY_INTENTS,
+  getChatbotRuntimeSettings,
+  parseReleasedAutoReplyIntents,
+} from "@/lib/crm/chatbotSettings";
+
+async function authorize() {
+  const auth = await requireAdminAuth();
+  return auth instanceof NextResponse ? { response: auth } : { auth };
+}
 
 export async function GET() {
   try {
+    const authorization = await authorize();
+    if (authorization.response) return authorization.response;
     return NextResponse.json({
       ok: true,
       settings: await getChatbotRuntimeSettings(),
@@ -17,11 +29,25 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    const authorization = await authorize();
+    if (authorization.response) return authorization.response;
     const body = await request.json().catch(() => null);
     const changesChatbot = body && typeof body.enabled === "boolean";
     const changesPipeline = body && typeof body.pipelineAutomationEnabled === "boolean";
-    if (!changesChatbot && !changesPipeline) {
+    const changesIntents = body && Array.isArray(body.releasedAutoReplyIntents);
+    const allowedIntents = new Set<string>(AUTO_REPLY_INTENTS);
+    const releasedAutoReplyIntents = changesIntents
+      ? Array.from(new Set(body.releasedAutoReplyIntents))
+      : null;
+    if (
+      !changesChatbot
+      && !changesPipeline
+      && !changesIntents
+    ) {
       return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+    }
+    if (releasedAutoReplyIntents?.some(intent => typeof intent !== "string" || !allowedIntents.has(intent))) {
+      return NextResponse.json({ ok: false, error: "invalid_intent" }, { status: 400 });
     }
 
     const existing = await prisma.chatbotSettings.findFirst({
@@ -31,6 +57,7 @@ export async function PUT(request: Request) {
     const data = {
       ...(changesChatbot ? { enabledGlobal: body.enabled, enabledWhatsapp: body.enabled } : {}),
       ...(changesPipeline ? { pipelineAutomationEnabled: body.pipelineAutomationEnabled } : {}),
+      ...(changesIntents ? { autoReplyIntentsJson: JSON.stringify(releasedAutoReplyIntents) } : {}),
     };
     const settings = existing
       ? await prisma.chatbotSettings.update({ where: { id: existing.id }, data })
@@ -52,6 +79,18 @@ export async function PUT(request: Request) {
         },
       });
     }
+    if (changesIntents) {
+      await prisma.internalActionLog.create({
+        data: {
+          action: "AutoReplyIntentRolloutUpdated",
+          userId: authorization.auth.adminId,
+          metadataJson: JSON.stringify({
+            origin: "admin_ui",
+            releasedAutoReplyIntents,
+          }),
+        },
+      });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -59,6 +98,7 @@ export async function PUT(request: Request) {
         enabledGlobal: settings.enabledGlobal,
         enabledWhatsapp: settings.enabledWhatsapp,
         pipelineAutomationEnabled: settings.pipelineAutomationEnabled,
+        releasedAutoReplyIntents: parseReleasedAutoReplyIntents(settings.autoReplyIntentsJson),
       },
     });
   } catch (error) {
