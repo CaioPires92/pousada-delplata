@@ -7,6 +7,9 @@ vi.mock('@/lib/admin-auth', () => ({
 vi.mock('@/lib/ops-log', () => ({
     opsLog: vi.fn(),
 }));
+vi.mock('@/lib/crm/bookingLifecycle', () => ({
+    publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
+}));
 
 vi.mock('@/lib/prisma', () => ({
     default: {
@@ -22,6 +25,7 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 import prisma from '@/lib/prisma';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 import { POST } from './route';
 
 describe('POST /api/admin/bookings/[bookingId]/confirm', () => {
@@ -57,6 +61,10 @@ describe('POST /api/admin/bookings/[bookingId]/confirm', () => {
                 bookingId: 'booking-1',
             },
         });
+        expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            event: 'BookingConfirmed',
+        }));
     });
 
     it('retorna sucesso quando reserva ja esta confirmada', async () => {

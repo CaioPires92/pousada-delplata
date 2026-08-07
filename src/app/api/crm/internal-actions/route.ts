@@ -330,6 +330,25 @@ async function handleMarkState(
     return jsonError(result.status, "UPDATE_FAILED", result.error || "Falha ao atualizar card");
   }
 
+  if (result.stageChanged) {
+    const eventByAction = {
+      MARK_QUOTE_SENT: "QuoteSent",
+      MARK_RESERVATION_INTENT: "ReservationStarted",
+      MARK_PAYMENT_PENDING: "PaymentPending",
+      MARK_RESERVATION_CONFIRMED: "BookingConfirmed",
+    } as const;
+    await recordCrmEvent({
+      action: eventByAction[actionName],
+      contactId: result.card.contact.id,
+      conversationId: result.card.conversation?.id,
+      metadata: {
+        pipelineCardId: result.card.id,
+        source: "n8n_internal_action",
+        ...buildAuditMetadata({ actorType: "n8n", origin: "n8n_api", reason }),
+      },
+    });
+  }
+
   return jsonSuccess(actionName, {
     pipelineCardId: result.card.id,
     stage: result.card.stage,

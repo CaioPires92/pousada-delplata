@@ -44,9 +44,14 @@ vi.mock('@/lib/ga4-measurement', () => ({
     sendGa4PurchaseServerEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/crm/bookingLifecycle', () => ({
+    publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
+}));
+
 import prisma from '@/lib/prisma';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 import { POST } from './route';
 
 describe('POST /api/mercadopago/payment', () => {
@@ -58,6 +63,7 @@ describe('POST /api/mercadopago/payment', () => {
 
         (prisma.booking.findUnique as any).mockResolvedValue({
             id: 'booking-1',
+            status: 'PENDING',
             totalPrice: 100,
             checkIn: new Date('2026-07-20T12:00:00Z'),
             payment: null,
@@ -97,6 +103,14 @@ describe('POST /api/mercadopago/payment', () => {
         expect(data.live_mode).toBe(false);
         expect(data.sandbox).toBe(true);
         expect(mockCreate).not.toHaveBeenCalled();
+        expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            event: 'PaymentApproved',
+        }));
+        expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            event: 'BookingConfirmed',
+        }));
         expect(sendBookingConfirmationEmail).toHaveBeenCalledWith(expect.objectContaining({
             bookingId: 'booking-1',
             guestEmail: 'maria@example.com',
@@ -220,6 +234,10 @@ describe('POST /api/mercadopago/payment', () => {
 
         expect(res.status).toBe(200);
         expect(mockCreate).toHaveBeenCalled();
+        expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-1',
+            event: 'PaymentPending',
+        }));
     });
 
     it('rejects forced partial payment when settings are disabled', async () => {

@@ -5,6 +5,7 @@ import { opsLog } from '@/lib/ops-log';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 import {
     DEFAULT_PARTIAL_PAYMENT_SETTINGS,
     calculatePaymentPlan,
@@ -608,6 +609,32 @@ export async function POST(request: Request) {
         });
 
         if (normalizedStatus === 'APPROVED') {
+            await publishBookingLifecycleEvent({
+                bookingId,
+                event: 'PaymentApproved',
+                origin: 'human_api',
+                actorType: 'human',
+                reason: 'Pagamento aprovado pelo Mercado Pago',
+                metadata: {
+                    provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
+                    paymentStatus: normalizedStatus,
+                },
+            });
+        } else if (normalizedStatus === 'PENDING' || normalizedStatus === 'IN_PROCESS') {
+            await publishBookingLifecycleEvent({
+                bookingId,
+                event: 'PaymentPending',
+                origin: 'human_api',
+                actorType: 'human',
+                reason: 'Pagamento aguardando confirmação do Mercado Pago',
+                metadata: {
+                    provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
+                    paymentStatus: normalizedStatus,
+                },
+            });
+        }
+
+        if (normalizedStatus === 'APPROVED') {
             await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
                 data: {
@@ -617,6 +644,20 @@ export async function POST(request: Request) {
                     lastErrorMessage: null,
                 },
             });
+
+            if (String(booking.status || '').toUpperCase() === 'PENDING') {
+                await publishBookingLifecycleEvent({
+                    bookingId,
+                    event: 'BookingConfirmed',
+                    origin: 'human_api',
+                    actorType: 'human',
+                    reason: 'Reserva confirmada após pagamento aprovado',
+                    metadata: {
+                        provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
+                        bookingStatus: 'CONFIRMED',
+                    },
+                });
+            }
 
             const approvedEmailPayload = {
                 guestName: booking.guest.name,

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 
 export const runtime = 'nodejs';
 
@@ -69,6 +70,15 @@ export async function POST(
             bookingId,
             adminId: auth.adminId,
             previousStatus: bookingStatus,
+        });
+
+        await publishBookingLifecycleEvent({
+            bookingId,
+            event: 'BookingConfirmed',
+            actorType: 'human',
+            origin: 'admin_ui',
+            reason: 'Reserva confirmada manualmente',
+            metadata: { previousStatus: bookingStatus },
         });
 
         await sendBookingStatusAlertEmail(booking, {

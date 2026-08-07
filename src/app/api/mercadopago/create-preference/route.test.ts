@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 import prisma from '@/lib/prisma';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 
 vi.mock('@/lib/admin-auth', () => ({
   requireAdminAuth: vi.fn(async () => ({ adminId: 'admin-1' })),
+}));
+vi.mock('@/lib/crm/bookingLifecycle', () => ({
+  publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
 }));
 
 // Mock Prisma
@@ -80,6 +84,10 @@ describe('MercadoPago Create Preference API', () => {
         providerId: 'pref-123',
       }),
     });
+    expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: 'booking-1',
+      event: 'PaymentPending',
+    }));
   });
 
   it('should return 404 if booking not found', async () => {

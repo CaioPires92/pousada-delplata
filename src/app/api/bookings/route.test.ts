@@ -3,6 +3,8 @@ import { POST } from './route';
 import prisma from '@/lib/prisma';
 import { hashCouponCode } from '@/lib/coupons/hash';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 
 vi.mock('@/lib/prisma', () => ({
   default: {
@@ -35,6 +37,12 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/booking-status-alert', () => ({
   sendBookingStatusAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+}));
+vi.mock('@/lib/crm/bookingCrmLink', () => ({
+  reconcileBookingToCrm: vi.fn().mockResolvedValue({ ok: true, linked: true }),
+}));
+vi.mock('@/lib/crm/bookingLifecycle', () => ({
+  publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
 }));
 
 describe('Bookings API', () => {
@@ -126,6 +134,11 @@ describe('Bookings API', () => {
     const data = await res.json();
 
     expect(res.status).toBe(201);
+    expect(reconcileBookingToCrm).toHaveBeenCalledWith(expect.objectContaining({ bookingId: 'booking-1' }));
+    expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: 'booking-1',
+      event: 'ReservationStarted',
+    }));
     expect(data).toEqual({
       ...mockBooking,
       checkIn: mockBooking.checkIn.toISOString(),

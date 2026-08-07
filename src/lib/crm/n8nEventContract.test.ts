@@ -83,6 +83,27 @@ describe("n8n CRM event contract", () => {
     });
   });
 
+  it("exposes payment and booking facts without provider payloads", () => {
+    expect(buildN8nEventEnvelope({
+      eventId: "event-payment",
+      occurredAt: "2026-08-05T18:30:00.000Z",
+      event: {
+        action: "PaymentApproved",
+        bookingId: "booking-1",
+        conversationId: "conversation-1",
+        metadata: {
+          provider: "MERCADOPAGO",
+          paymentStatus: "APPROVED",
+          rawPayment: { token: "private" },
+        },
+      },
+    })).toMatchObject({
+      eventType: "PaymentApproved",
+      resources: { bookingId: "booking-1", conversationId: "conversation-1" },
+      data: { provider: "MERCADOPAGO", paymentStatus: "APPROVED" },
+    });
+  });
+
   it("accepts a canonical envelope after runtime validation", () => {
     const envelope = buildN8nEventEnvelope({
       eventId: "event-4",

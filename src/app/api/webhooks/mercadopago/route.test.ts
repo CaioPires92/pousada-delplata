@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from './route';
 import prisma from '@/lib/prisma';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 
 // Mock Email
 vi.mock('@/lib/email', () => ({
   sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
   sendBookingCreatedAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+}));
+vi.mock('@/lib/crm/bookingLifecycle', () => ({
+  publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
 }));
 
 // Mock Prisma
@@ -90,6 +94,14 @@ describe('MercadoPago Webhook', () => {
 
     expect(prisma.booking.updateMany).toHaveBeenCalled();
     expect(prisma.payment.updateMany).toHaveBeenCalled();
+    expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: 'booking-123',
+      event: 'PaymentApproved',
+    }));
+    expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
+      bookingId: 'booking-123',
+      event: 'BookingConfirmed',
+    }));
   });
 
   it('should normalize coupon financial snapshot and confirm reserved coupon on approval', async () => {

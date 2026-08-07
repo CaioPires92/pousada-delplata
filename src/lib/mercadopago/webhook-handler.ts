@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
+import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 
 type MercadoPagoWebhookBody = {
     type?: string;
@@ -241,6 +242,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             const balanceDueAtValue = booking.payment?.balanceDueAt ?? null;
             const balanceDueDateValue = booking.payment?.balanceDueDate ?? null;
             let purchaseEventQueued = false;
+            let bookingConfirmedNow = false;
 
             if (mapped.bookingStatus === 'CONFIRMED') {
                 if (currentBookingStatus === 'PENDING') {
@@ -256,6 +258,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                     if (update.count === 1) {
                         bookingStatus = 'CONFIRMED';
                         emailQueued = true;
+                        bookingConfirmedNow = true;
                     }
                 }
                 if (currentBookingStatus === 'CONFIRMED') {
@@ -526,6 +529,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 couponConfirmed,
                 financialSnapshotUpdated,
                 purchaseEventQueued,
+                bookingConfirmedNow,
             };
         });
 
@@ -649,6 +653,27 @@ export async function handleMercadoPagoWebhook(request: Request) {
             gaPurchaseSent = gaResult.ok;
             gaPurchaseSkipped = gaResult.skipped;
             gaPurchaseError = gaResult.error;
+        }
+
+        if (result.purchaseEventQueued && result.paymentStatus === 'APPROVED') {
+            await publishBookingLifecycleEvent({
+                bookingId,
+                event: 'PaymentApproved',
+                origin: 'webhook',
+                actorType: 'webhook',
+                reason: 'Pagamento aprovado pelo Mercado Pago',
+                metadata: { provider: 'MERCADOPAGO', paymentStatus: result.paymentStatus },
+            });
+        }
+        if (result.bookingConfirmedNow) {
+            await publishBookingLifecycleEvent({
+                bookingId,
+                event: 'BookingConfirmed',
+                origin: 'webhook',
+                actorType: 'webhook',
+                reason: 'Reserva confirmada após pagamento aprovado',
+                metadata: { provider: 'MERCADOPAGO', bookingStatus: result.bookingStatus },
+            });
         }
         opsLog('info', 'MP_WEBHOOK_PROCESSED', {
             bookingId,

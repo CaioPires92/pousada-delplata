@@ -37,6 +37,9 @@ vi.mock('@/lib/prisma', () => ({
 vi.mock('@/lib/crm/bookingCrmLink', () => ({
     reconcileBookingToCrm: vi.fn().mockResolvedValue({ ok: false, reason: 'contact_not_found' }),
 }));
+vi.mock('@/lib/crm/bookingLifecycle', () => ({
+    publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
+}));
 
 describe('Booking Integration Tests', () => {
     beforeEach(() => {
