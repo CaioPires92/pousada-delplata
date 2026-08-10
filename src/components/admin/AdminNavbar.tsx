@@ -18,7 +18,8 @@ import {
     MessageSquare,
     BarChart3,
     Bot,
-    CreditCard
+    CreditCard,
+    ListTodo
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -74,6 +75,7 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
                 { href: '/admin/inbox', label: 'Caixa de Entrada', icon: MessageSquare },
                 { href: '/admin/pipeline', label: 'Kanban de Vendas', icon: KanbanSquare },
                 { href: '/admin/settings/chatbot', label: 'Chatbot e IA', icon: Bot },
+                { href: '/admin/automation-jobs', label: 'Fila de Automação', icon: ListTodo },
             ],
         },
     ];

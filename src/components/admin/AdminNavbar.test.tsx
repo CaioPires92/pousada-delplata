@@ -29,7 +29,8 @@ describe('AdminNavbar', () => {
         expect(screen.getByRole('link', { name: 'Caixa de Entrada' })).toHaveAttribute('href', '/admin/inbox');
         expect(screen.getByRole('link', { name: 'Kanban de Vendas' })).toHaveAttribute('href', '/admin/pipeline');
         expect(screen.getByRole('link', { name: 'Chatbot e IA' })).toHaveAttribute('href', '/admin/settings/chatbot');
-        expect(screen.getAllByRole('link')).toHaveLength(12);
+        expect(screen.getByRole('link', { name: 'Fila de Automação' })).toHaveAttribute('href', '/admin/automation-jobs');
+        expect(screen.getAllByRole('link')).toHaveLength(13);
     });
 
     it('uses tooltips and hides section headings when collapsed', () => {
@@ -39,5 +40,6 @@ describe('AdminNavbar', () => {
         expect(screen.getByTitle('Caixa de Entrada')).toHaveAttribute('href', '/admin/inbox');
         expect(screen.getByTitle('Kanban de Vendas')).toHaveAttribute('href', '/admin/pipeline');
         expect(screen.getByTitle('Chatbot e IA')).toHaveAttribute('href', '/admin/settings/chatbot');
+        expect(screen.getByTitle('Fila de Automação')).toHaveAttribute('href', '/admin/automation-jobs');
     });
 });
