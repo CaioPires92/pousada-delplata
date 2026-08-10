@@ -144,6 +144,33 @@ describe("automationQueue", () => {
     expect(result.processed).toBe(false);
   });
 
+  it("does not claim a job scheduled for the future", async () => {
+    const now = new Date("2026-08-10T18:00:00.000Z");
+    vi.mocked(prisma.automationQueueJob.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    const result = await processNextAutomationJobForConversation(
+      "conv-1",
+      async () => {
+        throw new Error("should not run");
+      },
+      { now },
+    );
+
+    expect(result).toMatchObject({ queued: false, processed: false });
+    expect(prisma.automationQueueJob.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        status: "pending",
+        OR: [
+          { scheduledAt: null },
+          { scheduledAt: { lte: now } },
+        ],
+      }),
+    }));
+    expect(prisma.automationQueueJob.updateMany).not.toHaveBeenCalled();
+  });
+
   it("replays dead letter by creating queue job and marking replayed", async () => {
     vi.mocked(prisma.deadLetterQueueItem.findUnique).mockResolvedValue({
       id: "dlq-1",

@@ -28,3 +28,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  const expectedToken = process.env.CRON_SECRET;
+  const token = getBearerToken(request);
+
+  if (!expectedToken || token !== expectedToken) {
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  try {
+    const result = await runAutomationQueueWorker();
+    return NextResponse.json({ ok: true, result });
+  } catch {
+    return NextResponse.json({ ok: false, error: "INTERNAL_ERROR" }, { status: 500 });
+  }
+}

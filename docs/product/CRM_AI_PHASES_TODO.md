@@ -257,7 +257,7 @@ teste falha → menor implementação possível → teste passa
 ### TODOs
 
 - [x] F6.01 Adicionar `scheduledAt`, `dedupeKey`, `journeyType` e cancelamento à fila.
-- [ ] F6.02 Criar scheduler que reivindica jobs atomicamente.
+- [x] F6.02 Criar scheduler que reivindica jobs atomicamente.
 - [ ] F6.03 Implementar cadência configurável.
 - [ ] F6.04 Implementar cancelamento por resposta, reserva, opt-out e humano.
 - [ ] F6.05 Implementar quiet hours e reagendamento.

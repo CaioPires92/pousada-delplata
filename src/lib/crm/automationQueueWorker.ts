@@ -22,10 +22,17 @@ const messagingCircuitBreaker = new CircuitBreaker({
 
 export async function runAutomationQueueWorker(input?: { maxConversations?: number }) {
   const maxConversations = Math.max(1, input?.maxConversations ?? 20);
+  const now = new Date();
 
   const pending = await prisma.automationQueueJob.findMany({
-    where: { status: "pending" },
-    orderBy: { createdAt: "asc" },
+    where: {
+      status: "pending",
+      OR: [
+        { scheduledAt: null },
+        { scheduledAt: { lte: now } },
+      ],
+    },
+    orderBy: [{ scheduledAt: "asc" }, { createdAt: "asc" }],
     take: 200,
     select: { conversationId: true },
   });
@@ -114,7 +121,7 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
           externalMessageId: message.externalMessageId,
         },
       });
-    });
+    }, { now });
 
     if (result.processed) {
       processed += 1;

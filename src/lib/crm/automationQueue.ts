@@ -119,8 +119,10 @@ export async function processNextAutomationJobForConversation(
     id: string;
     action: string;
     payload: QueuePayload;
-  }) => Promise<AutomationJobRunnerResult>
+  }) => Promise<AutomationJobRunnerResult>,
+  options: { now?: Date } = {},
 ) {
+  const now = options.now ?? new Date();
   const existingProcessing = await prisma.automationQueueJob.findFirst({
     where: {
       conversationId,
@@ -137,8 +139,12 @@ export async function processNextAutomationJobForConversation(
     where: {
       conversationId,
       status: "pending",
+      OR: [
+        { scheduledAt: null },
+        { scheduledAt: { lte: now } },
+      ],
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ scheduledAt: "asc" }, { createdAt: "asc" }],
   });
 
   if (!candidate) {
@@ -149,7 +155,7 @@ export async function processNextAutomationJobForConversation(
     where: { id: candidate.id, status: "pending" },
     data: {
       status: "processing",
-      startedAt: new Date(),
+      startedAt: now,
       attempts: { increment: 1 },
     },
   });
