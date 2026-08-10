@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { PIPELINE_STAGE_ORDER, PIPELINE_STAGES } from "@/lib/crm/pipelineStages";
+import { getAutomationJourneyMetrics } from "@/lib/crm/automationMetrics";
 
 function periodStart(scope: "daily" | "weekly") {
   const now = new Date();
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
       reservationStartedLogs,
       firstGuestMessages,
       firstHumanReplies,
+      automation,
     ] = await Promise.all([
       prisma.pipelineCard.count({ where: { createdAt: { gte: since } } }),
       prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: PIPELINE_STAGES.RESERVA_CONFIRMADA } }),
@@ -53,6 +55,7 @@ export async function GET(request: Request) {
         WHERE senderType IN ('human','bot') AND sentAt >= ${since}
         GROUP BY conversationId
       `,
+      getAutomationJourneyMetrics(since),
     ]);
 
     const firstReplyMap = new Map<string, Date>();
@@ -101,6 +104,7 @@ export async function GET(request: Request) {
         reservationStarted: reservationStartedLogs,
         quoteToReservationRate,
       },
+      automation,
       leadsBySource: cardsBySource.map(item => ({ source: item.source ?? "unknown", count: item._count.source })),
       lostReasons: cardsByLossReason.map(item => ({ reason: item.lossReason ?? "sem motivo", count: item._count.lossReason })),
       funnel,
