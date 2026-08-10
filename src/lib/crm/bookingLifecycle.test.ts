@@ -96,6 +96,33 @@ describe("publishBookingLifecycleEvent", () => {
     });
   });
 
+  it("also cancels follow-ups when confirmation arrives without intermediate events", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      id: "booking-confirmed-directly",
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      pipelineCard: { id: "card-1", stage: "PAGAMENTO_PENDENTE" },
+    } as never);
+    vi.mocked(updatePipelineCard).mockResolvedValue({
+      ok: true,
+      card: { id: "card-1" },
+      stageChanged: true,
+    } as never);
+    vi.mocked(cancelCommercialFollowUps).mockResolvedValue({ cards: 0, queueJobs: 1 });
+
+    await publishBookingLifecycleEvent({
+      bookingId: "booking-confirmed-directly",
+      event: "BookingConfirmed",
+      origin: "webhook",
+    });
+
+    expect(cancelCommercialFollowUps).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "conversation-1",
+      contactId: "contact-1",
+      reason: "reservation_started",
+    }));
+  });
+
   it("does not invent an event for a missing booking", async () => {
     vi.mocked(prisma.booking.findUnique).mockResolvedValue(null);
 

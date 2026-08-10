@@ -58,7 +58,7 @@ export async function publishBookingLifecycleEvent(input: {
       return { ok: false as const, reason: "booking_not_found" as const };
     }
 
-    if (input.event === "ReservationStarted" && booking.crmContactId && booking.crmConversationId) {
+    if (booking.crmContactId && booking.crmConversationId) {
       await cancelCommercialFollowUps({
         conversationId: booking.crmConversationId,
         contactId: booking.crmContactId,
