@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { buildAuditMetadata } from "@/lib/crm/audit";
 import { enqueueAutomationJob } from "@/lib/crm/automationQueue";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { moveAfterQuietHours } from "@/lib/crm/quietHours";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 
 export const DEFAULT_FOLLOW_UP_CADENCE_HOURS = [2, 24, 72] as const;
@@ -34,6 +35,8 @@ export async function getFollowUpCadenceSettings() {
   return {
     enabled: settings?.enabled ?? false,
     cadenceHours: parseFollowUpCadenceHours(settings?.cadenceHoursJson),
+    quietHoursStart: settings?.quietHoursStart ?? 20,
+    quietHoursEnd: settings?.quietHoursEnd ?? 8,
   };
 }
 
@@ -57,17 +60,24 @@ export async function scheduleCommercialFollowUpCadence(input: {
 
   const baseAt = input.baseAt ?? new Date();
   for (const [index, hours] of settings.cadenceHours.entries()) {
+    const desiredAt = new Date(baseAt.getTime() + hours * 60 * 60 * 1000);
+    const scheduledAt = moveAfterQuietHours({
+      date: desiredAt,
+      startHour: settings.quietHoursStart,
+      endHour: settings.quietHoursEnd,
+    });
     await enqueueAutomationJob({
       conversationId: input.conversationId,
       action: "SEND_WHATSAPP_MESSAGE",
       journeyType: "commercial_followup",
       dedupeKey: `commercial:${input.conversationId}:${input.journeyId}:${index + 1}`,
-      scheduledAt: new Date(baseAt.getTime() + hours * 60 * 60 * 1000),
+      scheduledAt,
       payload: {
         target,
         text: FOLLOW_UP_MESSAGES[Math.min(index, FOLLOW_UP_MESSAGES.length - 1)],
         cadenceStep: index + 1,
         cadenceHours: hours,
+        desiredAt: desiredAt.toISOString(),
       },
     });
   }

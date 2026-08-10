@@ -10,6 +10,14 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/crm/automationQueue", () => ({ processNextAutomationJobForConversation: vi.fn() }));
 vi.mock("@/lib/crm/logger", () => ({ crmLog: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
+vi.mock("@/lib/crm/followUpCadence", () => ({
+  getFollowUpCadenceSettings: vi.fn().mockResolvedValue({
+    enabled: true,
+    cadenceHours: [2, 24, 72],
+    quietHoursStart: 20,
+    quietHoursEnd: 8,
+  }),
+}));
 vi.mock("@/lib/crm/n8nDelivery", () => ({ deliverN8nEvent: vi.fn() }));
 vi.mock("@/lib/messaging/provider-factory", () => ({ createMessagingProvider: vi.fn() }));
 
@@ -21,6 +29,7 @@ import { runAutomationQueueWorker } from "./automationQueueWorker";
 
 describe("automation queue worker n8n delivery", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     vi.mocked(prisma.automationQueueJob.findMany).mockResolvedValue([{ conversationId: "conversation-1" }] as never);
     vi.mocked(prisma.conversation.findUnique).mockResolvedValue({ id: "conversation-1", contactId: "contact-1" } as never);
@@ -100,5 +109,28 @@ describe("automation queue worker n8n delivery", () => {
 
     await expect(runAutomationQueueWorker()).resolves.toMatchObject({ processed: 0, failed: 0 });
     expect(createMessagingProvider).not.toHaveBeenCalled();
+  });
+
+  it("reschedules a proactive job claimed during quiet hours", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-11T01:30:00.000Z"));
+    vi.mocked(processNextAutomationJobForConversation).mockImplementation(async (_conversationId, runner) => {
+      const result = await runner({
+        id: "job-quiet",
+        action: "SEND_WHATSAPP_MESSAGE",
+        journeyType: "commercial_followup",
+        payload: { target: "5511999999999", text: "Follow-up" },
+      });
+      expect(result).toMatchObject({
+        rescheduled: true,
+        reason: "quiet_hours",
+        scheduledAt: new Date("2026-08-11T11:00:00.000Z"),
+      });
+      return { ok: true, queued: true, processed: false, rescheduled: true, jobId: "job-quiet" };
+    });
+
+    await expect(runAutomationQueueWorker()).resolves.toMatchObject({ processed: 0, failed: 0 });
+    expect(createMessagingProvider).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

@@ -22,6 +22,10 @@ type AutomationQueueClient = Pick<typeof prisma, "automationQueueJob">;
 export type AutomationJobRunnerResult = {
   cancelled: true;
   reason: string;
+} | {
+  rescheduled: true;
+  reason: string;
+  scheduledAt: Date;
 } | void;
 
 export async function cancelPendingAutomationJobs(input: {
@@ -123,6 +127,7 @@ export async function processNextAutomationJobForConversation(
     id: string;
     action: string;
     payload: QueuePayload;
+    journeyType?: string | null;
   }) => Promise<AutomationJobRunnerResult>,
   options: { now?: Date } = {},
 ) {
@@ -171,9 +176,33 @@ export async function processNextAutomationJobForConversation(
   const payload = parsePayload(candidate.payloadJson);
 
   try {
-    const runnerResult = await runner({ id: candidate.id, action: candidate.action, payload });
+    const runnerResult = await runner({
+      id: candidate.id,
+      action: candidate.action,
+      payload,
+      journeyType: candidate.journeyType,
+    });
 
-    if (runnerResult?.cancelled) {
+    if (runnerResult && "rescheduled" in runnerResult && runnerResult.rescheduled) {
+      await prisma.automationQueueJob.updateMany({
+        where: { id: candidate.id, status: "processing" },
+        data: {
+          status: "pending",
+          scheduledAt: runnerResult.scheduledAt,
+          startedAt: null,
+          attempts: { decrement: 1 },
+        },
+      });
+      return {
+        ok: true as const,
+        queued: true as const,
+        processed: false as const,
+        rescheduled: true as const,
+        jobId: candidate.id,
+      };
+    }
+
+    if (runnerResult && "cancelled" in runnerResult && runnerResult.cancelled) {
       const now = new Date();
       await prisma.automationQueueJob.updateMany({
         where: { id: candidate.id, status: "processing" },

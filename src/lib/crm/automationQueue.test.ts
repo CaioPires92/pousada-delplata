@@ -133,6 +133,39 @@ describe("automationQueue", () => {
     });
   });
 
+  it("returns a claimed job to pending when quiet hours require rescheduling", async () => {
+    const scheduledAt = new Date("2026-08-11T11:00:00.000Z");
+    vi.mocked(prisma.automationQueueJob.findFirst)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "job-quiet",
+        conversationId: "conv-1",
+        action: "SEND_WHATSAPP_MESSAGE",
+        journeyType: "commercial_followup",
+        payloadJson: "{\"target\":\"551199\",\"text\":\"oi\"}",
+      } as any);
+    vi.mocked(prisma.automationQueueJob.updateMany)
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+
+    const result = await processNextAutomationJobForConversation("conv-1", async () => ({
+      rescheduled: true,
+      reason: "quiet_hours",
+      scheduledAt,
+    }));
+
+    expect(result).toMatchObject({ rescheduled: true, processed: false, queued: true });
+    expect(prisma.automationQueueJob.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "job-quiet", status: "processing" },
+      data: {
+        status: "pending",
+        scheduledAt,
+        startedAt: null,
+        attempts: { decrement: 1 },
+      },
+    });
+  });
+
   it("skips processing when another job is in processing status", async () => {
     vi.mocked(prisma.automationQueueJob.findFirst).mockResolvedValueOnce({ id: "job-processing" } as any);
 

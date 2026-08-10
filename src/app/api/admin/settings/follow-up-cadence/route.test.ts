@@ -16,6 +16,8 @@ vi.mock("@/lib/crm/followUpCadence", async importOriginal => {
     getFollowUpCadenceSettings: vi.fn().mockResolvedValue({
       enabled: false,
       cadenceHours: [2, 24, 72],
+      quietHoursStart: 20,
+      quietHoursEnd: 8,
     }),
   };
 });
@@ -38,19 +40,34 @@ describe("follow-up cadence admin settings", () => {
     const response = await GET();
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
-      settings: { enabled: false, cadenceHours: [2, 24, 72] },
+      settings: {
+        enabled: false,
+        cadenceHours: [2, 24, 72],
+        quietHoursStart: 20,
+        quietHoursEnd: 8,
+      },
     });
   });
 
   it("persists a valid ordered cadence and its audit record", async () => {
     const response = await PUT(new Request("http://localhost/api/admin/settings/follow-up-cadence", {
       method: "PUT",
-      body: JSON.stringify({ enabled: true, cadenceHours: [72, 2, 24] }),
+      body: JSON.stringify({
+        enabled: true,
+        cadenceHours: [72, 2, 24],
+        quietHoursStart: 21,
+        quietHoursEnd: 7,
+      }),
     }));
 
     expect(response.status).toBe(200);
     expect(prisma.followUpSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      update: { enabled: true, cadenceHoursJson: "[2,24,72]" },
+      update: {
+        enabled: true,
+        cadenceHoursJson: "[2,24,72]",
+        quietHoursStart: 21,
+        quietHoursEnd: 7,
+      },
     }));
     expect(prisma.internalActionLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ action: "FollowUpCadenceUpdated", userId: "admin-1" }),

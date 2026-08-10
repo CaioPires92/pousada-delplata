@@ -48,6 +48,8 @@ describe("commercial follow-up cadence", () => {
       id: "global",
       enabled: true,
       cadenceHoursJson: "[2,24,72]",
+      quietHoursStart: 20,
+      quietHoursEnd: 8,
     } as never);
     vi.mocked(prisma.conversation.findUnique).mockResolvedValue({
       contactId: "contact-1",
@@ -72,6 +74,30 @@ describe("commercial follow-up cadence", () => {
     }));
     expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
       action: "CommercialFollowUpCadenceScheduled",
+    }));
+  });
+
+  it("moves a cadence step out of quiet hours", async () => {
+    vi.mocked(prisma.followUpSettings.findUnique).mockResolvedValue({
+      id: "global",
+      enabled: true,
+      cadenceHoursJson: "[2]",
+      quietHoursStart: 20,
+      quietHoursEnd: 8,
+    } as never);
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue({
+      contactId: "contact-1",
+      contact: { phone: "5519999999999", phoneRaw: null, whatsappJid: null },
+    } as never);
+
+    await scheduleCommercialFollowUpCadence({
+      conversationId: "conversation-1",
+      journeyId: "quote-night",
+      baseAt: new Date("2026-08-10T23:00:00.000Z"), // 20h em São Paulo
+    });
+
+    expect(enqueueAutomationJob).toHaveBeenCalledWith(expect.objectContaining({
+      scheduledAt: new Date("2026-08-11T11:00:00.000Z"),
     }));
   });
 });

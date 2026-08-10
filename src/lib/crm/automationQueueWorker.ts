@@ -8,6 +8,8 @@ import { deliverN8nEvent } from "@/lib/crm/n8nDelivery";
 import { CircuitBreaker } from "@/lib/messaging/circuit-breaker";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
+import { getFollowUpCadenceSettings } from "@/lib/crm/followUpCadence";
+import { isWithinQuietHours, moveAfterQuietHours } from "@/lib/crm/quietHours";
 
 const messagingCircuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -23,6 +25,7 @@ const messagingCircuitBreaker = new CircuitBreaker({
 export async function runAutomationQueueWorker(input?: { maxConversations?: number }) {
   const maxConversations = Math.max(1, input?.maxConversations ?? 20);
   const now = new Date();
+  const followUpSettings = await getFollowUpCadenceSettings();
 
   const pending = await prisma.automationQueueJob.findMany({
     where: {
@@ -65,6 +68,25 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
         throw new Error("invalid_queue_payload");
       }
 
+      if (
+        ["commercial_followup", "broadcast", "post_stay"].includes(job.journeyType ?? "")
+        && isWithinQuietHours({
+          date: now,
+          startHour: followUpSettings.quietHoursStart,
+          endHour: followUpSettings.quietHoursEnd,
+        })
+      ) {
+        return {
+          rescheduled: true as const,
+          reason: "quiet_hours",
+          scheduledAt: moveAfterQuietHours({
+            date: now,
+            startHour: followUpSettings.quietHoursStart,
+            endHour: followUpSettings.quietHoursEnd,
+          }),
+        };
+      }
+
       const currentConversation = await prisma.conversation.findUnique({
         where: { id: conversation.id },
         select: {
@@ -90,7 +112,7 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
         })
       );
 
-      const now = new Date();
+      const sentAt = new Date();
       const message = await prisma.message.create({
         data: {
           conversationId: conversation.id,
@@ -98,7 +120,7 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
           senderType: "bot",
           content: job.payload.text,
           messageType: "text",
-          sentAt: now,
+          sentAt,
           metadataJson: JSON.stringify({
             actorType: "system",
             queueJobId: job.id,
@@ -111,7 +133,7 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
 
       await prisma.conversation.update({
         where: { id: conversation.id },
-        data: { lastMessageAt: now },
+        data: { lastMessageAt: sentAt },
       });
 
       await recordCrmEvent({
