@@ -1,4 +1,9 @@
 import prisma from "@/lib/prisma";
+import {
+  describeCrmEventAudit,
+  formatCrmEventDate,
+  parseCrmEventMetadata,
+} from "@/lib/crm/eventHistory";
 
 type Severity = "INFO" | "WARN" | "ERROR" | "AUTOMATION" | "SECURITY";
 
@@ -9,13 +14,6 @@ function inferSeverity(action: string): Severity {
   if (normalized.includes("debounced") || normalized.includes("timedout") || normalized.includes("prompt") || normalized.includes("quote")) return "AUTOMATION";
   if (normalized.includes("warning") || normalized.includes("invalid")) return "WARN";
   return "INFO";
-}
-
-function fmtDate(value: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "medium",
-  }).format(value);
 }
 
 export default async function CrmEventsPage({
@@ -44,10 +42,15 @@ export default async function CrmEventsPage({
   });
 
   const filtered = logs
-    .map(log => ({
-      ...log,
-      severity: inferSeverity(log.action),
-    }))
+    .map(log => {
+      const metadata = parseCrmEventMetadata(log.metadataJson);
+      return {
+        ...log,
+        metadata,
+        audit: describeCrmEventAudit(metadata),
+        severity: inferSeverity(log.action),
+      };
+    })
     .filter(item => (severity ? item.severity === severity : true));
 
   const [recentSendFails, recentWebhookFails, stuckQueue] = await Promise.all([
@@ -77,8 +80,8 @@ export default async function CrmEventsPage({
   return (
     <div className="space-y-4 p-6">
       <div>
-        <h1 className="text-2xl font-semibold">CRM Events</h1>
-        <p className="text-sm text-slate-600">Últimos eventos com filtros por conversa, contato, ação e severidade.</p>
+        <h1 className="text-2xl font-semibold">Histórico do CRM</h1>
+        <p className="text-sm text-slate-600">Ações registradas com responsável, origem, motivo e horário.</p>
       </div>
 
       {alerts.length > 0 ? (
@@ -115,31 +118,46 @@ export default async function CrmEventsPage({
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Quando</th>
+              <th className="px-3 py-2 text-left font-medium">Data e horário</th>
               <th className="px-3 py-2 text-left font-medium">Severidade</th>
               <th className="px-3 py-2 text-left font-medium">Ação</th>
+              <th className="px-3 py-2 text-left font-medium">Responsável</th>
+              <th className="px-3 py-2 text-left font-medium">Motivo</th>
               <th className="px-3 py-2 text-left font-medium">Contato</th>
-              <th className="px-3 py-2 text-left font-medium">Conversa</th>
-              <th className="px-3 py-2 text-left font-medium">Metadata</th>
+              <th className="px-3 py-2 text-left font-medium">Detalhes</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">Nenhum evento encontrado.</td>
+                <td colSpan={7} className="px-3 py-6 text-center text-slate-500">Nenhum evento encontrado.</td>
               </tr>
             ) : (
               filtered.map(item => (
                 <tr key={item.id}>
-                  <td className="px-3 py-2 align-top whitespace-nowrap">{fmtDate(item.createdAt)}</td>
-                  <td className="px-3 py-2 align-top whitespace-nowrap">{item.severity}</td>
+                  <td className="px-3 py-3 align-top whitespace-nowrap">{formatCrmEventDate(item.createdAt)}</td>
+                  <td className="px-3 py-3 align-top whitespace-nowrap">
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{item.severity}</span>
+                  </td>
                   <td className="px-3 py-2 align-top whitespace-nowrap">{item.action}</td>
+                  <td className="px-3 py-3 align-top">
+                    <div className="font-medium text-slate-800">{item.audit.actorLabel}</div>
+                    <div className="mt-1 text-xs text-slate-500">{item.audit.originLabel}</div>
+                  </td>
+                  <td className="max-w-[320px] px-3 py-3 align-top text-slate-700">
+                    {item.audit.reason || <span className="text-slate-400">Não informado</span>}
+                  </td>
                   <td className="px-3 py-2 align-top">{item.contact?.name || item.contactId || "-"}</td>
-                  <td className="px-3 py-2 align-top">{item.conversationId || "-"}</td>
-                  <td className="px-3 py-2 align-top">
-                    <pre className="max-w-[540px] overflow-x-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-700">
-                      {item.metadataJson || "{}"}
-                    </pre>
+                  <td className="px-3 py-3 align-top">
+                    <details className="max-w-[460px] text-xs text-slate-600">
+                      <summary className="cursor-pointer select-none font-medium text-slate-700">Detalhes técnicos</summary>
+                      <div className="mt-2 space-y-1 rounded bg-slate-50 p-2">
+                        <div><span className="font-medium">Conversa:</span> {item.conversationId || "-"}</div>
+                        <pre className="overflow-x-auto whitespace-pre-wrap text-xs text-slate-600">
+                          {JSON.stringify(item.metadata ?? {}, null, 2)}
+                        </pre>
+                      </div>
+                    </details>
                   </td>
                 </tr>
               ))

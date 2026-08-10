@@ -234,7 +234,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F5.06 Tornar handlers idempotentes por `eventId`.
 - [x] F5.07 Cancelar follow-ups comerciais em resposta/reserva.
 - [x] F5.08 Criar reconciliação periódica entre Booking e Kanban.
-- [ ] F5.09 Exibir motivo, ator e horário no histórico.
+- [x] F5.09 Exibir motivo, ator e horário no histórico.
 
 ### Testes/gate
 

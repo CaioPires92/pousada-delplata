@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import prisma from "@/lib/prisma";
 import { crmLog } from "@/lib/crm/logger";
+import { describeCrmEventAudit, parseCrmEventMetadata } from "@/lib/crm/eventHistory";
 
 type Severity = "INFO" | "WARN" | "ERROR" | "AUTOMATION" | "SECURITY";
 
@@ -43,16 +44,20 @@ export async function GET(request: Request) {
     });
 
     const items = logs
-      .map(log => ({
+      .map(log => {
+        const metadata = parseCrmEventMetadata(log.metadataJson);
+        return {
         id: log.id,
         action: log.action,
         severity: inferSeverity(log.action),
         contactId: log.contactId,
         conversationId: log.conversationId,
         contactName: log.contact?.name ?? null,
-        metadata: log.metadataJson ? JSON.parse(log.metadataJson) : null,
+        metadata,
+        audit: describeCrmEventAudit(metadata),
         createdAt: log.createdAt,
-      }))
+        };
+      })
       .filter(item => (severity ? item.severity === severity : true));
 
     return NextResponse.json({ ok: true, items, count: items.length });
