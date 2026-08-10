@@ -27,6 +27,7 @@ export type AutomationJobRunnerResult = {
 export async function cancelPendingAutomationJobs(input: {
   conversationId: string;
   reason: string;
+  journeyTypes?: QueueJourneyType[];
   now?: Date;
   client?: AutomationQueueClient;
 }) {
@@ -37,6 +38,9 @@ export async function cancelPendingAutomationJobs(input: {
       conversationId: input.conversationId,
       action: "SEND_WHATSAPP_MESSAGE",
       status: "pending",
+      ...(input.journeyTypes?.length
+        ? { journeyType: { in: input.journeyTypes } }
+        : {}),
     },
     data: {
       status: "cancelled",

@@ -12,6 +12,7 @@ import { isConversationAutomationActive } from '@/lib/crm/automationPause';
 import { buildQuoteFlowState } from '@/lib/crm/conversationFlow';
 import { applyPipelineAutomationOnIncomingMessage } from '@/lib/crm/pipelineAutomation';
 import { cancelCommercialFollowUps } from '@/lib/crm/followUpCancellation';
+import { isWhatsappOptOutMessage, setWhatsappConsent } from '@/lib/crm/whatsappConsent';
 import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-normalizer';
 import { persistNormalizedWebhookEvents } from '@/lib/messaging/webhook-event-store';
 import { persistMessageDeliveryStatus } from '@/lib/messaging/delivery-status-store';
@@ -437,6 +438,7 @@ export async function POST(
     duplicated?: boolean;
     isNewLead?: boolean;
   };
+  let inboundOptedOut = false;
 
   try {
     result = await withWebhookWriteLock(() => prisma.$transaction(async (tx) => {
@@ -726,17 +728,29 @@ export async function POST(
     });
 
     if (!extracted.fromMe) {
-      await cancelCommercialFollowUps({
-        conversationId: result.conversationId,
-        contactId: result.contactId,
-        reason: "customer_replied",
-        origin: "webhook",
-      });
-      await applyPipelineAutomationOnIncomingMessage({
-        conversationId: result.conversationId,
-        contactId: result.contactId,
-        text: extracted.textContent,
-      });
+      inboundOptedOut = Boolean(
+        extracted.textContent && isWhatsappOptOutMessage(extracted.textContent)
+      );
+      if (inboundOptedOut) {
+        await setWhatsappConsent({
+          contactId: result.contactId,
+          optInWhatsapp: false,
+          origin: "webhook",
+          sourceOrigin: "whatsapp_keyword",
+        });
+      } else {
+        await cancelCommercialFollowUps({
+          conversationId: result.conversationId,
+          contactId: result.contactId,
+          reason: "customer_replied",
+          origin: "webhook",
+        });
+        await applyPipelineAutomationOnIncomingMessage({
+          conversationId: result.conversationId,
+          contactId: result.contactId,
+          text: extracted.textContent,
+        });
+      }
     }
 
   } catch (error) {
@@ -817,7 +831,7 @@ export async function POST(
     ? resolveEvolutionSendTarget(conversation.contact, finalIdentity.phone || extracted.phone || extracted.phoneRaw)
     : finalIdentity.phone || extracted.phone || extracted.phoneRaw;
 
-  if (!extracted.fromMe && isAutomationEnabled && extracted.textContent && targetId) {
+  if (!extracted.fromMe && !inboundOptedOut && isAutomationEnabled && extracted.textContent && targetId) {
     try {
       const { processAutoResponse } = await import('@/lib/whatsapp/automation');
       await processAutoResponse(

@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { cancelPendingAutomationJobs } from "@/lib/crm/automationQueue";
 import { recordCrmEvent } from "@/lib/crm/events";
 import type { AutomationHandoffDecision } from "@/lib/crm/handoffPolicy";
 import { sendMessagingText } from "@/lib/messaging/send-text";
@@ -34,6 +35,12 @@ export async function executeAutomationHandoff(input: {
   });
 
   if (claimed.count === 0) return null;
+
+  await cancelPendingAutomationJobs({
+    conversationId: input.conversationId,
+    reason: "automation_handoff",
+    now,
+  });
 
   try {
     const sendResult = await sendMessagingText(input.phone, input.decision.message);

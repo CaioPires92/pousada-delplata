@@ -1,17 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import prisma from "@/lib/prisma";
-import { recordCrmEvent } from "@/lib/crm/events";
+import { setWhatsappConsent } from "@/lib/crm/whatsappConsent";
 import { PATCH } from "./route";
 
-vi.mock("@/lib/prisma", () => ({
-  default: {
-    contact: { update: vi.fn() },
-  },
-}));
-
-vi.mock("@/lib/crm/events", () => ({
-  recordCrmEvent: vi.fn().mockResolvedValue(null),
+vi.mock("@/lib/crm/whatsappConsent", () => ({
+  setWhatsappConsent: vi.fn(),
 }));
 
 describe("PATCH /api/crm/contacts/[id]/consent", () => {
@@ -27,7 +20,10 @@ describe("PATCH /api/crm/contacts/[id]/consent", () => {
   });
 
   it("updates consent", async () => {
-    vi.mocked(prisma.contact.update).mockResolvedValue({ id: "c1", optInWhatsapp: true, optOutAt: null } as any);
+    vi.mocked(setWhatsappConsent).mockResolvedValue({
+      contact: { id: "c1", optInWhatsapp: true, optOutAt: null },
+      cancelledJobs: 0,
+    });
 
     const req = new Request("http://localhost/api/crm/contacts/c1/consent", {
       method: "PATCH",
@@ -40,6 +36,11 @@ describe("PATCH /api/crm/contacts/[id]/consent", () => {
 
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "ContactConsentUpdated" }));
+    expect(setWhatsappConsent).toHaveBeenCalledWith({
+      contactId: "c1",
+      optInWhatsapp: true,
+      origin: "human_api",
+      sourceOrigin: "landing",
+    });
   });
 });

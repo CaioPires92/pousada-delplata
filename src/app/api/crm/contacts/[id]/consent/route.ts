@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-import prisma from "@/lib/prisma";
-import { recordCrmEvent } from "@/lib/crm/events";
+import { setWhatsappConsent } from "@/lib/crm/whatsappConsent";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -28,32 +27,20 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   const origin = typeof body.origin === "string" && body.origin.trim() ? body.origin.trim() : "unknown";
 
-  const contact = await prisma.contact.update({
-    where: { id },
-    data: {
-      optInWhatsapp: body.optInWhatsapp,
-      optOutAt: body.optInWhatsapp ? null : new Date(),
-    },
-    select: {
-      id: true,
-      optInWhatsapp: true,
-      optOutAt: true,
-    },
+  const result = await setWhatsappConsent({
+    contactId: id,
+    optInWhatsapp: body.optInWhatsapp,
+    origin: "human_api",
+    sourceOrigin: origin,
   }).catch(() => null);
 
-  if (!contact) {
+  if (!result) {
     return NextResponse.json({ ok: false, error: "NOT_FOUND" }, { status: 404 });
   }
 
-  await recordCrmEvent({
-    action: "ContactConsentUpdated",
-    contactId: contact.id,
-    metadata: {
-      optInWhatsapp: contact.optInWhatsapp,
-      optOutAt: contact.optOutAt,
-      origin,
-    },
+  return NextResponse.json({
+    ok: true,
+    contact: result.contact,
+    cancelledJobs: result.cancelledJobs,
   });
-
-  return NextResponse.json({ ok: true, contact });
 }

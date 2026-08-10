@@ -71,8 +71,12 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
           chatbotEnabled: true,
           automationMode: true,
           automationPausedUntil: true,
+          contact: { select: { optOutAt: true } },
         },
       });
+      if (currentConversation?.contact?.optOutAt) {
+        return { cancelled: true as const, reason: "contact_opted_out" };
+      }
       if (!isConversationAutomationActive(currentConversation)) {
         return { cancelled: true as const, reason: "human_takeover_or_automation_paused" };
       }

@@ -164,6 +164,36 @@ describe("WhatsApp CRM webhook hardening", () => {
     expect(messages).toHaveLength(1);
   });
 
+  it("applies an explicit opt-out keyword and cancels pending sends immediately", async () => {
+    const remoteJid = "5511999990015@s.whatsapp.net";
+    const initialResponse = await POST(
+      webhookRequest(textPayload("test-optout-initial", remoteJid, "Olá")),
+      routeParams(),
+    );
+    const initialBody = await initialResponse.json();
+    const job = await prisma.automationQueueJob.create({
+      data: {
+        conversationId: initialBody.conversationId,
+        action: "SEND_WHATSAPP_MESSAGE",
+        journeyType: "commercial_followup",
+        payloadJson: JSON.stringify({ target: "5511999990015", text: "Follow-up" }),
+        status: "pending",
+        scheduledAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const response = await POST(
+      webhookRequest(textPayload("test-optout-command", remoteJid, "SAIR")),
+      routeParams(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(prisma.contact.findUnique({ where: { id: initialBody.contactId } }))
+      .resolves.toMatchObject({ optInWhatsapp: false, optOutAt: expect.any(Date) });
+    await expect(prisma.automationQueueJob.findUnique({ where: { id: job.id } }))
+      .resolves.toMatchObject({ status: "cancelled", cancelReason: "contact_opted_out" });
+  });
+
   it("refreshes an expired quote flow when the guest sends new quote data", async () => {
     const remoteJid = "5511999990099@s.whatsapp.net";
     const firstResponse = await POST(

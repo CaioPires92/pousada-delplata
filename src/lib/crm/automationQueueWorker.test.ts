@@ -78,4 +78,27 @@ describe("automation queue worker n8n delivery", () => {
     await expect(runAutomationQueueWorker()).resolves.toMatchObject({ processed: 0, failed: 0 });
     expect(createMessagingProvider).not.toHaveBeenCalled();
   });
+
+  it("cancels a previously claimed send when the contact opts out", async () => {
+    vi.mocked(prisma.conversation.findUnique)
+      .mockResolvedValueOnce({ id: "conversation-1", contactId: "contact-1" } as never)
+      .mockResolvedValueOnce({
+        chatbotEnabled: true,
+        automationMode: "auto",
+        automationPausedUntil: null,
+        contact: { optOutAt: new Date("2026-08-10T18:00:00.000Z") },
+      } as never);
+    vi.mocked(processNextAutomationJobForConversation).mockImplementation(async (_conversationId, runner) => {
+      const result = await runner({
+        id: "job-send-optout",
+        action: "SEND_WHATSAPP_MESSAGE",
+        payload: { target: "5511999999999", text: "Follow-up" },
+      });
+      expect(result).toEqual({ cancelled: true, reason: "contact_opted_out" });
+      return { ok: true, queued: false, processed: false, cancelled: true, jobId: "job-send-optout" };
+    });
+
+    await expect(runAutomationQueueWorker()).resolves.toMatchObject({ processed: 0, failed: 0 });
+    expect(createMessagingProvider).not.toHaveBeenCalled();
+  });
 });

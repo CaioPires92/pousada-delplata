@@ -9,8 +9,10 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/messaging/send-text", () => ({ sendMessagingText: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
+vi.mock("@/lib/crm/automationQueue", () => ({ cancelPendingAutomationJobs: vi.fn() }));
 
 import prisma from "@/lib/prisma";
+import { cancelPendingAutomationJobs } from "@/lib/crm/automationQueue";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { DEFAULT_AUTOMATION_HANDOFF_MESSAGE } from "@/lib/crm/handoffPolicy";
 import { sendMessagingText } from "@/lib/messaging/send-text";
@@ -35,6 +37,7 @@ describe("executeAutomationHandoff", () => {
     vi.mocked(prisma.message.create).mockReturnValue({} as never);
     vi.mocked(prisma.conversation.update).mockReturnValue({} as never);
     vi.mocked(prisma.$transaction).mockResolvedValue([]);
+    vi.mocked(cancelPendingAutomationJobs).mockResolvedValue(2);
   });
 
   it("disables automation before sending one safe handoff message", async () => {
@@ -57,6 +60,10 @@ describe("executeAutomationHandoff", () => {
       }),
     }));
     expect(sendMessagingText).toHaveBeenCalledOnce();
+    expect(cancelPendingAutomationJobs).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "conversation-1",
+      reason: "automation_handoff",
+    }));
     expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
       action: "AutomationHandoffRequested",
       metadata: expect.objectContaining({ reason: "unknown_intent" }),

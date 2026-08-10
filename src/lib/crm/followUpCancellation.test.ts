@@ -44,6 +44,7 @@ describe("cancelCommercialFollowUps", () => {
     expect(cancelPendingAutomationJobs).toHaveBeenCalledWith(expect.objectContaining({
       conversationId: "conversation-1",
       reason: "customer_replied",
+      journeyTypes: ["commercial_followup"],
       client: tx,
     }));
     expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({

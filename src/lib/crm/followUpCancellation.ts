@@ -22,6 +22,7 @@ export async function cancelCommercialFollowUps(input: {
     const queueJobs = await cancelPendingAutomationJobs({
       conversationId: input.conversationId,
       reason: input.reason,
+      journeyTypes: ["commercial_followup"],
       now,
       client: tx,
     });
