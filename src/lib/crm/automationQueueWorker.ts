@@ -10,6 +10,7 @@ import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
 import { getFollowUpCadenceSettings } from "@/lib/crm/followUpCadence";
 import { isWithinQuietHours, moveAfterQuietHours } from "@/lib/crm/quietHours";
+import { assertOutboundProviderPolicy } from "@/lib/messaging/outbound-policy";
 
 const messagingCircuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -104,12 +105,25 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
       }
 
       const provider = createMessagingProvider();
+      const outboundMessage = {
+        kind: "text" as const,
+        recipientId: job.payload.target!,
+        text: job.payload.text!,
+      };
+      const lastInbound = provider.name === "meta"
+        ? await prisma.message.findFirst({
+            where: { conversationId: conversation.id, senderType: "guest" },
+            orderBy: { sentAt: "desc" },
+            select: { sentAt: true },
+          })
+        : null;
+      assertOutboundProviderPolicy({
+        provider: provider.name === "meta" ? "meta" : "evolution",
+        message: outboundMessage,
+        lastInboundAt: lastInbound?.sentAt,
+      });
       const sendResult = await messagingCircuitBreaker.execute(() =>
-        provider.send({
-          kind: "text",
-          recipientId: job.payload.target!,
-          text: job.payload.text!,
-        })
+        provider.send(outboundMessage)
       );
 
       const sentAt = new Date();

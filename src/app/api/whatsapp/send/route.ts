@@ -8,6 +8,7 @@ import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { requireAdminAuth } from "@/lib/admin-auth";
 import { cancelPendingAutomationJobs } from "@/lib/crm/automationQueue";
 import { buildConversationResponseMetricUpdate } from "@/lib/crm/responseMetrics";
+import { assertOutboundProviderPolicy } from "@/lib/messaging/outbound-policy";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -128,11 +129,25 @@ export async function POST(request: Request) {
         let sendResult;
         try {
             provider = createMessagingProvider();
-            sendResult = await provider.send({
-                kind: "text",
+            const outboundMessage = {
+                kind: "text" as const,
                 recipientId: target,
                 text,
+            };
+            const lastInbound = provider.name === "meta"
+                ? await prisma.message.findFirst({
+                    where: { conversationId: conversation.id, senderType: "guest" },
+                    orderBy: { sentAt: "desc" },
+                    select: { sentAt: true },
+                })
+                : null;
+            assertOutboundProviderPolicy({
+                provider: provider.name === "meta" ? "meta" : "evolution",
+                message: outboundMessage,
+                lastInboundAt: lastInbound?.sentAt,
+                now,
             });
+            sendResult = await provider.send(outboundMessage);
         } catch (error) {
             const providerName = process.env.WHATSAPP_PROVIDER || "evolution";
             const errorCode = firstString(asRecord(error)?.code) ?? "unknown_error";

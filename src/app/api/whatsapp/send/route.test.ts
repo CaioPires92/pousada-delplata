@@ -214,4 +214,41 @@ describe("manual WhatsApp send hardening", () => {
     expect(cancelledSend?.cancelledAt).not.toBeNull();
     expect(preservedN8n?.status).toBe("pending");
   });
+
+  it("blocks Meta free-form text when the customer care window has expired", async () => {
+    vi.mocked(createMessagingProvider).mockReturnValue({
+      name: "meta",
+      normalizeWebhook: vi.fn(),
+      send,
+    });
+    const contact = await prisma.contact.create({
+      data: {
+        name: "Teste janela Meta",
+        phone: "551188880003",
+        source: "test-whatsapp-send",
+      },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, channel: "whatsapp", status: "open" },
+    });
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderType: "guest",
+        content: "Mensagem antiga",
+        messageType: "text",
+        sentAt: new Date(Date.now() - (25 * 60 * 60 * 1000)),
+      },
+    });
+
+    const response = await POST(request({ conversationId: conversation.id, text: "Mensagem livre" }));
+
+    expect(response.status).toBe(502);
+    expect(send).not.toHaveBeenCalled();
+    const failedMessage = await prisma.message.findFirst({
+      where: { conversationId: conversation.id, senderType: "human" },
+      orderBy: { sentAt: "desc" },
+    });
+    expect(failedMessage?.deliveryErrorCode).toBe("outside_customer_care_window");
+  });
 });
