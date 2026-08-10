@@ -8,6 +8,7 @@ import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { scheduleCommercialFollowUpCadence } from "@/lib/crm/followUpCadence";
+import { loadFreshQuote } from "@/lib/crm/freshQuote";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 import { buildQuoteReplyText } from "@/lib/crm/quoteReply";
 import { CRM_AUTOMATION_POLICY_VERSION, CRM_FAQ_SCHEMA_VERSION } from "@/lib/crm/automationVersions";
@@ -323,26 +324,42 @@ export async function processAutoResponse(conversationId: string, phone: string,
                 },
             });
 
-            const quoteRequest = new Request("http://localhost/api/crm/quote", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    conversationId,
-                    checkin,
-                    checkout,
-                    adults,
-                    children,
-                    childrenAges,
-                }),
+            const quoteLoad = await loadFreshQuote(async () => {
+                const quoteRequest = new Request("http://localhost/api/crm/quote", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        conversationId,
+                        checkin,
+                        checkout,
+                        adults,
+                        children,
+                        childrenAges,
+                    }),
+                });
+                const response = await quotePost(quoteRequest);
+                const body = await response.json().catch(() => null) as any;
+                return { responseOk: response.ok, body };
             });
+            const quoteResponseOk = quoteLoad.result.responseOk;
+            const quoteBody = quoteLoad.result.body as any;
 
-            const quoteResponse = await quotePost(quoteRequest);
-            const quoteBody = await quoteResponse.json().catch(() => null) as any;
+            if (quoteLoad.revalidated) {
+                await recordCrmEvent({
+                    action: "QuoteExpired",
+                    contactId: conversation.contactId,
+                    conversationId: conversation.id,
+                    metadata: {
+                        ...quoteLoad.expiredQuote,
+                        reason: "expired_before_send_revalidated",
+                    },
+                });
+            }
 
-            if (!quoteResponse.ok || !quoteBody?.quote?.ok || !Array.isArray(quoteBody.quote.options) || quoteBody.quote.options.length === 0) {
+            if (!quoteResponseOk || !quoteBody?.quote?.ok || !Array.isArray(quoteBody.quote.options) || quoteBody.quote.options.length === 0) {
                 const fallbackText = quoteBody?.error === "min_stay_required"
                     ? `Para esse período, a estadia mínima é de ${quoteBody.minLos ?? "algumas"} noite(s). Se quiser, te ajudo a ajustar as datas.`
                     : "Não consegui encontrar disponibilidade nesse momento. Se quiser, me passe outras datas que eu consulto agora.";
