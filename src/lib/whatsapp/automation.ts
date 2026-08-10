@@ -7,6 +7,7 @@ import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
 import { hasQuoteInput, parseCrmIntent } from "@/lib/crm/intentParser";
 import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { scheduleCommercialFollowUpCadence } from "@/lib/crm/followUpCadence";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 import { buildQuoteReplyText } from "@/lib/crm/quoteReply";
 import { CRM_AUTOMATION_POLICY_VERSION, CRM_FAQ_SCHEMA_VERSION } from "@/lib/crm/automationVersions";
@@ -452,7 +453,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
                 });
             }
 
-            await recordCrmEvent({
+            const quoteLog = await recordCrmEvent({
                 action: "QuoteSent",
                 contactId: conversation.contactId,
                 conversationId: conversation.id,
@@ -466,6 +467,15 @@ export async function processAutoResponse(conversationId: string, phone: string,
                     messageSent: sendResult.ok,
                 },
             });
+            if (sendResult.ok) {
+                const journeyId = quoteLog?.id
+                    ?? quote.quoteId
+                    ?? `${checkin}:${checkout}:${adults}:${children}`;
+                await scheduleCommercialFollowUpCadence({
+                    conversationId: conversation.id,
+                    journeyId,
+                }).catch(() => ({ scheduled: 0, reason: "schedule_failed" as const }));
+            }
 
             await prisma.conversation.update({
                 where: { id: conversation.id },

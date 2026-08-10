@@ -502,6 +502,14 @@ model ChatbotSettings {
   updatedAt                     DateTime @updatedAt
 }
 
+model FollowUpSettings {
+  id               String   @id @default("global")
+  enabled          Boolean  @default(false)
+  cadenceHoursJson String   @default("[2,24,72]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model ChatbotRule {
   id        String   @id @default(uuid())
   trigger   String   @unique

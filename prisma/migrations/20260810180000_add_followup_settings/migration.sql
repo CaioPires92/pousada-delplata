@@ -1,0 +1,7 @@
+CREATE TABLE "FollowUpSettings" (
+  "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'global',
+  "enabled" BOOLEAN NOT NULL DEFAULT false,
+  "cadenceHoursJson" TEXT NOT NULL DEFAULT '[2,24,72]',
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" DATETIME NOT NULL
+);
