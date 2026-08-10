@@ -333,6 +333,9 @@ model AutomationQueueJob {
   conversationId String
   action         String
   payloadJson    String
+  journeyType    String?
+  dedupeKey      String?      @unique
+  scheduledAt    DateTime?
   status         String       @default("pending")
   attempts       Int          @default(0)
   lastError      String?
@@ -346,6 +349,7 @@ model AutomationQueueJob {
 
   @@index([conversationId, status, createdAt])
   @@index([status, createdAt])
+  @@index([status, scheduledAt])
 }
 
 model DeadLetterQueueItem {

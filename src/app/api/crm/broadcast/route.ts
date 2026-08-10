@@ -148,6 +148,7 @@ export async function POST(request: Request) {
     await enqueueAutomationJob({
       conversationId,
       action: "SEND_WHATSAPP_MESSAGE",
+      journeyType: "broadcast",
       payload: {
         target,
         text,

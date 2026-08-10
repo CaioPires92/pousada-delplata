@@ -398,6 +398,7 @@ async function handleSendWhatsAppMessage(payload: JsonRecord) {
     conversationId: conversation.id,
     action: "SEND_WHATSAPP_MESSAGE",
     payload: { target, text },
+    journeyType: "conversation_reply",
   });
 
   const processingResult = await processNextAutomationJobForConversation(conversation.id, async job => {

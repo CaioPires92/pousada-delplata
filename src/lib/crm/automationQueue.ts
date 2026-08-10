@@ -3,6 +3,13 @@ import prisma from "@/lib/prisma";
 import { crmLog } from "@/lib/crm/logger";
 
 export type QueueAction = "SEND_WHATSAPP_MESSAGE" | "EMIT_N8N_EVENT";
+export type QueueJourneyType =
+  | "conversation_reply"
+  | "commercial_followup"
+  | "broadcast"
+  | "n8n_delivery"
+  | "post_stay"
+  | "replay";
 
 type QueuePayload = {
   target?: string;
@@ -62,15 +69,29 @@ export async function enqueueAutomationJob(input: {
   conversationId: string;
   action: QueueAction;
   payload: Record<string, unknown>;
+  journeyType?: QueueJourneyType;
+  dedupeKey?: string;
+  scheduledAt?: Date;
 }) {
-  return prisma.automationQueueJob.create({
-    data: {
-      conversationId: input.conversationId,
-      action: input.action,
-      payloadJson: JSON.stringify(input.payload),
-      status: "pending",
-    },
-  });
+  const data = {
+    conversationId: input.conversationId,
+    action: input.action,
+    payloadJson: JSON.stringify(input.payload),
+    journeyType: input.journeyType ?? null,
+    dedupeKey: input.dedupeKey ?? null,
+    scheduledAt: input.scheduledAt ?? new Date(),
+    status: "pending",
+  };
+
+  if (input.dedupeKey) {
+    return prisma.automationQueueJob.upsert({
+      where: { dedupeKey: input.dedupeKey },
+      create: data,
+      update: {},
+    });
+  }
+
+  return prisma.automationQueueJob.create({ data });
 }
 
 async function moveToDeadLetter(input: {
@@ -231,6 +252,7 @@ export async function replayDeadLetterItem(input: {
     conversationId,
     action: item.action as QueueAction,
     payload,
+    journeyType: "replay",
   });
 
   await prisma.deadLetterQueueItem.update({

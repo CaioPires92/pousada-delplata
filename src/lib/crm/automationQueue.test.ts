@@ -12,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     automationQueueJob: {
       create: vi.fn(),
+      upsert: vi.fn(),
       findFirst: vi.fn(),
       updateMany: vi.fn(),
       update: vi.fn(),
@@ -43,6 +44,39 @@ describe("automationQueue", () => {
     });
 
     expect(job).toEqual({ id: "job-1" });
+    expect(prisma.automationQueueJob.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        conversationId: "conv-1",
+        journeyType: null,
+        dedupeKey: null,
+        scheduledAt: expect.any(Date),
+        status: "pending",
+      }),
+    });
+  });
+
+  it("deduplicates a journey step by its stable key", async () => {
+    vi.mocked(prisma.automationQueueJob.upsert).mockResolvedValue({ id: "job-existing" } as any);
+    const scheduledAt = new Date("2026-08-10T18:00:00.000Z");
+
+    await enqueueAutomationJob({
+      conversationId: "conv-1",
+      action: "SEND_WHATSAPP_MESSAGE",
+      payload: { target: "551199", text: "Lembrete" },
+      journeyType: "commercial_followup",
+      dedupeKey: "followup:conv-1:step-1",
+      scheduledAt,
+    });
+
+    expect(prisma.automationQueueJob.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { dedupeKey: "followup:conv-1:step-1" },
+      create: expect.objectContaining({
+        journeyType: "commercial_followup",
+        scheduledAt,
+      }),
+      update: {},
+    }));
+    expect(prisma.automationQueueJob.create).not.toHaveBeenCalled();
   });
 
   it("cancels only pending WhatsApp sends and records a bounded reason", async () => {

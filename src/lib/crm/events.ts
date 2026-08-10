@@ -90,6 +90,8 @@ export async function emitCrmEvent(
       conversationId: input.conversationId,
       action: "EMIT_N8N_EVENT",
       payload: { event: envelope },
+      journeyType: "n8n_delivery",
+      dedupeKey: `n8n:${eventId}`,
     });
 
     crmLog({
