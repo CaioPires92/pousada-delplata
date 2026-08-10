@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/cleanup-bookings",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/reconcile-crm-bookings",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
