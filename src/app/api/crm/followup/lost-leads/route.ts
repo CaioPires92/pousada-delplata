@@ -59,9 +59,18 @@ export async function POST(request: Request) {
   let skippedDefinitive = 0;
   let skippedAttempts = 0;
   let skippedNoTarget = 0;
+  let skippedCustomerReplied = 0;
 
   for (const card of lostCards) {
     if (!card.conversation) continue;
+
+    if (
+      card.conversation.lastCustomerMessageAt &&
+      card.conversation.lastCustomerMessageAt > card.updatedAt
+    ) {
+      skippedCustomerReplied += 1;
+      continue;
+    }
 
     const lossText = `${card.lostReason ?? ""} ${card.lossReason ?? ""}`.toLowerCase();
     if (lossText.includes("definitiv")) {
@@ -135,6 +144,7 @@ export async function POST(request: Request) {
     skippedDefinitive,
     skippedAttempts,
     skippedNoTarget,
+    skippedCustomerReplied,
     config: { windowHours, maxAttempts },
   });
 }

@@ -11,6 +11,7 @@ import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from '@/lib/crm/pipel
 import { isConversationAutomationActive } from '@/lib/crm/automationPause';
 import { buildQuoteFlowState } from '@/lib/crm/conversationFlow';
 import { applyPipelineAutomationOnIncomingMessage } from '@/lib/crm/pipelineAutomation';
+import { cancelCommercialFollowUps } from '@/lib/crm/followUpCancellation';
 import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-normalizer';
 import { persistNormalizedWebhookEvents } from '@/lib/messaging/webhook-event-store';
 import { persistMessageDeliveryStatus } from '@/lib/messaging/delivery-status-store';
@@ -725,6 +726,12 @@ export async function POST(
     });
 
     if (!extracted.fromMe) {
+      await cancelCommercialFollowUps({
+        conversationId: result.conversationId,
+        contactId: result.contactId,
+        reason: "customer_replied",
+        origin: "webhook",
+      });
       await applyPipelineAutomationOnIncomingMessage({
         conversationId: result.conversationId,
         contactId: result.contactId,

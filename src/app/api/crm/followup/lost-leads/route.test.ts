@@ -53,4 +53,31 @@ describe("POST /api/crm/followup/lost-leads", () => {
     expect(body.ok).toBe(true);
     expect(body.dryRun).toBe(true);
   });
+
+  it("skips a lost lead that replied after the card was marked lost", async () => {
+    vi.mocked(prisma.pipelineCard.findMany).mockResolvedValue([{
+      id: "card-1",
+      contactId: "contact-1",
+      updatedAt: new Date("2026-08-01T10:00:00.000Z"),
+      lossReason: "Sem retorno",
+      lostReason: "Sem retorno",
+      conversation: {
+        id: "conversation-1",
+        lastCustomerMessageAt: new Date("2026-08-01T11:00:00.000Z"),
+        contact: { id: "contact-1", phone: "5511999999999" },
+      },
+    }] as never);
+
+    const response = await POST(new Request("http://localhost/api/crm/followup/lost-leads", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-token", "Content-Type": "application/json" },
+      body: JSON.stringify({ dryRun: true }),
+    }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      sent: 0,
+      skippedCustomerReplied: 1,
+    });
+    expect(prisma.internalActionLog.count).not.toHaveBeenCalled();
+  });
 });

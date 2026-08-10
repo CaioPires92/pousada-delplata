@@ -5,11 +5,13 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/crm/pipelineCards", () => ({ updatePipelineCard: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
+vi.mock("@/lib/crm/followUpCancellation", () => ({ cancelCommercialFollowUps: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { publishBookingLifecycleEvent } from "@/lib/crm/bookingLifecycle";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
+import { cancelCommercialFollowUps } from "@/lib/crm/followUpCancellation";
 
 describe("publishBookingLifecycleEvent", () => {
   beforeEach(() => {
@@ -69,6 +71,29 @@ describe("publishBookingLifecycleEvent", () => {
       action: "BookingConfirmed",
       bookingId: "booking-2",
     }));
+  });
+
+  it("cancels remaining commercial follow-ups when a reservation starts", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      id: "booking-3",
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      pipelineCard: { id: "card-1", stage: "ORCAMENTO_ENVIADO" },
+    } as never);
+    vi.mocked(cancelCommercialFollowUps).mockResolvedValue({ cards: 1, queueJobs: 1 });
+
+    await publishBookingLifecycleEvent({
+      bookingId: "booking-3",
+      event: "ReservationStarted",
+      origin: "system",
+    });
+
+    expect(cancelCommercialFollowUps).toHaveBeenCalledWith({
+      conversationId: "conversation-1",
+      contactId: "contact-1",
+      reason: "reservation_started",
+      origin: "system",
+    });
   });
 
   it("does not invent an event for a missing booking", async () => {

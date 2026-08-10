@@ -5,6 +5,7 @@ import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { PIPELINE_STAGES, type PipelineStage } from "@/lib/crm/pipelineStages";
 import { crmLog } from "@/lib/crm/logger";
 import { claimCrmEvent, completeCrmEvent, releaseCrmEvent } from "@/lib/crm/eventIdempotency";
+import { cancelCommercialFollowUps } from "@/lib/crm/followUpCancellation";
 
 export type BookingLifecycleEvent =
   | "ReservationStarted"
@@ -55,6 +56,15 @@ export async function publishBookingLifecycleEvent(input: {
     if (!booking) {
       if (claimedEventId) await releaseCrmEvent(claimedEventId);
       return { ok: false as const, reason: "booking_not_found" as const };
+    }
+
+    if (input.event === "ReservationStarted" && booking.crmContactId && booking.crmConversationId) {
+      await cancelCommercialFollowUps({
+        conversationId: booking.crmConversationId,
+        contactId: booking.crmContactId,
+        reason: "reservation_started",
+        origin: input.origin ?? "system",
+      });
     }
 
     const targetStage = TARGET_STAGE[input.event];
