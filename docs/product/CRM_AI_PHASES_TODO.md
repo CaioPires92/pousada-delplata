@@ -263,7 +263,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F6.05 Implementar quiet hours e reagendamento.
 - [x] F6.06 Aplicar as restrições do provedor ativo; validar janela/template somente se Meta for reativada.
 - [x] F6.07 Revalidar cotação no serviço do Mapa.
-- [ ] F6.08 Criar limite por contato e limite global.
+- [x] F6.08 Criar limite por contato e limite global.
 - [ ] F6.09 Criar métricas de envio, resposta, conversão e cancelamento.
 - [ ] F6.10 Criar tela simples de jobs pendentes/falhos.
 

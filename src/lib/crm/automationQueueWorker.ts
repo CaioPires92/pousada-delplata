@@ -11,6 +11,7 @@ import { isConversationAutomationActive } from "@/lib/crm/automationPause";
 import { getFollowUpCadenceSettings } from "@/lib/crm/followUpCadence";
 import { isWithinQuietHours, moveAfterQuietHours } from "@/lib/crm/quietHours";
 import { assertOutboundProviderPolicy } from "@/lib/messaging/outbound-policy";
+import { checkAutomationSendLimits, isProactiveJourney } from "@/lib/crm/automationSendLimits";
 
 const messagingCircuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -70,7 +71,7 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
       }
 
       if (
-        ["commercial_followup", "broadcast", "post_stay"].includes(job.journeyType ?? "")
+        isProactiveJourney(job.journeyType)
         && isWithinQuietHours({
           date: now,
           startHour: followUpSettings.quietHoursStart,
@@ -102,6 +103,16 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
       }
       if (!isConversationAutomationActive(currentConversation)) {
         return { cancelled: true as const, reason: "human_takeover_or_automation_paused" };
+      }
+
+      if (isProactiveJourney(job.journeyType)) {
+        const sendLimit = await checkAutomationSendLimits({
+          contactId: conversation.contactId,
+          now,
+        });
+        if (!sendLimit.allowed) {
+          return { cancelled: true as const, reason: sendLimit.reason };
+        }
       }
 
       const provider = createMessagingProvider();
