@@ -35,7 +35,10 @@ export async function persistNormalizedWebhookEvents(
   events: ReadonlyArray<NormalizedMessagingEvent>,
   client: WebhookEventCreateClient = prisma,
 ): Promise<PersistWebhookEventsResult> {
-  const results = await Promise.all(events.map(async event => {
+  const results: Array<"accepted" | "duplicate"> = [];
+  // SQLite/Turso serializa escritas. Manter este trecho sequencial evita que
+  // rajadas do provedor esgotem o timeout do banco por contenção interna.
+  for (const event of events) {
     try {
       const persistedEvent = event.kind === "status"
         ? {
@@ -54,12 +57,15 @@ export async function persistNormalizedWebhookEvents(
           normalizedEventJson: JSON.stringify(persistedEvent),
         },
       });
-      return "accepted" as const;
+      results.push("accepted");
     } catch (error) {
-      if (isUniqueConstraintError(error)) return "duplicate" as const;
+      if (isUniqueConstraintError(error)) {
+        results.push("duplicate");
+        continue;
+      }
       throw error;
     }
-  }));
+  }
 
   return {
     acceptedEvents: results.filter(result => result === "accepted").length,
