@@ -20,7 +20,33 @@ describe("approved chatbot knowledge", () => {
       { id: "rule-bed-linen", trigger: "roupa de cama", response: "Vou confirmar a roupa de cama.", category: "acomodacoes", version: 1 },
       { id: "rule-window", trigger: "janela", response: "Vou confirmar a janela.", category: "acomodacoes", version: 1 },
       { id: "rule-windows", trigger: "janelas", response: "Vou confirmar a janela.", category: "acomodacoes", version: 1 },
+      { id: "rule-parking", trigger: "estacionamento", response: "O estacionamento é gratuito.", category: "estrutura", version: 2 },
+      { id: "rule-voltage", trigger: "voltagem", response: "A voltagem varia por acomodação.", category: "acomodacoes", version: 1 },
     ] as never);
+  });
+
+  it("answers multiple FAQ questions once and in message order", async () => {
+    await expect(findApprovedKnowledge(
+      "qual a senha do wifi, tem estacionamento, qual a voltagem das tomadas, os quartos possuem janelas",
+    )).resolves.toEqual({
+      ruleId: "rule-wifi-password,rule-parking,rule-voltage,rule-windows",
+      response: [
+        "1. Consulte a recepção.",
+        "2. O estacionamento é gratuito.",
+        "3. A voltagem varia por acomodação.",
+        "4. Vou confirmar a janela.",
+      ].join("\n\n"),
+      category: "multiple",
+      version: 2,
+    });
+  });
+
+  it("keeps separate bed questions while suppressing overlapping generic matches", async () => {
+    await expect(findApprovedKnowledge("Tem roupa de cama e a cama é queen?")).resolves.toMatchObject({
+      ruleId: "rule-bed-linen,rule-bed",
+      response: "1. Vou confirmar a roupa de cama.\n\n2. Vou confirmar o tipo de cama.",
+      category: "multiple",
+    });
   });
 
   it.each([
