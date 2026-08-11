@@ -4,7 +4,7 @@ import { randomInt } from "crypto";
 import { encryptCouponCode } from "@/lib/coupons/code-vault";
 import { getCouponCodePrefix, hashCouponCode, normalizeGuestEmail, normalizeGuestPhone } from "@/lib/coupons/hash";
 import { getDiscountPolicy } from "@/lib/discount-policy-store";
-import { buildPreappliedCouponUrl } from "@/lib/coupons/booking-link";
+import { buildTrackedCouponUrl } from "@/lib/coupons/booking-link";
 
 const COUPON_PERCENTAGE = 10;
 const COUPON_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -95,7 +95,7 @@ export async function issueCouponForGrant(grantId: string, now = new Date()) {
           grant: updatedGrant,
           coupon,
           code,
-          bookingUrl: buildPreappliedCouponUrl(code),
+          bookingUrl: buildTrackedCouponUrl(grant.id),
         };
       });
 
@@ -113,4 +113,43 @@ export async function issueCouponForGrant(grantId: string, now = new Date()) {
     }
   }
   throw new Error("coupon_code_generation_failed");
+}
+
+export async function markCouponGrantSent(grantId: string, sentAt = new Date()) {
+  const grant = await prisma.couponGrant.findUnique({ where: { id: grantId } });
+  if (!grant) return { updated: false as const, reason: "grant_not_found" as const };
+  const updated = await prisma.couponGrant.updateMany({
+    where: { id: grantId, sentAt: null },
+    data: {
+      sentAt,
+      status: grant.redeemedAt ? "REDEEMED" : grant.clickedAt ? "CLICKED" : "SENT",
+    },
+  });
+  if (updated.count === 1) {
+    await recordCrmEvent({
+      action: "CouponSent",
+      bookingId: grant.bookingId,
+      contactId: grant.contactId,
+      metadata: { grantId, couponId: grant.couponId },
+    });
+  }
+  return { updated: updated.count === 1, reason: updated.count === 1 ? null : "already_sent" as const };
+}
+
+export async function markCouponGrantRedeemed(couponId: string, redeemedAt = new Date()) {
+  const grant = await prisma.couponGrant.findUnique({ where: { couponId } });
+  if (!grant) return { updated: false as const, reason: "grant_not_found" as const };
+  const updated = await prisma.couponGrant.updateMany({
+    where: { id: grant.id, redeemedAt: null },
+    data: { redeemedAt, status: "REDEEMED" },
+  });
+  if (updated.count === 1) {
+    await recordCrmEvent({
+      action: "CouponRedeemed",
+      bookingId: grant.bookingId,
+      contactId: grant.contactId,
+      metadata: { grantId: grant.id, couponId },
+    });
+  }
+  return { updated: updated.count === 1, reason: updated.count === 1 ? null : "already_redeemed" as const };
 }

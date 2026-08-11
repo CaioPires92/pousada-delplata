@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    automationQueueJob: { findMany: vi.fn() },
+    automationQueueJob: { findMany: vi.fn(), count: vi.fn() },
     conversation: { findUnique: vi.fn(), update: vi.fn() },
     message: { create: vi.fn() },
   },
@@ -20,12 +20,14 @@ vi.mock("@/lib/crm/followUpCadence", () => ({
 }));
 vi.mock("@/lib/crm/n8nDelivery", () => ({ deliverN8nEvent: vi.fn() }));
 vi.mock("@/lib/messaging/provider-factory", () => ({ createMessagingProvider: vi.fn() }));
+vi.mock("@/lib/crm/couponGrant", () => ({ markCouponGrantSent: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { processNextAutomationJobForConversation } from "@/lib/crm/automationQueue";
 import { deliverN8nEvent } from "@/lib/crm/n8nDelivery";
 import { createMessagingProvider } from "@/lib/messaging/provider-factory";
 import { runAutomationQueueWorker } from "./automationQueueWorker";
+import { markCouponGrantSent } from "./couponGrant";
 
 describe("automation queue worker n8n delivery", () => {
   beforeEach(() => {
@@ -34,6 +36,7 @@ describe("automation queue worker n8n delivery", () => {
     vi.mocked(prisma.automationQueueJob.findMany).mockResolvedValue([{ conversationId: "conversation-1" }] as never);
     vi.mocked(prisma.conversation.findUnique).mockResolvedValue({ id: "conversation-1", contactId: "contact-1" } as never);
     vi.mocked(deliverN8nEvent).mockResolvedValue({ delivered: true, attempts: 1, status: 200 });
+    vi.mocked(prisma.automationQueueJob.count).mockResolvedValue(0);
   });
 
   it("delivers n8n jobs without invoking the WhatsApp provider", async () => {
@@ -132,5 +135,40 @@ describe("automation queue worker n8n delivery", () => {
     await expect(runAutomationQueueWorker()).resolves.toMatchObject({ processed: 0, failed: 0 });
     expect(createMessagingProvider).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it("records delivery after the provider accepts a coupon message", async () => {
+    vi.mocked(prisma.conversation.findUnique)
+      .mockResolvedValueOnce({ id: "conversation-1", contactId: "contact-1" } as never)
+      .mockResolvedValueOnce({
+        chatbotEnabled: true,
+        automationMode: "auto",
+        automationPausedUntil: null,
+        contact: { optOutAt: null },
+      } as never);
+    vi.mocked(createMessagingProvider).mockReturnValue({
+      name: "evolution",
+      send: vi.fn().mockResolvedValue({ externalMessageId: "wa-1", acceptedAt: new Date(), status: "accepted" }),
+    } as never);
+    vi.mocked(prisma.message.create).mockResolvedValue({ id: "message-1", externalMessageId: "wa-1" } as never);
+    vi.mocked(prisma.conversation.update).mockResolvedValue({} as never);
+    vi.mocked(markCouponGrantSent).mockResolvedValue({ updated: true, reason: null });
+    vi.mocked(processNextAutomationJobForConversation).mockImplementation(async (_conversationId, runner) => {
+      await runner({
+        id: "job-coupon",
+        action: "SEND_WHATSAPP_MESSAGE",
+        journeyType: "post_stay",
+        payload: {
+          target: "5511999999999",
+          text: "Seu cupom",
+          postStayStep: "coupon",
+          couponGrantId: "grant-1",
+        },
+      });
+      return { ok: true, queued: false, processed: true, jobId: "job-coupon" };
+    });
+
+    await runAutomationQueueWorker();
+    expect(markCouponGrantSent).toHaveBeenCalledWith("grant-1", expect.any(Date));
   });
 });

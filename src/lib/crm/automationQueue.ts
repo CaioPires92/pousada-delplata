@@ -16,6 +16,7 @@ type QueuePayload = {
   text?: string;
   event?: unknown;
   bookingId?: string;
+  couponGrantId?: string;
   postStayStep?: string;
   checkoutConfirmedAt?: string;
 };

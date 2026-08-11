@@ -53,6 +53,7 @@ export async function confirmBookingCheckout(input: {
         checkoutConfirmedAt: confirmationAt,
         couponCode: couponIssue.code,
         bookingUrl: couponIssue.bookingUrl,
+        couponGrantId: couponIssue.grant.id,
         expiresAt: couponIssue.coupon.endsAt,
       })
     : { scheduled: false as const, reason: couponIssue.reason };

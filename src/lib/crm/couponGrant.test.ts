@@ -8,12 +8,15 @@ const transactionClient = vi.hoisted(() => ({
 vi.mock("@/lib/prisma", () => ({
   default: {
     booking: { findUnique: vi.fn() },
-    couponGrant: { findUnique: vi.fn(), create: vi.fn() },
+    couponGrant: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
     $transaction: vi.fn((callback) => callback(transactionClient)),
   },
 }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
 vi.mock("@/lib/coupons/code-vault", () => ({ encryptCouponCode: vi.fn(() => "encrypted-code") }));
+vi.mock("@/lib/coupons/booking-link", () => ({
+  buildTrackedCouponUrl: vi.fn((grantId: string) => `https://example.com/coupon/${grantId}`),
+}));
 vi.mock("@/lib/discount-policy-store", () => ({
   getDiscountPolicy: vi.fn().mockResolvedValue({
     validityDays: 90,
@@ -24,7 +27,12 @@ vi.mock("@/lib/discount-policy-store", () => ({
 
 import prisma from "@/lib/prisma";
 import { recordCrmEvent } from "@/lib/crm/events";
-import { createCouponGrantForStay, issueCouponForGrant } from "./couponGrant";
+import {
+  createCouponGrantForStay,
+  issueCouponForGrant,
+  markCouponGrantRedeemed,
+  markCouponGrantSent,
+} from "./couponGrant";
 
 describe("createCouponGrantForStay", () => {
   beforeEach(() => {
@@ -54,7 +62,7 @@ describe("createCouponGrantForStay", () => {
     expect(result).toMatchObject({
       issued: true,
       code: expect.stringMatching(/^VOLTE10-[A-Z2-9]{10}$/),
-      bookingUrl: expect.stringMatching(/\/reservar\?promo=VOLTE10-/),
+      bookingUrl: "https://example.com/coupon/grant-1",
     });
     expect(transactionClient.coupon.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -85,6 +93,21 @@ describe("createCouponGrantForStay", () => {
     await expect(issueCouponForGrant("grant-1"))
       .resolves.toMatchObject({ issued: false, reason: "missing_guest_identity" });
     expect(transactionClient.coupon.create).not.toHaveBeenCalled();
+  });
+
+  it("records send and redemption once", async () => {
+    vi.mocked(prisma.couponGrant.findUnique).mockResolvedValue({
+      id: "grant-1",
+      bookingId: "booking-origin",
+      contactId: "contact-1",
+      couponId: "coupon-1",
+    } as never);
+    vi.mocked(prisma.couponGrant.updateMany).mockResolvedValue({ count: 1 });
+
+    await expect(markCouponGrantSent("grant-1")).resolves.toMatchObject({ updated: true });
+    await expect(markCouponGrantRedeemed("coupon-1")).resolves.toMatchObject({ updated: true });
+    expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "CouponSent" }));
+    expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({ action: "CouponRedeemed" }));
   });
 
   it("links one grant to the checkout booking and contact", async () => {

@@ -12,6 +12,7 @@ import { getFollowUpCadenceSettings } from "@/lib/crm/followUpCadence";
 import { isWithinQuietHours, moveAfterQuietHours } from "@/lib/crm/quietHours";
 import { assertOutboundProviderPolicy } from "@/lib/messaging/outbound-policy";
 import { checkAutomationSendLimits, isProactiveJourney } from "@/lib/crm/automationSendLimits";
+import { markCouponGrantSent } from "@/lib/crm/couponGrant";
 
 const messagingCircuitBreaker = new CircuitBreaker({
   failureThreshold: 5,
@@ -176,6 +177,10 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
             : {}),
         },
       });
+
+      if (job.journeyType === "post_stay" && job.payload.postStayStep === "coupon" && job.payload.couponGrantId) {
+        await markCouponGrantSent(job.payload.couponGrantId, sentAt);
+      }
 
       await recordCrmEvent({
         action: "WhatsAppMessageSent",

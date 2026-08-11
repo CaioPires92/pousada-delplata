@@ -79,6 +79,7 @@ describe("confirmBookingCheckout", () => {
       checkoutConfirmedAt: now,
       couponCode: "VOLTE10-TESTE12345",
       bookingUrl: "https://www.pousadadelplata.com.br/reservar?promo=VOLTE10-TESTE12345",
+      couponGrantId: "grant-1",
       expiresAt: new Date("2026-11-09T15:00:00.000Z"),
     });
   });

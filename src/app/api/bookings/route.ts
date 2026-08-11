@@ -9,6 +9,7 @@ import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
+import { markCouponGrantRedeemed } from '@/lib/crm/couponGrant';
 
 export async function POST(request: Request) {
     try {
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
             typeof body?.coupon?.reservationId === 'string' ? body.coupon.reservationId.trim() : '';
         const couponCode = typeof body?.coupon?.code === 'string' ? body.coupon.code : '';
 
+        let redeemedCouponId: string | null = null;
         const booking = await prisma.$transaction(async (tx) => {
             const roomType = await tx.roomType.findUnique({
                 where: { id: roomTypeId },
@@ -203,6 +205,7 @@ export async function POST(request: Request) {
                 if (!reservation || !reservation.coupon) {
                     throw new Error('coupon_reservation_not_found');
                 }
+                redeemedCouponId = reservation.coupon.id;
 
                 if (reservation.status !== 'RESERVED' || reservation.bookingId) {
                     throw new Error('coupon_reservation_unavailable');
@@ -279,6 +282,14 @@ export async function POST(request: Request) {
             return bookingRecord;
         });
         if (!booking) return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 });
+
+        if (redeemedCouponId) {
+            try {
+                await markCouponGrantRedeemed(redeemedCouponId);
+            } catch (trackingError) {
+                console.error('[Booking API] Failed to track coupon redemption:', trackingError);
+            }
+        }
 
         try {
             const reconciliation = await reconcileBookingToCrm({

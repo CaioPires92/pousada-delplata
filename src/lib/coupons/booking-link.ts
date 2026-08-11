@@ -1,4 +1,5 @@
 import { normalizeCouponCode } from "@/lib/coupons/hash";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const OFFICIAL_SITE_URL = "https://www.pousadadelplata.com.br";
 
@@ -25,4 +26,23 @@ export function buildPreappliedCouponUrl(code: string, baseUrl = configuredSiteU
   const bookingUrl = new URL("/reservar", siteUrl);
   bookingUrl.searchParams.set("promo", normalizedCode);
   return bookingUrl.toString();
+}
+
+function clickToken(grantId: string) {
+  const secret = String(process.env.ADMIN_JWT_SECRET || "");
+  if (!secret) throw new Error("ADMIN_JWT_SECRET is required to protect coupon links");
+  return createHmac("sha256", secret).update(`coupon-click:${grantId}`).digest("base64url");
+}
+
+export function buildTrackedCouponUrl(grantId: string, baseUrl = configuredSiteUrl()) {
+  const siteUrl = new URL(baseUrl, OFFICIAL_SITE_URL);
+  const trackingUrl = new URL(`/api/coupons/grants/${encodeURIComponent(grantId)}/click`, siteUrl);
+  trackingUrl.searchParams.set("token", clickToken(grantId));
+  return trackingUrl.toString();
+}
+
+export function verifyCouponClickToken(grantId: string, token: string) {
+  const expected = Buffer.from(clickToken(grantId));
+  const provided = Buffer.from(token);
+  return expected.length === provided.length && timingSafeEqual(expected, provided);
 }

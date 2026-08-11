@@ -5,6 +5,7 @@ import { hashCouponCode } from '@/lib/coupons/hash';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
+import { markCouponGrantRedeemed } from '@/lib/crm/couponGrant';
 
 vi.mock('@/lib/prisma', () => ({
   default: {
@@ -43,6 +44,9 @@ vi.mock('@/lib/crm/bookingCrmLink', () => ({
 }));
 vi.mock('@/lib/crm/bookingLifecycle', () => ({
   publishBookingLifecycleEvent: vi.fn().mockResolvedValue({ ok: true, pipelineUpdated: true }),
+}));
+vi.mock('@/lib/crm/couponGrant', () => ({
+  markCouponGrantRedeemed: vi.fn().mockResolvedValue({ updated: true, reason: null }),
 }));
 
 describe('Bookings API', () => {
@@ -233,6 +237,7 @@ describe('Bookings API', () => {
       discountAmount: 50,
       expiresAt: new Date('2099-01-01T00:00:00.000Z'),
       coupon: {
+        id: 'coupon-1',
         codeHash: hashCouponCode('VIP10'),
       },
     });
@@ -277,6 +282,7 @@ describe('Bookings API', () => {
       })
     );
     expect(prisma.couponRedemption.updateMany).toHaveBeenCalled();
+    expect(markCouponGrantRedeemed).toHaveBeenCalledWith('coupon-1');
   });
 
   it('should return 400 if coupon reservation is expired', async () => {

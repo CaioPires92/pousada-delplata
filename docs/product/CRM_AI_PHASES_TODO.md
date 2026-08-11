@@ -297,7 +297,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F7.08 Gerar cupom 10% com uso único e vínculo antifraude.
 - [x] F7.09 Criar link do site com cupom pré-aplicado.
 - [x] F7.10 Enviar código/link pelo provedor ativo com o mecanismo aprovado aplicável.
-- [ ] F7.11 Registrar emissão, envio, clique e resgate.
+- [x] F7.11 Registrar emissão, envio, clique e resgate.
 - [ ] F7.12 Impedir segunda emissão para a mesma hospedagem.
 - [ ] F7.13 Revisar texto conforme política da plataforma de avaliação.
 

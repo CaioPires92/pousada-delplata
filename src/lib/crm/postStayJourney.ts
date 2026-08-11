@@ -126,6 +126,7 @@ export async function schedulePostStayCouponDelivery(input: {
   checkoutConfirmedAt: Date;
   couponCode: string;
   bookingUrl: string;
+  couponGrantId: string;
   expiresAt: Date | null;
 }) {
   const policy = await getDiscountPolicy();
@@ -162,6 +163,7 @@ export async function schedulePostStayCouponDelivery(input: {
       target,
       text: `Para sua próxima reserva direta, você tem 10% de desconto com o cupom ${input.couponCode}.${expirationText} Acesse: ${input.bookingUrl}`,
       bookingId: input.bookingId,
+      couponGrantId: input.couponGrantId,
       postStayStep: "coupon",
     },
   });

@@ -110,6 +110,7 @@ describe("schedulePostStaySatisfaction", () => {
       checkoutConfirmedAt,
       couponCode: "VOLTE10-ABC1234567",
       bookingUrl: "https://pousadadelplata.com.br/reservar?promo=VOLTE10-ABC1234567",
+      couponGrantId: "grant-1",
       expiresAt: new Date("2026-11-09T15:00:00.000Z"),
     });
     expect(enqueueAutomationJob).toHaveBeenCalledWith(expect.objectContaining({
@@ -117,6 +118,7 @@ describe("schedulePostStaySatisfaction", () => {
       scheduledAt: new Date("2026-08-12T15:00:00.000Z"),
       payload: expect.objectContaining({
         postStayStep: "coupon",
+        couponGrantId: "grant-1",
         text: expect.stringContaining("VOLTE10-ABC1234567"),
       }),
     }));
@@ -136,6 +138,7 @@ describe("schedulePostStaySatisfaction", () => {
       checkoutConfirmedAt: new Date(),
       couponCode: "VOLTE10-ABC1234567",
       bookingUrl: "https://pousadadelplata.com.br/reservar?promo=VOLTE10-ABC1234567",
+      couponGrantId: "grant-1",
       expiresAt: null,
     })).resolves.toEqual({ scheduled: false, reason: "coupon_send_disabled" });
     expect(enqueueAutomationJob).not.toHaveBeenCalled();
