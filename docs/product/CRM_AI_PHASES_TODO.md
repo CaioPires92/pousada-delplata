@@ -294,7 +294,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F7.05 Configurar URL oficial de avaliação.
 - [x] F7.06 Agendar pedido de avaliação após 24h quando elegível.
 - [x] F7.07 Criar `CouponGrant` ligado a contato, booking e cupom.
-- [ ] F7.08 Gerar cupom 10% com uso único e vínculo antifraude.
+- [x] F7.08 Gerar cupom 10% com uso único e vínculo antifraude.
 - [ ] F7.09 Criar link do site com cupom pré-aplicado.
 - [ ] F7.10 Enviar código/link pelo provedor ativo com o mecanismo aprovado aplicável.
 - [ ] F7.11 Registrar emissão, envio, clique e resgate.

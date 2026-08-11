@@ -5,13 +5,13 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/crm/bookingLifecycle", () => ({ publishBookingCheckoutConfirmed: vi.fn() }));
 vi.mock("@/lib/crm/postStayJourney", () => ({ schedulePostStaySatisfaction: vi.fn() }));
-vi.mock("@/lib/crm/couponGrant", () => ({ createCouponGrantForStay: vi.fn() }));
+vi.mock("@/lib/crm/couponGrant", () => ({ createCouponGrantForStay: vi.fn(), issueCouponForGrant: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { publishBookingCheckoutConfirmed } from "@/lib/crm/bookingLifecycle";
 import { confirmBookingCheckout } from "./bookingCheckout";
 import { schedulePostStaySatisfaction } from "./postStayJourney";
-import { createCouponGrantForStay } from "./couponGrant";
+import { createCouponGrantForStay, issueCouponForGrant } from "./couponGrant";
 
 describe("confirmBookingCheckout", () => {
   const now = new Date("2026-08-11T15:00:00.000Z");
@@ -35,6 +35,13 @@ describe("confirmBookingCheckout", () => {
       reason: null,
       grant: { id: "grant-1" } as never,
     });
+    vi.mocked(issueCouponForGrant).mockResolvedValue({
+      issued: true,
+      reason: null,
+      grant: { id: "grant-1" } as never,
+      coupon: { id: "coupon-1" } as never,
+      code: "VOLTE10-TESTE12345",
+    });
   });
 
   it("persists checkout confirmation and emits the authoritative event", async () => {
@@ -57,6 +64,7 @@ describe("confirmBookingCheckout", () => {
       checkoutConfirmedAt: now,
     });
     expect(createCouponGrantForStay).toHaveBeenCalledWith("booking-1");
+    expect(issueCouponForGrant).toHaveBeenCalledWith("grant-1", now);
   });
 
   it("replays the stable event safely when checkout was already confirmed", async () => {

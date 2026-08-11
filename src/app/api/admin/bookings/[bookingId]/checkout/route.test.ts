@@ -37,6 +37,13 @@ describe("POST /api/admin/bookings/[bookingId]/checkout", () => {
         reason: null,
         grant: { id: "grant-1" } as never,
       },
+      couponIssue: {
+        issued: true,
+        reason: null,
+        grant: { id: "grant-1" } as never,
+        coupon: { id: "coupon-1" } as never,
+        code: "VOLTE10-TESTE12345",
+      },
     });
     const response = await POST(new Request("http://localhost", { method: "POST" }), {
       params: Promise.resolve({ bookingId: "booking-1" }),
