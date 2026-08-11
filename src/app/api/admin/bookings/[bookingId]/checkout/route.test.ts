@@ -41,9 +41,14 @@ describe("POST /api/admin/bookings/[bookingId]/checkout", () => {
         issued: true,
         reason: null,
         grant: { id: "grant-1" } as never,
-        coupon: { id: "coupon-1" } as never,
+        coupon: { id: "coupon-1", endsAt: new Date("2026-11-09T15:00:00.000Z") } as never,
         code: "VOLTE10-TESTE12345",
         bookingUrl: "https://www.pousadadelplata.com.br/reservar?promo=VOLTE10-TESTE12345",
+      },
+      couponDelivery: {
+        scheduled: true,
+        jobId: "coupon-job-1",
+        scheduledAt: new Date("2026-08-12T15:00:00.000Z"),
       },
     });
     const response = await POST(new Request("http://localhost", { method: "POST" }), {

@@ -4,9 +4,11 @@ import { buildAuditMetadata } from "@/lib/crm/audit";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { getPostStaySettings } from "@/lib/crm/postStaySettings";
+import { getDiscountPolicy } from "@/lib/discount-policy-store";
 
 export const POST_STAY_SATISFACTION_DELAY_MS = 3 * 60 * 60 * 1000;
 export const POST_STAY_REVIEW_DELAY_MS = 24 * 60 * 60 * 1000;
+export const POST_STAY_COUPON_DELAY_MS = 24 * 60 * 60 * 1000;
 export const POST_STAY_SATISFACTION_MESSAGE =
   "Olá! Esperamos que tenha aproveitado sua estadia. Como foi sua experiência conosco?";
 
@@ -111,6 +113,60 @@ export async function schedulePostStayReviewRequest(input: {
   });
   await recordCrmEvent({
     action: "ReviewRequestScheduled",
+    bookingId: input.bookingId,
+    contactId: booking.crmContactId,
+    conversationId: booking.crmConversationId,
+    metadata: { queueJobId: job.id, scheduledAt: scheduledAt.toISOString() },
+  });
+  return { scheduled: true as const, jobId: job.id, scheduledAt };
+}
+
+export async function schedulePostStayCouponDelivery(input: {
+  bookingId: string;
+  checkoutConfirmedAt: Date;
+  couponCode: string;
+  bookingUrl: string;
+  expiresAt: Date | null;
+}) {
+  const policy = await getDiscountPolicy();
+  if (!policy.sendEnabled) return { scheduled: false as const, reason: "coupon_send_disabled" as const };
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: input.bookingId },
+    select: {
+      crmContactId: true,
+      crmConversationId: true,
+      crmContact: { select: { phone: true, phoneRaw: true, whatsappJid: true, optInWhatsapp: true, optOutAt: true } },
+    },
+  });
+  if (!booking?.crmContactId || !booking.crmConversationId || !booking.crmContact) {
+    return { scheduled: false as const, reason: "missing_crm_link" as const };
+  }
+  if (booking.crmContact.optOutAt || !booking.crmContact.optInWhatsapp) {
+    return { scheduled: false as const, reason: "whatsapp_consent_missing" as const };
+  }
+  const target = resolveEvolutionSendTarget(booking.crmContact);
+  if (!target) return { scheduled: false as const, reason: "missing_target" as const };
+
+  const expirationText = input.expiresAt
+    ? ` Ele é válido até ${input.expiresAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`
+    : "";
+  const scheduledAt = new Date(input.checkoutConfirmedAt.getTime() + POST_STAY_COUPON_DELAY_MS);
+  const job = await enqueueAutomationJob({
+    conversationId: booking.crmConversationId,
+    action: "SEND_WHATSAPP_MESSAGE",
+    journeyType: "post_stay",
+    dedupeKey: `post-stay:${input.bookingId}:coupon`,
+    scheduledAt,
+    payload: {
+      target,
+      text: `Para sua próxima reserva direta, você tem 10% de desconto com o cupom ${input.couponCode}.${expirationText} Acesse: ${input.bookingUrl}`,
+      bookingId: input.bookingId,
+      postStayStep: "coupon",
+    },
+  });
+  await recordCrmEvent({
+    action: "CouponDeliveryScheduled",
     bookingId: input.bookingId,
     contactId: booking.crmContactId,
     conversationId: booking.crmConversationId,

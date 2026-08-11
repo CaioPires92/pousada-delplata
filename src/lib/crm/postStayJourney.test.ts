@@ -5,13 +5,15 @@ vi.mock("@/lib/crm/automationQueue", () => ({ enqueueAutomationJob: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
 vi.mock("@/lib/whatsapp/evolution", () => ({ resolveEvolutionSendTarget: vi.fn() }));
 vi.mock("@/lib/crm/postStaySettings", () => ({ getPostStaySettings: vi.fn() }));
+vi.mock("@/lib/discount-policy-store", () => ({ getDiscountPolicy: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { enqueueAutomationJob } from "@/lib/crm/automationQueue";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { getPostStaySettings } from "./postStaySettings";
-import { schedulePostStayReviewRequest, schedulePostStaySatisfaction } from "./postStayJourney";
+import { getDiscountPolicy } from "@/lib/discount-policy-store";
+import { schedulePostStayCouponDelivery, schedulePostStayReviewRequest, schedulePostStaySatisfaction } from "./postStayJourney";
 
 describe("schedulePostStaySatisfaction", () => {
   beforeEach(() => {
@@ -22,6 +24,14 @@ describe("schedulePostStaySatisfaction", () => {
     vi.mocked(getPostStaySettings).mockResolvedValue({
       officialReviewUrl: "https://example.com/review",
       reviewConfigured: true,
+    });
+    vi.mocked(getDiscountPolicy).mockResolvedValue({
+      sendEnabled: true,
+      percentage: 10,
+      validityDays: 90,
+      minimumBookingValue: null,
+      maximumDiscountAmount: null,
+      blockedDateRanges: [],
     });
   });
 
@@ -85,6 +95,49 @@ describe("schedulePostStaySatisfaction", () => {
       bookingId: "booking-1",
       checkoutConfirmedAt: new Date(),
     })).resolves.toEqual({ scheduled: false, reason: "review_url_not_configured" });
+    expect(enqueueAutomationJob).not.toHaveBeenCalled();
+  });
+
+  it("schedules the individual coupon independently from review feedback", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      crmContact: { phone: "5519999999999", optInWhatsapp: true, optOutAt: null },
+    } as never);
+    const checkoutConfirmedAt = new Date("2026-08-11T15:00:00.000Z");
+    await schedulePostStayCouponDelivery({
+      bookingId: "booking-1",
+      checkoutConfirmedAt,
+      couponCode: "VOLTE10-ABC1234567",
+      bookingUrl: "https://pousadadelplata.com.br/reservar?promo=VOLTE10-ABC1234567",
+      expiresAt: new Date("2026-11-09T15:00:00.000Z"),
+    });
+    expect(enqueueAutomationJob).toHaveBeenCalledWith(expect.objectContaining({
+      dedupeKey: "post-stay:booking-1:coupon",
+      scheduledAt: new Date("2026-08-12T15:00:00.000Z"),
+      payload: expect.objectContaining({
+        postStayStep: "coupon",
+        text: expect.stringContaining("VOLTE10-ABC1234567"),
+      }),
+    }));
+  });
+
+  it("respects the configured coupon sending switch", async () => {
+    vi.mocked(getDiscountPolicy).mockResolvedValue({
+      sendEnabled: false,
+      percentage: 10,
+      validityDays: 90,
+      minimumBookingValue: null,
+      maximumDiscountAmount: null,
+      blockedDateRanges: [],
+    });
+    await expect(schedulePostStayCouponDelivery({
+      bookingId: "booking-1",
+      checkoutConfirmedAt: new Date(),
+      couponCode: "VOLTE10-ABC1234567",
+      bookingUrl: "https://pousadadelplata.com.br/reservar?promo=VOLTE10-ABC1234567",
+      expiresAt: null,
+    })).resolves.toEqual({ scheduled: false, reason: "coupon_send_disabled" });
     expect(enqueueAutomationJob).not.toHaveBeenCalled();
   });
 });

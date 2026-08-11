@@ -4,13 +4,16 @@ vi.mock("@/lib/prisma", () => ({
   default: { booking: { findUnique: vi.fn(), updateMany: vi.fn() } },
 }));
 vi.mock("@/lib/crm/bookingLifecycle", () => ({ publishBookingCheckoutConfirmed: vi.fn() }));
-vi.mock("@/lib/crm/postStayJourney", () => ({ schedulePostStaySatisfaction: vi.fn() }));
+vi.mock("@/lib/crm/postStayJourney", () => ({
+  schedulePostStaySatisfaction: vi.fn(),
+  schedulePostStayCouponDelivery: vi.fn(),
+}));
 vi.mock("@/lib/crm/couponGrant", () => ({ createCouponGrantForStay: vi.fn(), issueCouponForGrant: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { publishBookingCheckoutConfirmed } from "@/lib/crm/bookingLifecycle";
 import { confirmBookingCheckout } from "./bookingCheckout";
-import { schedulePostStaySatisfaction } from "./postStayJourney";
+import { schedulePostStayCouponDelivery, schedulePostStaySatisfaction } from "./postStayJourney";
 import { createCouponGrantForStay, issueCouponForGrant } from "./couponGrant";
 
 describe("confirmBookingCheckout", () => {
@@ -39,9 +42,14 @@ describe("confirmBookingCheckout", () => {
       issued: true,
       reason: null,
       grant: { id: "grant-1" } as never,
-      coupon: { id: "coupon-1" } as never,
+      coupon: { id: "coupon-1", endsAt: new Date("2026-11-09T15:00:00.000Z") } as never,
       code: "VOLTE10-TESTE12345",
       bookingUrl: "https://www.pousadadelplata.com.br/reservar?promo=VOLTE10-TESTE12345",
+    });
+    vi.mocked(schedulePostStayCouponDelivery).mockResolvedValue({
+      scheduled: true,
+      jobId: "coupon-job-1",
+      scheduledAt: new Date("2026-08-12T15:00:00.000Z"),
     });
   });
 
@@ -66,6 +74,13 @@ describe("confirmBookingCheckout", () => {
     });
     expect(createCouponGrantForStay).toHaveBeenCalledWith("booking-1");
     expect(issueCouponForGrant).toHaveBeenCalledWith("grant-1", now);
+    expect(schedulePostStayCouponDelivery).toHaveBeenCalledWith({
+      bookingId: "booking-1",
+      checkoutConfirmedAt: now,
+      couponCode: "VOLTE10-TESTE12345",
+      bookingUrl: "https://www.pousadadelplata.com.br/reservar?promo=VOLTE10-TESTE12345",
+      expiresAt: new Date("2026-11-09T15:00:00.000Z"),
+    });
   });
 
   it("replays the stable event safely when checkout was already confirmed", async () => {

@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { publishBookingCheckoutConfirmed } from "@/lib/crm/bookingLifecycle";
-import { schedulePostStaySatisfaction } from "@/lib/crm/postStayJourney";
+import { schedulePostStayCouponDelivery, schedulePostStaySatisfaction } from "@/lib/crm/postStayJourney";
 import { createCouponGrantForStay, issueCouponForGrant } from "@/lib/crm/couponGrant";
 
 const CHECKOUT_ELIGIBLE_STATUSES = ["CONFIRMED", "PAID"];
@@ -47,6 +47,15 @@ export async function confirmBookingCheckout(input: {
   const couponIssue = grantId
     ? await issueCouponForGrant(grantId, confirmationAt)
     : { issued: false as const, reason: couponGrant.reason };
+  const couponDelivery = couponIssue.issued
+    ? await schedulePostStayCouponDelivery({
+        bookingId: booking.id,
+        checkoutConfirmedAt: confirmationAt,
+        couponCode: couponIssue.code,
+        bookingUrl: couponIssue.bookingUrl,
+        expiresAt: couponIssue.coupon.endsAt,
+      })
+    : { scheduled: false as const, reason: couponIssue.reason };
   return {
     ok: true as const,
     newlyConfirmed: update.count === 1,
@@ -55,5 +64,6 @@ export async function confirmBookingCheckout(input: {
     postStay,
     couponGrant,
     couponIssue,
+    couponDelivery,
   };
 }
