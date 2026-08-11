@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
 
 import ReplyBox from "./ReplyBox";
 
-describe("ReplyBox failed message persistence", () => {
+describe("ReplyBox", () => {
     beforeEach(() => {
         mocks.refresh.mockReset();
     });
@@ -32,7 +32,7 @@ describe("ReplyBox failed message persistence", () => {
         };
         window.addEventListener("crm-message-error", listener);
 
-        render(<ReplyBox conversationId="conversation-1" />);
+        render(<ReplyBox conversationId="conversation-1" automationMode="off" />);
         fireEvent.change(screen.getByPlaceholderText("Digite sua resposta aqui..."), {
             target: { value: "Mensagem que falhou" },
         });
@@ -47,5 +47,40 @@ describe("ReplyBox failed message persistence", () => {
         expect(screen.getByText("messaging_send_failed")).toBeInTheDocument();
 
         window.removeEventListener("crm-message-error", listener);
+    });
+
+    it("requires the attendant to use and send a supervised suggestion", async () => {
+        const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+            if (!options?.method) {
+                return {
+                    ok: true,
+                    json: async () => ({
+                        ok: true,
+                        suggestion: {
+                            id: "suggestion-1",
+                            content: "O check-in começa às 14h.",
+                            intent: "checkin_info",
+                        },
+                    }),
+                };
+            }
+            return { ok: true, json: async () => ({ ok: true, messageId: "message-1" }) };
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        render(<ReplyBox conversationId="conversation-1" automationMode="supervised" />);
+        expect(await screen.findByText("O check-in começa às 14h.")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Digite sua resposta aqui...")).toHaveValue("");
+
+        fireEvent.click(screen.getByRole("button", { name: "Usar sugestão" }));
+        expect(screen.getByPlaceholderText("Digite sua resposta aqui...")).toHaveValue("O check-in começa às 14h.");
+        fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({
+            conversationId: "conversation-1",
+            text: "O check-in começa às 14h.",
+            suggestionId: "suggestion-1",
+        });
     });
 });

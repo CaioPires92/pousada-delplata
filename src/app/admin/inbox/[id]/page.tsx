@@ -110,7 +110,10 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
                     </div>
 
                     <div className="shrink-0 border-t border-slate-200 bg-white p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.04)]">
-                        <ReplyBox conversationId={conversation.id} />
+                        <ReplyBox
+                            conversationId={conversation.id}
+                            automationMode={conversation.automationMode}
+                        />
                     </div>
                 </section>
             </div>

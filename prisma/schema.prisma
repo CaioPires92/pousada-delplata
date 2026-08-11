@@ -343,6 +343,7 @@ model Conversation {
   automationQueueJobs   AutomationQueueJob[]
   deadLetterItems       DeadLetterQueueItem[]
   internalNotes         InternalNote[]
+  supervisedSuggestions   SupervisedReplySuggestion[]
   actionLogs            InternalActionLog[]
   bookings                 Booking[]
 
@@ -351,6 +352,26 @@ model Conversation {
   @@index([assignedUserId])
   @@index([lastMessageAt])
   @@index([awaitingHumanResponse, waitingSince])
+}
+
+model SupervisedReplySuggestion {
+  id              String       @id @default(uuid())
+  conversationId  String
+  sourceMessageId String       @unique
+  content         String
+  intent          String
+  ruleId          String
+  ruleVersion     Int
+  status          String       @default("pending")
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  sentMessageId   String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model AutomationQueueJob {

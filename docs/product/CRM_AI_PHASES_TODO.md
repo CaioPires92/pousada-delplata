@@ -324,7 +324,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
 - [x] F8.04 Executar testes de segurança e abuso.
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
-- [ ] F8.06 Ativar modo supervisionado para equipe piloto.
+- [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.
 - [x] F8.09 Ensaiar kill switch, rollback e replay de fila.

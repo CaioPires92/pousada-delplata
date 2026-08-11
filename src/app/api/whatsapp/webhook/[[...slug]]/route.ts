@@ -11,6 +11,7 @@ import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from '@/lib/crm/pipel
 import { isConversationAutomationActive } from '@/lib/crm/automationPause';
 import { buildQuoteFlowState } from '@/lib/crm/conversationFlow';
 import { applyPipelineAutomationOnIncomingMessage } from '@/lib/crm/pipelineAutomation';
+import { createSupervisedSuggestionForInbound } from '@/lib/crm/supervisedSuggestions';
 import { cancelCommercialFollowUps } from '@/lib/crm/followUpCancellation';
 import { isWhatsappOptOutMessage, setWhatsappConsent } from '@/lib/crm/whatsappConsent';
 import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-normalizer';
@@ -750,6 +751,14 @@ export async function POST(
           contactId: result.contactId,
           text: extracted.textContent,
         });
+        if (extracted.textContent) {
+          await createSupervisedSuggestionForInbound({
+            conversationId: result.conversationId,
+            contactId: result.contactId,
+            sourceMessageId: result.messageId,
+            text: extracted.textContent,
+          });
+        }
       }
     }
 

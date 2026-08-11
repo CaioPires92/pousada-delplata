@@ -90,6 +90,7 @@ function emptyMessagePayload(id: string, remoteJid: string) {
 }
 
 async function cleanupTestData() {
+  await prisma.chatbotRule.deleteMany({ where: { trigger: "horario piloto supervisionado" } });
   await prisma.messagingWebhookEvent.deleteMany({
     where: { provider: "evolution", externalMessageId: { startsWith: "test-" } },
   });
@@ -400,6 +401,50 @@ describe("WhatsApp CRM webhook hardening", () => {
     expect(await response.json()).toMatchObject({ ok: true, acceptedEvents: 1, updatedMessages: 1 });
     const message = await prisma.message.findFirst({ where: { externalMessageId: "test-status-message" } });
     expect(message?.deliveryStatus).toBe("delivered");
+  });
+
+  it("creates a safe suggestion in supervised mode without sending it", async () => {
+    const remoteJid = "5511999990016@s.whatsapp.net";
+    const initial = await POST(
+      webhookRequest(textPayload("test-supervised-initial", remoteJid, "Olá")),
+      routeParams(),
+    );
+    const initialBody = await initial.json();
+    await prisma.conversation.update({
+      where: { id: initialBody.conversationId },
+      data: { automationMode: "supervised", chatbotEnabled: false },
+    });
+    await prisma.chatbotRule.create({
+      data: {
+        trigger: "horario piloto supervisionado",
+        response: "O check-in começa às 14h.",
+        category: "checkin_info",
+        audience: "public",
+        approvedAt: new Date(),
+        approvedBy: "admin-test",
+      },
+    });
+
+    const response = await POST(
+      webhookRequest(textPayload(
+        "test-supervised-message",
+        remoteJid,
+        "Qual o horario piloto supervisionado?",
+      )),
+      routeParams(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(prisma.supervisedReplySuggestion.findFirst({
+      where: { conversationId: initialBody.conversationId, status: "pending" },
+    })).resolves.toMatchObject({
+      content: "O check-in começa às 14h.",
+      intent: "checkin_info",
+    });
+    const outbound = await prisma.message.findMany({
+      where: { conversationId: initialBody.conversationId, senderType: { in: ["bot", "human"] } },
+    });
+    expect(outbound).toHaveLength(0);
   });
 
   it("fails closed without a webhook secret in production", async () => {

@@ -215,6 +215,60 @@ describe("manual WhatsApp send hardening", () => {
     expect(preservedN8n?.status).toBe("pending");
   });
 
+  it("marks an exact supervised suggestion approved only after the human sends it", async () => {
+    send.mockResolvedValue({
+      externalMessageId: "EVO_SUPERVISED_001",
+      acceptedAt: "2026-08-11T16:00:00.000Z",
+      status: "sent",
+    });
+    const contact = await prisma.contact.create({
+      data: { name: "Teste supervisionado", phone: "551188880004", source: "test-whatsapp-send" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: {
+        contactId: contact.id,
+        channel: "whatsapp",
+        status: "open",
+        automationMode: "supervised",
+      },
+    });
+    const suggestion = await prisma.supervisedReplySuggestion.create({
+      data: {
+        conversationId: conversation.id,
+        sourceMessageId: "source-message-1",
+        content: "O check-in começa às 14h.",
+        intent: "checkin_info",
+        ruleId: "rule-1",
+        ruleVersion: 1,
+      },
+    });
+
+    const altered = await POST(request({
+      conversationId: conversation.id,
+      text: "Texto alterado",
+      suggestionId: suggestion.id,
+    }));
+    expect(altered.status).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+
+    const response = await POST(request({
+      conversationId: conversation.id,
+      text: suggestion.content,
+      suggestionId: suggestion.id,
+    }));
+    expect(response.status).toBe(200);
+    const updated = await prisma.supervisedReplySuggestion.findUnique({ where: { id: suggestion.id } });
+    expect(updated).toMatchObject({
+      status: "approved",
+      reviewedBy: "admin-1",
+      reviewedAt: expect.any(Date),
+      sentMessageId: expect.any(String),
+    });
+    await expect(prisma.internalActionLog.findFirst({
+      where: { conversationId: conversation.id, action: "SupervisedReplyApproved" },
+    })).resolves.not.toBeNull();
+  });
+
   it("blocks Meta free-form text when the customer care window has expired", async () => {
     vi.mocked(createMessagingProvider).mockReturnValue({
       name: "meta",

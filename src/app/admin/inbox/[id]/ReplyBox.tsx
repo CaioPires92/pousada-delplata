@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface ReplyBoxProps {
     conversationId: string;
+    automationMode: "off" | "supervised" | "auto";
 }
 
 function getErrorMessage(error: unknown): string {
@@ -19,12 +20,38 @@ function getErrorMessage(error: unknown): string {
     return "Erro inesperado ao enviar mensagem";
 }
 
-export default function ReplyBox({ conversationId }: ReplyBoxProps) {
+export default function ReplyBox({ conversationId, automationMode }: ReplyBoxProps) {
     const [text, setText] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [sentFeedback, setSentFeedback] = useState<string | null>(null);
+    const [suggestion, setSuggestion] = useState<{ id: string; content: string; intent: string } | null>(null);
     const router = useRouter();
+
+    useEffect(() => {
+        if (automationMode !== "supervised") {
+            setSuggestion(null);
+            return;
+        }
+        let cancelled = false;
+        fetch(`/api/crm/conversations/${conversationId}/suggestion`, { cache: "no-store" })
+            .then(response => response.json())
+            .then(data => {
+                if (!cancelled && data.ok) setSuggestion(data.suggestion ?? null);
+            })
+            .catch(() => undefined);
+        return () => { cancelled = true; };
+    }, [automationMode, conversationId]);
+
+    async function dismissSuggestion() {
+        if (!suggestion) return;
+        const response = await fetch(`/api/crm/conversations/${conversationId}/suggestion`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ suggestionId: suggestion.id, action: "dismiss" }),
+        });
+        if (response.ok) setSuggestion(null);
+    }
 
     async function handleSend(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -66,6 +93,7 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
                 body: JSON.stringify({
                     conversationId,
                     text: messageText,
+                    ...(suggestion?.content === messageText ? { suggestionId: suggestion.id } : {}),
                 }),
             });
 
@@ -77,6 +105,7 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
             }
 
             setSentFeedback("Mensagem enviada.");
+            setSuggestion(null);
             router.refresh();
         } catch (err) {
             console.error("Erro ao enviar:", err);
@@ -94,6 +123,16 @@ export default function ReplyBox({ conversationId }: ReplyBoxProps) {
     return (
         <form onSubmit={handleSend}>
             <div className="space-y-3">
+                {suggestion && (
+                    <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-sky-700">Sugestão supervisionada · {suggestion.intent}</p>
+                        <p className="mt-2 text-sm text-slate-700">{suggestion.content}</p>
+                        <div className="mt-3 flex gap-2">
+                            <button type="button" onClick={() => setText(suggestion.content)} className="rounded-md bg-sky-700 px-3 py-1.5 text-xs font-bold text-white">Usar sugestão</button>
+                            <button type="button" onClick={dismissSuggestion} className="rounded-md border border-sky-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600">Descartar</button>
+                        </div>
+                    </div>
+                )}
                 <Textarea
                     placeholder="Digite sua resposta aqui..."
                     value={text}

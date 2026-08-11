@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         const bodyRecord = asRecord(body);
         const conversationId = firstString(bodyRecord?.conversationId);
         const text = firstString(bodyRecord?.text);
+        const suggestionId = firstString(bodyRecord?.suggestionId);
         const actorId = auth.adminId;
 
         if (!conversationId || !text) {
@@ -70,6 +71,24 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 { ok: false, error: "conversation_not_found" },
                 { status: 404 }
+            );
+        }
+
+        const supervisedSuggestion = suggestionId
+            ? await prisma.supervisedReplySuggestion.findFirst({
+                where: {
+                    id: suggestionId,
+                    conversationId,
+                    status: "pending",
+                    content: text,
+                },
+                select: { id: true },
+            })
+            : null;
+        if (suggestionId && !supervisedSuggestion) {
+            return NextResponse.json(
+                { ok: false, error: "invalid_supervised_suggestion" },
+                { status: 400 }
             );
         }
 
@@ -217,6 +236,32 @@ export async function POST(request: Request) {
                     }),
                 },
             });
+
+            if (supervisedSuggestion) {
+                await tx.supervisedReplySuggestion.update({
+                    where: { id: supervisedSuggestion.id },
+                    data: {
+                        status: "approved",
+                        reviewedBy: actorId,
+                        reviewedAt: now,
+                        sentMessageId: message.id,
+                    },
+                });
+                await tx.internalActionLog.create({
+                    data: {
+                        action: "SupervisedReplyApproved",
+                        contactId: conversation.contactId,
+                        conversationId: conversation.id,
+                        userId: actorId,
+                        metadataJson: JSON.stringify({
+                            suggestionId: supervisedSuggestion.id,
+                            sentMessageId: message.id,
+                            actionAuthorized: true,
+                            ...buildAuditMetadata({ actorType: "human", origin: "admin_ui", actorId }),
+                        }),
+                    },
+                });
+            }
 
             return message;
         });
