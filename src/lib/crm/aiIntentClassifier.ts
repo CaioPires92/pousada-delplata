@@ -27,21 +27,118 @@ type AiAttempt = {
   result: IntentClassification["result"];
 };
 
+type AiProviderConfig = {
+  provider: "openai" | "gemini";
+  apiKey: string;
+  model: string;
+  url: string;
+};
+
+function getAiProviderConfig(): AiProviderConfig | null {
+  const provider = (process.env.CRM_AI_PROVIDER ?? "openai").trim().toLowerCase();
+
+  if (provider === "gemini") {
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey) return null;
+
+    const model = process.env.GEMINI_MODEL?.trim() || "gemini-3-flash-preview";
+    return {
+      provider,
+      apiKey,
+      model,
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    };
+  }
+
+  if (provider === "openai") {
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) return null;
+
+    return {
+      provider,
+      apiKey,
+      model: process.env.OPENAI_LIGHT_MODEL?.trim() || "gpt-4o-mini",
+      url: "https://api.openai.com/v1/responses",
+    };
+  }
+
+  return null;
+}
+
+function providerRequest(config: AiProviderConfig, prompt: string): RequestInit {
+  if (config.provider === "gemini") {
+    const thinkingConfig = config.model.startsWith("gemini-3")
+      ? { thinkingLevel: "low" }
+      : { thinkingBudget: 0 };
+
+    return {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": config.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 512,
+          responseMimeType: "application/json",
+          thinkingConfig,
+        },
+      }),
+      signal: AbortSignal.timeout(aiTimeoutMs(5000)),
+    };
+  }
+
+  return {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: config.model,
+      input: prompt,
+      max_output_tokens: 120,
+    }),
+    signal: AbortSignal.timeout(aiTimeoutMs(1500)),
+  };
+}
+
+function providerResponse(data: any, provider: AiProviderConfig["provider"]) {
+  if (provider === "gemini") {
+    return {
+      text: String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim(),
+      inputTokens: Number.isFinite(data?.usageMetadata?.promptTokenCount)
+        ? Number(data.usageMetadata.promptTokenCount)
+        : null,
+      outputTokens: Number.isFinite(data?.usageMetadata?.candidatesTokenCount)
+        ? Number(data.usageMetadata.candidatesTokenCount)
+        : null,
+    };
+  }
+
+  return {
+    text: String(data?.output_text ?? data?.output?.[0]?.content?.[0]?.text ?? "").trim(),
+    inputTokens: Number.isFinite(data?.usage?.input_tokens) ? Number(data.usage.input_tokens) : null,
+    outputTokens: Number.isFinite(data?.usage?.output_tokens) ? Number(data.usage.output_tokens) : null,
+  };
+}
+
 function clampConfidence(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
 }
 
-function aiTimeoutMs() {
-  const configured = Number.parseInt(process.env.CRM_AI_TIMEOUT_MS ?? "1500", 10);
-  if (!Number.isFinite(configured)) return 1500;
+function aiTimeoutMs(defaultValue: number) {
+  const configured = Number.parseInt(process.env.CRM_AI_TIMEOUT_MS ?? String(defaultValue), 10);
+  if (!Number.isFinite(configured)) return defaultValue;
   return Math.max(250, Math.min(5000, configured));
 }
 
 async function classifyWithAI(message: string): Promise<AiAttempt> {
   const startedAt = Date.now();
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  const providerConfig = getAiProviderConfig();
+  if (!providerConfig) {
     return {
       classification: null,
       latencyMs: 0,
@@ -50,8 +147,6 @@ async function classifyWithAI(message: string): Promise<AiAttempt> {
       result: "fallback_disabled",
     };
   }
-
-  const model = process.env.OPENAI_LIGHT_MODEL ?? "gpt-4o-mini";
 
   const prompt = [
     "Classifique a intenção da mensagem de hospedagem.",
@@ -63,19 +158,10 @@ async function classifyWithAI(message: string): Promise<AiAttempt> {
   ].join("\n");
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        input: prompt,
-        max_output_tokens: 120,
-      }),
-      signal: AbortSignal.timeout(aiTimeoutMs()),
-    });
+    const response = await fetch(
+      providerConfig.url,
+      providerRequest(providerConfig, prompt)
+    );
 
     if (!response.ok) {
       return {
@@ -87,9 +173,7 @@ async function classifyWithAI(message: string): Promise<AiAttempt> {
       };
     }
     const data = await response.json().catch(() => null) as any;
-    const text = String(data?.output_text ?? data?.output?.[0]?.content?.[0]?.text ?? "").trim();
-    const inputTokens = Number.isFinite(data?.usage?.input_tokens) ? Number(data.usage.input_tokens) : null;
-    const outputTokens = Number.isFinite(data?.usage?.output_tokens) ? Number(data.usage.output_tokens) : null;
+    const { text, inputTokens, outputTokens } = providerResponse(data, providerConfig.provider);
     if (!text) {
       return {
         classification: null,
@@ -132,7 +216,7 @@ async function classifyWithAI(message: string): Promise<AiAttempt> {
         source: "ai",
         raw: text,
         decision,
-        model,
+        model: providerConfig.model,
         promptVersion: CRM_AI_PROMPT_VERSION,
         latencyMs,
         inputTokens,
