@@ -9,6 +9,7 @@ import { cacheSetNx } from "@/lib/crm/cacheStore";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { scheduleCommercialFollowUpCadence } from "@/lib/crm/followUpCadence";
 import { loadFreshQuote } from "@/lib/crm/freshQuote";
+import { processPostStayFeedback } from "@/lib/crm/postStayFeedback";
 import { PIPELINE_STAGES, PIPELINE_TERMINAL_STAGE_VALUES } from "@/lib/crm/pipelineStages";
 import { buildQuoteReplyText } from "@/lib/crm/quoteReply";
 import { CRM_AUTOMATION_POLICY_VERSION, CRM_FAQ_SCHEMA_VERSION } from "@/lib/crm/automationVersions";
@@ -82,6 +83,14 @@ export async function processAutoResponse(conversationId: string, phone: string,
     if (!isConversationAutomationActive(conversation)) {
         return null;
     }
+
+    const postStayFeedback = await processPostStayFeedback({
+        conversation,
+        phone,
+        message: text,
+        now,
+    });
+    if (postStayFeedback.handled) return postStayFeedback.response;
 
     const parsedIncoming = parseCrmIntent(text, now);
     const handoffDecision = decideAutomationHandoff(text, parsedIncoming, {

@@ -158,7 +158,17 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
 
       await prisma.conversation.update({
         where: { id: conversation.id },
-        data: { lastMessageAt: sentAt },
+        data: {
+          lastMessageAt: sentAt,
+          ...(job.journeyType === "post_stay" && job.payload.postStayStep === "satisfaction"
+            ? {
+                currentFlow: "post_stay",
+                flowStep: "waiting_satisfaction",
+                flowDataJson: JSON.stringify({ bookingId: job.payload.bookingId ?? null }),
+                lastAutomationAt: sentAt,
+              }
+            : {}),
+        },
       });
 
       await recordCrmEvent({
