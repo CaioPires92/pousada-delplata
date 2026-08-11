@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const transactionClient = vi.hoisted(() => ({
-  couponGrant: { findUnique: vi.fn(), update: vi.fn() },
+  couponGrant: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   coupon: { create: vi.fn() },
 }));
 
@@ -49,12 +49,7 @@ describe("createCouponGrantForStay", () => {
       contact: { email: "Guest@Example.com", phone: "5519999999999" },
     });
     transactionClient.coupon.create.mockResolvedValue({ id: "coupon-1" });
-    transactionClient.couponGrant.update.mockResolvedValue({
-      id: "grant-1",
-      bookingId: "booking-1",
-      contactId: "contact-1",
-      status: "ISSUED",
-    });
+    transactionClient.couponGrant.updateMany.mockResolvedValue({ count: 1 });
     const now = new Date("2026-08-11T15:00:00.000Z");
 
     const result = await issueCouponForGrant("grant-1", now);
@@ -92,6 +87,19 @@ describe("createCouponGrantForStay", () => {
     });
     await expect(issueCouponForGrant("grant-1"))
       .resolves.toMatchObject({ issued: false, reason: "missing_guest_identity" });
+    expect(transactionClient.coupon.create).not.toHaveBeenCalled();
+  });
+
+  it("returns the coupon already linked to the stay without creating another", async () => {
+    transactionClient.couponGrant.findUnique.mockResolvedValue({
+      id: "grant-1",
+      bookingId: "booking-1",
+      contactId: "contact-1",
+      coupon: { id: "coupon-existing" },
+      contact: { email: "guest@example.com", phone: null },
+    });
+    await expect(issueCouponForGrant("grant-1"))
+      .resolves.toMatchObject({ issued: false, reason: "already_issued", coupon: { id: "coupon-existing" } });
     expect(transactionClient.coupon.create).not.toHaveBeenCalled();
   });
 
@@ -141,5 +149,20 @@ describe("createCouponGrantForStay", () => {
     await expect(createCouponGrantForStay("booking-1"))
       .resolves.toMatchObject({ created: false, reason: "already_granted" });
     expect(prisma.couponGrant.create).not.toHaveBeenCalled();
+  });
+
+  it("recovers the winning grant when two checkouts create it concurrently", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      id: "booking-1",
+      crmContactId: "contact-1",
+      checkoutConfirmedAt: new Date(),
+    } as never);
+    vi.mocked(prisma.couponGrant.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "grant-winner", bookingId: "booking-1" } as never);
+    vi.mocked(prisma.couponGrant.create).mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" }));
+
+    await expect(createCouponGrantForStay("booking-1"))
+      .resolves.toMatchObject({ created: false, reason: "already_granted", grant: { id: "grant-winner" } });
   });
 });

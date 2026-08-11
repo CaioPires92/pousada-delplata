@@ -27,9 +27,17 @@ export async function createCouponGrantForStay(bookingId: string) {
   const existing = await prisma.couponGrant.findUnique({ where: { bookingId: booking.id } });
   if (existing) return { created: false as const, reason: "already_granted" as const, grant: existing };
 
-  const grant = await prisma.couponGrant.create({
-    data: { bookingId: booking.id, contactId: booking.crmContactId, status: "PENDING" },
-  });
+  let grant;
+  try {
+    grant = await prisma.couponGrant.create({
+      data: { bookingId: booking.id, contactId: booking.crmContactId, status: "PENDING" },
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code !== "P2002") throw error;
+    const concurrentGrant = await prisma.couponGrant.findUnique({ where: { bookingId: booking.id } });
+    if (!concurrentGrant) throw error;
+    return { created: false as const, reason: "already_granted" as const, grant: concurrentGrant };
+  }
   await recordCrmEvent({
     action: "CouponGrantCreated",
     bookingId: booking.id,
@@ -85,10 +93,12 @@ export async function issueCouponForGrant(grantId: string, now = new Date()) {
             stackable: false,
           },
         });
-        const updatedGrant = await tx.couponGrant.update({
-          where: { id: grant.id },
+        const update = await tx.couponGrant.updateMany({
+          where: { id: grant.id, couponId: null },
           data: { couponId: coupon.id, status: "ISSUED", issuedAt: now },
         });
+        if (update.count !== 1) throw Object.assign(new Error("coupon_grant_already_issued"), { code: "GRANT_ISSUED" });
+        const updatedGrant = { ...grant, couponId: coupon.id, status: "ISSUED", issuedAt: now };
         return {
           issued: true as const,
           reason: null,
@@ -109,6 +119,10 @@ export async function issueCouponForGrant(grantId: string, now = new Date()) {
       }
       return result;
     } catch (error) {
+      if ((error as { code?: string }).code === "GRANT_ISSUED") {
+        const grant = await prisma.couponGrant.findUnique({ where: { id: grantId }, include: { coupon: true } });
+        return { issued: false as const, reason: "already_issued" as const, grant, coupon: grant?.coupon ?? null };
+      }
       if ((error as { code?: string }).code !== "P2002" || attempt === 4) throw error;
     }
   }
