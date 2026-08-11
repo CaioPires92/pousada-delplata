@@ -4,6 +4,7 @@ import { randomInt } from "crypto";
 import { encryptCouponCode } from "@/lib/coupons/code-vault";
 import { getCouponCodePrefix, hashCouponCode, normalizeGuestEmail, normalizeGuestPhone } from "@/lib/coupons/hash";
 import { getDiscountPolicy } from "@/lib/discount-policy-store";
+import { buildPreappliedCouponUrl } from "@/lib/coupons/booking-link";
 
 const COUPON_PERCENTAGE = 10;
 const COUPON_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -88,7 +89,14 @@ export async function issueCouponForGrant(grantId: string, now = new Date()) {
           where: { id: grant.id },
           data: { couponId: coupon.id, status: "ISSUED", issuedAt: now },
         });
-        return { issued: true as const, reason: null, grant: updatedGrant, coupon, code };
+        return {
+          issued: true as const,
+          reason: null,
+          grant: updatedGrant,
+          coupon,
+          code,
+          bookingUrl: buildPreappliedCouponUrl(code),
+        };
       });
 
       if (result.issued) {

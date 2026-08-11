@@ -51,7 +51,11 @@ describe("createCouponGrantForStay", () => {
 
     const result = await issueCouponForGrant("grant-1", now);
 
-    expect(result).toMatchObject({ issued: true, code: expect.stringMatching(/^VOLTE10-[A-Z2-9]{10}$/) });
+    expect(result).toMatchObject({
+      issued: true,
+      code: expect.stringMatching(/^VOLTE10-[A-Z2-9]{10}$/),
+      bookingUrl: expect.stringMatching(/\/reservar\?promo=VOLTE10-/),
+    });
     expect(transactionClient.coupon.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         type: "PERCENT",

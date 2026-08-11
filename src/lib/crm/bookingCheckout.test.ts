@@ -41,6 +41,7 @@ describe("confirmBookingCheckout", () => {
       grant: { id: "grant-1" } as never,
       coupon: { id: "coupon-1" } as never,
       code: "VOLTE10-TESTE12345",
+      bookingUrl: "https://www.pousadadelplata.com.br/reservar?promo=VOLTE10-TESTE12345",
     });
   });
 
