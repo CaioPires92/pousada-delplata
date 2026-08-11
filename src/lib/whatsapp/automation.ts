@@ -100,10 +100,11 @@ export async function processAutoResponse(conversationId: string, phone: string,
     const handoffDecision = decideAutomationHandoff(text, parsedIncoming, {
         consecutiveFailures: conversation.automationFailureCount,
     });
-    const matchedKnowledge = handoffDecision.reason === "unknown_intent"
-        ? await findApprovedKnowledge(text)
-        : null;
-    if (handoffDecision.shouldHandoff && !matchedKnowledge) {
+    const matchedKnowledge = await findApprovedKnowledge(text);
+    const canKnowledgeOverrideHandoff = !handoffDecision.shouldHandoff ||
+        handoffDecision.reason === "repeated_failure";
+    const approvedKnowledge = canKnowledgeOverrideHandoff ? matchedKnowledge : null;
+    if (handoffDecision.shouldHandoff && !approvedKnowledge) {
         return executeAutomationHandoff({
             conversationId,
             contactId: conversation.contactId,
@@ -113,7 +114,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
         });
     }
 
-    if (handoffDecision.reason === "unknown_intent" && handoffDecision.message && !matchedKnowledge) {
+    if (handoffDecision.reason === "unknown_intent" && handoffDecision.message && !approvedKnowledge) {
         const clarificationText = handoffDecision.message;
         const sendResult = await sendMessagingText(phone, clarificationText);
 
@@ -165,7 +166,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
         });
     }
 
-    if (!(await isAutoReplyIntentReleased(parsedIncoming.intent, conversation.chatbotTestEnabled))) {
+    if (!approvedKnowledge && !(await isAutoReplyIntentReleased(parsedIncoming.intent, conversation.chatbotTestEnabled))) {
         return executeAutomationHandoff({
             conversationId,
             contactId: conversation.contactId,
@@ -578,7 +579,6 @@ export async function processAutoResponse(conversationId: string, phone: string,
         }
     }
 
-    const approvedKnowledge = matchedKnowledge ?? await findApprovedKnowledge(text);
     const responseText = approvedKnowledge?.response ?? null;
     
     if (!responseText) {
