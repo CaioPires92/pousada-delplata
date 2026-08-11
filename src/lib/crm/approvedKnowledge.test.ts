@@ -15,11 +15,11 @@ describe("approved chatbot knowledge", () => {
     vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([
       { id: "rule-oi", trigger: "oi", response: "Olá!", category: "saudacao", version: 1 },
       { id: "rule-wifi", trigger: "Wi-Fi", response: "Temos Wi-Fi.", category: "faq", version: 1 },
-      { id: "rule-wifi-password", trigger: "senha do Wi-Fi", response: "Consulte a recepção.", category: "faq", version: 1 },
+      { id: "rule-wifi-password", trigger: "senha do Wi-Fi", response: "A senha é pousada151.", category: "faq", version: 2 },
       { id: "rule-bed", trigger: "cama", response: "Vou confirmar o tipo de cama.", category: "acomodacoes", version: 1 },
       { id: "rule-bed-linen", trigger: "roupa de cama", response: "Vou confirmar a roupa de cama.", category: "acomodacoes", version: 1 },
-      { id: "rule-window", trigger: "janela", response: "Vou confirmar a janela.", category: "acomodacoes", version: 1 },
-      { id: "rule-windows", trigger: "janelas", response: "Vou confirmar a janela.", category: "acomodacoes", version: 1 },
+      { id: "rule-window", trigger: "janela", response: "Somente os térreos não possuem janelas.", category: "acomodacoes", version: 2 },
+      { id: "rule-windows", trigger: "janelas", response: "Somente os térreos não possuem janelas.", category: "acomodacoes", version: 2 },
       { id: "rule-parking", trigger: "estacionamento", response: "O estacionamento é gratuito.", category: "estrutura", version: 2 },
       { id: "rule-voltage", trigger: "voltagem", response: "A voltagem varia por acomodação.", category: "acomodacoes", version: 1 },
     ] as never);
@@ -31,10 +31,10 @@ describe("approved chatbot knowledge", () => {
     )).resolves.toEqual({
       ruleId: "rule-wifi-password,rule-parking,rule-voltage,rule-windows",
       response: [
-        "1. Consulte a recepção.",
+        "1. A senha é pousada151.",
         "2. O estacionamento é gratuito.",
         "3. A voltagem varia por acomodação.",
-        "4. Vou confirmar a janela.",
+        "4. Somente os térreos não possuem janelas.",
       ].join("\n\n"),
       category: "multiple",
       version: 2,
@@ -56,7 +56,7 @@ describe("approved chatbot knowledge", () => {
     const result = await findApprovedKnowledge(message);
 
     expect(result).toMatchObject({
-      response: "Vou confirmar a janela.",
+      response: "Somente os térreos não possuem janelas.",
       category: "acomodacoes",
     });
   });
@@ -90,9 +90,9 @@ describe("approved chatbot knowledge", () => {
   ])("normalizes Wi-Fi spelling variants in %s", async message => {
     await expect(findApprovedKnowledge(message)).resolves.toEqual({
       ruleId: "rule-wifi-password",
-      response: "Consulte a recepção.",
+      response: "A senha é pousada151.",
       category: "faq",
-      version: 1,
+      version: 2,
     });
   });
 

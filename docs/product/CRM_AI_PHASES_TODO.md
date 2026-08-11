@@ -199,6 +199,7 @@ teste falha → menor implementação possível → teste passa
   - [x] Encaminhar dúvidas não confirmadas sobre roupa de cama e tamanho da cama para a equipe.
   - [x] Encaminhar dúvidas sobre janelas conforme a acomodação disponível.
   - [x] Responder múltiplas FAQs na mesma mensagem e informar a voltagem por acomodação.
+  - [x] Confirmar senha pública do Wi-Fi e regra definitiva de janelas.
 - [x] F4.08 Implementar regras de handoff e mensagem de transição.
 - [x] F4.09 Persistir decisão, confiança, latência, tokens e resultado.
 - [x] F4.10 Criar shadow mode sem envio ao cliente.
