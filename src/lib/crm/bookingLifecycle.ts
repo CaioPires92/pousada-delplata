@@ -11,7 +11,15 @@ export type BookingLifecycleEvent =
   | "ReservationStarted"
   | "PaymentPending"
   | "PaymentApproved"
-  | "BookingConfirmed";
+  | "BookingConfirmed"
+  | "CheckoutConfirmed";
+
+const COMMERCIAL_CANCELLATION_EVENTS: readonly BookingLifecycleEvent[] = [
+  "ReservationStarted",
+  "PaymentPending",
+  "PaymentApproved",
+  "BookingConfirmed",
+];
 
 const TARGET_STAGE: Partial<Record<BookingLifecycleEvent, PipelineStage>> = {
   ReservationStarted: PIPELINE_STAGES.RESERVA_EM_ANDAMENTO,
@@ -58,7 +66,11 @@ export async function publishBookingLifecycleEvent(input: {
       return { ok: false as const, reason: "booking_not_found" as const };
     }
 
-    if (booking.crmContactId && booking.crmConversationId) {
+    if (
+      COMMERCIAL_CANCELLATION_EVENTS.includes(input.event)
+      && booking.crmContactId
+      && booking.crmConversationId
+    ) {
       await cancelCommercialFollowUps({
         conversationId: booking.crmConversationId,
         contactId: booking.crmContactId,
@@ -122,4 +134,24 @@ export async function publishBookingLifecycleEvent(input: {
     });
     return { ok: false as const, reason: "lifecycle_publish_failed" as const };
   }
+}
+
+export function publishBookingCheckoutConfirmed(input: {
+  bookingId: string;
+  checkoutAt: Date;
+  metadata?: Record<string, unknown>;
+}) {
+  return publishBookingLifecycleEvent({
+    bookingId: input.bookingId,
+    event: "CheckoutConfirmed",
+    eventId: `booking:${input.bookingId}:checkout-confirmed`,
+    actorType: "system",
+    origin: "system",
+    reason: "Check-out confirmado pelo domínio Booking",
+    metadata: {
+      source: "booking",
+      checkoutAt: input.checkoutAt.toISOString(),
+      ...input.metadata,
+    },
+  });
 }

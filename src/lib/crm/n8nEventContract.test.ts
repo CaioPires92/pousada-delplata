@@ -104,6 +104,26 @@ describe("n8n CRM event contract", () => {
     });
   });
 
+  it("exposes an authoritative checkout without leaking arbitrary booking data", () => {
+    expect(buildN8nEventEnvelope({
+      eventId: "event-checkout",
+      occurredAt: "2026-08-11T15:00:00.000Z",
+      event: {
+        action: "CheckoutConfirmed",
+        bookingId: "booking-1",
+        metadata: {
+          source: "booking",
+          checkoutAt: "2026-08-11T15:00:00.000Z",
+          guestDocument: "private",
+        },
+      },
+    })).toMatchObject({
+      eventType: "CheckoutConfirmed",
+      resources: { bookingId: "booking-1" },
+      data: { source: "booking", checkoutAt: "2026-08-11T15:00:00.000Z" },
+    });
+  });
+
   it("accepts a canonical envelope after runtime validation", () => {
     const envelope = buildN8nEventEnvelope({
       eventId: "event-4",

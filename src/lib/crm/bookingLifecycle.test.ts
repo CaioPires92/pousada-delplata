@@ -6,12 +6,18 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/crm/pipelineCards", () => ({ updatePipelineCard: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
 vi.mock("@/lib/crm/followUpCancellation", () => ({ cancelCommercialFollowUps: vi.fn() }));
+vi.mock("@/lib/crm/eventIdempotency", () => ({
+  claimCrmEvent: vi.fn(),
+  completeCrmEvent: vi.fn(),
+  releaseCrmEvent: vi.fn(),
+}));
 
 import prisma from "@/lib/prisma";
-import { publishBookingLifecycleEvent } from "@/lib/crm/bookingLifecycle";
+import { publishBookingCheckoutConfirmed, publishBookingLifecycleEvent } from "@/lib/crm/bookingLifecycle";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { updatePipelineCard } from "@/lib/crm/pipelineCards";
 import { cancelCommercialFollowUps } from "@/lib/crm/followUpCancellation";
+import { claimCrmEvent, completeCrmEvent } from "@/lib/crm/eventIdempotency";
 
 describe("publishBookingLifecycleEvent", () => {
   beforeEach(() => {
@@ -22,6 +28,8 @@ describe("publishBookingLifecycleEvent", () => {
       stageChanged: true,
     });
     vi.mocked(recordCrmEvent).mockResolvedValue({ id: "event-1" } as never);
+    vi.mocked(claimCrmEvent).mockResolvedValue({ claimed: true });
+    vi.mocked(completeCrmEvent).mockResolvedValue({} as never);
   });
 
   it("moves the linked card and records a correlated payment event", async () => {
@@ -140,5 +148,49 @@ describe("publishBookingLifecycleEvent", () => {
       bookingId: "booking-3",
       event: "PaymentPending",
     })).resolves.toEqual({ ok: false, reason: "lifecycle_publish_failed" });
+  });
+
+  it("publishes one authoritative checkout event with a stable id per booking", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      id: "booking-checkout",
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      pipelineCard: { id: "card-1", stage: "RESERVA_CONFIRMADA" },
+    } as never);
+
+    await expect(publishBookingCheckoutConfirmed({
+      bookingId: "booking-checkout",
+      checkoutAt: new Date("2026-08-11T15:00:00.000Z"),
+    })).resolves.toMatchObject({ ok: true, duplicate: false });
+
+    expect(claimCrmEvent).toHaveBeenCalledWith({
+      eventId: "booking:booking-checkout:checkout-confirmed",
+      source: "system",
+      eventType: "CheckoutConfirmed",
+    });
+    expect(recordCrmEvent).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CheckoutConfirmed",
+      bookingId: "booking-checkout",
+      metadata: expect.objectContaining({
+        source: "booking",
+        checkoutAt: "2026-08-11T15:00:00.000Z",
+      }),
+    }));
+    expect(cancelCommercialFollowUps).not.toHaveBeenCalled();
+  });
+
+  it("does not publish checkout twice when its stable event id was already claimed", async () => {
+    vi.mocked(claimCrmEvent).mockResolvedValue({
+      claimed: false,
+      receipt: { status: "completed", resultJson: null, completedAt: new Date() },
+    });
+
+    await expect(publishBookingCheckoutConfirmed({
+      bookingId: "booking-checkout",
+      checkoutAt: new Date("2026-08-11T15:00:00.000Z"),
+    })).resolves.toEqual({ ok: true, duplicate: true, pipelineUpdated: false });
+
+    expect(prisma.booking.findUnique).not.toHaveBeenCalled();
+    expect(recordCrmEvent).not.toHaveBeenCalled();
   });
 });

@@ -115,6 +115,7 @@ model Booking {
   pendingEmailSentAt DateTime?
   expiredEmailSentAt DateTime?
   confirmationEmailSentAt DateTime?
+  checkoutConfirmedAt     DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   crmContactId            String?
@@ -130,6 +131,7 @@ model Booking {
 
   @@index([crmContactId])
   @@index([crmConversationId])
+  @@index([checkoutConfirmedAt])
 }
 
 model PartialPaymentSettings {
