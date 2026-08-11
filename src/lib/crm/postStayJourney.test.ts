@@ -1,0 +1,60 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/prisma", () => ({ default: { booking: { findUnique: vi.fn() } } }));
+vi.mock("@/lib/crm/automationQueue", () => ({ enqueueAutomationJob: vi.fn() }));
+vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
+vi.mock("@/lib/whatsapp/evolution", () => ({ resolveEvolutionSendTarget: vi.fn() }));
+
+import prisma from "@/lib/prisma";
+import { enqueueAutomationJob } from "@/lib/crm/automationQueue";
+import { recordCrmEvent } from "@/lib/crm/events";
+import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
+import { schedulePostStaySatisfaction } from "./postStayJourney";
+
+describe("schedulePostStaySatisfaction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(resolveEvolutionSendTarget).mockReturnValue("5519999999999");
+    vi.mocked(enqueueAutomationJob).mockResolvedValue({ id: "job-1" } as never);
+    vi.mocked(recordCrmEvent).mockResolvedValue({ id: "event-1" } as never);
+  });
+
+  it("schedules one satisfaction question three hours after confirmed checkout", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      crmContact: {
+        phone: "5519999999999",
+        phoneRaw: null,
+        whatsappJid: null,
+        optInWhatsapp: true,
+        optOutAt: null,
+      },
+    } as never);
+    const checkoutConfirmedAt = new Date("2026-08-11T15:00:00.000Z");
+
+    await expect(schedulePostStaySatisfaction({ bookingId: "booking-1", checkoutConfirmedAt }))
+      .resolves.toMatchObject({ scheduled: true, scheduledAt: new Date("2026-08-11T18:00:00.000Z") });
+    expect(enqueueAutomationJob).toHaveBeenCalledWith(expect.objectContaining({
+      conversationId: "conversation-1",
+      journeyType: "post_stay",
+      dedupeKey: "post-stay:booking-1:satisfaction",
+      scheduledAt: new Date("2026-08-11T18:00:00.000Z"),
+      payload: expect.objectContaining({ bookingId: "booking-1", postStayStep: "satisfaction" }),
+    }));
+  });
+
+  it("does not schedule without WhatsApp consent", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      crmContact: { optInWhatsapp: false, optOutAt: null },
+    } as never);
+
+    await expect(schedulePostStaySatisfaction({
+      bookingId: "booking-1",
+      checkoutConfirmedAt: new Date(),
+    })).resolves.toEqual({ scheduled: false, reason: "whatsapp_consent_missing" });
+    expect(enqueueAutomationJob).not.toHaveBeenCalled();
+  });
+});

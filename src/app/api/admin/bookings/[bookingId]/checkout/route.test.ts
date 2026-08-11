@@ -27,6 +27,11 @@ describe("POST /api/admin/bookings/[bookingId]/checkout", () => {
       newlyConfirmed: true,
       duplicate: false,
       checkoutConfirmedAt: new Date("2026-08-11T15:00:00.000Z"),
+      postStay: {
+        scheduled: true,
+        jobId: "job-1",
+        scheduledAt: new Date("2026-08-11T18:00:00.000Z"),
+      },
     });
     const response = await POST(new Request("http://localhost", { method: "POST" }), {
       params: Promise.resolve({ bookingId: "booking-1" }),

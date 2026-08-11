@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { publishBookingCheckoutConfirmed } from "@/lib/crm/bookingLifecycle";
+import { schedulePostStaySatisfaction } from "@/lib/crm/postStayJourney";
 
 const CHECKOUT_ELIGIBLE_STATUSES = ["CONFIRMED", "PAID"];
 
@@ -36,10 +37,15 @@ export async function confirmBookingCheckout(input: {
   if (!lifecycle.ok) {
     return { ok: false as const, reason: "checkout_event_failed" as const };
   }
+  const postStay = await schedulePostStaySatisfaction({
+    bookingId: booking.id,
+    checkoutConfirmedAt: confirmationAt,
+  });
   return {
     ok: true as const,
     newlyConfirmed: update.count === 1,
     duplicate: lifecycle.duplicate,
     checkoutConfirmedAt: confirmationAt,
+    postStay,
   };
 }
