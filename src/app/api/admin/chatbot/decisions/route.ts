@@ -27,8 +27,15 @@ export async function GET() {
   const auth = await requireAdminAuth();
   if (auth instanceof NextResponse) return auth;
 
+  const now = new Date();
+  const reviewDay = now.toISOString().slice(0, 10);
+  const dayStart = new Date(`${reviewDay}T00:00:00.000Z`);
+
   const logs = await prisma.internalActionLog.findMany({
-    where: { action: "IntentClassified" },
+    where: {
+      action: "IntentClassified",
+      createdAt: { gte: dayStart },
+    },
     orderBy: { createdAt: "desc" },
     take: 25,
     select: {
@@ -79,5 +86,21 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({ ok: true, decisions });
+  const shadowDecisions = decisions.filter(decision => decision.mode === "shadow");
+  const comparable = shadowDecisions.filter(decision => decision.agreementWithHeuristic !== null);
+  const agreements = comparable.filter(decision => decision.agreementWithHeuristic === true).length;
+  const authorizedActions = shadowDecisions.filter(decision => decision.actionAuthorized).length;
+
+  return NextResponse.json({
+    ok: true,
+    reviewDay,
+    decisions,
+    summary: {
+      sampled: decisions.length,
+      shadow: shadowDecisions.length,
+      authorizedActions,
+      agreementRate: comparable.length > 0 ? agreements / comparable.length : null,
+      gatePassed: shadowDecisions.length > 0 && authorizedActions === 0,
+    },
+  });
 }

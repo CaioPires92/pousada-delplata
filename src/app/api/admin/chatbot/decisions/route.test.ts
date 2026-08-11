@@ -57,7 +57,13 @@ describe("admin chatbot decision review", () => {
     const response = await GET();
     const body = await response.json();
 
-    expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 25 }));
+    expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      take: 25,
+      where: expect.objectContaining({
+        action: "IntentClassified",
+        createdAt: { gte: expect.any(Date) },
+      }),
+    }));
     expect(body.decisions[0]).toMatchObject({
       contactLabel: "Hóspede teste",
       mode: "shadow",
@@ -65,5 +71,28 @@ describe("admin chatbot decision review", () => {
       totalTokens: 60,
       agreementWithHeuristic: false,
     });
+    expect(body.reviewDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(body.summary).toEqual({
+      sampled: 1,
+      shadow: 1,
+      authorizedActions: 0,
+      agreementRate: 0,
+      gatePassed: true,
+    });
+  });
+
+  it("fails the daily gate if shadow mode authorized any action", async () => {
+    mocks.findMany.mockResolvedValue([{
+      id: "log-risk",
+      createdAt: new Date(),
+      conversationId: null,
+      conversation: null,
+      metadataJson: JSON.stringify({ mode: "shadow", actionAuthorized: true }),
+    }]);
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(body.summary).toMatchObject({ authorizedActions: 1, gatePassed: false });
   });
 });
