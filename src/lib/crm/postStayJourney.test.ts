@@ -13,7 +13,12 @@ import { recordCrmEvent } from "@/lib/crm/events";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
 import { getPostStaySettings } from "./postStaySettings";
 import { getDiscountPolicy } from "@/lib/discount-policy-store";
-import { schedulePostStayCouponDelivery, schedulePostStayReviewRequest, schedulePostStaySatisfaction } from "./postStayJourney";
+import {
+  buildPostStayCouponMessage,
+  schedulePostStayCouponDelivery,
+  schedulePostStayReviewRequest,
+  schedulePostStaySatisfaction,
+} from "./postStayJourney";
 
 describe("schedulePostStaySatisfaction", () => {
   beforeEach(() => {
@@ -33,6 +38,17 @@ describe("schedulePostStaySatisfaction", () => {
       maximumDiscountAmount: null,
       blockedDateRanges: [],
     });
+  });
+
+  it("describes the return benefit without conditioning it on a review", () => {
+    const message = buildPostStayCouponMessage({
+      couponCode: "VOLTE10-ABC1234567",
+      bookingUrl: "https://example.com/cupom",
+      expiresAt: new Date("2026-11-09T15:00:00.000Z"),
+    });
+    expect(message).toContain("benefício para uma próxima reserva direta");
+    expect(message).toContain("cupom individual de 10%");
+    expect(message).not.toMatch(/avalia|nota|positivo|elogio/i);
   });
 
   it("schedules one satisfaction question three hours after confirmed checkout", async () => {

@@ -299,7 +299,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F7.10 Enviar código/link pelo provedor ativo com o mecanismo aprovado aplicável.
 - [x] F7.11 Registrar emissão, envio, clique e resgate.
 - [x] F7.12 Impedir segunda emissão para a mesma hospedagem.
-- [ ] F7.13 Revisar texto conforme política da plataforma de avaliação.
+- [x] F7.13 Revisar texto conforme política da plataforma de avaliação.
 
 ### Testes/gate
 

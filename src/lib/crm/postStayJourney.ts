@@ -12,6 +12,17 @@ export const POST_STAY_COUPON_DELAY_MS = 24 * 60 * 60 * 1000;
 export const POST_STAY_SATISFACTION_MESSAGE =
   "Olá! Esperamos que tenha aproveitado sua estadia. Como foi sua experiência conosco?";
 
+export function buildPostStayCouponMessage(input: {
+  couponCode: string;
+  bookingUrl: string;
+  expiresAt: Date | null;
+}) {
+  const expirationText = input.expiresAt
+    ? ` Ele é válido até ${input.expiresAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`
+    : "";
+  return `Como benefício para uma próxima reserva direta, preparamos um cupom individual de 10%: ${input.couponCode}.${expirationText} Você pode utilizá-lo aqui: ${input.bookingUrl}`;
+}
+
 export async function schedulePostStaySatisfaction(input: {
   bookingId: string;
   checkoutConfirmedAt: Date;
@@ -149,9 +160,6 @@ export async function schedulePostStayCouponDelivery(input: {
   const target = resolveEvolutionSendTarget(booking.crmContact);
   if (!target) return { scheduled: false as const, reason: "missing_target" as const };
 
-  const expirationText = input.expiresAt
-    ? ` Ele é válido até ${input.expiresAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`
-    : "";
   const scheduledAt = new Date(input.checkoutConfirmedAt.getTime() + POST_STAY_COUPON_DELAY_MS);
   const job = await enqueueAutomationJob({
     conversationId: booking.crmConversationId,
@@ -161,7 +169,7 @@ export async function schedulePostStayCouponDelivery(input: {
     scheduledAt,
     payload: {
       target,
-      text: `Para sua próxima reserva direta, você tem 10% de desconto com o cupom ${input.couponCode}.${expirationText} Acesse: ${input.bookingUrl}`,
+      text: buildPostStayCouponMessage(input),
       bookingId: input.bookingId,
       couponGrantId: input.couponGrantId,
       postStayStep: "coupon",
