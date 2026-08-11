@@ -51,6 +51,9 @@ export default function ChatbotSettingsPage() {
     const [isPipelineLoading, setIsPipelineLoading] = useState(true);
     const [releasedIntents, setReleasedIntents] = useState<AutoReplyIntent[]>(["quote"]);
     const [isIntentSaving, setIsIntentSaving] = useState(false);
+    const [rolloutPercentage, setRolloutPercentage] = useState(0);
+    const [savedRolloutPercentage, setSavedRolloutPercentage] = useState(0);
+    const [isRolloutSaving, setIsRolloutSaving] = useState(false);
 
     const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -78,12 +81,40 @@ export default function ChatbotSettingsPage() {
             setReleasedIntents(Array.isArray(data.settings.releasedAutoReplyIntents)
                 ? data.settings.releasedAutoReplyIntents
                 : ["quote"]);
+            const percentage = Number.isInteger(data.settings.autoReplyRolloutPercentage)
+                ? Math.max(0, Math.min(100, data.settings.autoReplyRolloutPercentage))
+                : 0;
+            setRolloutPercentage(percentage);
+            setSavedRolloutPercentage(percentage);
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
         } finally {
             setIsGlobalLoading(false);
             setIsPipelineLoading(false);
+        }
+    }
+
+    async function handleRolloutSave() {
+        setIsRolloutSaving(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/admin/chatbot/settings", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ autoReplyRolloutPercentage: rolloutPercentage }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error("Falha ao atualizar percentual");
+            const saved = Number(data.settings.autoReplyRolloutPercentage);
+            setRolloutPercentage(saved);
+            setSavedRolloutPercentage(saved);
+            setSuccess(`Rollout atualizado para ${saved}%.`);
+            setTimeout(() => setSuccess(null), 3000);
+        } catch {
+            setError("Erro ao atualizar o percentual de rollout.");
+        } finally {
+            setIsRolloutSaving(false);
         }
     }
 
@@ -337,6 +368,36 @@ export default function ChatbotSettingsPage() {
                                     </button>
                                 );
                             })}
+                        </div>
+                        <div className="mt-5 rounded-xl border border-amber-200 bg-white p-4">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                                <div className="flex-1">
+                                    <label htmlFor="rollout-percentage" className="text-sm font-black text-slate-800">
+                                        Percentual de conversas em produção: {rolloutPercentage}%
+                                    </label>
+                                    <p className="mt-1 text-xs font-medium text-slate-500">
+                                        A seleção é estável por conversa. Em 0%, somente conversas explicitamente marcadas para teste podem responder.
+                                    </p>
+                                    <input
+                                        id="rollout-percentage"
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={rolloutPercentage}
+                                        onChange={event => setRolloutPercentage(Number(event.target.value))}
+                                        className="mt-3 w-full accent-emerald-600"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleRolloutSave}
+                                    disabled={isRolloutSaving || rolloutPercentage === savedRolloutPercentage}
+                                    className="rounded-xl bg-slate-800 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {isRolloutSaving ? "Salvando..." : "Salvar percentual"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
