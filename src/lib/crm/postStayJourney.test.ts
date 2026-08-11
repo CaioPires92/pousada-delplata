@@ -4,12 +4,14 @@ vi.mock("@/lib/prisma", () => ({ default: { booking: { findUnique: vi.fn() } } }
 vi.mock("@/lib/crm/automationQueue", () => ({ enqueueAutomationJob: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
 vi.mock("@/lib/whatsapp/evolution", () => ({ resolveEvolutionSendTarget: vi.fn() }));
+vi.mock("@/lib/crm/postStaySettings", () => ({ getPostStaySettings: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { enqueueAutomationJob } from "@/lib/crm/automationQueue";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { resolveEvolutionSendTarget } from "@/lib/whatsapp/evolution";
-import { schedulePostStaySatisfaction } from "./postStayJourney";
+import { getPostStaySettings } from "./postStaySettings";
+import { schedulePostStayReviewRequest, schedulePostStaySatisfaction } from "./postStayJourney";
 
 describe("schedulePostStaySatisfaction", () => {
   beforeEach(() => {
@@ -17,6 +19,10 @@ describe("schedulePostStaySatisfaction", () => {
     vi.mocked(resolveEvolutionSendTarget).mockReturnValue("5519999999999");
     vi.mocked(enqueueAutomationJob).mockResolvedValue({ id: "job-1" } as never);
     vi.mocked(recordCrmEvent).mockResolvedValue({ id: "event-1" } as never);
+    vi.mocked(getPostStaySettings).mockResolvedValue({
+      officialReviewUrl: "https://example.com/review",
+      reviewConfigured: true,
+    });
   });
 
   it("schedules one satisfaction question three hours after confirmed checkout", async () => {
@@ -55,6 +61,30 @@ describe("schedulePostStaySatisfaction", () => {
       bookingId: "booking-1",
       checkoutConfirmedAt: new Date(),
     })).resolves.toEqual({ scheduled: false, reason: "whatsapp_consent_missing" });
+    expect(enqueueAutomationJob).not.toHaveBeenCalled();
+  });
+
+  it("schedules the review request 24 hours after checkout with a stable key", async () => {
+    vi.mocked(prisma.booking.findUnique).mockResolvedValue({
+      crmContactId: "contact-1",
+      crmConversationId: "conversation-1",
+      crmContact: { phone: "5519999999999", optInWhatsapp: true, optOutAt: null },
+    } as never);
+    const checkoutConfirmedAt = new Date("2026-08-11T15:00:00.000Z");
+    await schedulePostStayReviewRequest({ bookingId: "booking-1", checkoutConfirmedAt });
+    expect(enqueueAutomationJob).toHaveBeenCalledWith(expect.objectContaining({
+      dedupeKey: "post-stay:booking-1:review",
+      scheduledAt: new Date("2026-08-12T15:00:00.000Z"),
+      payload: expect.objectContaining({ postStayStep: "review" }),
+    }));
+  });
+
+  it("does not schedule a review without the approved URL", async () => {
+    vi.mocked(getPostStaySettings).mockResolvedValue({ officialReviewUrl: null, reviewConfigured: false });
+    await expect(schedulePostStayReviewRequest({
+      bookingId: "booking-1",
+      checkoutConfirmedAt: new Date(),
+    })).resolves.toEqual({ scheduled: false, reason: "review_url_not_configured" });
     expect(enqueueAutomationJob).not.toHaveBeenCalled();
   });
 });

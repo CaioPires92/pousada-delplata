@@ -164,9 +164,15 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
             ? {
                 currentFlow: "post_stay",
                 flowStep: "waiting_satisfaction",
-                flowDataJson: JSON.stringify({ bookingId: job.payload.bookingId ?? null }),
+                flowDataJson: JSON.stringify({
+                  bookingId: job.payload.bookingId ?? null,
+                  checkoutConfirmedAt: job.payload.checkoutConfirmedAt ?? null,
+                }),
                 lastAutomationAt: sentAt,
               }
+            : {}),
+          ...(job.journeyType === "post_stay" && job.payload.postStayStep === "review"
+            ? { currentFlow: null, flowStep: null, flowDataJson: null, lastAutomationAt: sentAt }
             : {}),
         },
       });

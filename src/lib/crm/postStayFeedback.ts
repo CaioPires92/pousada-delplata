@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { DEFAULT_AUTOMATION_HANDOFF_MESSAGE } from "@/lib/crm/handoffPolicy";
 import { recordCrmEvent } from "@/lib/crm/events";
+import { schedulePostStayReviewRequest } from "@/lib/crm/postStayJourney";
 
 export type PostStayFeedbackClassification = "positive" | "neutral" | "problem" | "unknown";
 
@@ -23,12 +24,17 @@ export function classifyPostStayFeedback(message: string): PostStayFeedbackClass
   return "unknown";
 }
 
-function bookingIdFromFlowData(value: string | null | undefined) {
+function postStayData(value: string | null | undefined) {
   try {
     const parsed = JSON.parse(value ?? "{}") as { bookingId?: unknown };
-    return typeof parsed.bookingId === "string" ? parsed.bookingId : null;
+    return {
+      bookingId: typeof parsed.bookingId === "string" ? parsed.bookingId : null,
+      checkoutConfirmedAt: typeof (parsed as { checkoutConfirmedAt?: unknown }).checkoutConfirmedAt === "string"
+        ? String((parsed as { checkoutConfirmedAt: string }).checkoutConfirmedAt)
+        : null,
+    };
   } catch {
-    return null;
+    return { bookingId: null, checkoutConfirmedAt: null };
   }
 }
 
@@ -49,7 +55,8 @@ export async function processPostStayFeedback(input: {
   }
 
   const now = input.now ?? new Date();
-  const bookingId = bookingIdFromFlowData(input.conversation.flowDataJson);
+  const flowData = postStayData(input.conversation.flowDataJson);
+  const bookingId = flowData.bookingId;
   const classification = classifyPostStayFeedback(input.message);
   await recordCrmEvent({
     action: classification === "problem" ? "PostStayIssueDetected" : "PostStayFeedbackClassified",
@@ -82,10 +89,17 @@ export async function processPostStayFeedback(input: {
         bookingId,
         classification,
         feedbackAt: now.toISOString(),
-        reviewEligible: classification === "positive",
+        reviewEligible: true,
       }),
       lastAutomationAt: now,
     },
   });
+  if (bookingId) {
+    const parsedCheckout = flowData.checkoutConfirmedAt ? new Date(flowData.checkoutConfirmedAt) : now;
+    await schedulePostStayReviewRequest({
+      bookingId,
+      checkoutConfirmedAt: Number.isNaN(parsedCheckout.getTime()) ? now : parsedCheckout,
+    });
+  }
   return { handled: true as const, classification, response: null };
 }

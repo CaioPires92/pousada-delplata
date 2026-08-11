@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/prisma", () => ({ default: { conversation: { update: vi.fn() } } }));
 vi.mock("@/lib/crm/automationHandoff", () => ({ executeAutomationHandoff: vi.fn() }));
 vi.mock("@/lib/crm/events", () => ({ recordCrmEvent: vi.fn() }));
+vi.mock("@/lib/crm/postStayJourney", () => ({ schedulePostStayReviewRequest: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { classifyPostStayFeedback, processPostStayFeedback } from "./postStayFeedback";
+import { schedulePostStayReviewRequest } from "./postStayJourney";
 
 const conversation = {
   id: "conversation-1",
@@ -21,6 +23,11 @@ describe("post-stay feedback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(recordCrmEvent).mockResolvedValue({ id: "event-1" } as never);
+    vi.mocked(schedulePostStayReviewRequest).mockResolvedValue({
+      scheduled: true,
+      jobId: "job-review",
+      scheduledAt: new Date(),
+    });
   });
 
   it.each([
@@ -42,6 +49,7 @@ describe("post-stay feedback", () => {
         flowDataJson: expect.stringContaining('"reviewEligible":true'),
       }),
     }));
+    expect(schedulePostStayReviewRequest).toHaveBeenCalledWith(expect.objectContaining({ bookingId: "booking-1" }));
   });
 
   it("opens human service for a problem and prevents automatic progression", async () => {

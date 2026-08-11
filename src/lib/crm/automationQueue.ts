@@ -17,6 +17,7 @@ type QueuePayload = {
   event?: unknown;
   bookingId?: string;
   postStayStep?: string;
+  checkoutConfirmedAt?: string;
 };
 
 type AutomationQueueClient = Pick<typeof prisma, "automationQueueJob">;
