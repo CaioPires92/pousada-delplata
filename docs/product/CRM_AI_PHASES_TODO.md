@@ -288,7 +288,7 @@ teste falha → menor implementação possível → teste passa
 ### TODOs
 
 - [x] F7.01 Emitir `CheckoutConfirmed` idempotente.
-- [ ] F7.02 Mover card para `POS_VENDA`.
+- [x] F7.02 Mover card para `POS_VENDA`.
 - [ ] F7.03 Agendar agradecimento/satisfação após 3h.
 - [ ] F7.04 Classificar resposta positiva, neutra ou problema com regra de fallback humano.
 - [ ] F7.05 Configurar URL oficial de avaliação.

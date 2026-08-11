@@ -176,6 +176,10 @@ describe("publishBookingLifecycleEvent", () => {
         checkoutAt: "2026-08-11T15:00:00.000Z",
       }),
     }));
+    expect(updatePipelineCard).toHaveBeenCalledWith("card-1", expect.objectContaining({
+      stage: "POS_VENDA",
+      actorType: "system",
+    }));
     expect(cancelCommercialFollowUps).not.toHaveBeenCalled();
   });
 

@@ -26,6 +26,7 @@ const TARGET_STAGE: Partial<Record<BookingLifecycleEvent, PipelineStage>> = {
   PaymentPending: PIPELINE_STAGES.PAGAMENTO_PENDENTE,
   PaymentApproved: PIPELINE_STAGES.RESERVA_CONFIRMADA,
   BookingConfirmed: PIPELINE_STAGES.RESERVA_CONFIRMADA,
+  CheckoutConfirmed: PIPELINE_STAGES.POS_VENDA,
 };
 
 export async function publishBookingLifecycleEvent(input: {
