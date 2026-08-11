@@ -4,6 +4,7 @@ import {
   formatCrmEventDate,
   parseCrmEventMetadata,
 } from "@/lib/crm/eventHistory";
+import { getOperationalAlerts } from "@/lib/crm/operationalAlerts";
 
 type Severity = "INFO" | "WARN" | "ERROR" | "AUTOMATION" | "SECURITY";
 
@@ -53,29 +54,7 @@ export default async function CrmEventsPage({
     })
     .filter(item => (severity ? item.severity === severity : true));
 
-  const [recentSendFails, recentWebhookFails, stuckQueue] = await Promise.all([
-    prisma.internalActionLog.findMany({
-      where: { action: "WhatsAppSendFailed", createdAt: { gte: new Date(now.getTime() - 15 * 60 * 1000) } },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    }),
-    prisma.internalActionLog.findMany({
-      where: { action: "WebhookProcessingFailed", createdAt: { gte: new Date(now.getTime() - 30 * 60 * 1000) } },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-    }),
-    prisma.automationQueueJob.findMany({
-      where: { status: "processing", startedAt: { lt: new Date(now.getTime() - 5 * 60 * 1000) } },
-      orderBy: { startedAt: "asc" },
-      take: 1,
-    }),
-  ]);
-
-  const alerts = [
-    recentSendFails[0] ? { code: "EVOLUTION_OFFLINE", text: "Falhas recentes na Evolution API", level: "critical" } : null,
-    recentWebhookFails[0] ? { code: "WEBHOOK_FAILING", text: "Falhas recentes no webhook", level: "critical" } : null,
-    stuckQueue[0] ? { code: "QUEUE_STUCK", text: "Fila de automação possivelmente travada", level: "warning" } : null,
-  ].filter(Boolean) as Array<{ code: string; text: string; level: "warning" | "critical" }>;
+  const alerts = await getOperationalAlerts(now);
 
   return (
     <div className="space-y-4 p-6">
@@ -88,8 +67,8 @@ export default async function CrmEventsPage({
         <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4">
           <h2 className="text-sm font-semibold text-amber-900">Alertas operacionais</h2>
           {alerts.map(alert => (
-            <p key={alert.code} className={alert.level === "critical" ? "text-sm text-red-700" : "text-sm text-amber-800"}>
-              [{alert.code}] {alert.text}
+            <p key={alert.code} className={alert.severity === "critical" ? "text-sm text-red-700" : "text-sm text-amber-800"}>
+              [{alert.code}] {alert.title}{alert.count ? ` (${alert.count})` : ""}
             </p>
           ))}
         </div>

@@ -131,6 +131,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Erro ao consultar orçamento CRM:", error);
+    try {
+      await recordCrmEvent({
+        action: "MapAvailabilityFailed",
+        metadata: { reason: error instanceof Error ? error.name : "unknown_error" },
+      });
+    } catch {
+      // A telemetria não pode substituir a falha original da consulta.
+    }
     return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 });
   }
 }
