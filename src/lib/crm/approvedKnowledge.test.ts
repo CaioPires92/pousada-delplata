@@ -15,7 +15,21 @@ describe("approved chatbot knowledge", () => {
     vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([
       { id: "rule-oi", trigger: "oi", response: "Olá!", category: "saudacao", version: 1 },
       { id: "rule-wifi", trigger: "Wi-Fi", response: "Temos Wi-Fi.", category: "faq", version: 1 },
+      { id: "rule-wifi-password", trigger: "senha do Wi-Fi", response: "Consulte a recepção.", category: "faq", version: 1 },
     ] as never);
+  });
+
+  it.each([
+    "Qual a senha do wifi?",
+    "senha do wi-fi",
+    "Pode informar a senha do wi fi?",
+  ])("normalizes Wi-Fi spelling variants in %s", async message => {
+    await expect(findApprovedKnowledge(message)).resolves.toEqual({
+      ruleId: "rule-wifi-password",
+      response: "Consulte a recepção.",
+      category: "faq",
+      version: 1,
+    });
   });
 
   it("uses only active rules and matches normalized whole phrases", async () => {

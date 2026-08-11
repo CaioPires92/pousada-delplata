@@ -195,6 +195,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F4.05b Exigir e validar as idades de todas as crianças antes da cotação.
 - [x] F4.06 Criar allowlist de ferramentas e schemas de entrada/saída.
 - [x] F4.07 Implementar busca somente em FAQ pública e aprovada, com fonte, versão e responsável.
+  - [x] Priorizar gatilhos específicos e revisar respostas de estacionamento, horários e senha do Wi-Fi.
 - [x] F4.08 Implementar regras de handoff e mensagem de transição.
 - [x] F4.09 Persistir decisão, confiança, latência, tokens e resultado.
 - [x] F4.10 Criar shadow mode sem envio ao cliente.

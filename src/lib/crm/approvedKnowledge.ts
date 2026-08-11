@@ -14,6 +14,7 @@ function normalizeForMatch(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/\bwi fi\b/g, "wifi")
     .trim();
 }
 
@@ -42,10 +43,12 @@ export async function findApprovedKnowledge(message: string): Promise<ApprovedKn
     },
   });
 
-  const matched = rules.find(rule => {
-    const normalizedTrigger = normalizeForMatch(rule.trigger);
-    return normalizedTrigger.length >= 2 && matchesWholePhrase(normalizedMessage, normalizedTrigger);
-  });
+  const matched = rules
+    .map(rule => ({ rule, normalizedTrigger: normalizeForMatch(rule.trigger) }))
+    .filter(({ normalizedTrigger }) => (
+      normalizedTrigger.length >= 2 && matchesWholePhrase(normalizedMessage, normalizedTrigger)
+    ))
+    .sort((left, right) => right.normalizedTrigger.length - left.normalizedTrigger.length)[0]?.rule;
 
   return matched
     ? { ruleId: matched.id, response: matched.response, category: matched.category, version: matched.version }
