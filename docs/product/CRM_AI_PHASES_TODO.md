@@ -319,7 +319,7 @@ teste falha → menor implementação possível → teste passa
 
 ### TODOs
 
-- [ ] F8.01 Criar dashboard de saúde, latência, erro, custo e conversão.
+- [x] F8.01 Criar dashboard de saúde, latência, erro, custo e conversão.
 - [ ] F8.02 Criar alertas de webhook, fila, Evolution, IA, Mapa e dead-letter.
 - [ ] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
 - [ ] F8.04 Executar testes de segurança e abuso.

@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { PIPELINE_STAGE_LABELS, PIPELINE_STAGE_ORDER } from "@/lib/crm/pipelineStages";
+import { getCrmOperationalMetrics } from "@/lib/crm/operationalMetrics";
 
 function periodStart(scope: "daily" | "weekly") {
   const now = new Date();
@@ -18,7 +19,7 @@ export default async function CrmDashboardPage({
   const now = new Date();
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-  const [cardsCreated, cardsConfirmed, cardsLost, bySource, byLostReason, byStage, quoteSent, reservationStarted, alerts] = await Promise.all([
+  const [cardsCreated, cardsConfirmed, cardsLost, bySource, byLostReason, byStage, quoteSent, reservationStarted, alerts, operational] = await Promise.all([
     prisma.pipelineCard.count({ where: { createdAt: { gte: since } } }),
     prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: "RESERVA_CONFIRMADA" } }),
     prisma.pipelineCard.count({ where: { createdAt: { gte: since }, stage: "PERDIDO" } }),
@@ -35,6 +36,7 @@ export default async function CrmDashboardPage({
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    getCrmOperationalMetrics(since, now),
   ]);
 
   const conversionRate = cardsCreated > 0 ? Number(((cardsConfirmed / cardsCreated) * 100).toFixed(2)) : 0;
@@ -64,6 +66,41 @@ export default async function CrmDashboardPage({
         <div className="rounded-lg border bg-white p-4"><p className="text-xs text-slate-500">Quote → Reserva</p><p className="text-2xl font-semibold">{quoteToReservationRate}%</p></div>
         <div className="rounded-lg border bg-white p-4"><p className="text-xs text-slate-500">Perdidos</p><p className="text-2xl font-semibold">{cardsLost}</p></div>
       </div>
+
+      <section className="rounded-lg border bg-white p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Saúde da operação</h2>
+          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            operational.health === "healthy"
+              ? "bg-emerald-100 text-emerald-800"
+              : operational.health === "warning"
+                ? "bg-amber-100 text-amber-800"
+                : "bg-red-100 text-red-800"
+          }`}>
+            {operational.health === "healthy" ? "Saudável" : operational.health === "warning" ? "Atenção" : "Crítico"}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <div className="rounded border border-slate-100 p-3">
+            <p className="text-xs text-slate-500">WhatsApp</p>
+            <p className="text-xl font-semibold capitalize">{operational.messaging.status === "healthy" ? "Conectado" : "Indisponível"}</p>
+            <p className="text-xs text-slate-400 capitalize">{operational.messaging.provider}</p>
+          </div>
+          <div className="rounded border border-slate-100 p-3">
+            <p className="text-xs text-slate-500">Latência média IA</p>
+            <p className="text-xl font-semibold">{operational.latency.averageMs === null ? "—" : `${operational.latency.averageMs} ms`}</p>
+            <p className="text-xs text-slate-400">p95 {operational.latency.p95Ms === null ? "—" : `${operational.latency.p95Ms} ms`}</p>
+          </div>
+          <div className="rounded border border-slate-100 p-3"><p className="text-xs text-slate-500">Erros no período</p><p className="text-xl font-semibold">{operational.errors.total}</p></div>
+          <div className="rounded border border-slate-100 p-3"><p className="text-xs text-slate-500">Jobs atrasados</p><p className="text-xl font-semibold">{operational.queue.overdueJobs}</p></div>
+          <div className="rounded border border-slate-100 p-3"><p className="text-xs text-slate-500">Fila / dead-letter</p><p className="text-xl font-semibold">{operational.queue.overdueJobs} / {operational.queue.openDeadLetters}</p></div>
+          <div className="rounded border border-slate-100 p-3">
+            <p className="text-xs text-slate-500">Custo estimado IA</p>
+            <p className="text-xl font-semibold">{operational.aiCost.configured ? `US$ ${operational.aiCost.estimatedCostUsd?.toFixed(4)}` : "Não configurado"}</p>
+            <p className="text-xs text-slate-400">{operational.aiCost.inputTokens + operational.aiCost.outputTokens} tokens</p>
+          </div>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="rounded-lg border bg-white p-4">
