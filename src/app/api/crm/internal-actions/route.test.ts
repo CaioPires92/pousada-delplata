@@ -41,6 +41,17 @@ describe("POST /api/crm/internal-actions idempotency", () => {
     });
   });
 
+  it("rejects an invalid internal token before claiming the event", async () => {
+    const unauthorizedRequest = request();
+    unauthorizedRequest.headers.set("Authorization", "Bearer wrong-token");
+
+    const response = await POST(unauthorizedRequest);
+
+    expect(response.status).toBe(401);
+    expect(claimCrmEvent).not.toHaveBeenCalled();
+    expect(updatePipelineCard).not.toHaveBeenCalled();
+  });
+
   it("executes and stores the first successful result", async () => {
     vi.mocked(claimCrmEvent).mockResolvedValue({ claimed: true });
 

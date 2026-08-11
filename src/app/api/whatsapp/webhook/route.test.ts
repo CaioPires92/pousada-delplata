@@ -13,6 +13,17 @@ function webhookRequest(payload: unknown) {
   });
 }
 
+function authenticatedWebhookRequest(payload: unknown, secret: string) {
+  return new Request("http://localhost/api/whatsapp/webhook/messages-upsert", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-evolution-secret": secret,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 function routeParams() {
   return { params: Promise.resolve({ slug: ["messages-upsert"] }) };
 }
@@ -403,6 +414,45 @@ describe("WhatsApp CRM webhook hardening", () => {
       process.env.EVOLUTION_API_KEY = "test-key";
       process.env.EVOLUTION_INSTANCE_NAME = TEST_INSTANCE;
     }
+  });
+
+  it("rejects an invalid webhook secret without persisting the payload", async () => {
+    process.env.EVOLUTION_WEBHOOK_SECRET = "expected-secret";
+    const response = await POST(
+      authenticatedWebhookRequest(
+        textPayload("test-invalid-secret", "5511999990010@s.whatsapp.net"),
+        "wrong-secret",
+      ),
+      routeParams(),
+    );
+
+    expect(response.status).toBe(401);
+    await expect(prisma.message.count({
+      where: { externalMessageId: "test-invalid-secret" },
+    })).resolves.toBe(0);
+  });
+
+  it("accepts the configured webhook secret", async () => {
+    process.env.EVOLUTION_WEBHOOK_SECRET = "expected-secret";
+    const response = await POST(
+      authenticatedWebhookRequest(
+        textPayload("test-valid-secret", "5511999990011@s.whatsapp.net"),
+        "expected-secret",
+      ),
+      routeParams(),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects malformed JSON without executing webhook side effects", async () => {
+    const response = await POST(new Request(
+      "http://localhost/api/whatsapp/webhook/messages-upsert",
+      { method: "POST", body: "{invalid-json" },
+    ), routeParams());
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ ok: false, reason: "invalid_json" });
   });
 
   it("rejects a payload for another Evolution instance", async () => {

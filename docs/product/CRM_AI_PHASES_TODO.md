@@ -322,7 +322,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F8.01 Criar dashboard de saúde, latência, erro, custo e conversão.
 - [x] F8.02 Criar alertas de webhook, fila, Evolution, IA, Mapa e dead-letter.
 - [x] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
-- [ ] F8.04 Executar testes de segurança e abuso.
+- [x] F8.04 Executar testes de segurança e abuso.
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
 - [ ] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
