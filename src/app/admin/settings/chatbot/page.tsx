@@ -39,6 +39,24 @@ const AUTO_REPLY_INTENT_LABELS = {
 
 type AutoReplyIntent = keyof typeof AUTO_REPLY_INTENT_LABELS;
 
+type RolloutGate = {
+    approved: boolean;
+    reasons: string[];
+    metrics: {
+        shadowSample: number;
+        shadowAgreementRate: number | null;
+        shadowAuthorizedActions: number;
+        supervisedReviewed: number;
+    };
+};
+
+const ROLLOUT_REASON_LABELS: Record<string, string> = {
+    insufficient_shadow_sample: "Amostra shadow insuficiente",
+    shadow_agreement_below_threshold: "Concordância shadow abaixo de 80%",
+    shadow_action_was_authorized: "Uma ação foi autorizada durante shadow",
+    insufficient_supervised_reviews: "Revisões supervisionadas insuficientes",
+};
+
 export default function ChatbotSettingsPage() {
     const [rules, setRules] = useState<ChatbotRule[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -54,6 +72,7 @@ export default function ChatbotSettingsPage() {
     const [rolloutPercentage, setRolloutPercentage] = useState(0);
     const [savedRolloutPercentage, setSavedRolloutPercentage] = useState(0);
     const [isRolloutSaving, setIsRolloutSaving] = useState(false);
+    const [rolloutGate, setRolloutGate] = useState<RolloutGate | null>(null);
 
     const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -86,6 +105,7 @@ export default function ChatbotSettingsPage() {
                 : 0;
             setRolloutPercentage(percentage);
             setSavedRolloutPercentage(percentage);
+            setRolloutGate(data.rolloutGate ?? null);
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
@@ -398,6 +418,19 @@ export default function ChatbotSettingsPage() {
                                     {isRolloutSaving ? "Salvando..." : "Salvar percentual"}
                                 </button>
                             </div>
+                            {rolloutGate && (
+                                <div className={`mt-4 rounded-lg border p-3 text-xs font-semibold ${rolloutGate.approved ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                                    <p className="font-black">Gate de expansão: {rolloutGate.approved ? "aprovado" : "bloqueado"}</p>
+                                    <p className="mt-1">
+                                        Shadow: {rolloutGate.metrics.shadowSample} · Concordância: {rolloutGate.metrics.shadowAgreementRate === null ? "—" : `${Math.round(rolloutGate.metrics.shadowAgreementRate * 100)}%`} · Revisões supervisionadas: {rolloutGate.metrics.supervisedReviewed}
+                                    </p>
+                                    {!rolloutGate.approved && rolloutGate.reasons.length > 0 && (
+                                        <ul className="mt-2 list-disc pl-5">
+                                            {rolloutGate.reasons.map(reason => <li key={reason}>{ROLLOUT_REASON_LABELS[reason] ?? reason}</li>)}
+                                        </ul>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

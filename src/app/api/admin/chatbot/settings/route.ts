@@ -7,6 +7,7 @@ import {
   getChatbotRuntimeSettings,
   parseReleasedAutoReplyIntents,
 } from "@/lib/crm/chatbotSettings";
+import { evaluateAutoReplyRolloutGate } from "@/lib/crm/rolloutGate";
 
 async function authorize() {
   const auth = await requireAdminAuth();
@@ -17,9 +18,14 @@ export async function GET() {
   try {
     const authorization = await authorize();
     if (authorization.response) return authorization.response;
+    const [settings, rolloutGate] = await Promise.all([
+      getChatbotRuntimeSettings(),
+      evaluateAutoReplyRolloutGate(),
+    ]);
     return NextResponse.json({
       ok: true,
-      settings: await getChatbotRuntimeSettings(),
+      settings,
+      rolloutGate,
     });
   } catch (error) {
     console.error("Erro ao carregar interruptor global do chatbot", error);
@@ -63,8 +69,26 @@ export async function PUT(request: Request) {
 
     const existing = await prisma.chatbotSettings.findFirst({
       orderBy: { createdAt: "asc" },
-      select: { id: true },
+      select: { id: true, autoReplyIntentsJson: true, autoReplyRolloutPercentage: true },
     });
+    const previousIntents = parseReleasedAutoReplyIntents(existing?.autoReplyIntentsJson);
+    const previousPercentage = existing?.autoReplyRolloutPercentage ?? 0;
+    const addedIntents = changesIntents
+      ? releasedAutoReplyIntents!.filter(intent => !previousIntents.includes(intent as never))
+      : [];
+    const increasesPercentage = changesPercentage && body.autoReplyRolloutPercentage > previousPercentage;
+    if (addedIntents.length > 1) {
+      return NextResponse.json({ ok: false, error: "one_intent_at_a_time" }, { status: 400 });
+    }
+    if (increasesPercentage && body.autoReplyRolloutPercentage > previousPercentage + 5) {
+      return NextResponse.json({ ok: false, error: "rollout_increment_too_large" }, { status: 400 });
+    }
+    if (addedIntents.length > 0 || increasesPercentage) {
+      const gate = await evaluateAutoReplyRolloutGate();
+      if (!gate.approved) {
+        return NextResponse.json({ ok: false, error: "rollout_gate_blocked", gate }, { status: 409 });
+      }
+    }
     const data = {
       ...(changesChatbot ? { enabledGlobal: body.enabled, enabledWhatsapp: body.enabled } : {}),
       ...(changesPipeline ? { pipelineAutomationEnabled: body.pipelineAutomationEnabled } : {}),
