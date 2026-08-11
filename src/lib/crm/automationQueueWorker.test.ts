@@ -138,6 +138,8 @@ describe("automation queue worker n8n delivery", () => {
   });
 
   it("records delivery after the provider accepts a coupon message", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-11T15:00:00.000Z"));
     vi.mocked(prisma.conversation.findUnique)
       .mockResolvedValueOnce({ id: "conversation-1", contactId: "contact-1" } as never)
       .mockResolvedValueOnce({
