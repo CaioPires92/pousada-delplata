@@ -32,6 +32,11 @@ describe("POST /api/admin/bookings/[bookingId]/checkout", () => {
         jobId: "job-1",
         scheduledAt: new Date("2026-08-11T18:00:00.000Z"),
       },
+      couponGrant: {
+        created: true,
+        reason: null,
+        grant: { id: "grant-1" } as never,
+      },
     });
     const response = await POST(new Request("http://localhost", { method: "POST" }), {
       params: Promise.resolve({ bookingId: "booking-1" }),

@@ -5,11 +5,13 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/crm/bookingLifecycle", () => ({ publishBookingCheckoutConfirmed: vi.fn() }));
 vi.mock("@/lib/crm/postStayJourney", () => ({ schedulePostStaySatisfaction: vi.fn() }));
+vi.mock("@/lib/crm/couponGrant", () => ({ createCouponGrantForStay: vi.fn() }));
 
 import prisma from "@/lib/prisma";
 import { publishBookingCheckoutConfirmed } from "@/lib/crm/bookingLifecycle";
 import { confirmBookingCheckout } from "./bookingCheckout";
 import { schedulePostStaySatisfaction } from "./postStayJourney";
+import { createCouponGrantForStay } from "./couponGrant";
 
 describe("confirmBookingCheckout", () => {
   const now = new Date("2026-08-11T15:00:00.000Z");
@@ -27,6 +29,11 @@ describe("confirmBookingCheckout", () => {
       scheduled: true,
       jobId: "job-1",
       scheduledAt: new Date("2026-08-11T18:00:00.000Z"),
+    });
+    vi.mocked(createCouponGrantForStay).mockResolvedValue({
+      created: true,
+      reason: null,
+      grant: { id: "grant-1" } as never,
     });
   });
 
@@ -49,6 +56,7 @@ describe("confirmBookingCheckout", () => {
       bookingId: "booking-1",
       checkoutConfirmedAt: now,
     });
+    expect(createCouponGrantForStay).toHaveBeenCalledWith("booking-1");
   });
 
   it("replays the stable event safely when checkout was already confirmed", async () => {

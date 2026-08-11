@@ -127,6 +127,7 @@ model Booking {
   pipelineCard            PipelineCard?
   couponRedemption   CouponRedemption?
   issuedCoupons      Coupon[]           @relation("CouponOriginBooking")
+  couponGrant             CouponGrant?
   payment            Payment?
 
   @@index([crmContactId])
@@ -216,6 +217,7 @@ model Coupon {
   attemptLogs        CouponAttemptLog[]
   originBooking      Booking?           @relation("CouponOriginBooking", fields: [originBookingId], references: [id], onDelete: SetNull)
   redemptions        CouponRedemption[]
+  grants             CouponGrant[]
 
   @@index([codePrefix])
   @@index([active])
@@ -260,6 +262,26 @@ model CouponAttemptLog {
   @@index([codePrefix])
 }
 
+model CouponGrant {
+  id          String    @id @default(uuid())
+  bookingId   String    @unique
+  contactId   String
+  couponId    String?   @unique
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  issuedAt    DateTime?
+  sentAt      DateTime?
+  clickedAt   DateTime?
+  redeemedAt  DateTime?
+  booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  coupon      Coupon?   @relation(fields: [couponId], references: [id], onDelete: SetNull)
+
+  @@index([contactId, status])
+  @@index([status, createdAt])
+}
+
 model Contact {
   id              String              @id @default(uuid())
   name            String?
@@ -279,6 +301,7 @@ model Contact {
   reservationDrafts ReservationDraft[]
   actionLogs      InternalActionLog[]
   bookings          Booking[]
+  couponGrants      CouponGrant[]
 
   @@index([email])
   @@index([source])
