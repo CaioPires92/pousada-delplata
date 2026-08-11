@@ -16,7 +16,31 @@ describe("approved chatbot knowledge", () => {
       { id: "rule-oi", trigger: "oi", response: "Olá!", category: "saudacao", version: 1 },
       { id: "rule-wifi", trigger: "Wi-Fi", response: "Temos Wi-Fi.", category: "faq", version: 1 },
       { id: "rule-wifi-password", trigger: "senha do Wi-Fi", response: "Consulte a recepção.", category: "faq", version: 1 },
+      { id: "rule-bed", trigger: "cama", response: "Vou confirmar o tipo de cama.", category: "acomodacoes", version: 1 },
+      { id: "rule-bed-linen", trigger: "roupa de cama", response: "Vou confirmar a roupa de cama.", category: "acomodacoes", version: 1 },
     ] as never);
+  });
+
+  it("prefers the specific bed-linen answer over the generic bed answer", async () => {
+    await expect(findApprovedKnowledge("Vocês fornecem roupa de cama?")).resolves.toEqual({
+      ruleId: "rule-bed-linen",
+      response: "Vou confirmar a roupa de cama.",
+      category: "acomodacoes",
+      version: 1,
+    });
+  });
+
+  it.each([
+    "A cama é queen?",
+    "Tem cama king?",
+    "Qual é o tamanho da cama?",
+  ])("routes bed configuration questions safely in %s", async message => {
+    await expect(findApprovedKnowledge(message)).resolves.toEqual({
+      ruleId: "rule-bed",
+      response: "Vou confirmar o tipo de cama.",
+      category: "acomodacoes",
+      version: 1,
+    });
   });
 
   it.each([
