@@ -291,7 +291,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F7.02 Mover card para `POS_VENDA`.
 - [x] F7.03 Agendar agradecimento/satisfação após 3h.
 - [x] F7.04 Classificar resposta positiva, neutra ou problema com regra de fallback humano.
-- [ ] F7.05 Configurar URL oficial de avaliação.
+- [x] F7.05 Configurar URL oficial de avaliação.
 - [ ] F7.06 Agendar pedido de avaliação após 24h quando elegível.
 - [ ] F7.07 Criar `CouponGrant` ligado a contato, booking e cupom.
 - [ ] F7.08 Gerar cupom 10% com uso único e vínculo antifraude.
