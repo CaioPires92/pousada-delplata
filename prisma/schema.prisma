@@ -519,6 +519,7 @@ model ChatbotSettings {
   enabledWhatsapp               Boolean  @default(false)
   pipelineAutomationEnabled     Boolean  @default(true)
   autoReplyIntentsJson          String   @default("[\"quote\"]")
+  autoReplyRolloutPercentage    Int      @default(0)
   enabledSite                   Boolean  @default(false)
   defaultHandoffMessage         String?
   maxAutoReplyDelaySeconds      Int      @default(30)

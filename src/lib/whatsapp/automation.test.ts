@@ -12,6 +12,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/crm/chatbotSettings", () => ({
   isWhatsappChatbotEnabledForConversation: vi.fn(),
   isAutoReplyIntentReleased: vi.fn(),
+  isConversationInAutoReplyRollout: vi.fn(),
 }));
 vi.mock("@/lib/crm/automationPause", () => ({
   isConversationAutomationActive: vi.fn(),
@@ -28,7 +29,7 @@ import prisma from "@/lib/prisma";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
-import { isAutoReplyIntentReleased, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
+import { isAutoReplyIntentReleased, isConversationInAutoReplyRollout, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
 import { recordCrmEvent } from "@/lib/crm/events";
 import { DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE } from "@/lib/crm/handoffPolicy";
 import { sendMessagingText } from "@/lib/messaging/send-text";
@@ -54,6 +55,7 @@ describe("processAutoResponse handoff supervision", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isWhatsappChatbotEnabledForConversation).mockResolvedValue(true);
+    vi.mocked(isConversationInAutoReplyRollout).mockResolvedValue(true);
     vi.mocked(isAutoReplyIntentReleased).mockResolvedValue(true);
     vi.mocked(isConversationAutomationActive).mockReturnValue(true);
     vi.mocked(findApprovedKnowledge).mockResolvedValue(null);
@@ -72,6 +74,20 @@ describe("processAutoResponse handoff supervision", () => {
       }
       return [];
     });
+  });
+
+  it("does not send anything outside the deterministic rollout", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(0, false) as never);
+    vi.mocked(isConversationInAutoReplyRollout).mockResolvedValue(false);
+
+    await expect(processAutoResponse(
+      "conversation-1",
+      "5519999999999",
+      "Qual é o horário do check-in?",
+    )).resolves.toBeNull();
+
+    expect(sendMessagingText).not.toHaveBeenCalled();
+    expect(executeAutomationHandoff).not.toHaveBeenCalled();
   });
 
   it("asks for clarification and records the first comprehension failure", async () => {

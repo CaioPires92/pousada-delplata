@@ -19,6 +19,7 @@ export type ChatbotRuntimeSettings = {
   enabledWhatsapp: boolean;
   pipelineAutomationEnabled: boolean;
   releasedAutoReplyIntents: AutoReplyIntent[];
+  autoReplyRolloutPercentage: number;
 };
 
 export const DEFAULT_CHATBOT_RUNTIME_SETTINGS: ChatbotRuntimeSettings = {
@@ -26,7 +27,22 @@ export const DEFAULT_CHATBOT_RUNTIME_SETTINGS: ChatbotRuntimeSettings = {
   enabledWhatsapp: false,
   pipelineAutomationEnabled: true,
   releasedAutoReplyIntents: ["quote"],
+  autoReplyRolloutPercentage: 0,
 };
+
+export function normalizeRolloutPercentage(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+export function deterministicRolloutBucket(stableId: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < stableId.length; index += 1) {
+    hash ^= stableId.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100 + 1;
+}
 
 export function parseReleasedAutoReplyIntents(value: string | null | undefined): AutoReplyIntent[] {
   if (!value) return [...DEFAULT_CHATBOT_RUNTIME_SETTINGS.releasedAutoReplyIntents];
@@ -48,6 +64,7 @@ export async function getChatbotRuntimeSettings(): Promise<ChatbotRuntimeSetting
       enabledWhatsapp: true,
       pipelineAutomationEnabled: true,
       autoReplyIntentsJson: true,
+      autoReplyRolloutPercentage: true,
     },
   });
 
@@ -57,7 +74,21 @@ export async function getChatbotRuntimeSettings(): Promise<ChatbotRuntimeSetting
     enabledWhatsapp: settings.enabledWhatsapp,
     pipelineAutomationEnabled: settings.pipelineAutomationEnabled,
     releasedAutoReplyIntents: parseReleasedAutoReplyIntents(settings.autoReplyIntentsJson),
+    autoReplyRolloutPercentage: normalizeRolloutPercentage(settings.autoReplyRolloutPercentage),
   };
+}
+
+export async function isConversationInAutoReplyRollout(
+  conversationId: string,
+  testConversation = false,
+): Promise<boolean> {
+  if (testConversation) return true;
+  try {
+    const settings = await getChatbotRuntimeSettings();
+    return deterministicRolloutBucket(conversationId) <= settings.autoReplyRolloutPercentage;
+  } catch {
+    return false;
+  }
 }
 
 export async function isAutoReplyIntentReleased(

@@ -15,6 +15,8 @@ import {
   isPipelineAutomationEnabled,
   isWhatsappChatbotGloballyEnabled,
   isWhatsappChatbotEnabledForConversation,
+  deterministicRolloutBucket,
+  isConversationInAutoReplyRollout,
 } from "./chatbotSettings";
 
 describe("chatbot global settings", () => {
@@ -30,8 +32,35 @@ describe("chatbot global settings", () => {
       enabledWhatsapp: false,
       pipelineAutomationEnabled: true,
       releasedAutoReplyIntents: ["quote"],
+      autoReplyRolloutPercentage: 0,
     });
     await expect(isWhatsappChatbotGloballyEnabled()).resolves.toBe(false);
+  });
+
+  it("uses a stable rollout bucket and defaults production to zero percent", async () => {
+    expect(deterministicRolloutBucket("conversation-1")).toBe(deterministicRolloutBucket("conversation-1"));
+    expect(deterministicRolloutBucket("conversation-1")).toBeGreaterThanOrEqual(1);
+    expect(deterministicRolloutBucket("conversation-1")).toBeLessThanOrEqual(100);
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      enabledGlobal: true,
+      enabledWhatsapp: true,
+      pipelineAutomationEnabled: true,
+      autoReplyIntentsJson: '["quote"]',
+      autoReplyRolloutPercentage: 0,
+    } as never);
+    await expect(isConversationInAutoReplyRollout("conversation-1")).resolves.toBe(false);
+    await expect(isConversationInAutoReplyRollout("conversation-1", true)).resolves.toBe(true);
+  });
+
+  it("includes only the deterministic percentage of production conversations", async () => {
+    const id = "conversation-rollout";
+    const bucket = deterministicRolloutBucket(id);
+    vi.mocked(prisma.chatbotSettings.findFirst)
+      .mockResolvedValueOnce({ autoReplyRolloutPercentage: bucket - 1 } as never)
+      .mockResolvedValueOnce({ autoReplyRolloutPercentage: bucket } as never);
+
+    await expect(isConversationInAutoReplyRollout(id)).resolves.toBe(false);
+    await expect(isConversationInAutoReplyRollout(id)).resolves.toBe(true);
   });
 
   it("requires both global and WhatsApp switches", async () => {

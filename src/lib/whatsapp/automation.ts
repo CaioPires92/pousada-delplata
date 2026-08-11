@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
-import { isAutoReplyIntentReleased, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
+import { isAutoReplyIntentReleased, isConversationInAutoReplyRollout, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { DEFAULT_AUTOMATION_HANDOFF_MESSAGE, decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
 import { findApprovedKnowledge } from "@/lib/crm/approvedKnowledge";
@@ -77,6 +77,10 @@ export async function processAutoResponse(conversationId: string, phone: string,
     }
 
     if (!(await isWhatsappChatbotEnabledForConversation(conversation.chatbotTestEnabled))) {
+        return null;
+    }
+
+    if (!(await isConversationInAutoReplyRollout(conversation.id, conversation.chatbotTestEnabled))) {
         return null;
     }
 

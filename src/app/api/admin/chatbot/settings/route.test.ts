@@ -33,9 +33,33 @@ describe("admin chatbot settings", () => {
       enabledWhatsapp: false,
       pipelineAutomationEnabled: true,
       autoReplyIntentsJson: '["quote"]',
+      autoReplyRolloutPercentage: 0,
       ...data,
     }));
     mocks.createLog.mockResolvedValue({});
+  });
+
+  it("validates, persists and audits the rollout percentage", async () => {
+    const invalid = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 101 }),
+    }));
+    expect(invalid.status).toBe(400);
+
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 5 }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { autoReplyRolloutPercentage: 5 },
+    }));
+    expect(mocks.createLog).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: "AutoReplyRolloutPercentageUpdated" }),
+    });
+    expect(body.settings.autoReplyRolloutPercentage).toBe(5);
   });
 
   it("protects both reading and writing with admin authentication", async () => {

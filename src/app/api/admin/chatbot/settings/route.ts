@@ -35,6 +35,7 @@ export async function PUT(request: Request) {
     const changesChatbot = body && typeof body.enabled === "boolean";
     const changesPipeline = body && typeof body.pipelineAutomationEnabled === "boolean";
     const changesIntents = body && Array.isArray(body.releasedAutoReplyIntents);
+    const changesPercentage = body && Object.prototype.hasOwnProperty.call(body, "autoReplyRolloutPercentage");
     const allowedIntents = new Set<string>(AUTO_REPLY_INTENTS);
     const releasedAutoReplyIntents = changesIntents
       ? Array.from(new Set(body.releasedAutoReplyIntents))
@@ -43,11 +44,21 @@ export async function PUT(request: Request) {
       !changesChatbot
       && !changesPipeline
       && !changesIntents
+      && !changesPercentage
     ) {
       return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
     }
     if (releasedAutoReplyIntents?.some(intent => typeof intent !== "string" || !allowedIntents.has(intent))) {
       return NextResponse.json({ ok: false, error: "invalid_intent" }, { status: 400 });
+    }
+    if (
+      changesPercentage
+      && (typeof body.autoReplyRolloutPercentage !== "number"
+        || !Number.isInteger(body.autoReplyRolloutPercentage)
+        || body.autoReplyRolloutPercentage < 0
+        || body.autoReplyRolloutPercentage > 100)
+    ) {
+      return NextResponse.json({ ok: false, error: "invalid_percentage" }, { status: 400 });
     }
 
     const existing = await prisma.chatbotSettings.findFirst({
@@ -58,6 +69,7 @@ export async function PUT(request: Request) {
       ...(changesChatbot ? { enabledGlobal: body.enabled, enabledWhatsapp: body.enabled } : {}),
       ...(changesPipeline ? { pipelineAutomationEnabled: body.pipelineAutomationEnabled } : {}),
       ...(changesIntents ? { autoReplyIntentsJson: JSON.stringify(releasedAutoReplyIntents) } : {}),
+      ...(changesPercentage ? { autoReplyRolloutPercentage: body.autoReplyRolloutPercentage } : {}),
     };
     const settings = existing
       ? await prisma.chatbotSettings.update({ where: { id: existing.id }, data })
@@ -91,6 +103,18 @@ export async function PUT(request: Request) {
         },
       });
     }
+    if (changesPercentage) {
+      await prisma.internalActionLog.create({
+        data: {
+          action: "AutoReplyRolloutPercentageUpdated",
+          userId: authorization.auth.adminId,
+          metadataJson: JSON.stringify({
+            origin: "admin_ui",
+            percentage: body.autoReplyRolloutPercentage,
+          }),
+        },
+      });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -99,6 +123,7 @@ export async function PUT(request: Request) {
         enabledWhatsapp: settings.enabledWhatsapp,
         pipelineAutomationEnabled: settings.pipelineAutomationEnabled,
         releasedAutoReplyIntents: parseReleasedAutoReplyIntents(settings.autoReplyIntentsJson),
+        autoReplyRolloutPercentage: settings.autoReplyRolloutPercentage,
       },
     });
   } catch (error) {
