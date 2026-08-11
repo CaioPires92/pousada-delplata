@@ -18,7 +18,21 @@ describe("approved chatbot knowledge", () => {
       { id: "rule-wifi-password", trigger: "senha do Wi-Fi", response: "Consulte a recepção.", category: "faq", version: 1 },
       { id: "rule-bed", trigger: "cama", response: "Vou confirmar o tipo de cama.", category: "acomodacoes", version: 1 },
       { id: "rule-bed-linen", trigger: "roupa de cama", response: "Vou confirmar a roupa de cama.", category: "acomodacoes", version: 1 },
+      { id: "rule-window", trigger: "janela", response: "Vou confirmar a janela.", category: "acomodacoes", version: 1 },
+      { id: "rule-windows", trigger: "janelas", response: "Vou confirmar a janela.", category: "acomodacoes", version: 1 },
     ] as never);
+  });
+
+  it.each([
+    "O quarto possui janela?",
+    "Os quartos possuem janelas?",
+  ])("routes window questions safely in %s", async message => {
+    const result = await findApprovedKnowledge(message);
+
+    expect(result).toMatchObject({
+      response: "Vou confirmar a janela.",
+      category: "acomodacoes",
+    });
   });
 
   it("prefers the specific bed-linen answer over the generic bed answer", async () => {
