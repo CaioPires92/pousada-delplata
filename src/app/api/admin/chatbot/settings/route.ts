@@ -9,6 +9,7 @@ import {
   parseReleasedAutoReplyIntents,
 } from "@/lib/crm/chatbotSettings";
 import { evaluateAutoReplyRolloutGate } from "@/lib/crm/rolloutGate";
+import { evaluateRolloutStability } from "@/lib/crm/rolloutStability";
 
 async function authorize() {
   const auth = await requireAdminAuth();
@@ -127,6 +128,16 @@ export async function PUT(request: Request) {
             currentPercentage: previousPercentage,
             requestedPercentage: body.autoReplyRolloutPercentage,
             retryAt,
+          }, { status: 409 });
+        }
+        const stability = await evaluateRolloutStability(new Date(Date.now() - 24 * 60 * 60 * 1000));
+        if (!stability.approved) {
+          return NextResponse.json({
+            ok: false,
+            error: "rollout_operational_stability_failed",
+            currentPercentage: previousPercentage,
+            requestedPercentage: body.autoReplyRolloutPercentage,
+            stability,
           }, { status: 409 });
         }
       }

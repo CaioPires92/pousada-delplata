@@ -10,10 +10,12 @@ const mocks = vi.hoisted(() => ({
   findLatestRolloutChange: vi.fn(),
   findConversations: vi.fn(),
   evaluateRolloutGate: vi.fn(),
+  evaluateRolloutStability: vi.fn(),
 }));
 
 vi.mock("@/lib/admin-auth", () => ({ requireAdminAuth: mocks.requireAdminAuth }));
 vi.mock("@/lib/crm/rolloutGate", () => ({ evaluateAutoReplyRolloutGate: mocks.evaluateRolloutGate }));
+vi.mock("@/lib/crm/rolloutStability", () => ({ evaluateRolloutStability: mocks.evaluateRolloutStability }));
 vi.mock("@/lib/prisma", () => ({
   default: {
     chatbotSettings: {
@@ -38,6 +40,7 @@ describe("admin chatbot settings", () => {
       autoReplyRolloutPercentage: 0,
     });
     mocks.evaluateRolloutGate.mockResolvedValue({ approved: true, reasons: [], metrics: {} });
+    mocks.evaluateRolloutStability.mockResolvedValue({ approved: true, reasons: [], metrics: {} });
     mocks.update.mockImplementation(async ({ data }) => ({
       enabledGlobal: false,
       enabledWhatsapp: false,
@@ -198,6 +201,36 @@ describe("admin chatbot settings", () => {
     }));
 
     expect(response.status).toBe(200);
+    expect(mocks.evaluateRolloutStability).toHaveBeenCalledWith(expect.any(Date));
+  });
+
+  it("blocks expansion after 24 hours when operational failures occurred", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 5,
+    });
+    mocks.findLatestRolloutChange.mockResolvedValue({
+      createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      metadataJson: JSON.stringify({ previousPercentage: 0, percentage: 5 }),
+    });
+    mocks.evaluateRolloutStability.mockResolvedValue({
+      approved: false,
+      reasons: ["operational_event_failures"],
+      metrics: { eventFailures: 1 },
+    });
+
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 10 }),
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "rollout_operational_stability_failed",
+      stability: { approved: false, reasons: ["operational_event_failures"] },
+    });
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("always permits an immediate rollout reduction", async () => {
