@@ -56,7 +56,11 @@ function percent(value: number | null) {
   return value === null ? "—" : `${Math.round(value * 100)}%`;
 }
 
-export function DecisionReviewPanel() {
+type DecisionReviewPanelProps = {
+  onReviewRecorded?: () => Promise<void> | void;
+};
+
+export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelProps) {
   const [decisions, setDecisions] = useState<DecisionReview[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -107,9 +111,10 @@ export function DecisionReviewPanel() {
       });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error("review_failed");
-      setDecisions(current => current.map(decision => decision.id === decisionId
-        ? { ...decision, reviewVerdict: verdict, reviewedAt: new Date().toISOString() }
-        : decision));
+      await Promise.all([
+        loadDecisions(),
+        onReviewRecorded?.(),
+      ]);
     } catch {
       setError("Não foi possível registrar a revisão dessa decisão.");
     } finally {

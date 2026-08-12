@@ -499,7 +499,7 @@ export default function ChatbotSettingsPage() {
                 </div>
             </section>
 
-            <DecisionReviewPanel />
+            <DecisionReviewPanel onReviewRecorded={fetchGlobalSettings} />
             <SupervisedSuggestionPanel />
 
             {/* Nova Regra */}
