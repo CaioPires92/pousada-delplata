@@ -20,7 +20,7 @@ export async function GET() {
   try {
     const authorization = await authorize();
     if (authorization.response) return authorization.response;
-    const [settings, rolloutGate, intentGateEntries, openWhatsappConversations] = await Promise.all([
+    const [settings, rolloutGate, intentGateEntries, openWhatsappConversations, latestRolloutIncrease] = await Promise.all([
       getChatbotRuntimeSettings(),
       evaluateAutoReplyRolloutGate(),
       Promise.all(AUTO_REPLY_INTENTS.map(async intent => [
@@ -31,9 +31,21 @@ export async function GET() {
         where: { channel: "whatsapp", status: "open", chatbotTestEnabled: false },
         select: { id: true },
       }),
+      prisma.internalActionLog.findFirst({
+        where: { action: "AutoReplyRolloutPercentageUpdated" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, metadataJson: true },
+      }),
     ]);
     const conversationIds = openWhatsappConversations.map(conversation => conversation.id);
     const nextPercentage = Math.min(100, settings.autoReplyRolloutPercentage + 5);
+    const stableSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const stability = settings.autoReplyRolloutPercentage > 0
+      ? await evaluateRolloutStability(stableSince)
+      : null;
+    const timeReadyAt = latestRolloutIncrease
+      ? new Date(latestRolloutIncrease.createdAt.getTime() + 24 * 60 * 60 * 1000)
+      : null;
     return NextResponse.json({
       ok: true,
       settings,
@@ -42,6 +54,15 @@ export async function GET() {
       rolloutPreview: {
         current: buildAutoReplyRolloutPreview(conversationIds, settings.autoReplyRolloutPercentage),
         nextIncrement: buildAutoReplyRolloutPreview(conversationIds, nextPercentage),
+      },
+      rolloutStability: {
+        requiredHours: 24,
+        timeReadyAt,
+        timeReady: !timeReadyAt || timeReadyAt.getTime() <= Date.now(),
+        operational: stability,
+        ready: settings.autoReplyRolloutPercentage > 0
+          && (!timeReadyAt || timeReadyAt.getTime() <= Date.now())
+          && Boolean(stability?.approved),
       },
     });
   } catch (error) {

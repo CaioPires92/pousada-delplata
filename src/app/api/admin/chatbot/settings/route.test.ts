@@ -281,7 +281,39 @@ describe("admin chatbot settings", () => {
       nextIncrement: { percentage: 5, openWhatsappConversations: 2 },
     });
     expect(body.rolloutPreview.current).not.toHaveProperty("conversationIds");
+    expect(body.rolloutStability).toEqual({
+      requiredHours: 24,
+      timeReadyAt: null,
+      timeReady: true,
+      operational: null,
+      ready: false,
+    });
     expect(mocks.evaluateRolloutGate).toHaveBeenCalledWith(expect.any(Date), "faq");
+  });
+
+  it("returns the operational and temporal stability of an active rollout", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      enabledGlobal: true,
+      enabledWhatsapp: true,
+      pipelineAutomationEnabled: true,
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 5,
+    });
+    mocks.findLatestRolloutChange.mockResolvedValue({
+      createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      metadataJson: JSON.stringify({ previousPercentage: 0, percentage: 5 }),
+    });
+    mocks.evaluateRolloutStability.mockResolvedValue({
+      approved: true,
+      reasons: [],
+      metrics: { eventFailures: 0, failedJobs: 0, openDeadLetters: 0, messagingStatus: "healthy" },
+    });
+
+    const body = await (await GET()).json();
+
+    expect(body.rolloutStability).toMatchObject({ timeReady: true, ready: true });
+    expect(mocks.evaluateRolloutStability).toHaveBeenCalledWith(expect.any(Date));
   });
 
   it("rejects an intent outside the rollout allowlist", async () => {

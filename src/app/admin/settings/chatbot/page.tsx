@@ -71,6 +71,18 @@ type RolloutPreview = {
     nextIncrement: { percentage: number; openWhatsappConversations: number; eligibleConversations: number };
 };
 
+type RolloutStability = {
+    requiredHours: number;
+    timeReadyAt: string | null;
+    timeReady: boolean;
+    ready: boolean;
+    operational: null | {
+        approved: boolean;
+        reasons: string[];
+        metrics: { eventFailures: number; failedJobs: number; openDeadLetters: number; messagingStatus: string };
+    };
+};
+
 const ROLLOUT_REASON_LABELS: Record<string, string> = {
     insufficient_shadow_sample: "Amostra shadow insuficiente",
     shadow_agreement_below_threshold: "Concordância shadow abaixo de 80%",
@@ -98,6 +110,7 @@ export default function ChatbotSettingsPage() {
     const [rolloutGate, setRolloutGate] = useState<RolloutGate | null>(null);
     const [intentGates, setIntentGates] = useState<Partial<Record<AutoReplyIntent, RolloutGate>>>({});
     const [rolloutPreview, setRolloutPreview] = useState<RolloutPreview | null>(null);
+    const [rolloutStability, setRolloutStability] = useState<RolloutStability | null>(null);
 
     const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -133,6 +146,7 @@ export default function ChatbotSettingsPage() {
             setRolloutGate(data.rolloutGate ?? null);
             setIntentGates(data.intentGates && typeof data.intentGates === "object" ? data.intentGates : {});
             setRolloutPreview(data.rolloutPreview ?? null);
+            setRolloutStability(data.rolloutStability ?? null);
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
@@ -479,6 +493,19 @@ export default function ChatbotSettingsPage() {
                                         <ul className="mt-2 list-disc pl-5">
                                             {rolloutGate.reasons.map(reason => <li key={reason}>{ROLLOUT_REASON_LABELS[reason] ?? reason}</li>)}
                                         </ul>
+                                    )}
+                                </div>
+                            )}
+                            {rolloutStability && savedRolloutPercentage > 0 && (
+                                <div className={`mt-3 rounded-lg border p-3 text-xs font-semibold ${rolloutStability.ready ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                                    <p className="font-black">Estabilidade para próxima expansão: {rolloutStability.ready ? "pronta" : "aguardando"}</p>
+                                    {!rolloutStability.timeReady && rolloutStability.timeReadyAt && (
+                                        <p className="mt-1">Janela mínima de {rolloutStability.requiredHours} horas termina em {new Date(rolloutStability.timeReadyAt).toLocaleString("pt-BR")}.</p>
+                                    )}
+                                    {rolloutStability.operational && (
+                                        <p className="mt-1">
+                                            Evolution: {rolloutStability.operational.metrics.messagingStatus === "healthy" ? "saudável" : "indisponível"} · Falhas recentes: {rolloutStability.operational.metrics.eventFailures} · Jobs falhos: {rolloutStability.operational.metrics.failedJobs} · Dead-letter abertas: {rolloutStability.operational.metrics.openDeadLetters}
+                                        </p>
                                     )}
                                 </div>
                             )}
