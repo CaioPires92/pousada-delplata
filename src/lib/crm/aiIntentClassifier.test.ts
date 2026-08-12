@@ -109,6 +109,15 @@ describe("classifyIntent", () => {
     expect(JSON.parse(String(request.body))).toMatchObject({
       generationConfig: {
         responseMimeType: "application/json",
+        responseJsonSchema: expect.objectContaining({
+          type: "object",
+          additionalProperties: false,
+          required: ["schemaVersion", "intent", "confidence", "suggestedAction", "reasonCode", "entities"],
+          properties: expect.objectContaining({
+            intent: expect.objectContaining({ enum: expect.arrayContaining(["parking", "unknown"]) }),
+            entities: expect.objectContaining({ additionalProperties: false }),
+          }),
+        }),
         thinkingConfig: { thinkingLevel: "low" },
       },
     });

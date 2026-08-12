@@ -34,6 +34,43 @@ type AiProviderConfig = {
   url: string;
 };
 
+const GEMINI_AI_DECISION_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["schemaVersion", "intent", "confidence", "suggestedAction", "reasonCode", "entities"],
+  properties: {
+    schemaVersion: { type: "integer", enum: [1] },
+    intent: {
+      type: "string",
+      enum: ["quote", "reservation", "checkin_info", "checkout_info", "amenity", "pet", "parking", "location", "unknown"],
+    },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    suggestedAction: {
+      type: "string",
+      enum: ["none", "handoff", "answer_approved_faq", "collect_quote_fields"],
+    },
+    reasonCode: {
+      type: "string",
+      enum: ["recognized_intent", "missing_information", "sensitive_request", "low_confidence", "unknown_intent"],
+    },
+    entities: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        checkin: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+        checkout: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+        adults: { type: "integer", minimum: 1, maximum: 30 },
+        children: { type: "integer", minimum: 0, maximum: 30 },
+        childrenAges: {
+          type: "array",
+          maxItems: 30,
+          items: { type: "integer", minimum: 0, maximum: 17 },
+        },
+      },
+    },
+  },
+} as const;
+
 function getAiProviderConfig(): AiProviderConfig | null {
   const provider = (process.env.CRM_AI_PROVIDER ?? "openai").trim().toLowerCase();
 
@@ -82,6 +119,7 @@ function providerRequest(config: AiProviderConfig, prompt: string): RequestInit 
         generationConfig: {
           maxOutputTokens: 512,
           responseMimeType: "application/json",
+          responseJsonSchema: GEMINI_AI_DECISION_JSON_SCHEMA,
           thinkingConfig,
         },
       }),
