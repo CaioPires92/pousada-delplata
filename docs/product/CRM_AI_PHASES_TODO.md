@@ -351,6 +351,7 @@ teste falha → menor implementação possível → teste passa
     - [x] Exibir metas e quantidade restante de evidências por intenção.
     - [x] Vincular sugestões supervisionadas explicitamente à intenção de rollout da FAQ.
     - [x] Expirar sugestões supervisionadas quando o hóspede enviar uma mensagem mais nova.
+    - [x] Expirar sugestões supervisionadas quando a regra aprovada for alterada ou desativada.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
   - [x] Exibir quantas conversas abertas seriam elegíveis antes de aumentar o percentual.

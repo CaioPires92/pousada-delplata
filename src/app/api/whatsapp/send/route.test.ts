@@ -241,14 +241,25 @@ describe("manual WhatsApp send hardening", () => {
         sentAt: new Date("2026-08-11T15:59:00.000Z"),
       },
     });
+    const rule = await prisma.chatbotRule.create({
+      data: {
+        trigger: `checkin-supervisionado-${conversation.id}`,
+        response: "O check-in começa às 14h.",
+        category: "checkin_info",
+        audience: "public",
+        version: 1,
+        approvedAt: new Date("2026-08-11T15:00:00.000Z"),
+        approvedBy: "test",
+      },
+    });
     const suggestion = await prisma.supervisedReplySuggestion.create({
       data: {
         conversationId: conversation.id,
         sourceMessageId: sourceMessage.id,
-        content: "O check-in começa às 14h.",
+        content: rule.response,
         intent: "checkin_info",
-        ruleId: "rule-1",
-        ruleVersion: 1,
+        ruleId: rule.id,
+        ruleVersion: rule.version,
       },
     });
 
@@ -301,6 +312,58 @@ describe("manual WhatsApp send hardening", () => {
     });
     await prisma.message.create({
       data: { conversationId: conversation.id, senderType: "guest", content: "E tem estacionamento?", messageType: "text", sentAt: new Date("2026-08-11T15:59:00.000Z") },
+    });
+
+    const response = await POST(request({
+      conversationId: conversation.id,
+      text: suggestion.content,
+      suggestionId: suggestion.id,
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "stale_supervised_suggestion" });
+    expect(send).not.toHaveBeenCalled();
+    await expect(prisma.supervisedReplySuggestion.findUnique({ where: { id: suggestion.id } })).resolves.toMatchObject({
+      status: "expired",
+      reviewedAt: expect.any(Date),
+    });
+  });
+
+  it("rejects and expires a supervised suggestion after its knowledge rule changes", async () => {
+    const contact = await prisma.contact.create({
+      data: { name: "Teste regra alterada", phone: "551188880006", source: "test-whatsapp-send" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, channel: "whatsapp", status: "open", automationMode: "supervised" },
+    });
+    const sourceMessage = await prisma.message.create({
+      data: { conversationId: conversation.id, senderType: "guest", content: "Qual é a senha do Wi-Fi?", messageType: "text", sentAt: new Date("2026-08-11T16:00:00.000Z") },
+    });
+    const rule = await prisma.chatbotRule.create({
+      data: {
+        trigger: `wifi-regra-alterada-${conversation.id}`,
+        response: "A senha é pousada151.",
+        category: "faq",
+        audience: "public",
+        version: 1,
+        approvedAt: new Date("2026-08-11T15:00:00.000Z"),
+        approvedBy: "test",
+      },
+    });
+    const suggestion = await prisma.supervisedReplySuggestion.create({
+      data: {
+        conversationId: conversation.id,
+        sourceMessageId: sourceMessage.id,
+        content: rule.response,
+        intent: "faq",
+        rolloutIntent: "faq",
+        ruleId: rule.id,
+        ruleVersion: rule.version,
+      },
+    });
+    await prisma.chatbotRule.update({
+      where: { id: rule.id },
+      data: { response: "Consulte a recepção para obter a senha.", version: 2 },
     });
 
     const response = await POST(request({

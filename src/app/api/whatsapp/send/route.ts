@@ -82,7 +82,13 @@ export async function POST(request: Request) {
                     status: "pending",
                     content: text,
                 },
-                select: { id: true, sourceMessageId: true },
+                select: {
+                    id: true,
+                    sourceMessageId: true,
+                    ruleId: true,
+                    ruleVersion: true,
+                    content: true,
+                },
             })
             : null;
         if (suggestionId && !supervisedSuggestion) {
@@ -92,6 +98,34 @@ export async function POST(request: Request) {
             );
         }
         if (supervisedSuggestion) {
+            const ruleIds = supervisedSuggestion.ruleId
+                .split(",")
+                .map(ruleId => ruleId.trim())
+                .filter(Boolean);
+            const currentRules = ruleIds.length > 0
+                ? await prisma.chatbotRule.findMany({
+                    where: {
+                        id: { in: ruleIds },
+                        isActive: true,
+                        audience: "public",
+                        approvedAt: { not: null },
+                    },
+                    select: { id: true, response: true, version: true },
+                })
+                : [];
+            const rulesById = new Map(currentRules.map(rule => [rule.id, rule]));
+            const orderedRules = ruleIds
+                .map(ruleId => rulesById.get(ruleId))
+                .filter((rule): rule is NonNullable<typeof rule> => Boolean(rule));
+            const currentContent = orderedRules.length === 1
+                ? orderedRules[0].response
+                : orderedRules.map((rule, index) => `${index + 1}. ${rule.response}`).join("\n\n");
+            const currentVersion = orderedRules.length > 0
+                ? Math.max(...orderedRules.map(rule => rule.version))
+                : null;
+            const ruleIsStale = orderedRules.length !== ruleIds.length
+                || currentVersion !== supervisedSuggestion.ruleVersion
+                || currentContent !== supervisedSuggestion.content;
             const sourceMessage = await prisma.message.findFirst({
                 where: {
                     id: supervisedSuggestion.sourceMessageId,
@@ -111,7 +145,7 @@ export async function POST(request: Request) {
                     select: { id: true },
                 })
                 : null;
-            if (!sourceMessage || newerGuestMessage) {
+            if (ruleIsStale || !sourceMessage || newerGuestMessage) {
                 await prisma.supervisedReplySuggestion.update({
                     where: { id: supervisedSuggestion.id },
                     data: { status: "expired", reviewedBy: actorId, reviewedAt: new Date() },
