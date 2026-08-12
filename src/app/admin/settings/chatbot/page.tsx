@@ -79,6 +79,7 @@ export default function ChatbotSettingsPage() {
     const [savedRolloutPercentage, setSavedRolloutPercentage] = useState(0);
     const [isRolloutSaving, setIsRolloutSaving] = useState(false);
     const [rolloutGate, setRolloutGate] = useState<RolloutGate | null>(null);
+    const [intentGates, setIntentGates] = useState<Partial<Record<AutoReplyIntent, RolloutGate>>>({});
 
     const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -112,6 +113,7 @@ export default function ChatbotSettingsPage() {
             setRolloutPercentage(percentage);
             setSavedRolloutPercentage(percentage);
             setRolloutGate(data.rolloutGate ?? null);
+            setIntentGates(data.intentGates && typeof data.intentGates === "object" ? data.intentGates : {});
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
@@ -437,6 +439,30 @@ export default function ChatbotSettingsPage() {
                                     )}
                                 </div>
                             )}
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                {(Object.entries(AUTO_REPLY_INTENT_LABELS) as Array<[AutoReplyIntent, string]>).map(([intent, label]) => {
+                                    const gate = intentGates[intent];
+                                    if (!gate) return null;
+                                    return (
+                                        <div key={intent} className={`rounded-lg border p-3 text-xs ${gate.approved ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <strong className="text-slate-800">{label}</strong>
+                                                <span className={`font-black uppercase ${gate.approved ? "text-emerald-700" : "text-amber-700"}`}>
+                                                    {gate.approved ? "Pronta" : "Bloqueada"}
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 text-slate-500">
+                                                Shadow {gate.metrics.shadowSample} · Humana {gate.metrics.humanShadowReviewed} · Supervisionada {gate.metrics.supervisedReviewed}
+                                            </p>
+                                            {!gate.approved && gate.reasons.length > 0 && (
+                                                <p className="mt-1 font-semibold text-amber-800">
+                                                    {ROLLOUT_REASON_LABELS[gate.reasons[0]] ?? gate.reasons[0]}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -18,14 +18,19 @@ export async function GET() {
   try {
     const authorization = await authorize();
     if (authorization.response) return authorization.response;
-    const [settings, rolloutGate] = await Promise.all([
+    const [settings, rolloutGate, intentGateEntries] = await Promise.all([
       getChatbotRuntimeSettings(),
       evaluateAutoReplyRolloutGate(),
+      Promise.all(AUTO_REPLY_INTENTS.map(async intent => [
+        intent,
+        await evaluateAutoReplyRolloutGate(new Date(), intent),
+      ] as const)),
     ]);
     return NextResponse.json({
       ok: true,
       settings,
       rolloutGate,
+      intentGates: Object.fromEntries(intentGateEntries),
     });
   } catch (error) {
     console.error("Erro ao carregar interruptor global do chatbot", error);

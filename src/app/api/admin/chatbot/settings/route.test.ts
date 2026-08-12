@@ -123,7 +123,11 @@ describe("admin chatbot settings", () => {
 
     expect(response.status).toBe(200);
     expect(body.rolloutGate).toMatchObject({ approved: true });
-    expect(mocks.evaluateRolloutGate).toHaveBeenCalled();
+    expect(body.intentGates).toEqual(expect.objectContaining({
+      faq: expect.objectContaining({ approved: true }),
+      quote: expect.objectContaining({ approved: true }),
+    }));
+    expect(mocks.evaluateRolloutGate).toHaveBeenCalledWith(expect.any(Date), "faq");
   });
 
   it("rejects an intent outside the rollout allowlist", async () => {
