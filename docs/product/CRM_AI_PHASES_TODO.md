@@ -365,6 +365,7 @@ teste falha → menor implementação possível → teste passa
   - [x] Exigir 24 horas de estabilidade entre expansões e permitir redução imediata.
     - [x] Bloquear expansão quando as últimas 24 horas tiverem falhas operacionais ou dead-letter aberta.
     - [x] Exibir no painel o tempo restante e os bloqueios operacionais da próxima expansão.
+    - [x] Ajustar de forma limitada o timeout transacional do webhook para evitar P2028 em reconciliações válidas.
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.
 - [x] F8.09 Ensaiar kill switch, rollback e replay de fila.
 - [x] F8.10 Criar runbook de incidentes e responsável de plantão.

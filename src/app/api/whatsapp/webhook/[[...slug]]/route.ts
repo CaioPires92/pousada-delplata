@@ -18,6 +18,7 @@ import { normalizeEvolutionWebhook } from '@/lib/messaging/evolution-webhook-nor
 import { persistNormalizedWebhookEvents } from '@/lib/messaging/webhook-event-store';
 import { persistMessageDeliveryStatus } from '@/lib/messaging/delivery-status-store';
 import { withWebhookWriteLock } from '@/lib/messaging/webhook-write-lock';
+import { webhookTransactionOptions } from '@/lib/messaging/webhook-transaction-options';
 import { buildConversationResponseMetricUpdate } from '@/lib/crm/responseMetrics';
 
 export const runtime = 'nodejs';
@@ -685,7 +686,7 @@ export async function POST(
         messageId: message.id,
         isNewLead: (tx as any)._isNewLead === true
       };
-    }));
+    }, webhookTransactionOptions()));
 
     if (result.duplicated) {
       return NextResponse.json({
