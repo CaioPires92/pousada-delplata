@@ -5,11 +5,15 @@ const mocks = vi.hoisted(() => ({
   findMany: vi.fn(),
   findFirst: vi.fn(),
   create: vi.fn(),
+  messageFindMany: vi.fn(),
   requireAdminAuth: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
-  default: { internalActionLog: { findMany: mocks.findMany, findFirst: mocks.findFirst, create: mocks.create } },
+  default: {
+    internalActionLog: { findMany: mocks.findMany, findFirst: mocks.findFirst, create: mocks.create },
+    message: { findMany: mocks.messageFindMany },
+  },
 }));
 vi.mock("@/lib/admin-auth", () => ({ requireAdminAuth: mocks.requireAdminAuth }));
 
@@ -22,6 +26,7 @@ describe("admin chatbot decision review", () => {
     mocks.findMany.mockResolvedValue([]);
     mocks.findFirst.mockResolvedValue(null);
     mocks.create.mockResolvedValue({ id: "review-1" });
+    mocks.messageFindMany.mockResolvedValue([]);
   });
 
   it("rejects unauthenticated access", async () => {
@@ -55,8 +60,13 @@ describe("admin chatbot decision review", () => {
         latencyMs: 320,
         inputTokens: 42,
         outputTokens: 18,
+        sourceMessageId: "message-1",
       }),
     }]).mockResolvedValueOnce([]);
+    mocks.messageFindMany.mockResolvedValueOnce([{
+      id: "message-1",
+      content: "Tem estacionamento disponível?",
+    }]);
 
     const response = await GET();
     const body = await response.json();
@@ -74,6 +84,12 @@ describe("admin chatbot decision review", () => {
       actionAuthorized: false,
       totalTokens: 60,
       agreementWithHeuristic: false,
+      sourceMessageId: "message-1",
+      sourceMessageExcerpt: "Tem estacionamento disponível?",
+    });
+    expect(mocks.messageFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ["message-1"] }, senderType: "guest" },
+      select: { id: true, content: true },
     });
     expect(body.windowStartedAt).toEqual(expect.any(String));
     expect(body.summary).toEqual({

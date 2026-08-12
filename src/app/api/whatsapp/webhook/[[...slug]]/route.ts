@@ -749,6 +749,7 @@ export async function POST(
         await applyPipelineAutomationOnIncomingMessage({
           conversationId: result.conversationId,
           contactId: result.contactId,
+          sourceMessageId: result.messageId,
           text: extracted.textContent,
         });
         if (extracted.textContent) {

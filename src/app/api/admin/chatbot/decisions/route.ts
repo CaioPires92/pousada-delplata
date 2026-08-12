@@ -59,6 +59,17 @@ export async function GET() {
     }),
   ]);
 
+  const sourceMessageIds = logs
+    .map(log => optionalString(readMetadata(log.metadataJson).sourceMessageId))
+    .filter((messageId): messageId is string => Boolean(messageId));
+  const sourceMessages = sourceMessageIds.length > 0
+    ? await prisma.message.findMany({
+      where: { id: { in: sourceMessageIds }, senderType: "guest" },
+      select: { id: true, content: true },
+    })
+    : [];
+  const sourceMessageById = new Map(sourceMessages.map(message => [message.id, message.content]));
+
   const reviewByDecisionId = new Map<string, { verdict: string; reviewedAt: Date; reviewedBy: string | null }>();
   for (const review of reviews) {
     const reviewMetadata = readMetadata(review.metadataJson);
@@ -73,6 +84,7 @@ export async function GET() {
     const metadata = readMetadata(log.metadataJson);
     const inputTokens = finiteNumber(metadata.inputTokens);
     const outputTokens = finiteNumber(metadata.outputTokens);
+    const sourceMessageId = optionalString(metadata.sourceMessageId);
 
     const review = reviewByDecisionId.get(log.id);
     return {
@@ -80,6 +92,10 @@ export async function GET() {
       createdAt: log.createdAt,
       conversationId: log.conversationId,
       contactLabel: log.conversation?.contact.name || log.conversation?.contact.phone || "Contato",
+      sourceMessageId,
+      sourceMessageExcerpt: sourceMessageId
+        ? (sourceMessageById.get(sourceMessageId)?.trim().slice(0, 280) || null)
+        : null,
       intent: optionalString(metadata.intent) ?? "unknown",
       heuristicIntent: optionalString(metadata.heuristicIntent),
       confidence: finiteNumber(metadata.confidence),

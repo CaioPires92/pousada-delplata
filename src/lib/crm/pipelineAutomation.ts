@@ -12,6 +12,7 @@ import { CRM_AUTOMATION_POLICY_VERSION } from "@/lib/crm/automationVersions";
 export async function applyPipelineAutomationOnIncomingMessage(input: {
   conversationId: string;
   contactId: string;
+  sourceMessageId?: string;
   text?: string;
 }) {
   if (!(await isPipelineAutomationEnabled())) return;
@@ -54,6 +55,7 @@ export async function applyPipelineAutomationOnIncomingMessage(input: {
       promptVersion: classified.promptVersion ?? null,
       decisionSchemaVersion: classified.decision?.schemaVersion ?? null,
       policyVersion: CRM_AUTOMATION_POLICY_VERSION,
+      sourceMessageId: input.sourceMessageId ?? null,
       suggestedAction: classified.decision?.suggestedAction ?? null,
       reasonCode: classified.decision?.reasonCode ?? null,
       entities: classified.decision?.entities ?? {},

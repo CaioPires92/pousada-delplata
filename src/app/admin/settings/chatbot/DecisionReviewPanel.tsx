@@ -9,6 +9,8 @@ type DecisionReview = {
   createdAt: string;
   conversationId: string | null;
   contactLabel: string;
+  sourceMessageId: string | null;
+  sourceMessageExcerpt: string | null;
   intent: string;
   heuristicIntent: string | null;
   confidence: number | null;
@@ -251,6 +253,11 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
                   <tr key={decision.id} className="align-top text-slate-700">
                     <td className="px-4 py-3">
                       <div className="font-bold text-slate-800">{decision.contactLabel}</div>
+                      {decision.sourceMessageExcerpt && (
+                        <blockquote className="mt-2 max-w-72 rounded-lg border-l-4 border-violet-300 bg-violet-50 px-3 py-2 text-xs font-medium text-slate-700">
+                          “{decision.sourceMessageExcerpt}”
+                        </blockquote>
+                      )}
                       <div className="mt-1 text-xs text-slate-400">{new Date(decision.createdAt).toLocaleString("pt-BR")}</div>
                       {decision.conversationId && (
                         <Link
