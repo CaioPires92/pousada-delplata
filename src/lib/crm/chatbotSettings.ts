@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import type { CrmIntent } from "@/lib/crm/intentParser";
 
 export const AUTO_REPLY_INTENTS = [
+  "faq",
   "quote",
   "reservation",
   "checkin_info",
@@ -10,7 +11,7 @@ export const AUTO_REPLY_INTENTS = [
   "pet",
   "parking",
   "location",
-] as const satisfies readonly CrmIntent[];
+] as const;
 
 export type AutoReplyIntent = typeof AUTO_REPLY_INTENTS[number];
 
@@ -92,7 +93,7 @@ export async function isConversationInAutoReplyRollout(
 }
 
 export async function isAutoReplyIntentReleased(
-  intent: CrmIntent,
+  intent: CrmIntent | AutoReplyIntent,
   testConversation = false,
 ): Promise<boolean> {
   if (testConversation) return intent !== "unknown";

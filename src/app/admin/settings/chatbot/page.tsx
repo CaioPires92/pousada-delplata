@@ -28,6 +28,7 @@ const AUDIENCE_LABELS: Record<ChatbotRule["audience"], string> = {
 };
 
 const AUTO_REPLY_INTENT_LABELS = {
+    faq: "FAQ aprovada",
     quote: "Cotação",
     reservation: "Reserva",
     checkin_info: "Informações de check-in",

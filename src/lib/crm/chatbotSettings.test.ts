@@ -127,4 +127,12 @@ describe("chatbot global settings", () => {
     await expect(isAutoReplyIntentReleased("parking", true)).resolves.toBe(true);
     await expect(isAutoReplyIntentReleased("unknown", true)).resolves.toBe(false);
   });
+
+  it("treats approved FAQ as an explicit rollout category", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      autoReplyIntentsJson: '["quote","faq"]',
+    } as never);
+
+    await expect(isAutoReplyIntentReleased("faq", false)).resolves.toBe(true);
+  });
 });

@@ -164,15 +164,15 @@ describe("processAutoResponse handoff supervision", () => {
     expect(sendMessagingText).not.toHaveBeenCalled();
   });
 
-  it("answers approved knowledge even after a previous comprehension failure", async () => {
-    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(1) as never);
+  it("answers approved knowledge in an explicitly enabled test conversation", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(1, true) as never);
     vi.mocked(findApprovedKnowledge).mockResolvedValue({
       ruleId: "faq-wifi-password",
       response: "A senha do Wi-Fi é pousada151 em todas as redes.",
       category: "faq",
       version: 2,
     });
-    vi.mocked(isAutoReplyIntentReleased).mockResolvedValue(false);
+    vi.mocked(isAutoReplyIntentReleased).mockResolvedValue(true);
     vi.mocked(prisma.pipelineCard.findFirst).mockResolvedValue(null);
 
     await expect(processAutoResponse(
@@ -186,6 +186,27 @@ describe("processAutoResponse handoff supervision", () => {
       "A senha do Wi-Fi é pousada151 em todas as redes.",
     );
     expect(executeAutomationHandoff).not.toHaveBeenCalled();
+  });
+
+  it("does not let approved knowledge bypass the production intent allowlist", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue(conversation(0, false) as never);
+    vi.mocked(findApprovedKnowledge).mockResolvedValue({
+      ruleId: "faq-wifi-password",
+      response: "A senha do Wi-Fi é pousada151 em todas as redes.",
+      category: "faq",
+      version: 2,
+    });
+    vi.mocked(isAutoReplyIntentReleased).mockResolvedValue(false);
+    vi.mocked(executeAutomationHandoff).mockResolvedValue("handoff");
+
+    await expect(processAutoResponse(
+      "conversation-1",
+      "5519999999999",
+      "Qual a senha do Wi-Fi?",
+    )).resolves.toBe("handoff");
+
+    expect(isAutoReplyIntentReleased).toHaveBeenCalledWith("faq", false);
+    expect(sendMessagingText).not.toHaveBeenCalled();
   });
 
   it("keeps explicit human handoff above an approved FAQ match", async () => {

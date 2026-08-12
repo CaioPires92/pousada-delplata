@@ -179,7 +179,8 @@ async function processAutoResponseLocked(conversationId: string, phone: string, 
         });
     }
 
-    if (!approvedKnowledge && !(await isAutoReplyIntentReleased(parsedIncoming.intent, conversation.chatbotTestEnabled))) {
+    const rolloutIntent = approvedKnowledge ? "faq" : parsedIncoming.intent;
+    if (!(await isAutoReplyIntentReleased(rolloutIntent, conversation.chatbotTestEnabled))) {
         return executeAutomationHandoff({
             conversationId,
             contactId: conversation.contactId,
