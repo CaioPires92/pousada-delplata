@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   createSettings: vi.fn(),
   createLog: vi.fn(),
+  findLatestRolloutChange: vi.fn(),
   findConversations: vi.fn(),
   evaluateRolloutGate: vi.fn(),
 }));
@@ -20,7 +21,7 @@ vi.mock("@/lib/prisma", () => ({
       update: mocks.update,
       create: mocks.createSettings,
     },
-    internalActionLog: { create: mocks.createLog },
+    internalActionLog: { create: mocks.createLog, findFirst: mocks.findLatestRolloutChange },
     conversation: { findMany: mocks.findConversations },
   },
 }));
@@ -46,6 +47,7 @@ describe("admin chatbot settings", () => {
       ...data,
     }));
     mocks.createLog.mockResolvedValue({});
+    mocks.findLatestRolloutChange.mockResolvedValue(null);
     mocks.findConversations.mockResolvedValue([
       { id: "conversation-1" },
       { id: "conversation-2" },
@@ -151,6 +153,71 @@ describe("admin chatbot settings", () => {
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
       data: { autoReplyRolloutPercentage: 5 },
     }));
+  });
+
+  it("requires 24 hours of stability before increasing an active rollout", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 5,
+    });
+    mocks.findLatestRolloutChange.mockResolvedValue({
+      createdAt: new Date(Date.now() - 60 * 60 * 1000),
+      metadataJson: JSON.stringify({ previousPercentage: 0, percentage: 5 }),
+    });
+
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 10 }),
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "rollout_stability_period_active",
+      currentPercentage: 5,
+      requestedPercentage: 10,
+      retryAt: expect.any(String),
+    });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("allows expansion after 24 stable hours", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 5,
+    });
+    mocks.findLatestRolloutChange.mockResolvedValue({
+      createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      metadataJson: JSON.stringify({ previousPercentage: 0, percentage: 5 }),
+    });
+
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 10 }),
+    }));
+
+    expect(response.status).toBe(200);
+  });
+
+  it("always permits an immediate rollout reduction", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 10,
+    });
+    mocks.findLatestRolloutChange.mockResolvedValue({
+      createdAt: new Date(),
+      metadataJson: JSON.stringify({ previousPercentage: 5, percentage: 10 }),
+    });
+
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 0 }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.findLatestRolloutChange).not.toHaveBeenCalled();
   });
 
   it("protects both reading and writing with admin authentication", async () => {

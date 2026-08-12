@@ -147,6 +147,10 @@ export default function ChatbotSettingsPage() {
                 if (data.error === "rollout_gate_blocked") {
                     throw new Error("ROLLOUT_GATE_BLOCKED");
                 }
+                if (data.error === "rollout_stability_period_active") {
+                    const retryAt = typeof data.retryAt === "string" ? data.retryAt : "";
+                    throw new Error(`ROLLOUT_STABILITY_PERIOD:${retryAt}`);
+                }
                 throw new Error("ROLLOUT_UPDATE_FAILED");
             }
             const saved = Number(data.settings.autoReplyRolloutPercentage);
@@ -160,6 +164,8 @@ export default function ChatbotSettingsPage() {
                 ? "Para iniciar o piloto, deixe somente FAQ aprovada selecionada. Cotação e outras intenções permanecem em revisão."
                 : message === "ROLLOUT_GATE_BLOCKED"
                     ? "O percentual não foi alterado porque a amostra desta intenção ainda não passou no gate de segurança."
+                    : message.startsWith("ROLLOUT_STABILITY_PERIOD:")
+                        ? `Aguarde 24 horas de estabilidade antes de ampliar novamente. Próxima expansão disponível após ${new Date(message.split(":").slice(1).join(":")).toLocaleString("pt-BR")}. Você ainda pode reduzir ou zerar o rollout imediatamente.`
                     : "Erro ao atualizar o percentual de rollout.");
         } finally {
             setIsRolloutSaving(false);

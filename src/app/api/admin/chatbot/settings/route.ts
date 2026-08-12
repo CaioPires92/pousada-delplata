@@ -112,6 +112,25 @@ export async function PUT(request: Request) {
         configuredIntents: effectiveIntents,
       }, { status: 409 });
     }
+    if (increasesPercentage && previousPercentage > 0) {
+      const latestIncrease = await prisma.internalActionLog.findFirst({
+        where: { action: "AutoReplyRolloutPercentageUpdated" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, metadataJson: true },
+      });
+      if (latestIncrease) {
+        const retryAt = new Date(latestIncrease.createdAt.getTime() + 24 * 60 * 60 * 1000);
+        if (retryAt.getTime() > Date.now()) {
+          return NextResponse.json({
+            ok: false,
+            error: "rollout_stability_period_active",
+            currentPercentage: previousPercentage,
+            requestedPercentage: body.autoReplyRolloutPercentage,
+            retryAt,
+          }, { status: 409 });
+        }
+      }
+    }
     if (addedIntents.length > 0 || increasesPercentage) {
       const intentsToValidate = addedIntents.length > 0
         ? addedIntents
@@ -174,6 +193,7 @@ export async function PUT(request: Request) {
           userId: authorization.auth.adminId,
           metadataJson: JSON.stringify({
             origin: "admin_ui",
+            previousPercentage,
             percentage: body.autoReplyRolloutPercentage,
           }),
         },

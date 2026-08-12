@@ -351,6 +351,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
   - [x] Exibir quantas conversas abertas seriam elegíveis antes de aumentar o percentual.
   - [x] Exigir que o primeiro percentual de produção libere somente FAQ aprovada.
+  - [x] Exigir 24 horas de estabilidade entre expansões e permitir redução imediata.
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.
 - [x] F8.09 Ensaiar kill switch, rollback e replay de fila.
 - [x] F8.10 Criar runbook de incidentes e responsável de plantão.
