@@ -54,6 +54,11 @@ type RolloutGate = {
     };
 };
 
+type RolloutPreview = {
+    current: { percentage: number; openWhatsappConversations: number; eligibleConversations: number };
+    nextIncrement: { percentage: number; openWhatsappConversations: number; eligibleConversations: number };
+};
+
 const ROLLOUT_REASON_LABELS: Record<string, string> = {
     insufficient_shadow_sample: "Amostra shadow insuficiente",
     shadow_agreement_below_threshold: "Concordância shadow abaixo de 80%",
@@ -80,6 +85,7 @@ export default function ChatbotSettingsPage() {
     const [isRolloutSaving, setIsRolloutSaving] = useState(false);
     const [rolloutGate, setRolloutGate] = useState<RolloutGate | null>(null);
     const [intentGates, setIntentGates] = useState<Partial<Record<AutoReplyIntent, RolloutGate>>>({});
+    const [rolloutPreview, setRolloutPreview] = useState<RolloutPreview | null>(null);
 
     const [newRule, setNewRule] = useState<EditableRule>({ trigger: "", response: "", audience: "public", source: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -114,6 +120,7 @@ export default function ChatbotSettingsPage() {
             setSavedRolloutPercentage(percentage);
             setRolloutGate(data.rolloutGate ?? null);
             setIntentGates(data.intentGates && typeof data.intentGates === "object" ? data.intentGates : {});
+            setRolloutPreview(data.rolloutPreview ?? null);
         } catch {
             setError("Não foi possível confirmar o estado global. O chatbot permanece bloqueado por segurança.");
             setGlobalEnabled(false);
@@ -406,6 +413,11 @@ export default function ChatbotSettingsPage() {
                                     <p className="mt-1 text-xs font-medium text-slate-500">
                                         A seleção é estável por conversa. Em 0%, somente conversas explicitamente marcadas para teste podem responder.
                                     </p>
+                                    {rolloutPreview && (
+                                        <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                                            Agora: {rolloutPreview.current.eligibleConversations} de {rolloutPreview.current.openWhatsappConversations} conversas abertas elegíveis. Próximo incremento seguro ({rolloutPreview.nextIncrement.percentage}%): {rolloutPreview.nextIncrement.eligibleConversations} elegíveis.
+                                        </p>
+                                    )}
                                     <input
                                         id="rollout-percentage"
                                         type="range"

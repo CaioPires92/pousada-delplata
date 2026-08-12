@@ -15,6 +15,7 @@ vi.mock("@/lib/crm/rolloutGate", () => ({
 import prisma from "@/lib/prisma";
 import { evaluateAutoReplyRolloutGate } from "@/lib/crm/rolloutGate";
 import {
+  buildAutoReplyRolloutPreview,
   getChatbotRuntimeSettings,
   isAutoReplyIntentReleased,
   isPipelineAutomationEnabled,
@@ -67,6 +68,18 @@ describe("chatbot global settings", () => {
 
     await expect(isConversationInAutoReplyRollout(id)).resolves.toBe(false);
     await expect(isConversationInAutoReplyRollout(id)).resolves.toBe(true);
+  });
+
+  it("previews eligible conversations without exposing their identifiers", () => {
+    const conversationIds = ["conversation-1", "conversation-2", "conversation-3"];
+    const percentage = 5;
+    const expectedEligible = conversationIds.filter(id => deterministicRolloutBucket(id) <= percentage).length;
+
+    expect(buildAutoReplyRolloutPreview(conversationIds, percentage)).toEqual({
+      percentage,
+      openWhatsappConversations: 3,
+      eligibleConversations: expectedEligible,
+    });
   });
 
   it("stops an already configured rollout when its operational evidence expires", async () => {

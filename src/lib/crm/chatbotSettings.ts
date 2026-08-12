@@ -46,6 +46,17 @@ export function deterministicRolloutBucket(stableId: string): number {
   return (hash >>> 0) % 100 + 1;
 }
 
+export function buildAutoReplyRolloutPreview(conversationIds: string[], percentage: number) {
+  const normalizedPercentage = normalizeRolloutPercentage(percentage);
+  return {
+    percentage: normalizedPercentage,
+    openWhatsappConversations: conversationIds.length,
+    eligibleConversations: conversationIds.filter(
+      conversationId => deterministicRolloutBucket(conversationId) <= normalizedPercentage,
+    ).length,
+  };
+}
+
 export function parseReleasedAutoReplyIntents(value: string | null | undefined): AutoReplyIntent[] {
   if (!value) return [...DEFAULT_CHATBOT_RUNTIME_SETTINGS.releasedAutoReplyIntents];
   try {

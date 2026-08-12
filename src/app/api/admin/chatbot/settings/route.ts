@@ -4,6 +4,7 @@ import { requireAdminAuth } from "@/lib/admin-auth";
 import prisma from "@/lib/prisma";
 import {
   AUTO_REPLY_INTENTS,
+  buildAutoReplyRolloutPreview,
   getChatbotRuntimeSettings,
   parseReleasedAutoReplyIntents,
 } from "@/lib/crm/chatbotSettings";
@@ -18,19 +19,29 @@ export async function GET() {
   try {
     const authorization = await authorize();
     if (authorization.response) return authorization.response;
-    const [settings, rolloutGate, intentGateEntries] = await Promise.all([
+    const [settings, rolloutGate, intentGateEntries, openWhatsappConversations] = await Promise.all([
       getChatbotRuntimeSettings(),
       evaluateAutoReplyRolloutGate(),
       Promise.all(AUTO_REPLY_INTENTS.map(async intent => [
         intent,
         await evaluateAutoReplyRolloutGate(new Date(), intent),
       ] as const)),
+      prisma.conversation.findMany({
+        where: { channel: "whatsapp", status: "open", chatbotTestEnabled: false },
+        select: { id: true },
+      }),
     ]);
+    const conversationIds = openWhatsappConversations.map(conversation => conversation.id);
+    const nextPercentage = Math.min(100, settings.autoReplyRolloutPercentage + 5);
     return NextResponse.json({
       ok: true,
       settings,
       rolloutGate,
       intentGates: Object.fromEntries(intentGateEntries),
+      rolloutPreview: {
+        current: buildAutoReplyRolloutPreview(conversationIds, settings.autoReplyRolloutPercentage),
+        nextIncrement: buildAutoReplyRolloutPreview(conversationIds, nextPercentage),
+      },
     });
   } catch (error) {
     console.error("Erro ao carregar interruptor global do chatbot", error);

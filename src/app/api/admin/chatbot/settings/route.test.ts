@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   createSettings: vi.fn(),
   createLog: vi.fn(),
+  findConversations: vi.fn(),
   evaluateRolloutGate: vi.fn(),
 }));
 
@@ -20,6 +21,7 @@ vi.mock("@/lib/prisma", () => ({
       create: mocks.createSettings,
     },
     internalActionLog: { create: mocks.createLog },
+    conversation: { findMany: mocks.findConversations },
   },
 }));
 
@@ -44,6 +46,10 @@ describe("admin chatbot settings", () => {
       ...data,
     }));
     mocks.createLog.mockResolvedValue({});
+    mocks.findConversations.mockResolvedValue([
+      { id: "conversation-1" },
+      { id: "conversation-2" },
+    ]);
   });
 
   it("validates, persists and audits the rollout percentage", async () => {
@@ -127,6 +133,11 @@ describe("admin chatbot settings", () => {
       faq: expect.objectContaining({ approved: true }),
       quote: expect.objectContaining({ approved: true }),
     }));
+    expect(body.rolloutPreview).toMatchObject({
+      current: { percentage: 0, openWhatsappConversations: 2, eligibleConversations: 0 },
+      nextIncrement: { percentage: 5, openWhatsappConversations: 2 },
+    });
+    expect(body.rolloutPreview.current).not.toHaveProperty("conversationIds");
     expect(mocks.evaluateRolloutGate).toHaveBeenCalledWith(expect.any(Date), "faq");
   });
 
