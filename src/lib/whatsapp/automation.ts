@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { isConversationAutomationActive } from "@/lib/crm/automationPause";
+import { withConversationAutomationLock } from "@/lib/crm/conversation-automation-lock";
 import { isAutoReplyIntentReleased, isConversationInAutoReplyRollout, isWhatsappChatbotEnabledForConversation } from "@/lib/crm/chatbotSettings";
 import { executeAutomationHandoff } from "@/lib/crm/automationHandoff";
 import { DEFAULT_AUTOMATION_HANDOFF_MESSAGE, decideAutomationHandoff } from "@/lib/crm/handoffPolicy";
@@ -48,12 +49,17 @@ async function runInternalAction(token: string, action: string, payload: Record<
 }
 
 const QUOTE_DEBOUNCE_LOCK_MS = 45 * 1000;
+export const AUTO_REPLY_WAIT_MS = 15 * 1000;
 
 export async function matchRule(text: string): Promise<string | null> {
     return (await findApprovedKnowledge(text))?.response ?? null;
 }
 
 export async function processAutoResponse(conversationId: string, phone: string, text: string) {
+  return withConversationAutomationLock(conversationId, () => processAutoResponseLocked(conversationId, phone, text));
+}
+
+async function processAutoResponseLocked(conversationId: string, phone: string, text: string) {
     const now = new Date();
     const conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
@@ -85,6 +91,13 @@ export async function processAutoResponse(conversationId: string, phone: string,
     }
 
     if (!isConversationAutomationActive(conversation)) {
+        return null;
+    }
+
+    if (
+        conversation.lastAutomationAt &&
+        now.getTime() - conversation.lastAutomationAt.getTime() < AUTO_REPLY_WAIT_MS
+    ) {
         return null;
     }
 
@@ -622,7 +635,7 @@ export async function processAutoResponse(conversationId: string, phone: string,
     // Atualizar timestamp da conversa
     await prisma.conversation.update({
         where: { id: conversationId },
-        data: { lastMessageAt: now }
+        data: { lastAutomationAt: now, lastMessageAt: now }
     });
 
     return responseText;

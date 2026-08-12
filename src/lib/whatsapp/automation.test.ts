@@ -33,7 +33,7 @@ import { isAutoReplyIntentReleased, isConversationInAutoReplyRollout, isWhatsapp
 import { recordCrmEvent } from "@/lib/crm/events";
 import { DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE } from "@/lib/crm/handoffPolicy";
 import { sendMessagingText } from "@/lib/messaging/send-text";
-import { processAutoResponse } from "./automation";
+import { AUTO_REPLY_WAIT_MS, processAutoResponse } from "./automation";
 
 function conversation(failureCount: number, chatbotTestEnabled = true) {
   return {
@@ -108,6 +108,44 @@ describe("processAutoResponse handoff supervision", () => {
       action: "AutomationClarificationRequested",
     }));
     expect(executeAutomationHandoff).not.toHaveBeenCalled();
+  });
+
+  it("waits after one automatic reply before responding again", async () => {
+    vi.mocked(prisma.conversation.findUnique).mockResolvedValue({
+      ...conversation(1),
+      lastAutomationAt: new Date(Date.now() - AUTO_REPLY_WAIT_MS + 1_000),
+    } as never);
+
+    await expect(processAutoResponse(
+      "conversation-1",
+      "5519999999999",
+      "Outra mensagem logo em seguida",
+    )).resolves.toBeNull();
+
+    expect(findApprovedKnowledge).not.toHaveBeenCalled();
+    expect(sendMessagingText).not.toHaveBeenCalled();
+    expect(executeAutomationHandoff).not.toHaveBeenCalled();
+  });
+
+  it("serializes concurrent responses from the same conversation", async () => {
+    let lastAutomationAt: Date | null = null;
+    vi.mocked(prisma.conversation.findUnique).mockImplementation((async () => ({
+      ...conversation(lastAutomationAt ? 1 : 0),
+      lastAutomationAt,
+    })) as never);
+    vi.mocked(prisma.conversation.update).mockImplementation((async (input: { data: unknown }) => {
+      const data = input.data as { lastAutomationAt?: Date };
+      if (data.lastAutomationAt) lastAutomationAt = data.lastAutomationAt;
+      return {} as never;
+    }) as never);
+
+    const results = await Promise.all([
+      processAutoResponse("conversation-1", "5519999999999", "Kkk"),
+      processAutoResponse("conversation-1", "5519999999999", "Kkk de novo"),
+    ]);
+
+    expect(results.filter(Boolean)).toEqual([DEFAULT_AUTOMATION_CLARIFICATION_MESSAGE]);
+    expect(sendMessagingText).toHaveBeenCalledTimes(1);
   });
 
   it("hands off on the second consecutive comprehension failure", async () => {
