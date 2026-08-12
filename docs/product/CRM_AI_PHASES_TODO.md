@@ -333,6 +333,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
   - [x] Permitir Gemini como provider alternativo e validar uma chamada real em shadow.
   - [ ] Coletar e revisar a amostra persistida do piloto.
+    - [x] Permitir aprovação ou rejeição auditável de cada decisão shadow no painel.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.

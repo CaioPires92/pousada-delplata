@@ -31,7 +31,8 @@ export async function GET() {
   const reviewDay = now.toISOString().slice(0, 10);
   const dayStart = new Date(`${reviewDay}T00:00:00.000Z`);
 
-  const logs = await prisma.internalActionLog.findMany({
+  const [logs, reviews] = await Promise.all([
+    prisma.internalActionLog.findMany({
     where: {
       action: "IntentClassified",
       createdAt: { gte: dayStart },
@@ -51,13 +52,30 @@ export async function GET() {
         },
       },
     },
-  });
+    }),
+    prisma.internalActionLog.findMany({
+      where: { action: "AiDecisionReviewed", createdAt: { gte: dayStart } },
+      orderBy: { createdAt: "desc" },
+      select: { metadataJson: true, createdAt: true, userId: true },
+    }),
+  ]);
+
+  const reviewByDecisionId = new Map<string, { verdict: string; reviewedAt: Date; reviewedBy: string | null }>();
+  for (const review of reviews) {
+    const reviewMetadata = readMetadata(review.metadataJson);
+    const decisionId = optionalString(reviewMetadata.decisionId);
+    const verdict = optionalString(reviewMetadata.verdict);
+    if (decisionId && verdict && !reviewByDecisionId.has(decisionId)) {
+      reviewByDecisionId.set(decisionId, { verdict, reviewedAt: review.createdAt, reviewedBy: review.userId });
+    }
+  }
 
   const decisions = logs.map(log => {
     const metadata = readMetadata(log.metadataJson);
     const inputTokens = finiteNumber(metadata.inputTokens);
     const outputTokens = finiteNumber(metadata.outputTokens);
 
+    const review = reviewByDecisionId.get(log.id);
     return {
       id: log.id,
       createdAt: log.createdAt,
@@ -83,6 +101,9 @@ export async function GET() {
       totalTokens: inputTokens !== null || outputTokens !== null
         ? (inputTokens ?? 0) + (outputTokens ?? 0)
         : null,
+      reviewVerdict: review?.verdict ?? null,
+      reviewedAt: review?.reviewedAt ?? null,
+      reviewedBy: review?.reviewedBy ?? null,
     };
   });
 
@@ -103,4 +124,46 @@ export async function GET() {
       gatePassed: shadowDecisions.length > 0 && authorizedActions === 0,
     },
   });
+}
+
+export async function POST(request: Request) {
+  const auth = await requireAdminAuth();
+  if (auth instanceof NextResponse) return auth;
+
+  const body = await request.json().catch(() => null);
+  const decisionId = typeof body?.decisionId === "string" ? body.decisionId.trim() : "";
+  const verdict = body?.verdict;
+  if (!decisionId || (verdict !== "approved" && verdict !== "rejected")) {
+    return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+  }
+
+  const decision = await prisma.internalActionLog.findFirst({
+    where: { id: decisionId, action: "IntentClassified" },
+    select: { id: true, conversationId: true, metadataJson: true },
+  });
+  if (!decision || readMetadata(decision.metadataJson).mode !== "shadow") {
+    return NextResponse.json({ ok: false, error: "decision_not_found" }, { status: 404 });
+  }
+
+  const existingReview = await prisma.internalActionLog.findFirst({
+    where: {
+      action: "AiDecisionReviewed",
+      metadataJson: { contains: `\"decisionId\":\"${decisionId}\"` },
+    },
+    select: { id: true },
+  });
+  if (existingReview) {
+    return NextResponse.json({ ok: false, error: "already_reviewed" }, { status: 409 });
+  }
+
+  await prisma.internalActionLog.create({
+    data: {
+      action: "AiDecisionReviewed",
+      userId: auth.adminId,
+      conversationId: decision.conversationId,
+      metadataJson: JSON.stringify({ decisionId, verdict, origin: "admin_ui" }),
+    },
+  });
+
+  return NextResponse.json({ ok: true, decisionId, verdict });
 }

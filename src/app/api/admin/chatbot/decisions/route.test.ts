@@ -3,21 +3,25 @@ import { NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   findMany: vi.fn(),
+  findFirst: vi.fn(),
+  create: vi.fn(),
   requireAdminAuth: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
-  default: { internalActionLog: { findMany: mocks.findMany } },
+  default: { internalActionLog: { findMany: mocks.findMany, findFirst: mocks.findFirst, create: mocks.create } },
 }));
 vi.mock("@/lib/admin-auth", () => ({ requireAdminAuth: mocks.requireAdminAuth }));
 
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 describe("admin chatbot decision review", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireAdminAuth.mockResolvedValue({ adminId: "admin-1" });
     mocks.findMany.mockResolvedValue([]);
+    mocks.findFirst.mockResolvedValue(null);
+    mocks.create.mockResolvedValue({ id: "review-1" });
   });
 
   it("rejects unauthenticated access", async () => {
@@ -94,5 +98,46 @@ describe("admin chatbot decision review", () => {
     const body = await response.json();
 
     expect(body.summary).toMatchObject({ authorizedActions: 1, gatePassed: false });
+  });
+
+  it("persists an audited human review for a shadow decision", async () => {
+    mocks.findFirst
+      .mockResolvedValueOnce({
+        id: "log-1",
+        conversationId: "conversation-1",
+        metadataJson: JSON.stringify({ mode: "shadow" }),
+      })
+      .mockResolvedValueOnce(null);
+
+    const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisionId: "log-1", verdict: "approved" }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "AiDecisionReviewed",
+        userId: "admin-1",
+        conversationId: "conversation-1",
+        metadataJson: expect.stringContaining('"verdict":"approved"'),
+      }),
+    });
+  });
+
+  it("rejects review of a decision outside shadow mode", async () => {
+    mocks.findFirst.mockResolvedValueOnce({
+      id: "log-1",
+      conversationId: null,
+      metadataJson: JSON.stringify({ mode: "deterministic" }),
+    });
+
+    const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisionId: "log-1", verdict: "rejected" }),
+    }));
+
+    expect(response.status).toBe(404);
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 });

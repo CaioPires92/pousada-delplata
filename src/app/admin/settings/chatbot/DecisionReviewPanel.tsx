@@ -23,6 +23,8 @@ type DecisionReview = {
   result: string | null;
   latencyMs: number | null;
   totalTokens: number | null;
+  reviewVerdict: "approved" | "rejected" | null;
+  reviewedAt: string | null;
 };
 
 type DailyReviewSummary = {
@@ -44,6 +46,7 @@ export function DecisionReviewPanel() {
   const [error, setError] = useState<string | null>(null);
   const [reviewDay, setReviewDay] = useState<string | null>(null);
   const [summary, setSummary] = useState<DailyReviewSummary | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   async function loadDecisions() {
     setLoading(true);
@@ -62,6 +65,27 @@ export function DecisionReviewPanel() {
       setError("Não foi possível carregar as decisões recentes.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function reviewDecision(decisionId: string, verdict: "approved" | "rejected") {
+    setReviewingId(decisionId);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/chatbot/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decisionId, verdict }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error("review_failed");
+      setDecisions(current => current.map(decision => decision.id === decisionId
+        ? { ...decision, reviewVerdict: verdict, reviewedAt: new Date().toISOString() }
+        : decision));
+    } catch {
+      setError("Não foi possível registrar a revisão dessa decisão.");
+    } finally {
+      setReviewingId(null);
     }
   }
 
@@ -128,6 +152,7 @@ export function DecisionReviewPanel() {
                   <th className="px-4 py-3">Comparação</th>
                   <th className="px-4 py-3">Execução</th>
                   <th className="px-4 py-3">Desempenho</th>
+                  <th className="px-4 py-3">Revisão humana</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -169,6 +194,18 @@ export function DecisionReviewPanel() {
                       <div>{decision.latencyMs === null ? "—" : `${decision.latencyMs} ms`}</div>
                       <div className="mt-1">{decision.totalTokens === null ? "Sem tokens" : `${decision.totalTokens} tokens`}</div>
                       {decision.model && <div className="mt-1 max-w-40 truncate" title={decision.model}>{decision.model}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {decision.reviewVerdict ? (
+                        <span className={`rounded-full px-2 py-1 text-xs font-bold ${decision.reviewVerdict === "approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                          {decision.reviewVerdict === "approved" ? "Correta" : "Incorreta"}
+                        </span>
+                      ) : (
+                        <span className="flex gap-2">
+                          <button type="button" disabled={reviewingId === decision.id} onClick={() => reviewDecision(decision.id, "approved")} className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700 disabled:opacity-50">Correta</button>
+                          <button type="button" disabled={reviewingId === decision.id} onClick={() => reviewDecision(decision.id, "rejected")} className="rounded-lg bg-red-100 px-2 py-1 text-xs font-bold text-red-700 disabled:opacity-50">Incorreta</button>
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
