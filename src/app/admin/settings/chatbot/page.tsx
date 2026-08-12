@@ -49,6 +49,7 @@ type RolloutGate = {
         shadowAgreementRate: number | null;
         shadowAuthorizedActions: number;
         supervisedReviewed: number;
+        supervisedObsolete: number;
         humanShadowReviewed: number;
         humanShadowApprovalRate: number | null;
     };
@@ -472,7 +473,7 @@ export default function ChatbotSettingsPage() {
                                 <div className={`mt-4 rounded-lg border p-3 text-xs font-semibold ${rolloutGate.approved ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
                                     <p className="font-black">Gate de expansão: {rolloutGate.approved ? "aprovado" : "bloqueado"}</p>
                                     <p className="mt-1">
-                                        Shadow: {rolloutGate.metrics.shadowSample} · Concordância: {rolloutGate.metrics.shadowAgreementRate === null ? "—" : `${Math.round(rolloutGate.metrics.shadowAgreementRate * 100)}%`} · Revisões humanas: {rolloutGate.metrics.humanShadowReviewed} ({rolloutGate.metrics.humanShadowApprovalRate === null ? "—" : `${Math.round(rolloutGate.metrics.humanShadowApprovalRate * 100)}%`}) · Revisões supervisionadas: {rolloutGate.metrics.supervisedReviewed}
+                                        Shadow: {rolloutGate.metrics.shadowSample} · Concordância: {rolloutGate.metrics.shadowAgreementRate === null ? "—" : `${Math.round(rolloutGate.metrics.shadowAgreementRate * 100)}%`} · Revisões humanas: {rolloutGate.metrics.humanShadowReviewed} ({rolloutGate.metrics.humanShadowApprovalRate === null ? "—" : `${Math.round(rolloutGate.metrics.humanShadowApprovalRate * 100)}%`}) · Revisões supervisionadas válidas: {rolloutGate.metrics.supervisedReviewed}{rolloutGate.metrics.supervisedObsolete > 0 ? ` · Obsoletas: ${rolloutGate.metrics.supervisedObsolete}` : ""}
                                     </p>
                                     {!rolloutGate.approved && rolloutGate.reasons.length > 0 && (
                                         <ul className="mt-2 list-disc pl-5">
@@ -494,7 +495,7 @@ export default function ChatbotSettingsPage() {
                                                 </span>
                                             </div>
                                             <p className="mt-1 text-slate-500">
-                                                Shadow {gate.metrics.shadowSample}/{gate.requirements.minimumShadowSample} · Humana {gate.metrics.humanShadowReviewed}/{gate.requirements.minimumHumanShadowReviews} · Supervisionada {gate.metrics.supervisedReviewed}/{gate.requirements.minimumSupervisedReviews}
+                                                Shadow {gate.metrics.shadowSample}/{gate.requirements.minimumShadowSample} · Humana {gate.metrics.humanShadowReviewed}/{gate.requirements.minimumHumanShadowReviews} · Supervisionada {gate.metrics.supervisedReviewed}/{gate.requirements.minimumSupervisedReviews}{gate.metrics.supervisedObsolete > 0 ? ` · ${gate.metrics.supervisedObsolete} obsoleta(s)` : ""}
                                             </p>
                                             {!gate.approved && (
                                                 <p className="mt-1 text-slate-500">

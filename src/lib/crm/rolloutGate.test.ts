@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/prisma", () => ({
   default: {
     internalActionLog: { findMany: vi.fn() },
-    supervisedReplySuggestion: { count: vi.fn() },
+    supervisedReplySuggestion: { findMany: vi.fn() },
+    chatbotRule: { findMany: vi.fn() },
   },
 }));
 
@@ -37,13 +38,22 @@ describe("automatic reply rollout gate", () => {
     delete process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE;
     delete process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS;
     delete process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS;
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([] as never);
   });
+
+  function reviewedSuggestion(ruleId = "rule-1", ruleVersion = 1, content = "Resposta atual") {
+    return { ruleId, ruleVersion, content };
+  }
+
+  function currentRule(id = "rule-1", version = 1, response = "Resposta atual") {
+    return { id, version, response };
+  }
 
   it("blocks rollout without enough real evidence", async () => {
     vi.mocked(prisma.internalActionLog.findMany)
       .mockResolvedValueOnce([shadow(true)] as never)
       .mockResolvedValueOnce([] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(0);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
@@ -62,7 +72,8 @@ describe("automatic reply rollout gate", () => {
     vi.mocked(prisma.internalActionLog.findMany)
       .mockResolvedValueOnce([shadow(true, false, "ai", "classified", "decision-1"), shadow(true, true, "ai", "classified", "decision-2")] as never)
       .mockResolvedValueOnce([review("approved", "decision-1")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
@@ -86,7 +97,12 @@ describe("automatic reply rollout gate", () => {
         review("approved", "decision-1"), review("approved", "decision-2"), review("approved", "decision-3"),
         review("approved", "decision-4"), review("rejected", "decision-5"),
       ] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(2);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([
+      reviewedSuggestion("rule-1"), reviewedSuggestion("rule-2", 2, "Outra resposta"),
+    ] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([
+      currentRule(), currentRule("rule-2", 2, "Outra resposta"),
+    ] as never);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toEqual({
       approved: true,
@@ -96,6 +112,7 @@ describe("automatic reply rollout gate", () => {
         shadowAgreementRate: 0.8,
         shadowAuthorizedActions: 0,
         supervisedReviewed: 2,
+        supervisedObsolete: 0,
         humanShadowReviewed: 5,
         humanShadowApprovalRate: 0.8,
       },
@@ -119,7 +136,8 @@ describe("automatic reply rollout gate", () => {
         shadow(true, false, "ai", "classified", "decision-2"),
       ] as never)
       .mockResolvedValueOnce([review("approved", "decision-1"), review("rejected", "decision-2")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
@@ -137,7 +155,8 @@ describe("automatic reply rollout gate", () => {
         shadow(true, false, "heuristic", "fallback_invalid_response"),
       ] as never)
       .mockResolvedValueOnce([review("approved")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
@@ -155,7 +174,8 @@ describe("automatic reply rollout gate", () => {
     vi.mocked(prisma.internalActionLog.findMany)
       .mockResolvedValueOnce([obsolete] as never)
       .mockResolvedValueOnce([review("approved", "obsolete-decision")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
@@ -171,7 +191,8 @@ describe("automatic reply rollout gate", () => {
     vi.mocked(prisma.internalActionLog.findMany)
       .mockResolvedValueOnce([shadow(true, false, "ai", "classified", "current-decision")] as never)
       .mockResolvedValueOnce([review("approved", "old-decision")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
@@ -189,15 +210,17 @@ describe("automatic reply rollout gate", () => {
         shadow(true, false, "ai", "classified", "quote-decision", "quote", "collect_quote_fields"),
       ] as never)
       .mockResolvedValueOnce([review("approved", "quote-decision")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate(new Date(), "faq")).resolves.toMatchObject({
       approved: false,
       reasons: expect.arrayContaining(["insufficient_shadow_sample"]),
       metrics: { shadowSample: 0 },
     });
-    expect(prisma.supervisedReplySuggestion.count).toHaveBeenCalledWith({
+    expect(prisma.supervisedReplySuggestion.findMany).toHaveBeenCalledWith({
       where: expect.objectContaining({ rolloutIntent: "faq" }),
+      select: { ruleId: true, ruleVersion: true, content: true },
     });
   });
 
@@ -210,14 +233,57 @@ describe("automatic reply rollout gate", () => {
         shadow(true, false, "ai", "classified", "parking-decision", "parking", "none"),
       ] as never)
       .mockResolvedValueOnce([review("approved", "parking-decision")] as never);
-    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([reviewedSuggestion()] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([currentRule()] as never);
 
     await expect(evaluateAutoReplyRolloutGate(new Date(), "parking")).resolves.toMatchObject({
       approved: true,
       metrics: { supervisedReviewed: 1 },
     });
-    expect(prisma.supervisedReplySuggestion.count).toHaveBeenCalledWith({
+    expect(prisma.supervisedReplySuggestion.findMany).toHaveBeenCalledWith({
       where: expect.objectContaining({ intent: "parking" }),
+      select: { ruleId: true, ruleVersion: true, content: true },
+    });
+  });
+
+  it("does not count reviewed suggestions after their rule changes", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "1";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([shadow(true, false, "ai", "classified", "decision-1")] as never)
+      .mockResolvedValueOnce([review("approved", "decision-1")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([
+      reviewedSuggestion("rule-1", 1, "Resposta antiga"),
+    ] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([
+      currentRule("rule-1", 2, "Resposta atual"),
+    ] as never);
+
+    await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
+      approved: false,
+      reasons: expect.arrayContaining(["insufficient_supervised_reviews"]),
+      metrics: { supervisedReviewed: 0, supervisedObsolete: 1 },
+    });
+  });
+
+  it("validates every rule and the assembled content of multi-rule suggestions", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "1";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([shadow(true, false, "ai", "classified", "decision-1")] as never)
+      .mockResolvedValueOnce([review("approved", "decision-1")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.findMany).mockResolvedValue([
+      reviewedSuggestion("rule-1,rule-2", 2, "1. Primeira\n\n2. Segunda"),
+    ] as never);
+    vi.mocked(prisma.chatbotRule.findMany).mockResolvedValue([
+      currentRule("rule-1", 1, "Primeira"), currentRule("rule-2", 2, "Segunda"),
+    ] as never);
+
+    await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
+      approved: true,
+      metrics: { supervisedReviewed: 1, supervisedObsolete: 0 },
     });
   });
 });

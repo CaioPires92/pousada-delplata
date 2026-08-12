@@ -40,6 +40,7 @@ export type AutoReplyRolloutGate = {
     shadowAgreementRate: number | null;
     shadowAuthorizedActions: number;
     supervisedReviewed: number;
+    supervisedObsolete: number;
     humanShadowReviewed: number;
     humanShadowApprovalRate: number | null;
   };
@@ -57,7 +58,7 @@ export async function evaluateAutoReplyRolloutGate(
   rolloutIntent?: AutoReplyIntent,
 ): Promise<AutoReplyRolloutGate> {
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const [logs, humanReviews, supervisedReviewed] = await Promise.all([
+  const [logs, humanReviews, supervisedCandidates] = await Promise.all([
     prisma.internalActionLog.findMany({
       where: { action: "IntentClassified", createdAt: { gte: since } },
       select: { id: true, metadataJson: true },
@@ -66,7 +67,7 @@ export async function evaluateAutoReplyRolloutGate(
       where: { action: "AiDecisionReviewed", createdAt: { gte: since } },
       select: { metadataJson: true },
     }),
-    prisma.supervisedReplySuggestion.count({
+    prisma.supervisedReplySuggestion.findMany({
       where: {
         status: { in: ["approved", "dismissed"] },
         reviewedAt: { gte: since },
@@ -76,8 +77,37 @@ export async function evaluateAutoReplyRolloutGate(
             ? { intent: rolloutIntent }
             : {}),
       },
+      select: { ruleId: true, ruleVersion: true, content: true },
     }),
   ]);
+  const ruleIds = [...new Set(supervisedCandidates.flatMap(suggestion => (
+    suggestion.ruleId.split(",").map(id => id.trim()).filter(Boolean)
+  )))];
+  const currentRules = ruleIds.length
+    ? await prisma.chatbotRule.findMany({
+        where: {
+          id: { in: ruleIds },
+          isActive: true,
+          audience: "public",
+          approvedAt: { not: null },
+        },
+        select: { id: true, version: true, response: true },
+      })
+    : [];
+  const currentRuleById = new Map(currentRules.map(rule => [rule.id, rule]));
+  const supervisedReviewed = supervisedCandidates.filter(suggestion => {
+    const suggestionRuleIds = suggestion.ruleId.split(",").map(id => id.trim()).filter(Boolean);
+    const rules = suggestionRuleIds.map(id => currentRuleById.get(id));
+    if (suggestionRuleIds.length === 0 || rules.some(rule => !rule)) return false;
+
+    const validRules = rules.filter((rule): rule is NonNullable<typeof rule> => Boolean(rule));
+    const currentVersion = Math.max(...validRules.map(rule => rule.version));
+    const currentContent = validRules.length === 1
+      ? validRules[0].response
+      : validRules.map((rule, index) => `${index + 1}. ${rule.response}`).join("\n\n");
+    return suggestion.ruleVersion === currentVersion && suggestion.content === currentContent;
+  }).length;
+  const supervisedObsolete = supervisedCandidates.length - supervisedReviewed;
   const shadow = logs
     .map(log => ({ id: log.id, ...metadata(log.metadataJson) }))
     .filter(item => item.mode === "shadow" && item.source === "ai" && item.result === "classified")
@@ -130,6 +160,7 @@ export async function evaluateAutoReplyRolloutGate(
       shadowAgreementRate: agreementRate,
       shadowAuthorizedActions: authorizedActions,
       supervisedReviewed,
+      supervisedObsolete,
       humanShadowReviewed: reviewedVerdicts.length,
       humanShadowApprovalRate: humanApprovalRate,
     },
