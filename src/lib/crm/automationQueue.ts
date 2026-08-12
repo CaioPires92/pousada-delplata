@@ -308,3 +308,25 @@ export async function replayDeadLetterItem(input: {
 
   return { ok: true as const, jobId: job.id };
 }
+
+export async function dismissDeadLetterItem(input: {
+  deadLetterId: string;
+  reason: string;
+}) {
+  const reason = input.reason.trim();
+  if (!reason) return { ok: false as const, error: "dismiss_reason_required" };
+
+  const item = await prisma.deadLetterQueueItem.findUnique({ where: { id: input.deadLetterId } });
+  if (!item) return { ok: false as const, error: "dead_letter_not_found" };
+  if (item.status === "dismissed") return { ok: true as const, dismissed: false as const };
+  if (item.status !== "open") return { ok: false as const, error: "dead_letter_not_open" };
+
+  const updated = await prisma.deadLetterQueueItem.updateMany({
+    where: { id: item.id, status: "open" },
+    data: {
+      status: "dismissed",
+      reason: `${item.reason} | Descartada: ${reason}`,
+    },
+  });
+  return { ok: true as const, dismissed: updated.count === 1 };
+}

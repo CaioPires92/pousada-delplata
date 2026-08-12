@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/prisma";
 import {
   cancelPendingAutomationJobs,
+  dismissDeadLetterItem,
   enqueueAutomationJob,
   processNextAutomationJobForConversation,
   replayDeadLetterItem,
@@ -21,6 +22,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -217,6 +219,29 @@ describe("automationQueue", () => {
 
     expect(result).toEqual({ ok: true, jobId: "job-2" });
     expect(prisma.deadLetterQueueItem.update).toHaveBeenCalled();
+  });
+
+  it("dismisses an open dead letter atomically without creating a queue job", async () => {
+    vi.mocked(prisma.deadLetterQueueItem.findUnique).mockResolvedValue({
+      id: "dlq-1", status: "open", reason: "Failed to send",
+    } as any);
+    vi.mocked(prisma.deadLetterQueueItem.updateMany).mockResolvedValue({ count: 1 });
+
+    await expect(dismissDeadLetterItem({ deadLetterId: "dlq-1", reason: "mensagem antiga" }))
+      .resolves.toEqual({ ok: true, dismissed: true });
+    expect(prisma.deadLetterQueueItem.updateMany).toHaveBeenCalledWith({
+      where: { id: "dlq-1", status: "open" },
+      data: { status: "dismissed", reason: "Failed to send | Descartada: mensagem antiga" },
+    });
+    expect(prisma.automationQueueJob.create).not.toHaveBeenCalled();
+  });
+
+  it("treats an already dismissed dead letter idempotently", async () => {
+    vi.mocked(prisma.deadLetterQueueItem.findUnique).mockResolvedValue({ id: "dlq-1", status: "dismissed" } as any);
+
+    await expect(dismissDeadLetterItem({ deadLetterId: "dlq-1", reason: "mensagem antiga" }))
+      .resolves.toEqual({ ok: true, dismissed: false });
+    expect(prisma.deadLetterQueueItem.updateMany).not.toHaveBeenCalled();
   });
 
   it("moves a failed send to dead letter with a sanitized bounded reason", async () => {
