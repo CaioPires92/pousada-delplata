@@ -100,6 +100,7 @@ describe("admin chatbot decision review", () => {
       authorizedActions: 0,
       agreementRate: 0,
       gatePassed: true,
+      corrections: [],
       byIntent: [{
         intent: "faq",
         sampled: 1,
@@ -134,6 +135,11 @@ describe("admin chatbot decision review", () => {
       { intent: "faq", sampled: 2, reviewed: 1, approved: 1, rejected: 0, pending: 1, approvalRate: 1 },
       { intent: "quote", sampled: 1, reviewed: 1, approved: 0, rejected: 1, pending: 0, approvalRate: 0 },
     ]);
+    expect(body.summary.corrections).toEqual([{
+      predictedIntent: "quote",
+      expectedIntent: "reservation",
+      count: 1,
+    }]);
     expect(body.decisions.find((decision: { id: string }) => decision.id === "quote-rejected")).toMatchObject({
       reviewVerdict: "rejected",
       expectedIntent: "reservation",

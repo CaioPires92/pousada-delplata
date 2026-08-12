@@ -183,6 +183,23 @@ export async function GET() {
     current.approvalRate = current.reviewed > 0 ? current.approved / current.reviewed : null;
     intentSummary.set(intent, current);
   }
+  const correctionSummary = new Map<string, {
+    predictedIntent: string;
+    expectedIntent: string;
+    count: number;
+  }>();
+  for (const decision of shadowDecisions) {
+    if (decision.reviewVerdict !== "rejected" || !decision.expectedIntent) continue;
+    const predictedIntent = decision.suggestedAction === "answer_approved_faq" ? "faq" : decision.intent;
+    const key = `${predictedIntent}:${decision.expectedIntent}`;
+    const current = correctionSummary.get(key) ?? {
+      predictedIntent,
+      expectedIntent: decision.expectedIntent,
+      count: 0,
+    };
+    current.count += 1;
+    correctionSummary.set(key, current);
+  }
 
   return NextResponse.json({
     ok: true,
@@ -197,6 +214,11 @@ export async function GET() {
       agreementRate: comparable.length > 0 ? agreements / comparable.length : null,
       gatePassed: shadowDecisions.length > 0 && authorizedActions === 0,
       byIntent: [...intentSummary.values()].sort((left, right) => left.intent.localeCompare(right.intent)),
+      corrections: [...correctionSummary.values()].sort((left, right) => (
+        right.count - left.count
+        || left.predictedIntent.localeCompare(right.predictedIntent)
+        || left.expectedIntent.localeCompare(right.expectedIntent)
+      )),
     },
   });
 }

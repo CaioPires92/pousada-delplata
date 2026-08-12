@@ -59,6 +59,11 @@ type DailyReviewSummary = {
     pending: number;
     approvalRate: number | null;
   }>;
+  corrections: Array<{
+    predictedIntent: string;
+    expectedIntent: string;
+    count: number;
+  }>;
 };
 
 type ReviewFilter = "pending" | "faq" | "all";
@@ -236,6 +241,20 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {summary.corrections.length > 0 && (
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                <h3 className="text-xs font-black uppercase tracking-wider text-red-800">Padrões de correção</h3>
+                <p className="mt-1 text-xs text-red-700">Onde a classificação do Gemini divergiu da revisão humana.</p>
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {summary.corrections.map(correction => (
+                    <li key={`${correction.predictedIntent}:${correction.expectedIntent}`} className="rounded-lg bg-white px-3 py-2 text-xs text-slate-700">
+                      <strong>{correction.count}×</strong>{" "}
+                      {correction.predictedIntent} → {REVIEW_INTENTS.find(([value]) => value === correction.expectedIntent)?.[1] ?? correction.expectedIntent}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
