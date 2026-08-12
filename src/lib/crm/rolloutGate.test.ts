@@ -10,12 +10,12 @@ vi.mock("@/lib/prisma", () => ({
 import prisma from "@/lib/prisma";
 import { evaluateAutoReplyRolloutGate } from "./rolloutGate";
 
-function shadow(agreement: boolean, actionAuthorized = false, source = "ai", result = "classified") {
-  return { metadataJson: JSON.stringify({ mode: "shadow", source, result, agreementWithHeuristic: agreement, actionAuthorized }) };
+function shadow(agreement: boolean, actionAuthorized = false, source = "ai", result = "classified", id = crypto.randomUUID()) {
+  return { id, metadataJson: JSON.stringify({ mode: "shadow", source, result, agreementWithHeuristic: agreement, actionAuthorized }) };
 }
 
-function review(verdict: "approved" | "rejected") {
-  return { metadataJson: JSON.stringify({ verdict }) };
+function review(verdict: "approved" | "rejected", decisionId = "decision-1") {
+  return { metadataJson: JSON.stringify({ verdict, decisionId }) };
 }
 
 describe("automatic reply rollout gate", () => {
@@ -47,8 +47,8 @@ describe("automatic reply rollout gate", () => {
     process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
     process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
     vi.mocked(prisma.internalActionLog.findMany)
-      .mockResolvedValueOnce([shadow(true), shadow(true, true)] as never)
-      .mockResolvedValueOnce([review("approved")] as never);
+      .mockResolvedValueOnce([shadow(true, false, "ai", "classified", "decision-1"), shadow(true, true, "ai", "classified", "decision-2")] as never)
+      .mockResolvedValueOnce([review("approved", "decision-1")] as never);
     vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
@@ -62,8 +62,17 @@ describe("automatic reply rollout gate", () => {
     process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "2";
     process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "5";
     vi.mocked(prisma.internalActionLog.findMany)
-      .mockResolvedValueOnce([shadow(true), shadow(true), shadow(true), shadow(true), shadow(false)] as never)
-      .mockResolvedValueOnce([review("approved"), review("approved"), review("approved"), review("approved"), review("rejected")] as never);
+      .mockResolvedValueOnce([
+        shadow(true, false, "ai", "classified", "decision-1"),
+        shadow(true, false, "ai", "classified", "decision-2"),
+        shadow(true, false, "ai", "classified", "decision-3"),
+        shadow(true, false, "ai", "classified", "decision-4"),
+        shadow(false, false, "ai", "classified", "decision-5"),
+      ] as never)
+      .mockResolvedValueOnce([
+        review("approved", "decision-1"), review("approved", "decision-2"), review("approved", "decision-3"),
+        review("approved", "decision-4"), review("rejected", "decision-5"),
+      ] as never);
     vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(2);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toEqual({
@@ -85,8 +94,11 @@ describe("automatic reply rollout gate", () => {
     process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
     process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "2";
     vi.mocked(prisma.internalActionLog.findMany)
-      .mockResolvedValueOnce([shadow(true), shadow(true)] as never)
-      .mockResolvedValueOnce([review("approved"), review("rejected")] as never);
+      .mockResolvedValueOnce([
+        shadow(true, false, "ai", "classified", "decision-1"),
+        shadow(true, false, "ai", "classified", "decision-2"),
+      ] as never)
+      .mockResolvedValueOnce([review("approved", "decision-1"), review("rejected", "decision-2")] as never);
     vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
 
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
@@ -111,6 +123,22 @@ describe("automatic reply rollout gate", () => {
       approved: false,
       reasons: expect.arrayContaining(["insufficient_shadow_sample"]),
       metrics: { shadowSample: 1 },
+    });
+  });
+
+  it("ignores reviews that do not reference a valid decision in the current window", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "1";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([shadow(true, false, "ai", "classified", "current-decision")] as never)
+      .mockResolvedValueOnce([review("approved", "old-decision")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+
+    await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
+      approved: false,
+      reasons: expect.arrayContaining(["insufficient_human_shadow_reviews"]),
+      metrics: { humanShadowReviewed: 0 },
     });
   });
 });

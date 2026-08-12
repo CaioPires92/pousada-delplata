@@ -7,6 +7,7 @@ type DecisionMetadata = {
   actionAuthorized?: unknown;
   agreementWithHeuristic?: unknown;
   verdict?: unknown;
+  decisionId?: unknown;
 };
 
 function positiveIntegerEnv(name: string, fallback: number) {
@@ -41,7 +42,7 @@ export async function evaluateAutoReplyRolloutGate(now = new Date()): Promise<Au
   const [logs, humanReviews, supervisedReviewed] = await Promise.all([
     prisma.internalActionLog.findMany({
       where: { action: "IntentClassified", createdAt: { gte: since } },
-      select: { metadataJson: true },
+      select: { id: true, metadataJson: true },
     }),
     prisma.internalActionLog.findMany({
       where: { action: "AiDecisionReviewed", createdAt: { gte: since } },
@@ -54,16 +55,27 @@ export async function evaluateAutoReplyRolloutGate(now = new Date()): Promise<Au
       },
     }),
   ]);
-  const shadow = logs.map(log => metadata(log.metadataJson)).filter(item =>
-    item.mode === "shadow" && item.source === "ai" && item.result === "classified"
-  );
+  const shadow = logs
+    .map(log => ({ id: log.id, ...metadata(log.metadataJson) }))
+    .filter(item => item.mode === "shadow" && item.source === "ai" && item.result === "classified");
   const comparable = shadow.filter(item => typeof item.agreementWithHeuristic === "boolean");
   const agreements = comparable.filter(item => item.agreementWithHeuristic === true).length;
   const agreementRate = comparable.length ? agreements / comparable.length : null;
   const authorizedActions = shadow.filter(item => item.actionAuthorized === true).length;
-  const reviewedVerdicts = humanReviews
-    .map(log => metadata(log.metadataJson).verdict)
-    .filter((verdict): verdict is "approved" | "rejected" => verdict === "approved" || verdict === "rejected");
+  const validDecisionIds = new Set(shadow.map(item => item.id));
+  const reviewByDecisionId = new Map<string, "approved" | "rejected">();
+  for (const log of humanReviews) {
+    const review = metadata(log.metadataJson);
+    if (
+      typeof review.decisionId === "string" &&
+      validDecisionIds.has(review.decisionId) &&
+      (review.verdict === "approved" || review.verdict === "rejected") &&
+      !reviewByDecisionId.has(review.decisionId)
+    ) {
+      reviewByDecisionId.set(review.decisionId, review.verdict);
+    }
+  }
+  const reviewedVerdicts = [...reviewByDecisionId.values()];
   const humanApprovals = reviewedVerdicts.filter(verdict => verdict === "approved").length;
   const humanApprovalRate = reviewedVerdicts.length ? humanApprovals / reviewedVerdicts.length : null;
   const minimumShadow = positiveIntegerEnv("CRM_ROLLOUT_MIN_SHADOW_SAMPLE", 20);
