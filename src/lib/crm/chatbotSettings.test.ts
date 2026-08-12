@@ -71,23 +71,23 @@ describe("chatbot global settings", () => {
 
   it("stops an already configured rollout when its operational evidence expires", async () => {
     vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
-      autoReplyRolloutPercentage: 100,
+      autoReplyIntentsJson: '["faq"]',
     } as never);
     vi.mocked(evaluateAutoReplyRolloutGate).mockResolvedValue({
       approved: false,
       reasons: ["insufficient_shadow_sample"],
     } as never);
 
-    await expect(isConversationInAutoReplyRollout("conversation-1")).resolves.toBe(false);
+    await expect(isAutoReplyIntentReleased("faq")).resolves.toBe(false);
   });
 
   it("fails closed if the runtime rollout gate cannot be evaluated", async () => {
     vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
-      autoReplyRolloutPercentage: 100,
+      autoReplyIntentsJson: '["faq"]',
     } as never);
     vi.mocked(evaluateAutoReplyRolloutGate).mockRejectedValue(new Error("database unavailable"));
 
-    await expect(isConversationInAutoReplyRollout("conversation-1")).resolves.toBe(false);
+    await expect(isAutoReplyIntentReleased("faq")).resolves.toBe(false);
   });
 
   it("requires both global and WhatsApp switches", async () => {

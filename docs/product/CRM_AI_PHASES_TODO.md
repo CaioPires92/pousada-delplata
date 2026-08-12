@@ -342,6 +342,7 @@ teste falha → menor implementação possível → teste passa
     - [x] Priorizar decisões válidas e pendentes na tela de revisão das últimas 24 horas.
     - [x] Impedir que FAQs aprovadas contornem a liberação gradual por intenção.
     - [x] Revalidar o gate operacional durante o rollout e voltar a bloquear quando a evidência expirar.
+    - [x] Exigir evidência específica da intenção antes de autorizar sua resposta automática.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.

@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import type { AutoReplyIntent } from "@/lib/crm/chatbotSettings";
 
 type DecisionMetadata = {
   mode?: unknown;
@@ -8,6 +9,8 @@ type DecisionMetadata = {
   agreementWithHeuristic?: unknown;
   verdict?: unknown;
   decisionId?: unknown;
+  intent?: unknown;
+  suggestedAction?: unknown;
 };
 
 function positiveIntegerEnv(name: string, fallback: number) {
@@ -37,7 +40,10 @@ export type AutoReplyRolloutGate = {
   };
 };
 
-export async function evaluateAutoReplyRolloutGate(now = new Date()): Promise<AutoReplyRolloutGate> {
+export async function evaluateAutoReplyRolloutGate(
+  now = new Date(),
+  rolloutIntent?: AutoReplyIntent,
+): Promise<AutoReplyRolloutGate> {
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const [logs, humanReviews, supervisedReviewed] = await Promise.all([
     prisma.internalActionLog.findMany({
@@ -57,7 +63,12 @@ export async function evaluateAutoReplyRolloutGate(now = new Date()): Promise<Au
   ]);
   const shadow = logs
     .map(log => ({ id: log.id, ...metadata(log.metadataJson) }))
-    .filter(item => item.mode === "shadow" && item.source === "ai" && item.result === "classified");
+    .filter(item => item.mode === "shadow" && item.source === "ai" && item.result === "classified")
+    .filter(item => !rolloutIntent || (
+      rolloutIntent === "faq"
+        ? item.suggestedAction === "answer_approved_faq"
+        : item.intent === rolloutIntent
+    ));
   const comparable = shadow.filter(item => typeof item.agreementWithHeuristic === "boolean");
   const agreements = comparable.filter(item => item.agreementWithHeuristic === true).length;
   const agreementRate = comparable.length ? agreements / comparable.length : null;

@@ -10,8 +10,8 @@ vi.mock("@/lib/prisma", () => ({
 import prisma from "@/lib/prisma";
 import { evaluateAutoReplyRolloutGate } from "./rolloutGate";
 
-function shadow(agreement: boolean, actionAuthorized = false, source = "ai", result = "classified", id = crypto.randomUUID()) {
-  return { id, metadataJson: JSON.stringify({ mode: "shadow", source, result, agreementWithHeuristic: agreement, actionAuthorized }) };
+function shadow(agreement: boolean, actionAuthorized = false, source = "ai", result = "classified", id = crypto.randomUUID(), intent = "quote", suggestedAction = "collect_quote_fields") {
+  return { id, metadataJson: JSON.stringify({ mode: "shadow", source, result, agreementWithHeuristic: agreement, actionAuthorized, intent, suggestedAction }) };
 }
 
 function review(verdict: "approved" | "rejected", decisionId = "decision-1") {
@@ -139,6 +139,24 @@ describe("automatic reply rollout gate", () => {
       approved: false,
       reasons: expect.arrayContaining(["insufficient_human_shadow_reviews"]),
       metrics: { humanShadowReviewed: 0 },
+    });
+  });
+
+  it("does not approve FAQ rollout using evidence from another intent", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "1";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([
+        shadow(true, false, "ai", "classified", "quote-decision", "quote", "collect_quote_fields"),
+      ] as never)
+      .mockResolvedValueOnce([review("approved", "quote-decision")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+
+    await expect(evaluateAutoReplyRolloutGate(new Date(), "faq")).resolves.toMatchObject({
+      approved: false,
+      reasons: expect.arrayContaining(["insufficient_shadow_sample"]),
+      metrics: { shadowSample: 0 },
     });
   });
 });

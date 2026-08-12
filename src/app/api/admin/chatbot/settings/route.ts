@@ -84,9 +84,20 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: false, error: "rollout_increment_too_large" }, { status: 400 });
     }
     if (addedIntents.length > 0 || increasesPercentage) {
-      const gate = await evaluateAutoReplyRolloutGate();
-      if (!gate.approved) {
-        return NextResponse.json({ ok: false, error: "rollout_gate_blocked", gate }, { status: 409 });
+      const intentsToValidate = addedIntents.length > 0
+        ? addedIntents
+        : previousIntents;
+      const gates = await Promise.all(intentsToValidate.map(intent =>
+        evaluateAutoReplyRolloutGate(new Date(), intent as typeof AUTO_REPLY_INTENTS[number])
+      ));
+      const blockedIndex = gates.findIndex(gate => !gate.approved);
+      if (blockedIndex >= 0) {
+        return NextResponse.json({
+          ok: false,
+          error: "rollout_gate_blocked",
+          intent: intentsToValidate[blockedIndex],
+          gate: gates[blockedIndex],
+        }, { status: 409 });
       }
     }
     const data = {

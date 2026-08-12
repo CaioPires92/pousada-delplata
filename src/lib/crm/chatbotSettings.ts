@@ -87,9 +87,7 @@ export async function isConversationInAutoReplyRollout(
   if (testConversation) return true;
   try {
     const settings = await getChatbotRuntimeSettings();
-    if (deterministicRolloutBucket(conversationId) > settings.autoReplyRolloutPercentage) return false;
-    const gate = await evaluateAutoReplyRolloutGate();
-    return gate.approved;
+    return deterministicRolloutBucket(conversationId) <= settings.autoReplyRolloutPercentage;
   } catch {
     return false;
   }
@@ -102,7 +100,9 @@ export async function isAutoReplyIntentReleased(
   if (testConversation) return intent !== "unknown";
   try {
     const settings = await getChatbotRuntimeSettings();
-    return settings.releasedAutoReplyIntents.includes(intent as AutoReplyIntent);
+    if (!settings.releasedAutoReplyIntents.includes(intent as AutoReplyIntent)) return false;
+    const gate = await evaluateAutoReplyRolloutGate(new Date(), intent as AutoReplyIntent);
+    return gate.approved;
   } catch (error) {
     console.error("Falha ao consultar rollout de intenções", {
       errorCode: error && typeof error === "object" && "code" in error ? String(error.code) : "unknown_error",
