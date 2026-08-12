@@ -356,6 +356,7 @@ teste falha → menor implementação possível → teste passa
     - [x] Impedir revisão de decisões fora da janela vigente de 24 horas.
     - [x] Registrar a intenção correta esperada ao rejeitar uma classificação do Gemini.
     - [x] Resumir padrões de divergência entre a intenção prevista e a intenção correta.
+    - [x] Invalidar evidências shadow produzidas por versões anteriores do prompt, schema ou política.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
   - [x] Exibir quantas conversas abertas seriam elegíveis antes de aumentar o percentual.

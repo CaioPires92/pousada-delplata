@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { requireAdminAuth } from "@/lib/admin-auth";
 import { AI_INTENTS } from "@/lib/crm/aiDecision";
+import { AI_DECISION_SCHEMA_VERSION } from "@/lib/crm/aiDecision";
+import { CRM_AI_PROMPT_VERSION, CRM_AUTOMATION_POLICY_VERSION } from "@/lib/crm/automationVersions";
 import prisma from "@/lib/prisma";
 
 const validExpectedIntents = new Set<string>(AI_INTENTS);
@@ -98,6 +100,9 @@ export async function GET() {
     const inputTokens = finiteNumber(metadata.inputTokens);
     const outputTokens = finiteNumber(metadata.outputTokens);
     const sourceMessageId = optionalString(metadata.sourceMessageId);
+    const currentVersion = metadata.promptVersion === CRM_AI_PROMPT_VERSION
+      && metadata.decisionSchemaVersion === AI_DECISION_SCHEMA_VERSION
+      && metadata.policyVersion === CRM_AUTOMATION_POLICY_VERSION;
 
     const review = reviewByDecisionId.get(log.id);
     return {
@@ -105,6 +110,7 @@ export async function GET() {
       createdAt: log.createdAt,
       conversationId: log.conversationId,
       contactLabel: log.conversation?.contact.name || log.conversation?.contact.phone || "Contato",
+      currentVersion,
       sourceMessageId,
       sourceMessageExcerpt: sourceMessageId
         ? (sourceMessageById.get(sourceMessageId)?.trim().slice(0, 280) || null)
@@ -145,7 +151,10 @@ export async function GET() {
   });
 
   const shadowDecisions = decisions.filter(decision =>
-    decision.mode === "shadow" && decision.source === "ai" && decision.result === "classified"
+    decision.mode === "shadow" && decision.source === "ai" && decision.result === "classified" && decision.currentVersion
+  );
+  const obsoleteShadowDecisions = decisions.filter(decision =>
+    decision.mode === "shadow" && decision.source === "ai" && decision.result === "classified" && !decision.currentVersion
   );
   const comparable = shadowDecisions.filter(decision => decision.agreementWithHeuristic !== null);
   const agreements = comparable.filter(decision => decision.agreementWithHeuristic === true).length;
@@ -209,6 +218,7 @@ export async function GET() {
       sampled: shadowDecisions.length,
       shadow: shadowDecisions.length,
       diagnostics: decisions.length - shadowDecisions.length,
+      obsoleteVersions: obsoleteShadowDecisions.length,
       pendingReview: shadowDecisions.filter(decision => !decision.reviewVerdict).length,
       authorizedActions,
       agreementRate: comparable.length > 0 ? agreements / comparable.length : null,
@@ -254,6 +264,9 @@ export async function POST(request: Request) {
     decisionMetadata.mode !== "shadow" ||
     decisionMetadata.source !== "ai" ||
     decisionMetadata.result !== "classified"
+    || decisionMetadata.promptVersion !== CRM_AI_PROMPT_VERSION
+    || decisionMetadata.decisionSchemaVersion !== AI_DECISION_SCHEMA_VERSION
+    || decisionMetadata.policyVersion !== CRM_AUTOMATION_POLICY_VERSION
   ) {
     return NextResponse.json({ ok: false, error: "decision_not_found" }, { status: 404 });
   }

@@ -1,5 +1,7 @@
 import prisma from "@/lib/prisma";
 import type { AutoReplyIntent } from "@/lib/crm/chatbotSettings";
+import { AI_DECISION_SCHEMA_VERSION } from "@/lib/crm/aiDecision";
+import { CRM_AI_PROMPT_VERSION, CRM_AUTOMATION_POLICY_VERSION } from "@/lib/crm/automationVersions";
 
 type DecisionMetadata = {
   mode?: unknown;
@@ -11,6 +13,9 @@ type DecisionMetadata = {
   decisionId?: unknown;
   intent?: unknown;
   suggestedAction?: unknown;
+  promptVersion?: unknown;
+  decisionSchemaVersion?: unknown;
+  policyVersion?: unknown;
 };
 
 function positiveIntegerEnv(name: string, fallback: number) {
@@ -76,6 +81,11 @@ export async function evaluateAutoReplyRolloutGate(
   const shadow = logs
     .map(log => ({ id: log.id, ...metadata(log.metadataJson) }))
     .filter(item => item.mode === "shadow" && item.source === "ai" && item.result === "classified")
+    .filter(item => (
+      item.promptVersion === CRM_AI_PROMPT_VERSION
+      && item.decisionSchemaVersion === AI_DECISION_SCHEMA_VERSION
+      && item.policyVersion === CRM_AUTOMATION_POLICY_VERSION
+    ))
     .filter(item => !rolloutIntent || (
       rolloutIntent === "faq"
         ? item.suggestedAction === "answer_approved_faq"

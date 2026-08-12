@@ -21,6 +21,7 @@ type DecisionReview = {
   createdAt: string;
   conversationId: string | null;
   contactLabel: string;
+  currentVersion: boolean;
   sourceMessageId: string | null;
   sourceMessageExcerpt: string | null;
   intent: string;
@@ -49,6 +50,7 @@ type DailyReviewSummary = {
   agreementRate: number | null;
   gatePassed: boolean;
   diagnostics: number;
+  obsoleteVersions: number;
   pendingReview: number;
   byIntent: Array<{
     intent: string;
@@ -209,6 +211,9 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
               <div><span className="block text-xs font-bold uppercase text-slate-500">Amostra</span><strong>{summary.sampled}</strong></div>
               <div><span className="block text-xs font-bold uppercase text-slate-500">Pendentes</span><strong>{summary.pendingReview}</strong></div>
               <div><span className="block text-xs font-bold uppercase text-slate-500">Diagnósticos</span><strong>{summary.diagnostics}</strong></div>
+              {summary.obsoleteVersions > 0 && (
+                <p className="sm:col-span-4 text-sm font-bold text-amber-800">{summary.obsoleteVersions} decisão(ões) pertencem a uma versão anterior e não contam para o rollout.</p>
+              )}
               {summary.authorizedActions > 0 && (
                 <p className="sm:col-span-4 text-sm font-bold text-red-700">Bloqueio: houve ação autorizada durante shadow mode.</p>
               )}
@@ -308,6 +313,7 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-bold text-violet-700">{decision.intent}</span>
+                      {!decision.currentVersion && <span className="ml-2 rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">Versão obsoleta</span>}
                       <div className="mt-2 text-xs text-slate-500">{decision.source} · {decision.mode}</div>
                       {decision.suggestedAction && <div className="mt-1 text-xs text-slate-400">Sugestão: {decision.suggestedAction}</div>}
                     </td>
@@ -332,7 +338,9 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
                       {decision.model && <div className="mt-1 max-w-40 truncate" title={decision.model}>{decision.model}</div>}
                     </td>
                     <td className="px-4 py-3">
-                      {decision.source !== "ai" || decision.result !== "classified" ? (
+                      {!decision.currentVersion ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">Não revisável</span>
+                      ) : decision.source !== "ai" || decision.result !== "classified" ? (
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">Somente diagnóstico</span>
                       ) : decision.reviewVerdict ? (
                         <span>

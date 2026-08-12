@@ -8,10 +8,23 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 import prisma from "@/lib/prisma";
+import { AI_DECISION_SCHEMA_VERSION } from "./aiDecision";
+import { CRM_AI_PROMPT_VERSION, CRM_AUTOMATION_POLICY_VERSION } from "./automationVersions";
 import { evaluateAutoReplyRolloutGate } from "./rolloutGate";
 
 function shadow(agreement: boolean, actionAuthorized = false, source = "ai", result = "classified", id = crypto.randomUUID(), intent = "quote", suggestedAction = "collect_quote_fields") {
-  return { id, metadataJson: JSON.stringify({ mode: "shadow", source, result, agreementWithHeuristic: agreement, actionAuthorized, intent, suggestedAction }) };
+  return { id, metadataJson: JSON.stringify({
+    mode: "shadow",
+    source,
+    result,
+    agreementWithHeuristic: agreement,
+    actionAuthorized,
+    intent,
+    suggestedAction,
+    promptVersion: CRM_AI_PROMPT_VERSION,
+    decisionSchemaVersion: AI_DECISION_SCHEMA_VERSION,
+    policyVersion: CRM_AUTOMATION_POLICY_VERSION,
+  }) };
 }
 
 function review(verdict: "approved" | "rejected", decisionId = "decision-1") {
@@ -130,6 +143,24 @@ describe("automatic reply rollout gate", () => {
       approved: false,
       reasons: expect.arrayContaining(["insufficient_shadow_sample"]),
       metrics: { shadowSample: 1 },
+    });
+  });
+
+  it("does not count evidence produced by an obsolete prompt version", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "1";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    const obsolete = shadow(true, false, "ai", "classified", "obsolete-decision");
+    obsolete.metadataJson = JSON.stringify({ ...JSON.parse(obsolete.metadataJson), promptVersion: "old-prompt" });
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([obsolete] as never)
+      .mockResolvedValueOnce([review("approved", "obsolete-decision")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+
+    await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
+      approved: false,
+      reasons: expect.arrayContaining(["insufficient_shadow_sample", "insufficient_human_shadow_reviews"]),
+      metrics: { shadowSample: 0, humanShadowReviewed: 0 },
     });
   });
 

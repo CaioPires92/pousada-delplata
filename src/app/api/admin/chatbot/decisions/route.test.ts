@@ -18,6 +18,14 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/admin-auth", () => ({ requireAdminAuth: mocks.requireAdminAuth }));
 
 import { GET, POST } from "./route";
+import { AI_DECISION_SCHEMA_VERSION } from "@/lib/crm/aiDecision";
+import { CRM_AI_PROMPT_VERSION, CRM_AUTOMATION_POLICY_VERSION } from "@/lib/crm/automationVersions";
+
+const currentVersions = {
+  promptVersion: CRM_AI_PROMPT_VERSION,
+  decisionSchemaVersion: AI_DECISION_SCHEMA_VERSION,
+  policyVersion: CRM_AUTOMATION_POLICY_VERSION,
+};
 
 describe("admin chatbot decision review", () => {
   beforeEach(() => {
@@ -52,6 +60,7 @@ describe("admin chatbot decision review", () => {
         confidence: 0.91,
         source: "ai",
         mode: "shadow",
+        ...currentVersions,
         accepted: true,
         actionAuthorized: false,
         agreementWithHeuristic: false,
@@ -96,6 +105,7 @@ describe("admin chatbot decision review", () => {
       sampled: 1,
       shadow: 1,
       diagnostics: 0,
+      obsoleteVersions: 0,
       pendingReview: 1,
       authorizedActions: 0,
       agreementRate: 0,
@@ -120,9 +130,9 @@ describe("admin chatbot decision review", () => {
       conversation: null,
     };
     mocks.findMany.mockResolvedValueOnce([
-      { id: "faq-approved", ...base, metadataJson: JSON.stringify({ intent: "amenity", suggestedAction: "answer_approved_faq", mode: "shadow", source: "ai", result: "classified" }) },
-      { id: "faq-pending", ...base, metadataJson: JSON.stringify({ intent: "amenity", suggestedAction: "answer_approved_faq", mode: "shadow", source: "ai", result: "classified" }) },
-      { id: "quote-rejected", ...base, metadataJson: JSON.stringify({ intent: "quote", mode: "shadow", source: "ai", result: "classified" }) },
+      { id: "faq-approved", ...base, metadataJson: JSON.stringify({ intent: "amenity", suggestedAction: "answer_approved_faq", mode: "shadow", source: "ai", result: "classified", ...currentVersions }) },
+      { id: "faq-pending", ...base, metadataJson: JSON.stringify({ intent: "amenity", suggestedAction: "answer_approved_faq", mode: "shadow", source: "ai", result: "classified", ...currentVersions }) },
+      { id: "quote-rejected", ...base, metadataJson: JSON.stringify({ intent: "quote", mode: "shadow", source: "ai", result: "classified", ...currentVersions }) },
       { id: "diagnostic", ...base, metadataJson: JSON.stringify({ intent: "unknown", mode: "shadow", source: "heuristic", result: "fallback_invalid_response" }) },
     ]).mockResolvedValueOnce([
       { metadataJson: JSON.stringify({ decisionId: "faq-approved", verdict: "approved" }), createdAt: new Date(), userId: "admin-1" },
@@ -154,8 +164,8 @@ describe("admin chatbot decision review", () => {
     };
     mocks.findMany.mockResolvedValueOnce([
       { id: "fallback", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "heuristic", result: "fallback_invalid_response" }) },
-      { id: "reviewed-ai", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", agreementWithHeuristic: true }) },
-      { id: "pending-ai", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", agreementWithHeuristic: true }) },
+      { id: "reviewed-ai", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", agreementWithHeuristic: true, ...currentVersions }) },
+      { id: "pending-ai", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", agreementWithHeuristic: true, ...currentVersions }) },
     ]).mockResolvedValueOnce([{
       metadataJson: JSON.stringify({ decisionId: "reviewed-ai", verdict: "approved" }),
       createdAt: new Date(),
@@ -170,13 +180,45 @@ describe("admin chatbot decision review", () => {
     expect(body.summary).toMatchObject({ sampled: 2, shadow: 2, diagnostics: 1, pendingReview: 1 });
   });
 
+  it("excludes and flags decisions from obsolete runtime versions", async () => {
+    const base = {
+      createdAt: new Date("2026-08-12T19:00:00.000Z"),
+      conversationId: null,
+      conversation: null,
+    };
+    mocks.findMany.mockResolvedValueOnce([{
+      id: "obsolete-ai",
+      ...base,
+      metadataJson: JSON.stringify({
+        mode: "shadow",
+        source: "ai",
+        result: "classified",
+        intent: "parking",
+        promptVersion: "old-prompt",
+        decisionSchemaVersion: AI_DECISION_SCHEMA_VERSION,
+        policyVersion: CRM_AUTOMATION_POLICY_VERSION,
+      }),
+    }]).mockResolvedValueOnce([]);
+
+    const body = await (await GET()).json();
+
+    expect(body.decisions[0]).toMatchObject({ id: "obsolete-ai", currentVersion: false });
+    expect(body.summary).toMatchObject({
+      sampled: 0,
+      shadow: 0,
+      obsoleteVersions: 1,
+      pendingReview: 0,
+      gatePassed: false,
+    });
+  });
+
   it("fails the daily gate if shadow mode authorized any action", async () => {
     mocks.findMany.mockResolvedValueOnce([{
       id: "log-risk",
       createdAt: new Date(),
       conversationId: null,
       conversation: null,
-      metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", actionAuthorized: true }),
+      metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", actionAuthorized: true, ...currentVersions }),
     }]).mockResolvedValueOnce([]);
 
     const response = await GET();
@@ -190,7 +232,7 @@ describe("admin chatbot decision review", () => {
       .mockResolvedValueOnce({
         id: "log-1",
         conversationId: "conversation-1",
-        metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified" }),
+        metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", ...currentVersions }),
       })
       .mockResolvedValueOnce(null);
 
@@ -223,7 +265,7 @@ describe("admin chatbot decision review", () => {
       .mockResolvedValueOnce({
         id: "log-1",
         conversationId: "conversation-1",
-        metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified" }),
+        metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", ...currentVersions }),
       })
       .mockResolvedValueOnce(null);
 
