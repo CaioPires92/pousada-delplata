@@ -8,7 +8,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/crm/rolloutGate", () => ({
+  evaluateAutoReplyRolloutGate: vi.fn(),
+}));
+
 import prisma from "@/lib/prisma";
+import { evaluateAutoReplyRolloutGate } from "@/lib/crm/rolloutGate";
 import {
   getChatbotRuntimeSettings,
   isAutoReplyIntentReleased,
@@ -22,6 +27,7 @@ import {
 describe("chatbot global settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(evaluateAutoReplyRolloutGate).mockResolvedValue({ approved: true } as never);
   });
 
   it("fails closed when no global settings exist", async () => {
@@ -61,6 +67,27 @@ describe("chatbot global settings", () => {
 
     await expect(isConversationInAutoReplyRollout(id)).resolves.toBe(false);
     await expect(isConversationInAutoReplyRollout(id)).resolves.toBe(true);
+  });
+
+  it("stops an already configured rollout when its operational evidence expires", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      autoReplyRolloutPercentage: 100,
+    } as never);
+    vi.mocked(evaluateAutoReplyRolloutGate).mockResolvedValue({
+      approved: false,
+      reasons: ["insufficient_shadow_sample"],
+    } as never);
+
+    await expect(isConversationInAutoReplyRollout("conversation-1")).resolves.toBe(false);
+  });
+
+  it("fails closed if the runtime rollout gate cannot be evaluated", async () => {
+    vi.mocked(prisma.chatbotSettings.findFirst).mockResolvedValue({
+      autoReplyRolloutPercentage: 100,
+    } as never);
+    vi.mocked(evaluateAutoReplyRolloutGate).mockRejectedValue(new Error("database unavailable"));
+
+    await expect(isConversationInAutoReplyRollout("conversation-1")).resolves.toBe(false);
   });
 
   it("requires both global and WhatsApp switches", async () => {

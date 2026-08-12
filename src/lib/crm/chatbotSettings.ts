@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import type { CrmIntent } from "@/lib/crm/intentParser";
+import { evaluateAutoReplyRolloutGate } from "@/lib/crm/rolloutGate";
 
 export const AUTO_REPLY_INTENTS = [
   "faq",
@@ -86,7 +87,9 @@ export async function isConversationInAutoReplyRollout(
   if (testConversation) return true;
   try {
     const settings = await getChatbotRuntimeSettings();
-    return deterministicRolloutBucket(conversationId) <= settings.autoReplyRolloutPercentage;
+    if (deterministicRolloutBucket(conversationId) > settings.autoReplyRolloutPercentage) return false;
+    const gate = await evaluateAutoReplyRolloutGate();
+    return gate.approved;
   } catch {
     return false;
   }
