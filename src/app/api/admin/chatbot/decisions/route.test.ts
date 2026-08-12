@@ -125,7 +125,7 @@ describe("admin chatbot decision review", () => {
       { id: "diagnostic", ...base, metadataJson: JSON.stringify({ intent: "unknown", mode: "shadow", source: "heuristic", result: "fallback_invalid_response" }) },
     ]).mockResolvedValueOnce([
       { metadataJson: JSON.stringify({ decisionId: "faq-approved", verdict: "approved" }), createdAt: new Date(), userId: "admin-1" },
-      { metadataJson: JSON.stringify({ decisionId: "quote-rejected", verdict: "rejected" }), createdAt: new Date(), userId: "admin-1" },
+      { metadataJson: JSON.stringify({ decisionId: "quote-rejected", verdict: "rejected", expectedIntent: "reservation" }), createdAt: new Date(), userId: "admin-1" },
     ]);
 
     const body = await (await GET()).json();
@@ -134,6 +134,10 @@ describe("admin chatbot decision review", () => {
       { intent: "faq", sampled: 2, reviewed: 1, approved: 1, rejected: 0, pending: 1, approvalRate: 1 },
       { intent: "quote", sampled: 1, reviewed: 1, approved: 0, rejected: 1, pending: 0, approvalRate: 0 },
     ]);
+    expect(body.decisions.find((decision: { id: string }) => decision.id === "quote-rejected")).toMatchObject({
+      reviewVerdict: "rejected",
+      expectedIntent: "reservation",
+    });
   });
 
   it("prioritizes valid unreviewed Gemini decisions over diagnostics", async () => {
@@ -200,6 +204,36 @@ describe("admin chatbot decision review", () => {
     });
   });
 
+  it("requires and persists the expected intent for an incorrect decision", async () => {
+    const missing = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisionId: "log-1", verdict: "rejected" }),
+    }));
+    expect(missing.status).toBe(400);
+    await expect(missing.json()).resolves.toMatchObject({ error: "expected_intent_required" });
+    expect(mocks.findFirst).not.toHaveBeenCalled();
+
+    mocks.findFirst
+      .mockResolvedValueOnce({
+        id: "log-1",
+        conversationId: "conversation-1",
+        metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified" }),
+      })
+      .mockResolvedValueOnce(null);
+
+    const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisionId: "log-1", verdict: "rejected", expectedIntent: "parking" }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        metadataJson: expect.stringContaining('"expectedIntent":"parking"'),
+      }),
+    });
+  });
+
   it("rejects review of a decision outside shadow mode", async () => {
     mocks.findFirst.mockResolvedValueOnce({
       id: "log-1",
@@ -209,7 +243,7 @@ describe("admin chatbot decision review", () => {
 
     const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
       method: "POST",
-      body: JSON.stringify({ decisionId: "log-1", verdict: "rejected" }),
+      body: JSON.stringify({ decisionId: "log-1", verdict: "rejected", expectedIntent: "unknown" }),
     }));
 
     expect(response.status).toBe(404);

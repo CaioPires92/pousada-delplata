@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { requireAdminAuth } from "@/lib/admin-auth";
+import { AI_INTENTS } from "@/lib/crm/aiDecision";
 import prisma from "@/lib/prisma";
+
+const validExpectedIntents = new Set<string>(AI_INTENTS);
 
 function readMetadata(value: string | null) {
   if (!value) return {} as Record<string, unknown>;
@@ -70,13 +73,23 @@ export async function GET() {
     : [];
   const sourceMessageById = new Map(sourceMessages.map(message => [message.id, message.content]));
 
-  const reviewByDecisionId = new Map<string, { verdict: string; reviewedAt: Date; reviewedBy: string | null }>();
+  const reviewByDecisionId = new Map<string, {
+    verdict: string;
+    expectedIntent: string | null;
+    reviewedAt: Date;
+    reviewedBy: string | null;
+  }>();
   for (const review of reviews) {
     const reviewMetadata = readMetadata(review.metadataJson);
     const decisionId = optionalString(reviewMetadata.decisionId);
     const verdict = optionalString(reviewMetadata.verdict);
     if (decisionId && verdict && !reviewByDecisionId.has(decisionId)) {
-      reviewByDecisionId.set(decisionId, { verdict, reviewedAt: review.createdAt, reviewedBy: review.userId });
+      reviewByDecisionId.set(decisionId, {
+        verdict,
+        expectedIntent: optionalString(reviewMetadata.expectedIntent),
+        reviewedAt: review.createdAt,
+        reviewedBy: review.userId,
+      });
     }
   }
 
@@ -117,6 +130,7 @@ export async function GET() {
         ? (inputTokens ?? 0) + (outputTokens ?? 0)
         : null,
       reviewVerdict: review?.verdict ?? null,
+      expectedIntent: review?.expectedIntent ?? null,
       reviewedAt: review?.reviewedAt ?? null,
       reviewedBy: review?.reviewedBy ?? null,
     };
@@ -194,8 +208,12 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const decisionId = typeof body?.decisionId === "string" ? body.decisionId.trim() : "";
   const verdict = body?.verdict;
+  const expectedIntent = typeof body?.expectedIntent === "string" ? body.expectedIntent.trim() : "";
   if (!decisionId || (verdict !== "approved" && verdict !== "rejected")) {
     return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
+  }
+  if (verdict === "rejected" && !validExpectedIntents.has(expectedIntent)) {
+    return NextResponse.json({ ok: false, error: "expected_intent_required" }, { status: 400 });
   }
 
   const windowStartedAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -234,7 +252,12 @@ export async function POST(request: Request) {
       action: "AiDecisionReviewed",
       userId: auth.adminId,
       conversationId: decision.conversationId,
-      metadataJson: JSON.stringify({ decisionId, verdict, origin: "admin_ui" }),
+      metadataJson: JSON.stringify({
+        decisionId,
+        verdict,
+        expectedIntent: verdict === "rejected" ? expectedIntent : null,
+        origin: "admin_ui",
+      }),
     },
   });
 

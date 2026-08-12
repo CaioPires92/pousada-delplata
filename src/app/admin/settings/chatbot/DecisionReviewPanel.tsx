@@ -4,6 +4,18 @@ import Link from "next/link";
 import { ExternalLink, RefreshCw, ScanSearch } from "lucide-react";
 import { useState } from "react";
 
+const REVIEW_INTENTS = [
+  ["quote", "Cotação"],
+  ["reservation", "Reserva"],
+  ["checkin_info", "Check-in"],
+  ["checkout_info", "Check-out"],
+  ["amenity", "Comodidade"],
+  ["pet", "Pet"],
+  ["parking", "Estacionamento"],
+  ["location", "Localização"],
+  ["unknown", "Não identificada"],
+] as const;
+
 type DecisionReview = {
   id: string;
   createdAt: string;
@@ -26,6 +38,7 @@ type DecisionReview = {
   latencyMs: number | null;
   totalTokens: number | null;
   reviewVerdict: "approved" | "rejected" | null;
+  expectedIntent: string | null;
   reviewedAt: string | null;
 };
 
@@ -70,6 +83,7 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
   const [windowStartedAt, setWindowStartedAt] = useState<string | null>(null);
   const [summary, setSummary] = useState<DailyReviewSummary | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [expectedIntentByDecision, setExpectedIntentByDecision] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<ReviewFilter>("pending");
 
   const visibleDecisions = decisions.filter(decision => {
@@ -103,13 +117,18 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
   }
 
   async function reviewDecision(decisionId: string, verdict: "approved" | "rejected") {
+    const expectedIntent = expectedIntentByDecision[decisionId];
+    if (verdict === "rejected" && !expectedIntent) {
+      setError("Selecione qual seria a classificação correta antes de marcar como incorreta.");
+      return;
+    }
     setReviewingId(decisionId);
     setError(null);
     try {
       const response = await fetch("/api/admin/chatbot/decisions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decisionId, verdict }),
+        body: JSON.stringify({ decisionId, verdict, expectedIntent }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error("review_failed");
@@ -297,13 +316,34 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
                       {decision.source !== "ai" || decision.result !== "classified" ? (
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">Somente diagnóstico</span>
                       ) : decision.reviewVerdict ? (
-                        <span className={`rounded-full px-2 py-1 text-xs font-bold ${decision.reviewVerdict === "approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                          {decision.reviewVerdict === "approved" ? "Correta" : "Incorreta"}
+                        <span>
+                          <span className={`rounded-full px-2 py-1 text-xs font-bold ${decision.reviewVerdict === "approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                            {decision.reviewVerdict === "approved" ? "Correta" : "Incorreta"}
+                          </span>
+                          {decision.reviewVerdict === "rejected" && decision.expectedIntent && (
+                            <span className="mt-2 block text-xs font-bold text-slate-600">
+                              Correta: {REVIEW_INTENTS.find(([value]) => value === decision.expectedIntent)?.[1] ?? decision.expectedIntent}
+                            </span>
+                          )}
                         </span>
                       ) : (
-                        <span className="flex gap-2">
-                          <button type="button" disabled={reviewingId === decision.id} onClick={() => reviewDecision(decision.id, "approved")} className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700 disabled:opacity-50">Correta</button>
-                          <button type="button" disabled={reviewingId === decision.id} onClick={() => reviewDecision(decision.id, "rejected")} className="rounded-lg bg-red-100 px-2 py-1 text-xs font-bold text-red-700 disabled:opacity-50">Incorreta</button>
+                        <span className="flex min-w-44 flex-col gap-2">
+                          <span className="flex gap-2">
+                            <button type="button" disabled={reviewingId === decision.id} onClick={() => reviewDecision(decision.id, "approved")} className="rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700 disabled:opacity-50">Correta</button>
+                            <button type="button" disabled={reviewingId === decision.id} onClick={() => reviewDecision(decision.id, "rejected")} className="rounded-lg bg-red-100 px-2 py-1 text-xs font-bold text-red-700 disabled:opacity-50">Incorreta</button>
+                          </span>
+                          <label className="text-[11px] font-bold text-slate-500">
+                            Se estiver incorreta:
+                            <select
+                              aria-label={`Classificação correta para ${decision.contactLabel}`}
+                              value={expectedIntentByDecision[decision.id] ?? ""}
+                              onChange={event => setExpectedIntentByDecision(current => ({ ...current, [decision.id]: event.target.value }))}
+                              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                            >
+                              <option value="">Selecione...</option>
+                              {REVIEW_INTENTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                            </select>
+                          </label>
                         </span>
                       )}
                     </td>
