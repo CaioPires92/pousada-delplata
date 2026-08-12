@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Trash2, Save, MessageSquare, Bot, AlertCircle, CheckCircle2, Pencil, X, Power, Columns3, ShieldCheck } from "lucide-react";
 import { DecisionReviewPanel } from "./DecisionReviewPanel";
+import { SupervisedSuggestionPanel } from "./SupervisedSuggestionPanel";
 
 type ChatbotRule = {
     id: string;
@@ -441,6 +442,7 @@ export default function ChatbotSettingsPage() {
             </section>
 
             <DecisionReviewPanel />
+            <SupervisedSuggestionPanel />
 
             {/* Nova Regra */}
             <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
