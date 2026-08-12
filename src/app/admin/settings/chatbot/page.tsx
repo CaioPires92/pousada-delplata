@@ -47,6 +47,8 @@ type RolloutGate = {
         shadowAgreementRate: number | null;
         shadowAuthorizedActions: number;
         supervisedReviewed: number;
+        humanShadowReviewed: number;
+        humanShadowApprovalRate: number | null;
     };
 };
 
@@ -55,6 +57,8 @@ const ROLLOUT_REASON_LABELS: Record<string, string> = {
     shadow_agreement_below_threshold: "Concordância shadow abaixo de 80%",
     shadow_action_was_authorized: "Uma ação foi autorizada durante shadow",
     insufficient_supervised_reviews: "Revisões supervisionadas insuficientes",
+    insufficient_human_shadow_reviews: "Revisões humanas do shadow insuficientes",
+    human_shadow_approval_below_threshold: "Aprovação humana do shadow abaixo de 80%",
 };
 
 export default function ChatbotSettingsPage() {
@@ -422,7 +426,7 @@ export default function ChatbotSettingsPage() {
                                 <div className={`mt-4 rounded-lg border p-3 text-xs font-semibold ${rolloutGate.approved ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
                                     <p className="font-black">Gate de expansão: {rolloutGate.approved ? "aprovado" : "bloqueado"}</p>
                                     <p className="mt-1">
-                                        Shadow: {rolloutGate.metrics.shadowSample} · Concordância: {rolloutGate.metrics.shadowAgreementRate === null ? "—" : `${Math.round(rolloutGate.metrics.shadowAgreementRate * 100)}%`} · Revisões supervisionadas: {rolloutGate.metrics.supervisedReviewed}
+                                        Shadow: {rolloutGate.metrics.shadowSample} · Concordância: {rolloutGate.metrics.shadowAgreementRate === null ? "—" : `${Math.round(rolloutGate.metrics.shadowAgreementRate * 100)}%`} · Revisões humanas: {rolloutGate.metrics.humanShadowReviewed} ({rolloutGate.metrics.humanShadowApprovalRate === null ? "—" : `${Math.round(rolloutGate.metrics.humanShadowApprovalRate * 100)}%`}) · Revisões supervisionadas: {rolloutGate.metrics.supervisedReviewed}
                                     </p>
                                     {!rolloutGate.approved && rolloutGate.reasons.length > 0 && (
                                         <ul className="mt-2 list-disc pl-5">
