@@ -10,8 +10,8 @@ vi.mock("@/lib/prisma", () => ({
 import prisma from "@/lib/prisma";
 import { evaluateAutoReplyRolloutGate } from "./rolloutGate";
 
-function shadow(agreement: boolean, actionAuthorized = false) {
-  return { metadataJson: JSON.stringify({ mode: "shadow", agreementWithHeuristic: agreement, actionAuthorized }) };
+function shadow(agreement: boolean, actionAuthorized = false, source = "ai", result = "classified") {
+  return { metadataJson: JSON.stringify({ mode: "shadow", source, result, agreementWithHeuristic: agreement, actionAuthorized }) };
 }
 
 function review(verdict: "approved" | "rejected") {
@@ -92,6 +92,25 @@ describe("automatic reply rollout gate", () => {
     await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
       approved: false,
       reasons: ["human_shadow_approval_below_threshold"],
+    });
+  });
+
+  it("does not count heuristic fallbacks as valid shadow evidence", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "2";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([
+        shadow(true),
+        shadow(true, false, "heuristic", "fallback_invalid_response"),
+      ] as never)
+      .mockResolvedValueOnce([review("approved")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+
+    await expect(evaluateAutoReplyRolloutGate()).resolves.toMatchObject({
+      approved: false,
+      reasons: expect.arrayContaining(["insufficient_shadow_sample"]),
+      metrics: { shadowSample: 1 },
     });
   });
 });

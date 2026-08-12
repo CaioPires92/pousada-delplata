@@ -196,7 +196,9 @@ export function DecisionReviewPanel() {
                       {decision.model && <div className="mt-1 max-w-40 truncate" title={decision.model}>{decision.model}</div>}
                     </td>
                     <td className="px-4 py-3">
-                      {decision.reviewVerdict ? (
+                      {decision.source !== "ai" || decision.result !== "classified" ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500">Somente diagnóstico</span>
+                      ) : decision.reviewVerdict ? (
                         <span className={`rounded-full px-2 py-1 text-xs font-bold ${decision.reviewVerdict === "approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                           {decision.reviewVerdict === "approved" ? "Correta" : "Incorreta"}
                         </span>

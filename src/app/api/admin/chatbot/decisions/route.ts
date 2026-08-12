@@ -141,7 +141,13 @@ export async function POST(request: Request) {
     where: { id: decisionId, action: "IntentClassified" },
     select: { id: true, conversationId: true, metadataJson: true },
   });
-  if (!decision || readMetadata(decision.metadataJson).mode !== "shadow") {
+  const decisionMetadata = decision ? readMetadata(decision.metadataJson) : {};
+  if (
+    !decision ||
+    decisionMetadata.mode !== "shadow" ||
+    decisionMetadata.source !== "ai" ||
+    decisionMetadata.result !== "classified"
+  ) {
     return NextResponse.json({ ok: false, error: "decision_not_found" }, { status: 404 });
   }
 

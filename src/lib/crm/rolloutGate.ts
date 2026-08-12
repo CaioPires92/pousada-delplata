@@ -2,6 +2,8 @@ import prisma from "@/lib/prisma";
 
 type DecisionMetadata = {
   mode?: unknown;
+  source?: unknown;
+  result?: unknown;
   actionAuthorized?: unknown;
   agreementWithHeuristic?: unknown;
   verdict?: unknown;
@@ -52,7 +54,9 @@ export async function evaluateAutoReplyRolloutGate(now = new Date()): Promise<Au
       },
     }),
   ]);
-  const shadow = logs.map(log => metadata(log.metadataJson)).filter(item => item.mode === "shadow");
+  const shadow = logs.map(log => metadata(log.metadataJson)).filter(item =>
+    item.mode === "shadow" && item.source === "ai" && item.result === "classified"
+  );
   const comparable = shadow.filter(item => typeof item.agreementWithHeuristic === "boolean");
   const agreements = comparable.filter(item => item.agreementWithHeuristic === true).length;
   const agreementRate = comparable.length ? agreements / comparable.length : null;

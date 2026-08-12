@@ -105,7 +105,7 @@ describe("admin chatbot decision review", () => {
       .mockResolvedValueOnce({
         id: "log-1",
         conversationId: "conversation-1",
-        metadataJson: JSON.stringify({ mode: "shadow" }),
+        metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified" }),
       })
       .mockResolvedValueOnce(null);
 
@@ -135,6 +135,22 @@ describe("admin chatbot decision review", () => {
     const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
       method: "POST",
       body: JSON.stringify({ decisionId: "log-1", verdict: "rejected" }),
+    }));
+
+    expect(response.status).toBe(404);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects review of a heuristic fallback from shadow diagnostics", async () => {
+    mocks.findFirst.mockResolvedValueOnce({
+      id: "log-fallback",
+      conversationId: null,
+      metadataJson: JSON.stringify({ mode: "shadow", source: "heuristic", result: "fallback_invalid_response" }),
+    });
+
+    const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisionId: "log-fallback", verdict: "approved" }),
     }));
 
     expect(response.status).toBe(404);
