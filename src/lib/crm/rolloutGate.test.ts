@@ -158,5 +158,28 @@ describe("automatic reply rollout gate", () => {
       reasons: expect.arrayContaining(["insufficient_shadow_sample"]),
       metrics: { shadowSample: 0 },
     });
+    expect(prisma.supervisedReplySuggestion.count).toHaveBeenCalledWith({
+      where: expect.not.objectContaining({ intent: expect.anything() }),
+    });
+  });
+
+  it("counts supervised evidence only for the requested non-FAQ intent", async () => {
+    process.env.CRM_ROLLOUT_MIN_SHADOW_SAMPLE = "1";
+    process.env.CRM_ROLLOUT_MIN_SUPERVISED_REVIEWS = "1";
+    process.env.CRM_ROLLOUT_MIN_HUMAN_SHADOW_REVIEWS = "1";
+    vi.mocked(prisma.internalActionLog.findMany)
+      .mockResolvedValueOnce([
+        shadow(true, false, "ai", "classified", "parking-decision", "parking", "none"),
+      ] as never)
+      .mockResolvedValueOnce([review("approved", "parking-decision")] as never);
+    vi.mocked(prisma.supervisedReplySuggestion.count).mockResolvedValue(1);
+
+    await expect(evaluateAutoReplyRolloutGate(new Date(), "parking")).resolves.toMatchObject({
+      approved: true,
+      metrics: { supervisedReviewed: 1 },
+    });
+    expect(prisma.supervisedReplySuggestion.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({ intent: "parking" }),
+    });
   });
 });

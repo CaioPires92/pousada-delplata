@@ -58,6 +58,7 @@ export async function evaluateAutoReplyRolloutGate(
       where: {
         status: { in: ["approved", "dismissed"] },
         reviewedAt: { gte: since },
+        ...(rolloutIntent && rolloutIntent !== "faq" ? { intent: rolloutIntent } : {}),
       },
     }),
   ]);
