@@ -37,6 +37,12 @@ type DailyReviewSummary = {
   pendingReview: number;
 };
 
+type ReviewFilter = "pending" | "faq" | "all";
+
+function decisionCategory(decision: DecisionReview) {
+  return decision.suggestedAction === "answer_approved_faq" ? "faq" : decision.intent;
+}
+
 function percent(value: number | null) {
   return value === null ? "—" : `${Math.round(value * 100)}%`;
 }
@@ -49,6 +55,17 @@ export function DecisionReviewPanel() {
   const [windowStartedAt, setWindowStartedAt] = useState<string | null>(null);
   const [summary, setSummary] = useState<DailyReviewSummary | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ReviewFilter>("pending");
+
+  const visibleDecisions = decisions.filter(decision => {
+    const valid = decision.mode === "shadow" && decision.source === "ai" && decision.result === "classified";
+    if (filter === "pending") return valid && !decision.reviewVerdict;
+    if (filter === "faq") return valid && decisionCategory(decision) === "faq";
+    return true;
+  });
+  const faqCount = decisions.filter(decision => (
+    decision.mode === "shadow" && decision.source === "ai" && decision.result === "classified" && decisionCategory(decision) === "faq"
+  )).length;
 
   async function loadDecisions() {
     setLoading(true);
@@ -125,6 +142,26 @@ export function DecisionReviewPanel() {
 
         {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
 
+        {loaded && decisions.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2" aria-label="Filtrar decisões">
+            {([
+              ["pending", `Pendentes (${summary?.pendingReview ?? 0})`],
+              ["faq", `FAQ válida (${faqCount})`],
+              ["all", `Todas (${decisions.length})`],
+            ] as Array<[ReviewFilter, string]>).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFilter(value)}
+                aria-pressed={filter === value}
+                className={`rounded-full px-3 py-1.5 text-xs font-black transition ${filter === value ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loaded && summary && (
           <div className={`mb-4 grid gap-3 rounded-xl border p-4 sm:grid-cols-4 ${summary.gatePassed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <div><span className="block text-xs font-bold uppercase text-slate-500">Janela</span><strong>{windowStartedAt ? "Últimas 24h" : "—"}</strong></div>
@@ -143,7 +180,13 @@ export function DecisionReviewPanel() {
           </p>
         )}
 
-        {decisions.length > 0 && (
+        {loaded && decisions.length > 0 && visibleDecisions.length === 0 && (
+          <p className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm font-medium text-slate-500">
+            Nenhuma decisão encontrada neste filtro.
+          </p>
+        )}
+
+        {visibleDecisions.length > 0 && (
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="min-w-[920px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
@@ -158,7 +201,7 @@ export function DecisionReviewPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {decisions.map(decision => (
+                {visibleDecisions.map(decision => (
                   <tr key={decision.id} className="align-top text-slate-700">
                     <td className="px-4 py-3">
                       <div className="font-bold text-slate-800">{decision.contactLabel}</div>
