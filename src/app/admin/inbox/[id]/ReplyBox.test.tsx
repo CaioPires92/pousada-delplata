@@ -83,4 +83,27 @@ describe("ReplyBox", () => {
             suggestionId: "suggestion-1",
         });
     });
+
+    it("removes a stale suggestion and asks the attendant to review the newest message", async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ ok: true, suggestion: { id: "suggestion-1", content: "A senha é pousada151.", intent: "faq" } }),
+            })
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 409,
+                json: async () => ({ ok: false, error: "stale_supervised_suggestion" }),
+            });
+        vi.stubGlobal("fetch", fetchMock);
+
+        render(<ReplyBox conversationId="conversation-1" automationMode="supervised" />);
+        expect(await screen.findByText("A senha é pousada151.")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: "Usar sugestão" }));
+        fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+        expect(await screen.findByText("O hóspede enviou uma nova mensagem. Revise a conversa antes de responder.")).toBeInTheDocument();
+        expect(screen.queryByText("Sugestão supervisionada · faq")).not.toBeInTheDocument();
+        expect(screen.getByPlaceholderText("Digite sua resposta aqui...")).toHaveValue("A senha é pousada151.");
+    });
 });

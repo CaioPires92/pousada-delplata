@@ -232,10 +232,19 @@ describe("manual WhatsApp send hardening", () => {
         automationMode: "supervised",
       },
     });
+    const sourceMessage = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderType: "guest",
+        content: "Qual é o horário do check-in?",
+        messageType: "text",
+        sentAt: new Date("2026-08-11T15:59:00.000Z"),
+      },
+    });
     const suggestion = await prisma.supervisedReplySuggestion.create({
       data: {
         conversationId: conversation.id,
-        sourceMessageId: "source-message-1",
+        sourceMessageId: sourceMessage.id,
         content: "O check-in começa às 14h.",
         intent: "checkin_info",
         ruleId: "rule-1",
@@ -267,6 +276,46 @@ describe("manual WhatsApp send hardening", () => {
     await expect(prisma.internalActionLog.findFirst({
       where: { conversationId: conversation.id, action: "SupervisedReplyApproved" },
     })).resolves.not.toBeNull();
+  });
+
+  it("rejects and expires a supervised suggestion after a newer guest message", async () => {
+    const contact = await prisma.contact.create({
+      data: { name: "Teste sugestão obsoleta", phone: "551188880005", source: "test-whatsapp-send" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, channel: "whatsapp", status: "open", automationMode: "supervised" },
+    });
+    const sourceMessage = await prisma.message.create({
+      data: { conversationId: conversation.id, senderType: "guest", content: "Qual é a senha do Wi-Fi?", messageType: "text", sentAt: new Date("2026-08-11T15:58:00.000Z") },
+    });
+    const suggestion = await prisma.supervisedReplySuggestion.create({
+      data: {
+        conversationId: conversation.id,
+        sourceMessageId: sourceMessage.id,
+        content: "A senha é pousada151.",
+        intent: "faq",
+        rolloutIntent: "faq",
+        ruleId: "rule-wifi",
+        ruleVersion: 1,
+      },
+    });
+    await prisma.message.create({
+      data: { conversationId: conversation.id, senderType: "guest", content: "E tem estacionamento?", messageType: "text", sentAt: new Date("2026-08-11T15:59:00.000Z") },
+    });
+
+    const response = await POST(request({
+      conversationId: conversation.id,
+      text: suggestion.content,
+      suggestionId: suggestion.id,
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "stale_supervised_suggestion" });
+    expect(send).not.toHaveBeenCalled();
+    await expect(prisma.supervisedReplySuggestion.findUnique({ where: { id: suggestion.id } })).resolves.toMatchObject({
+      status: "expired",
+      reviewedAt: expect.any(Date),
+    });
   });
 
   it("blocks Meta free-form text when the customer care window has expired", async () => {

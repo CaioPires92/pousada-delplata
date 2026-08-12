@@ -82,7 +82,7 @@ export async function POST(request: Request) {
                     status: "pending",
                     content: text,
                 },
-                select: { id: true },
+                select: { id: true, sourceMessageId: true },
             })
             : null;
         if (suggestionId && !supervisedSuggestion) {
@@ -90,6 +90,37 @@ export async function POST(request: Request) {
                 { ok: false, error: "invalid_supervised_suggestion" },
                 { status: 400 }
             );
+        }
+        if (supervisedSuggestion) {
+            const sourceMessage = await prisma.message.findFirst({
+                where: {
+                    id: supervisedSuggestion.sourceMessageId,
+                    conversationId,
+                    senderType: "guest",
+                },
+                select: { sentAt: true },
+            });
+            const newerGuestMessage = sourceMessage
+                ? await prisma.message.findFirst({
+                    where: {
+                        conversationId,
+                        senderType: "guest",
+                        id: { not: supervisedSuggestion.sourceMessageId },
+                        sentAt: { gt: sourceMessage.sentAt },
+                    },
+                    select: { id: true },
+                })
+                : null;
+            if (!sourceMessage || newerGuestMessage) {
+                await prisma.supervisedReplySuggestion.update({
+                    where: { id: supervisedSuggestion.id },
+                    data: { status: "expired", reviewedBy: actorId, reviewedAt: new Date() },
+                });
+                return NextResponse.json(
+                    { ok: false, error: "stale_supervised_suggestion" },
+                    { status: 409 },
+                );
+            }
         }
 
         const target = resolveEvolutionSendTarget(conversation.contact);

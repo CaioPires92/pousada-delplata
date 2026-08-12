@@ -101,6 +101,11 @@ export default function ReplyBox({ conversationId, automationMode }: ReplyBoxPro
 
             if (!response.ok) {
                 persistedFailureId = typeof data.messageId === "string" ? data.messageId : undefined;
+                if (data.error === "stale_supervised_suggestion") {
+                    setSuggestion(null);
+                    setText(messageText);
+                    throw new Error("O hóspede enviou uma nova mensagem. Revise a conversa antes de responder.");
+                }
                 throw new Error(data.error || "Falha ao enviar mensagem");
             }
 
