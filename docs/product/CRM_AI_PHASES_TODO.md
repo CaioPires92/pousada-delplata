@@ -339,6 +339,7 @@ teste falha → menor implementação possível → teste passa
     - [x] Excluir fallbacks heurísticos da amostra válida do Gemini.
     - [x] Exibir fila central de sugestões supervisionadas pendentes.
     - [x] Vincular revisões humanas somente à amostra válida das últimas 24 horas.
+    - [x] Priorizar decisões válidas e pendentes na tela de revisão das últimas 24 horas.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.

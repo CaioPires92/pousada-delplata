@@ -28,17 +28,16 @@ export async function GET() {
   if (auth instanceof NextResponse) return auth;
 
   const now = new Date();
-  const reviewDay = now.toISOString().slice(0, 10);
-  const dayStart = new Date(`${reviewDay}T00:00:00.000Z`);
+  const windowStartedAt = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const [logs, reviews] = await Promise.all([
     prisma.internalActionLog.findMany({
     where: {
       action: "IntentClassified",
-      createdAt: { gte: dayStart },
+      createdAt: { gte: windowStartedAt },
     },
     orderBy: { createdAt: "desc" },
-    take: 25,
+    take: 100,
     select: {
       id: true,
       createdAt: true,
@@ -54,7 +53,7 @@ export async function GET() {
     },
     }),
     prisma.internalActionLog.findMany({
-      where: { action: "AiDecisionReviewed", createdAt: { gte: dayStart } },
+      where: { action: "AiDecisionReviewed", createdAt: { gte: windowStartedAt } },
       orderBy: { createdAt: "desc" },
       select: { metadataJson: true, createdAt: true, userId: true },
     }),
@@ -105,20 +104,32 @@ export async function GET() {
       reviewedAt: review?.reviewedAt ?? null,
       reviewedBy: review?.reviewedBy ?? null,
     };
+  }).sort((left, right) => {
+    const leftValid = left.mode === "shadow" && left.source === "ai" && left.result === "classified";
+    const rightValid = right.mode === "shadow" && right.source === "ai" && right.result === "classified";
+    if (leftValid !== rightValid) return leftValid ? -1 : 1;
+    if (leftValid && rightValid && Boolean(left.reviewVerdict) !== Boolean(right.reviewVerdict)) {
+      return left.reviewVerdict ? 1 : -1;
+    }
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
   });
 
-  const shadowDecisions = decisions.filter(decision => decision.mode === "shadow");
+  const shadowDecisions = decisions.filter(decision =>
+    decision.mode === "shadow" && decision.source === "ai" && decision.result === "classified"
+  );
   const comparable = shadowDecisions.filter(decision => decision.agreementWithHeuristic !== null);
   const agreements = comparable.filter(decision => decision.agreementWithHeuristic === true).length;
   const authorizedActions = shadowDecisions.filter(decision => decision.actionAuthorized).length;
 
   return NextResponse.json({
     ok: true,
-    reviewDay,
+    windowStartedAt,
     decisions,
     summary: {
-      sampled: decisions.length,
+      sampled: shadowDecisions.length,
       shadow: shadowDecisions.length,
+      diagnostics: decisions.length - shadowDecisions.length,
+      pendingReview: shadowDecisions.filter(decision => !decision.reviewVerdict).length,
       authorizedActions,
       agreementRate: comparable.length > 0 ? agreements / comparable.length : null,
       gatePassed: shadowDecisions.length > 0 && authorizedActions === 0,

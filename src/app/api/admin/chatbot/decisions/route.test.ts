@@ -36,7 +36,7 @@ describe("admin chatbot decision review", () => {
   });
 
   it("returns a bounded and sanitized review sample", async () => {
-    mocks.findMany.mockResolvedValue([{
+    mocks.findMany.mockResolvedValueOnce([{
       id: "log-1",
       createdAt: new Date("2026-08-07T19:00:00.000Z"),
       conversationId: "conversation-1",
@@ -56,13 +56,13 @@ describe("admin chatbot decision review", () => {
         inputTokens: 42,
         outputTokens: 18,
       }),
-    }]);
+    }]).mockResolvedValueOnce([]);
 
     const response = await GET();
     const body = await response.json();
 
     expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      take: 25,
+      take: 100,
       where: expect.objectContaining({
         action: "IntentClassified",
         createdAt: { gte: expect.any(Date) },
@@ -75,24 +75,50 @@ describe("admin chatbot decision review", () => {
       totalTokens: 60,
       agreementWithHeuristic: false,
     });
-    expect(body.reviewDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(body.windowStartedAt).toEqual(expect.any(String));
     expect(body.summary).toEqual({
       sampled: 1,
       shadow: 1,
+      diagnostics: 0,
+      pendingReview: 1,
       authorizedActions: 0,
       agreementRate: 0,
       gatePassed: true,
     });
   });
 
+  it("prioritizes valid unreviewed Gemini decisions over diagnostics", async () => {
+    const base = {
+      createdAt: new Date("2026-08-12T19:00:00.000Z"),
+      conversationId: null,
+      conversation: null,
+    };
+    mocks.findMany.mockResolvedValueOnce([
+      { id: "fallback", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "heuristic", result: "fallback_invalid_response" }) },
+      { id: "reviewed-ai", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", agreementWithHeuristic: true }) },
+      { id: "pending-ai", ...base, metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", agreementWithHeuristic: true }) },
+    ]).mockResolvedValueOnce([{
+      metadataJson: JSON.stringify({ decisionId: "reviewed-ai", verdict: "approved" }),
+      createdAt: new Date(),
+      userId: "admin-1",
+    }]);
+
+    const body = await (await GET()).json();
+
+    expect(body.decisions.map((decision: { id: string }) => decision.id)).toEqual([
+      "pending-ai", "reviewed-ai", "fallback",
+    ]);
+    expect(body.summary).toMatchObject({ sampled: 2, shadow: 2, diagnostics: 1, pendingReview: 1 });
+  });
+
   it("fails the daily gate if shadow mode authorized any action", async () => {
-    mocks.findMany.mockResolvedValue([{
+    mocks.findMany.mockResolvedValueOnce([{
       id: "log-risk",
       createdAt: new Date(),
       conversationId: null,
       conversation: null,
-      metadataJson: JSON.stringify({ mode: "shadow", actionAuthorized: true }),
-    }]);
+      metadataJson: JSON.stringify({ mode: "shadow", source: "ai", result: "classified", actionAuthorized: true }),
+    }]).mockResolvedValueOnce([]);
 
     const response = await GET();
     const body = await response.json();

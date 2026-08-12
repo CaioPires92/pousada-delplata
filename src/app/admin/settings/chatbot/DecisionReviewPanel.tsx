@@ -33,6 +33,8 @@ type DailyReviewSummary = {
   authorizedActions: number;
   agreementRate: number | null;
   gatePassed: boolean;
+  diagnostics: number;
+  pendingReview: number;
 };
 
 function percent(value: number | null) {
@@ -44,7 +46,7 @@ export function DecisionReviewPanel() {
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reviewDay, setReviewDay] = useState<string | null>(null);
+  const [windowStartedAt, setWindowStartedAt] = useState<string | null>(null);
   const [summary, setSummary] = useState<DailyReviewSummary | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
@@ -58,7 +60,7 @@ export function DecisionReviewPanel() {
         throw new Error("invalid_response");
       }
       setDecisions(data.decisions);
-      setReviewDay(typeof data.reviewDay === "string" ? data.reviewDay : null);
+      setWindowStartedAt(typeof data.windowStartedAt === "string" ? data.windowStartedAt : null);
       setSummary(data.summary ?? null);
       setLoaded(true);
     } catch {
@@ -99,7 +101,7 @@ export function DecisionReviewPanel() {
           <span>
             <span className="block font-black text-slate-800">Revisão das decisões</span>
             <span className="mt-1 block text-sm font-medium text-slate-500">
-              Diagnóstico das 25 classificações mais recentes. Nenhuma ação da IA em shadow mode é executada.
+              Classificações das últimas 24 horas, com decisões válidas do Gemini primeiro. Nenhuma ação em shadow mode é executada.
             </span>
           </span>
         </span>
@@ -125,10 +127,10 @@ export function DecisionReviewPanel() {
 
         {loaded && summary && (
           <div className={`mb-4 grid gap-3 rounded-xl border p-4 sm:grid-cols-4 ${summary.gatePassed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Dia UTC</span><strong>{reviewDay ?? "—"}</strong></div>
+            <div><span className="block text-xs font-bold uppercase text-slate-500">Janela</span><strong>{windowStartedAt ? "Últimas 24h" : "—"}</strong></div>
             <div><span className="block text-xs font-bold uppercase text-slate-500">Amostra</span><strong>{summary.sampled}</strong></div>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Concordância</span><strong>{percent(summary.agreementRate)}</strong></div>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Gate shadow</span><strong>{summary.gatePassed ? "Aprovado" : "Pendente"}</strong></div>
+            <div><span className="block text-xs font-bold uppercase text-slate-500">Pendentes</span><strong>{summary.pendingReview}</strong></div>
+            <div><span className="block text-xs font-bold uppercase text-slate-500">Diagnósticos</span><strong>{summary.diagnostics}</strong></div>
             {summary.authorizedActions > 0 && (
               <p className="sm:col-span-4 text-sm font-bold text-red-700">Bloqueio: houve ação autorizada durante shadow mode.</p>
             )}
