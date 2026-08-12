@@ -57,15 +57,15 @@ model Rate {
 }
 
 model InventoryAdjustment {
-  id         String   @id @default(uuid())
-  roomTypeId String
-  date       DateTime
-  dateKey    String
-  totalUnits Int
-  occupiedUnits Int    @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  id            String   @id @default(uuid())
+  roomTypeId    String
+  date          DateTime
+  dateKey       String
+  totalUnits    Int
+  occupiedUnits Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  roomType      RoomType @relation(fields: [roomTypeId], references: [id])
 
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])
@@ -96,39 +96,39 @@ model Guest {
 }
 
 model Booking {
-  id                 String            @id @default(uuid())
-  guestId            String
-  roomTypeId         String
-  adults             Int               @default(1)
-  children           Int               @default(0)
-  childrenAges       String?
-  checkIn            DateTime
-  checkOut           DateTime
-  totalPrice         Decimal
-  subtotalPrice      Decimal?
-  discountAmount     Decimal?
-  appliedCouponCode  String?
-  status             String
-  funnelStage        String?
-  funnelUpdatedAt    DateTime?
-  lastErrorMessage   String?
-  pendingEmailSentAt DateTime?
-  expiredEmailSentAt DateTime?
+  id                      String            @id @default(uuid())
+  guestId                 String
+  roomTypeId              String
+  adults                  Int               @default(1)
+  children                Int               @default(0)
+  childrenAges            String?
+  checkIn                 DateTime
+  checkOut                DateTime
+  totalPrice              Decimal
+  subtotalPrice           Decimal?
+  discountAmount          Decimal?
+  appliedCouponCode       String?
+  status                  String
+  funnelStage             String?
+  funnelUpdatedAt         DateTime?
+  lastErrorMessage        String?
+  pendingEmailSentAt      DateTime?
+  expiredEmailSentAt      DateTime?
   confirmationEmailSentAt DateTime?
   checkoutConfirmedAt     DateTime?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
   crmContactId            String?
   crmConversationId       String?
-  roomType           RoomType          @relation(fields: [roomTypeId], references: [id])
-  guest              Guest             @relation(fields: [guestId], references: [id])
+  roomType                RoomType          @relation(fields: [roomTypeId], references: [id])
+  guest                   Guest             @relation(fields: [guestId], references: [id])
   crmContact              Contact?          @relation(fields: [crmContactId], references: [id], onDelete: SetNull)
   crmConversation         Conversation?     @relation(fields: [crmConversationId], references: [id], onDelete: SetNull)
   pipelineCard            PipelineCard?
-  couponRedemption   CouponRedemption?
-  issuedCoupons      Coupon[]           @relation("CouponOriginBooking")
+  couponRedemption        CouponRedemption?
+  issuedCoupons           Coupon[]          @relation("CouponOriginBooking")
   couponGrant             CouponGrant?
-  payment            Payment?
+  payment                 Payment?
 
   @@index([crmContactId])
   @@index([crmConversationId])
@@ -149,24 +149,24 @@ model PartialPaymentSettings {
 }
 
 model DiscountPolicySettings {
-  id                String   @id
-  sendEnabled       Boolean  @default(true)
-  percentage        Int      @default(10)
-  validityDays      Int      @default(7)
-  minimumBookingValue Decimal?
+  id                    String   @id
+  sendEnabled           Boolean  @default(true)
+  percentage            Int      @default(10)
+  validityDays          Int      @default(7)
+  minimumBookingValue   Decimal?
   maximumDiscountAmount Decimal?
-  blockedDateRanges String   @default("[]")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  blockedDateRanges     String   @default("[]")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model Payment {
-  id              String   @id @default(uuid())
-  bookingId       String   @unique
+  id              String    @id @default(uuid())
+  bookingId       String    @unique
   amount          Decimal
   totalAmount     Decimal?
-  remainingAmount Decimal  @default(0)
-  paymentMode     String   @default("FULL")
+  remainingAmount Decimal   @default(0)
+  paymentMode     String    @default("FULL")
   balanceDueAt    String?
   balanceDueDate  DateTime?
   provider        String
@@ -175,9 +175,9 @@ model Payment {
   cardBrand       String?
   installments    Int?
   status          String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  booking         Booking  @relation(fields: [bookingId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  booking         Booking   @relation(fields: [bookingId], references: [id])
 }
 
 model AdminUser {
@@ -283,23 +283,23 @@ model CouponGrant {
 }
 
 model Contact {
-  id              String              @id @default(uuid())
-  name            String?
-  phoneRaw        String?
-  phone           String?             @unique
-  lid             String?             @unique
-  whatsappJid     String?             @unique
-  email           String?
-  source          String              @default("manual")
-  status          String              @default("lead")
-  optInWhatsapp   Boolean             @default(false)
-  optOutAt        DateTime?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  conversations   Conversation[]
-  pipelineCards   PipelineCard[]
+  id                String              @id @default(uuid())
+  name              String?
+  phoneRaw          String?
+  phone             String?             @unique
+  lid               String?             @unique
+  whatsappJid       String?             @unique
+  email             String?
+  source            String              @default("manual")
+  status            String              @default("lead")
+  optInWhatsapp     Boolean             @default(false)
+  optOutAt          DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  conversations     Conversation[]
+  pipelineCards     PipelineCard[]
   reservationDrafts ReservationDraft[]
-  actionLogs      InternalActionLog[]
+  actionLogs        InternalActionLog[]
   bookings          Booking[]
   couponGrants      CouponGrant[]
 
@@ -310,41 +310,41 @@ model Contact {
 }
 
 model Conversation {
-  id                    String              @id @default(uuid())
-  contactId             String
-  channel               String
-  status                String              @default("open")
-  chatbotEnabled        Boolean             @default(false)
-  chatbotTestEnabled    Boolean             @default(false)
-  automationMode        String              @default("off")
-  automationPausedUntil DateTime?
-  currentFlow           String?
-  flowStep              String?
-  flowDataJson          String?
-  lastAutomationAt      DateTime?
-  automationFailureCount Int                @default(0)
-  assignedUserId        String?
-  unreadCount           Int                 @default(0)
-  lastReadAt            DateTime?
-  lastMessageAt         DateTime?           @default(now())
-  lastCustomerMessageAt DateTime?
-  lastHumanMessageAt    DateTime?
-  firstCustomerMessageAt DateTime?
-  firstHumanResponseAt   DateTime?
+  id                       String                @id @default(uuid())
+  contactId                String
+  channel                  String
+  status                   String                @default("open")
+  chatbotEnabled           Boolean               @default(false)
+  chatbotTestEnabled       Boolean               @default(false)
+  automationMode           String                @default("off")
+  automationPausedUntil    DateTime?
+  currentFlow              String?
+  flowStep                 String?
+  flowDataJson             String?
+  lastAutomationAt         DateTime?
+  automationFailureCount   Int                   @default(0)
+  assignedUserId           String?
+  unreadCount              Int                   @default(0)
+  lastReadAt               DateTime?
+  lastMessageAt            DateTime?             @default(now())
+  lastCustomerMessageAt    DateTime?
+  lastHumanMessageAt       DateTime?
+  firstCustomerMessageAt   DateTime?
+  firstHumanResponseAt     DateTime?
   firstResponseTimeSeconds Int?
-  awaitingHumanResponse Boolean             @default(false)
-  waitingSince          DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  contact               Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  messages              Message[]
-  pipelineCards         PipelineCard[]
-  reservationDrafts     ReservationDraft[]
-  automationQueueJobs   AutomationQueueJob[]
-  deadLetterItems       DeadLetterQueueItem[]
-  internalNotes         InternalNote[]
+  awaitingHumanResponse    Boolean               @default(false)
+  waitingSince             DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  contact                  Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages                 Message[]
+  pipelineCards            PipelineCard[]
+  reservationDrafts        ReservationDraft[]
+  automationQueueJobs      AutomationQueueJob[]
+  deadLetterItems          DeadLetterQueueItem[]
+  internalNotes            InternalNote[]
   supervisedSuggestions   SupervisedReplySuggestion[]
-  actionLogs            InternalActionLog[]
+  actionLogs               InternalActionLog[]
   bookings                 Booking[]
 
   @@index([contactId])
@@ -360,6 +360,7 @@ model SupervisedReplySuggestion {
   sourceMessageId String       @unique
   content         String
   intent          String
+  rolloutIntent   String?
   ruleId          String
   ruleVersion     Int
   status          String       @default("pending")
@@ -372,6 +373,7 @@ model SupervisedReplySuggestion {
 
   @@index([conversationId, status, createdAt])
   @@index([status, createdAt])
+  @@index([rolloutIntent, status, reviewedAt])
 }
 
 model AutomationQueueJob {
@@ -399,15 +401,15 @@ model AutomationQueueJob {
 }
 
 model DeadLetterQueueItem {
-  id             String       @id @default(uuid())
+  id             String        @id @default(uuid())
   conversationId String?
   source         String
   action         String
   reason         String
   payloadJson    String
-  status         String       @default("open")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  status         String        @default("open")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   replayedAt     DateTime?
   conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 
@@ -417,22 +419,22 @@ model DeadLetterQueueItem {
 }
 
 model Message {
-  id                String       @id @default(uuid())
-  conversationId    String
-  externalMessageId String?
-  senderType        String
-  content           String?
-  messageType       String       @default("text")
-  mediaUrl          String?
-  metadataJson      String?
-  deliveryStatus    String?
-  deliveryErrorCode String?
-  deliveryErrorTitle String?
+  id                  String       @id @default(uuid())
+  conversationId      String
+  externalMessageId   String?
+  senderType          String
+  content             String?
+  messageType         String       @default("text")
+  mediaUrl            String?
+  metadataJson        String?
+  deliveryStatus      String?
+  deliveryErrorCode   String?
+  deliveryErrorTitle  String?
   deliveryErrorDetail String?
-  deliveryUpdatedAt DateTime?
-  sentAt            DateTime
-  createdAt         DateTime     @default(now())
-  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  deliveryUpdatedAt   DateTime?
+  sentAt              DateTime
+  createdAt           DateTime     @default(now())
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, externalMessageId])
   @@index([conversationId, sentAt])
@@ -442,17 +444,17 @@ model Message {
 }
 
 model MessagingWebhookEvent {
-  id                  String   @id @default(uuid())
+  id                  String    @id @default(uuid())
   provider            String
   externalEventId     String
   eventKind           String
   externalMessageId   String
   normalizedEventJson String
-  processingStatus    String   @default("pending")
-  receivedAt          DateTime @default(now())
+  processingStatus    String    @default("pending")
+  receivedAt          DateTime  @default(now())
   processedAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@unique([provider, externalEventId, eventKind])
   @@index([processingStatus, receivedAt])
@@ -460,34 +462,34 @@ model MessagingWebhookEvent {
 }
 
 model PipelineCard {
-  id             String        @id @default(uuid())
-  contactId      String
-  conversationId String?
-  stage          String        @default("NOVO_LEAD")
-  priority       String        @default("media")
-  assignedUserId String?
-  source         String        @default("manual")
-  lastActivityAt DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  estimatedValue Float?
-  intendedArrival DateTime?
-  intendedCheckin DateTime?
-  intendedCheckout DateTime?
-  adults         Int?
-  children       Int?
-  roomTypeInterest String?
-  lossReason     String?
-  lostReason     String?
+  id                String                 @id @default(uuid())
+  contactId         String
+  conversationId    String?
+  stage             String                 @default("NOVO_LEAD")
+  priority          String                 @default("media")
+  assignedUserId    String?
+  source            String                 @default("manual")
+  lastActivityAt    DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  estimatedValue    Float?
+  intendedArrival   DateTime?
+  intendedCheckin   DateTime?
+  intendedCheckout  DateTime?
+  adults            Int?
+  children          Int?
+  roomTypeInterest  String?
+  lossReason        String?
+  lostReason        String?
   bookingId         String?                @unique
-  tags           String?
-  followUpAt     DateTime?
-  quoteStatus    String?
-  upsellStatus   String?
-  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  tags              String?
+  followUpAt        DateTime?
+  quoteStatus       String?
+  upsellStatus      String?
+  contact           Contact                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversation      Conversation?          @relation(fields: [conversationId], references: [id], onDelete: SetNull)
   booking           Booking?               @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  stageHistory   PipelineStageHistory[]
+  stageHistory      PipelineStageHistory[]
   reservationDrafts ReservationDraft[]
 
   @@index([contactId])
@@ -498,21 +500,21 @@ model PipelineCard {
 }
 
 model ReservationDraft {
-  id               String        @id @default(uuid())
-  contactId        String
-  conversationId   String
-  pipelineCardId   String?
-  status           String        @default("in_progress")
-  guestName        String?
-  guestCpf         String?
-  guestEmail       String?
-  paymentMethod    String?
-  notes            String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  contact          Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  conversation     Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  pipelineCard     PipelineCard? @relation(fields: [pipelineCardId], references: [id], onDelete: SetNull)
+  id             String        @id @default(uuid())
+  contactId      String
+  conversationId String
+  pipelineCardId String?
+  status         String        @default("in_progress")
+  guestName      String?
+  guestCpf       String?
+  guestEmail     String?
+  paymentMethod  String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  pipelineCard   PipelineCard? @relation(fields: [pipelineCardId], references: [id], onDelete: SetNull)
 
   @@index([contactId, createdAt])
   @@index([conversationId, updatedAt])
@@ -521,14 +523,14 @@ model ReservationDraft {
 }
 
 model PipelineStageHistory {
-  id             String        @id @default(uuid())
+  id             String       @id @default(uuid())
   pipelineCardId String
   fromStage      String
   toStage        String
-  actorType      String        @default("system")
+  actorType      String       @default("system")
   reason         String?
-  createdAt      DateTime      @default(now())
-  pipelineCard   PipelineCard  @relation(fields: [pipelineCardId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  pipelineCard   PipelineCard @relation(fields: [pipelineCardId], references: [id], onDelete: Cascade)
 
   @@index([pipelineCardId, createdAt])
   @@index([fromStage, toStage])
@@ -567,18 +569,18 @@ model PostStaySettings {
 }
 
 model ChatbotRule {
-  id        String   @id @default(uuid())
-  trigger   String   @unique
-  response  String
-  category  String   @default("faq")
-  audience  String   @default("public")
-  source    String?
-  version   Int      @default(1)
+  id         String    @id @default(uuid())
+  trigger    String    @unique
+  response   String
+  category   String    @default("faq")
+  audience   String    @default("public")
+  source     String?
+  version    Int       @default(1)
   approvedAt DateTime?
   approvedBy String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model InternalActionLog {

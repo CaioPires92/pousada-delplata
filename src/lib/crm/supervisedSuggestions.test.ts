@@ -58,6 +58,7 @@ describe("supervised reply suggestions", () => {
         content: "O check-in começa às 14h.",
         ruleId: "rule-1",
         ruleVersion: 2,
+        rolloutIntent: "faq",
       }),
       update: {},
     });

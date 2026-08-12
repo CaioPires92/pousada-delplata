@@ -24,6 +24,7 @@ export async function createSupervisedSuggestionForInbound(input: {
       sourceMessageId: input.sourceMessageId,
       content: knowledge.response,
       intent: knowledge.category,
+      rolloutIntent: "faq",
       ruleId: knowledge.ruleId,
       ruleVersion: knowledge.version,
     },

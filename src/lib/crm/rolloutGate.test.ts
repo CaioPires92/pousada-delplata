@@ -166,7 +166,7 @@ describe("automatic reply rollout gate", () => {
       metrics: { shadowSample: 0 },
     });
     expect(prisma.supervisedReplySuggestion.count).toHaveBeenCalledWith({
-      where: expect.not.objectContaining({ intent: expect.anything() }),
+      where: expect.objectContaining({ rolloutIntent: "faq" }),
     });
   });
 
