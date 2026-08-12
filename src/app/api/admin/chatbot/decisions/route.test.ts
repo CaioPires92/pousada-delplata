@@ -231,4 +231,23 @@ describe("admin chatbot decision review", () => {
     expect(response.status).toBe(404);
     expect(mocks.create).not.toHaveBeenCalled();
   });
+
+  it("limits human review to decisions inside the current 24-hour sample", async () => {
+    mocks.findFirst.mockResolvedValueOnce(null);
+
+    const response = await POST(new Request("http://localhost/api/admin/chatbot/decisions", {
+      method: "POST",
+      body: JSON.stringify({ decisionId: "old-decision", verdict: "approved" }),
+    }));
+
+    expect(response.status).toBe(404);
+    expect(mocks.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        id: "old-decision",
+        action: "IntentClassified",
+        createdAt: { gte: expect.any(Date) },
+      },
+    }));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
 });

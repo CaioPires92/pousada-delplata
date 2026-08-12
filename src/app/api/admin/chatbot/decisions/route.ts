@@ -198,8 +198,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "invalid_body" }, { status: 400 });
   }
 
+  const windowStartedAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
   const decision = await prisma.internalActionLog.findFirst({
-    where: { id: decisionId, action: "IntentClassified" },
+    where: {
+      id: decisionId,
+      action: "IntentClassified",
+      createdAt: { gte: windowStartedAt },
+    },
     select: { id: true, conversationId: true, metadataJson: true },
   });
   const decisionMetadata = decision ? readMetadata(decision.metadataJson) : {};
