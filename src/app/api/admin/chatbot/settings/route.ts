@@ -99,6 +99,19 @@ export async function PUT(request: Request) {
     if (increasesPercentage && body.autoReplyRolloutPercentage > previousPercentage + 5) {
       return NextResponse.json({ ok: false, error: "rollout_increment_too_large" }, { status: 400 });
     }
+    const effectiveIntents = (releasedAutoReplyIntents ?? previousIntents) as string[];
+    if (
+      increasesPercentage
+      && previousPercentage === 0
+      && (effectiveIntents.length !== 1 || effectiveIntents[0] !== "faq")
+    ) {
+      return NextResponse.json({
+        ok: false,
+        error: "first_rollout_requires_faq_only",
+        requiredIntents: ["faq"],
+        configuredIntents: effectiveIntents,
+      }, { status: 409 });
+    }
     if (addedIntents.length > 0 || increasesPercentage) {
       const intentsToValidate = addedIntents.length > 0
         ? addedIntents

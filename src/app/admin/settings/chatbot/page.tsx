@@ -140,14 +140,27 @@ export default function ChatbotSettingsPage() {
                 body: JSON.stringify({ autoReplyRolloutPercentage: rolloutPercentage }),
             });
             const data = await response.json();
-            if (!response.ok || !data.ok) throw new Error("Falha ao atualizar percentual");
+            if (!response.ok || !data.ok) {
+                if (data.error === "first_rollout_requires_faq_only") {
+                    throw new Error("FIRST_ROLLOUT_REQUIRES_FAQ_ONLY");
+                }
+                if (data.error === "rollout_gate_blocked") {
+                    throw new Error("ROLLOUT_GATE_BLOCKED");
+                }
+                throw new Error("ROLLOUT_UPDATE_FAILED");
+            }
             const saved = Number(data.settings.autoReplyRolloutPercentage);
             setRolloutPercentage(saved);
             setSavedRolloutPercentage(saved);
             setSuccess(`Rollout atualizado para ${saved}%.`);
             setTimeout(() => setSuccess(null), 3000);
-        } catch {
-            setError("Erro ao atualizar o percentual de rollout.");
+        } catch (caughtError) {
+            const message = caughtError instanceof Error ? caughtError.message : "";
+            setError(message === "FIRST_ROLLOUT_REQUIRES_FAQ_ONLY"
+                ? "Para iniciar o piloto, deixe somente FAQ aprovada selecionada. Cotação e outras intenções permanecem em revisão."
+                : message === "ROLLOUT_GATE_BLOCKED"
+                    ? "O percentual não foi alterado porque a amostra desta intenção ainda não passou no gate de segurança."
+                    : "Erro ao atualizar o percentual de rollout.");
         } finally {
             setIsRolloutSaving(false);
         }

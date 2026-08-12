@@ -53,6 +53,11 @@ describe("admin chatbot settings", () => {
   });
 
   it("validates, persists and audits the rollout percentage", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 0,
+    });
     const invalid = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
       method: "PUT",
       body: JSON.stringify({ autoReplyRolloutPercentage: 101 }),
@@ -76,6 +81,11 @@ describe("admin chatbot settings", () => {
   });
 
   it("blocks expansion when operational evidence has not passed", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 0,
+    });
     mocks.evaluateRolloutGate.mockResolvedValue({
       approved: false,
       reasons: ["insufficient_shadow_sample"],
@@ -108,6 +118,39 @@ describe("admin chatbot settings", () => {
     expect(intents.status).toBe(400);
     expect(percentage.status).toBe(400);
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("allows the first production percentage only for FAQ alone", async () => {
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 5 }),
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "first_rollout_requires_faq_only",
+      requiredIntents: ["faq"],
+      configuredIntents: ["quote"],
+    });
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("allows the first production percentage after isolating FAQ", async () => {
+    mocks.findFirst.mockResolvedValue({
+      id: "global",
+      autoReplyIntentsJson: '["faq"]',
+      autoReplyRolloutPercentage: 0,
+    });
+
+    const response = await PUT(new Request("http://localhost/api/admin/chatbot/settings", {
+      method: "PUT",
+      body: JSON.stringify({ autoReplyRolloutPercentage: 5 }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { autoReplyRolloutPercentage: 5 },
+    }));
   });
 
   it("protects both reading and writing with admin authentication", async () => {
