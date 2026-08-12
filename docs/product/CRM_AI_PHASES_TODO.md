@@ -369,6 +369,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F8.08 Expandir uma intent por vez conforme métricas.
 - [x] F8.09 Ensaiar kill switch, rollback e replay de fila.
   - [x] Permitir descarte auditável de dead-letter obsoleta sem reenvio externo.
+  - [x] Disponibilizar listagem administrativa sanitizada da dead-letter.
 - [x] F8.10 Criar runbook de incidentes e responsável de plantão.
 - [x] F8.11 Preservar Meta isolada e inativa; não remover seus arquivos nem variáveis.
 
