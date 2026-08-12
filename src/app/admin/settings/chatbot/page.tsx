@@ -52,7 +52,18 @@ type RolloutGate = {
         humanShadowReviewed: number;
         humanShadowApprovalRate: number | null;
     };
+    requirements: {
+        minimumShadowSample: number;
+        minimumShadowAgreementRate: number;
+        minimumSupervisedReviews: number;
+        minimumHumanShadowReviews: number;
+        minimumHumanShadowApprovalRate: number;
+    };
 };
+
+function remaining(current: number, required: number) {
+    return Math.max(0, required - current);
+}
 
 type RolloutPreview = {
     current: { percentage: number; openWhatsappConversations: number; eligibleConversations: number };
@@ -483,8 +494,13 @@ export default function ChatbotSettingsPage() {
                                                 </span>
                                             </div>
                                             <p className="mt-1 text-slate-500">
-                                                Shadow {gate.metrics.shadowSample} · Humana {gate.metrics.humanShadowReviewed} · Supervisionada {gate.metrics.supervisedReviewed}
+                                                Shadow {gate.metrics.shadowSample}/{gate.requirements.minimumShadowSample} · Humana {gate.metrics.humanShadowReviewed}/{gate.requirements.minimumHumanShadowReviews} · Supervisionada {gate.metrics.supervisedReviewed}/{gate.requirements.minimumSupervisedReviews}
                                             </p>
+                                            {!gate.approved && (
+                                                <p className="mt-1 text-slate-500">
+                                                    Faltam {remaining(gate.metrics.shadowSample, gate.requirements.minimumShadowSample)} shadow, {remaining(gate.metrics.humanShadowReviewed, gate.requirements.minimumHumanShadowReviews)} revisões humanas e {remaining(gate.metrics.supervisedReviewed, gate.requirements.minimumSupervisedReviews)} supervisionadas.
+                                                </p>
+                                            )}
                                             {!gate.approved && gate.reasons.length > 0 && (
                                                 <p className="mt-1 font-semibold text-amber-800">
                                                     {ROLLOUT_REASON_LABELS[gate.reasons[0]] ?? gate.reasons[0]}

@@ -38,6 +38,13 @@ export type AutoReplyRolloutGate = {
     humanShadowReviewed: number;
     humanShadowApprovalRate: number | null;
   };
+  requirements: {
+    minimumShadowSample: number;
+    minimumShadowAgreementRate: number;
+    minimumSupervisedReviews: number;
+    minimumHumanShadowReviews: number;
+    minimumHumanShadowApprovalRate: number;
+  };
 };
 
 export async function evaluateAutoReplyRolloutGate(
@@ -111,6 +118,13 @@ export async function evaluateAutoReplyRolloutGate(
       supervisedReviewed,
       humanShadowReviewed: reviewedVerdicts.length,
       humanShadowApprovalRate: humanApprovalRate,
+    },
+    requirements: {
+      minimumShadowSample: minimumShadow,
+      minimumShadowAgreementRate: 0.8,
+      minimumSupervisedReviews: minimumSupervised,
+      minimumHumanShadowReviews: minimumHumanShadowReviews,
+      minimumHumanShadowApprovalRate: 0.8,
     },
   };
 }

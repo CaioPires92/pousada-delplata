@@ -348,6 +348,7 @@ teste falha → menor implementação possível → teste passa
     - [x] Permitir filtrar rapidamente decisões pendentes e amostras válidas de FAQ no painel.
     - [x] Resumir amostra, revisões e aprovação humana por intenção nas últimas 24 horas.
     - [x] Atualizar amostra e gates imediatamente após cada veredito humano.
+    - [x] Exibir metas e quantidade restante de evidências por intenção.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
 - [ ] F8.07 Ativar FAQ segura em pequeno percentual.
   - [x] Exibir quantas conversas abertas seriam elegíveis antes de aumentar o percentual.

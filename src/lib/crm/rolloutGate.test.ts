@@ -86,6 +86,13 @@ describe("automatic reply rollout gate", () => {
         humanShadowReviewed: 5,
         humanShadowApprovalRate: 0.8,
       },
+      requirements: {
+        minimumShadowSample: 5,
+        minimumShadowAgreementRate: 0.8,
+        minimumSupervisedReviews: 2,
+        minimumHumanShadowReviews: 5,
+        minimumHumanShadowApprovalRate: 0.8,
+      },
     });
   });
 
