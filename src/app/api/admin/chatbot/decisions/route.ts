@@ -120,6 +120,39 @@ export async function GET() {
   const comparable = shadowDecisions.filter(decision => decision.agreementWithHeuristic !== null);
   const agreements = comparable.filter(decision => decision.agreementWithHeuristic === true).length;
   const authorizedActions = shadowDecisions.filter(decision => decision.actionAuthorized).length;
+  const intentSummary = new Map<string, {
+    intent: string;
+    sampled: number;
+    reviewed: number;
+    approved: number;
+    rejected: number;
+    pending: number;
+    approvalRate: number | null;
+  }>();
+  for (const decision of shadowDecisions) {
+    const intent = decision.suggestedAction === "answer_approved_faq" ? "faq" : decision.intent;
+    const current = intentSummary.get(intent) ?? {
+      intent,
+      sampled: 0,
+      reviewed: 0,
+      approved: 0,
+      rejected: 0,
+      pending: 0,
+      approvalRate: null,
+    };
+    current.sampled += 1;
+    if (decision.reviewVerdict === "approved") {
+      current.reviewed += 1;
+      current.approved += 1;
+    } else if (decision.reviewVerdict === "rejected") {
+      current.reviewed += 1;
+      current.rejected += 1;
+    } else {
+      current.pending += 1;
+    }
+    current.approvalRate = current.reviewed > 0 ? current.approved / current.reviewed : null;
+    intentSummary.set(intent, current);
+  }
 
   return NextResponse.json({
     ok: true,
@@ -133,6 +166,7 @@ export async function GET() {
       authorizedActions,
       agreementRate: comparable.length > 0 ? agreements / comparable.length : null,
       gatePassed: shadowDecisions.length > 0 && authorizedActions === 0,
+      byIntent: [...intentSummary.values()].sort((left, right) => left.intent.localeCompare(right.intent)),
     },
   });
 }

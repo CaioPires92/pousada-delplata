@@ -35,6 +35,15 @@ type DailyReviewSummary = {
   gatePassed: boolean;
   diagnostics: number;
   pendingReview: number;
+  byIntent: Array<{
+    intent: string;
+    sampled: number;
+    reviewed: number;
+    approved: number;
+    rejected: number;
+    pending: number;
+    approvalRate: number | null;
+  }>;
 };
 
 type ReviewFilter = "pending" | "faq" | "all";
@@ -163,13 +172,45 @@ export function DecisionReviewPanel() {
         )}
 
         {loaded && summary && (
-          <div className={`mb-4 grid gap-3 rounded-xl border p-4 sm:grid-cols-4 ${summary.gatePassed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Janela</span><strong>{windowStartedAt ? "Últimas 24h" : "—"}</strong></div>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Amostra</span><strong>{summary.sampled}</strong></div>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Pendentes</span><strong>{summary.pendingReview}</strong></div>
-            <div><span className="block text-xs font-bold uppercase text-slate-500">Diagnósticos</span><strong>{summary.diagnostics}</strong></div>
-            {summary.authorizedActions > 0 && (
-              <p className="sm:col-span-4 text-sm font-bold text-red-700">Bloqueio: houve ação autorizada durante shadow mode.</p>
+          <div className="mb-4 space-y-3">
+            <div className={`grid gap-3 rounded-xl border p-4 sm:grid-cols-4 ${summary.gatePassed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+              <div><span className="block text-xs font-bold uppercase text-slate-500">Janela</span><strong>{windowStartedAt ? "Últimas 24h" : "—"}</strong></div>
+              <div><span className="block text-xs font-bold uppercase text-slate-500">Amostra</span><strong>{summary.sampled}</strong></div>
+              <div><span className="block text-xs font-bold uppercase text-slate-500">Pendentes</span><strong>{summary.pendingReview}</strong></div>
+              <div><span className="block text-xs font-bold uppercase text-slate-500">Diagnósticos</span><strong>{summary.diagnostics}</strong></div>
+              {summary.authorizedActions > 0 && (
+                <p className="sm:col-span-4 text-sm font-bold text-red-700">Bloqueio: houve ação autorizada durante shadow mode.</p>
+              )}
+            </div>
+            {summary.byIntent.length > 0 && (
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="min-w-[620px] w-full text-left text-xs">
+                  <thead className="bg-slate-50 uppercase tracking-wider text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2">Intenção</th>
+                      <th className="px-3 py-2">Amostra</th>
+                      <th className="px-3 py-2">Revisadas</th>
+                      <th className="px-3 py-2">Corretas</th>
+                      <th className="px-3 py-2">Incorretas</th>
+                      <th className="px-3 py-2">Pendentes</th>
+                      <th className="px-3 py-2">Aprovação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {summary.byIntent.map(intent => (
+                      <tr key={intent.intent}>
+                        <td className="px-3 py-2 font-black text-slate-700">{intent.intent}</td>
+                        <td className="px-3 py-2">{intent.sampled}</td>
+                        <td className="px-3 py-2">{intent.reviewed}</td>
+                        <td className="px-3 py-2 text-emerald-700">{intent.approved}</td>
+                        <td className="px-3 py-2 text-red-700">{intent.rejected}</td>
+                        <td className="px-3 py-2">{intent.pending}</td>
+                        <td className="px-3 py-2 font-bold">{percent(intent.approvalRate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

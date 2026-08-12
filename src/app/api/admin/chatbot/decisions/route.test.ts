@@ -84,7 +84,40 @@ describe("admin chatbot decision review", () => {
       authorizedActions: 0,
       agreementRate: 0,
       gatePassed: true,
+      byIntent: [{
+        intent: "faq",
+        sampled: 1,
+        reviewed: 0,
+        approved: 0,
+        rejected: 0,
+        pending: 1,
+        approvalRate: null,
+      }],
     });
+  });
+
+  it("summarizes persisted human reviews by rollout intent", async () => {
+    const base = {
+      createdAt: new Date("2026-08-12T19:00:00.000Z"),
+      conversationId: null,
+      conversation: null,
+    };
+    mocks.findMany.mockResolvedValueOnce([
+      { id: "faq-approved", ...base, metadataJson: JSON.stringify({ intent: "amenity", suggestedAction: "answer_approved_faq", mode: "shadow", source: "ai", result: "classified" }) },
+      { id: "faq-pending", ...base, metadataJson: JSON.stringify({ intent: "amenity", suggestedAction: "answer_approved_faq", mode: "shadow", source: "ai", result: "classified" }) },
+      { id: "quote-rejected", ...base, metadataJson: JSON.stringify({ intent: "quote", mode: "shadow", source: "ai", result: "classified" }) },
+      { id: "diagnostic", ...base, metadataJson: JSON.stringify({ intent: "unknown", mode: "shadow", source: "heuristic", result: "fallback_invalid_response" }) },
+    ]).mockResolvedValueOnce([
+      { metadataJson: JSON.stringify({ decisionId: "faq-approved", verdict: "approved" }), createdAt: new Date(), userId: "admin-1" },
+      { metadataJson: JSON.stringify({ decisionId: "quote-rejected", verdict: "rejected" }), createdAt: new Date(), userId: "admin-1" },
+    ]);
+
+    const body = await (await GET()).json();
+
+    expect(body.summary.byIntent).toEqual([
+      { intent: "faq", sampled: 2, reviewed: 1, approved: 1, rejected: 0, pending: 1, approvalRate: 1 },
+      { intent: "quote", sampled: 1, reviewed: 1, approved: 0, rejected: 1, pending: 0, approvalRate: 0 },
+    ]);
   });
 
   it("prioritizes valid unreviewed Gemini decisions over diagnostics", async () => {
