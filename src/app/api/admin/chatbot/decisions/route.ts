@@ -222,7 +222,7 @@ export async function GET() {
       pendingReview: shadowDecisions.filter(decision => !decision.reviewVerdict).length,
       authorizedActions,
       agreementRate: comparable.length > 0 ? agreements / comparable.length : null,
-      gatePassed: shadowDecisions.length > 0 && authorizedActions === 0,
+      shadowSafetyPassed: shadowDecisions.length > 0 && authorizedActions === 0,
       byIntent: [...intentSummary.values()].sort((left, right) => left.intent.localeCompare(right.intent)),
       corrections: [...correctionSummary.values()].sort((left, right) => (
         right.count - left.count

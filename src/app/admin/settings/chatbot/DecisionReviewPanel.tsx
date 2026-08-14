@@ -48,7 +48,7 @@ type DailyReviewSummary = {
   shadow: number;
   authorizedActions: number;
   agreementRate: number | null;
-  gatePassed: boolean;
+  shadowSafetyPassed: boolean;
   diagnostics: number;
   obsoleteVersions: number;
   pendingReview: number;
@@ -206,7 +206,7 @@ export function DecisionReviewPanel({ onReviewRecorded }: DecisionReviewPanelPro
 
         {loaded && summary && (
           <div className="mb-4 space-y-3">
-            <div className={`grid gap-3 rounded-xl border p-4 sm:grid-cols-4 ${summary.gatePassed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+            <div className={`grid gap-3 rounded-xl border p-4 sm:grid-cols-4 ${summary.shadowSafetyPassed ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
               <div><span className="block text-xs font-bold uppercase text-slate-500">Janela</span><strong>{windowStartedAt ? "Últimas 24h" : "—"}</strong></div>
               <div><span className="block text-xs font-bold uppercase text-slate-500">Amostra</span><strong>{summary.sampled}</strong></div>
               <div><span className="block text-xs font-bold uppercase text-slate-500">Pendentes</span><strong>{summary.pendingReview}</strong></div>

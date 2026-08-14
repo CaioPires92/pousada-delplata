@@ -109,7 +109,7 @@ describe("admin chatbot decision review", () => {
       pendingReview: 1,
       authorizedActions: 0,
       agreementRate: 0,
-      gatePassed: true,
+      shadowSafetyPassed: true,
       corrections: [],
       byIntent: [{
         intent: "faq",
@@ -208,7 +208,7 @@ describe("admin chatbot decision review", () => {
       shadow: 0,
       obsoleteVersions: 1,
       pendingReview: 0,
-      gatePassed: false,
+      shadowSafetyPassed: false,
     });
   });
 
@@ -224,7 +224,7 @@ describe("admin chatbot decision review", () => {
     const response = await GET();
     const body = await response.json();
 
-    expect(body.summary).toMatchObject({ authorizedActions: 1, gatePassed: false });
+    expect(body.summary).toMatchObject({ authorizedActions: 1, shadowSafetyPassed: false });
   });
 
   it("persists an audited human review for a shadow decision", async () => {
