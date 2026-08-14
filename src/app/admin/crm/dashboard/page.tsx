@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { PIPELINE_STAGE_LABELS, PIPELINE_STAGE_ORDER } from "@/lib/crm/pipelineStages";
 import { getCrmOperationalMetrics } from "@/lib/crm/operationalMetrics";
+import { DeadLetterPanel } from "./DeadLetterPanel";
 
 function periodStart(scope: "daily" | "weekly") {
   const now = new Date();
@@ -153,6 +154,8 @@ export default async function CrmDashboardPage({
           </div>
         </section>
       </div>
+
+      <DeadLetterPanel />
     </div>
   );
 }
