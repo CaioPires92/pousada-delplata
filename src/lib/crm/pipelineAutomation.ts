@@ -62,6 +62,8 @@ export async function applyPipelineAutomationOnIncomingMessage(input: {
       latencyMs: classified.latencyMs,
       inputTokens: classified.inputTokens,
       outputTokens: classified.outputTokens,
+      providerHttpStatus: classified.providerHttpStatus ?? null,
+      providerErrorCode: classified.providerErrorCode ?? null,
       result: classified.result,
     },
   });

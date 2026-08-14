@@ -15,6 +15,8 @@ export type IntentClassification = {
   latencyMs: number;
   inputTokens: number | null;
   outputTokens: number | null;
+  providerHttpStatus?: number | null;
+  providerErrorCode?: "rate_limited" | "authentication_failed" | "request_rejected" | null;
   result: "classified" | "deterministic" | "fallback_disabled" | "fallback_provider_error" | "fallback_invalid_response" | "fallback_timeout";
   evaluationMode: "deterministic" | "shadow";
 };
@@ -24,6 +26,8 @@ type AiAttempt = {
   latencyMs: number;
   inputTokens: number | null;
   outputTokens: number | null;
+  providerHttpStatus?: number | null;
+  providerErrorCode?: IntentClassification["providerErrorCode"];
   result: IntentClassification["result"];
 };
 
@@ -202,11 +206,19 @@ async function classifyWithAI(message: string): Promise<AiAttempt> {
     );
 
     if (!response.ok) {
+      const providerHttpStatus = response.status || null;
+      const providerErrorCode = providerHttpStatus === 429
+        ? "rate_limited"
+        : providerHttpStatus === 401 || providerHttpStatus === 403
+          ? "authentication_failed"
+          : "request_rejected";
       return {
         classification: null,
         latencyMs: Date.now() - startedAt,
         inputTokens: null,
         outputTokens: null,
+        providerHttpStatus,
+        providerErrorCode,
         result: "fallback_provider_error",
       };
     }
@@ -301,6 +313,8 @@ export async function classifyIntent(message: string): Promise<IntentClassificat
     latencyMs: aiAttempt?.latencyMs ?? Date.now() - startedAt,
     inputTokens: aiAttempt?.inputTokens ?? null,
     outputTokens: aiAttempt?.outputTokens ?? null,
+    providerHttpStatus: aiAttempt?.providerHttpStatus ?? null,
+    providerErrorCode: aiAttempt?.providerErrorCode ?? null,
     result: aiAttempt?.result ?? (shadowEnabled ? "fallback_disabled" : "deterministic"),
     evaluationMode: shadowEnabled ? "shadow" : "deterministic",
   };

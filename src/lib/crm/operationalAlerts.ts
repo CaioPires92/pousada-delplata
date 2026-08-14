@@ -14,12 +14,15 @@ function minutesBefore(now: Date, minutes: number) {
   return new Date(now.getTime() - minutes * 60 * 1000);
 }
 
-function metadataResult(value: string | null) {
+function decisionMetadata(value: string | null) {
   try {
-    const parsed = JSON.parse(value || "{}") as { result?: unknown };
-    return typeof parsed.result === "string" ? parsed.result : "";
+    const parsed = JSON.parse(value || "{}") as { result?: unknown; providerErrorCode?: unknown };
+    return {
+      result: typeof parsed.result === "string" ? parsed.result : "",
+      providerErrorCode: typeof parsed.providerErrorCode === "string" ? parsed.providerErrorCode : "",
+    };
   } catch {
-    return "";
+    return { result: "", providerErrorCode: "" };
   }
 }
 
@@ -75,9 +78,15 @@ export async function getOperationalAlerts(
     detail: "Existem jobs em processamento há mais de cinco minutos.", count: stuckQueue.length,
     lastAt: (stuckQueue[0].startedAt || stuckQueue[0].createdAt).toISOString(),
   });
-  const aiFailures = aiDecisions.filter(item => [
+  const rateLimited = aiDecisions.filter(item => decisionMetadata(item.metadataJson).providerErrorCode === "rate_limited");
+  if (rateLimited.length) alerts.push({
+    code: "AI_RATE_LIMITED", severity: "critical", title: "Cota da IA esgotada",
+    detail: "O provedor de IA respondeu com limite de cota. O CRM permanece no classificador determinístico.", count: rateLimited.length,
+    lastAt: rateLimited[0].createdAt.toISOString(),
+  });
+  const aiFailures = aiDecisions.filter(item => decisionMetadata(item.metadataJson).providerErrorCode !== "rate_limited" && [
     "fallback_provider_error", "fallback_timeout", "fallback_invalid_response",
-  ].includes(metadataResult(item.metadataJson)));
+  ].includes(decisionMetadata(item.metadataJson).result));
   if (aiFailures.length) alerts.push({
     code: "AI_DEGRADED", severity: aiFailures.length >= 5 ? "critical" : "warning", title: "IA operando em fallback",
     detail: "Classificações recentes recorreram ao mecanismo determinístico por falha da IA.", count: aiFailures.length,

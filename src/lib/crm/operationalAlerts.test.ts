@@ -33,4 +33,25 @@ describe("getOperationalAlerts", () => {
       new Date(), client as never, vi.fn().mockResolvedValue({ provider: "evolution", status: "healthy" }),
     )).resolves.toEqual([]);
   });
+
+  it("distinguishes exhausted AI quota from a generic provider failure", async () => {
+    const at = new Date("2026-08-14T15:00:00.000Z");
+    const client = {
+      internalActionLog: { findMany: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{
+          metadataJson: '{"result":"fallback_provider_error","providerErrorCode":"rate_limited","providerHttpStatus":429}',
+          createdAt: at,
+        }])
+        .mockResolvedValueOnce([]) },
+      automationQueueJob: { findMany: vi.fn().mockResolvedValue([]) },
+      deadLetterQueueItem: { findMany: vi.fn().mockResolvedValue([]) },
+    };
+
+    const alerts = await getOperationalAlerts(
+      at, client as never, vi.fn().mockResolvedValue({ provider: "evolution", status: "healthy" }),
+    );
+
+    expect(alerts).toEqual([expect.objectContaining({ code: "AI_RATE_LIMITED", count: 1 })]);
+  });
 });

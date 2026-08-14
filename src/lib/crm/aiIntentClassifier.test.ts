@@ -155,6 +155,27 @@ describe("classifyIntent", () => {
     );
   });
 
+  it("records a safe rate-limit diagnostic without persisting the provider body", async () => {
+    process.env.CRM_AI_PROVIDER = "gemini";
+    process.env.GEMINI_API_KEY = "gemini-test-key";
+    process.env.CRM_AI_SHADOW_MODE = "true";
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({ error: { message: "sensitive provider detail" } }),
+    } as Response);
+
+    const result = await classifyIntent("Tem estacionamento?");
+
+    expect(result).toMatchObject({
+      source: "heuristic",
+      result: "fallback_provider_error",
+      providerHttpStatus: 429,
+      providerErrorCode: "rate_limited",
+    });
+    expect(JSON.stringify(result)).not.toContain("sensitive provider detail");
+  });
+
   it("falls back safely for an unsupported provider", async () => {
     process.env.CRM_AI_PROVIDER = "unsupported";
     process.env.OPENAI_API_KEY = "must-not-be-used";
