@@ -78,7 +78,7 @@ function getAiProviderConfig(): AiProviderConfig | null {
     const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey) return null;
 
-    const model = process.env.GEMINI_MODEL?.trim() || "gemini-3-flash-preview";
+    const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite";
     return {
       provider,
       apiKey,

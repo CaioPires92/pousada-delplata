@@ -334,6 +334,7 @@ teste falha → menor implementação possível → teste passa
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
   - [x] Fazer o relatório de shadow reutilizar o gate real do rollout e expor todos os bloqueios.
   - [x] Permitir Gemini como provider alternativo e validar uma chamada real em shadow.
+    - [x] Migrar o piloto para `gemini-3.1-flash-lite` após esgotamento de cota do modelo preview.
   - [ ] Coletar e revisar a amostra persistida do piloto.
     - [x] Permitir aprovação ou rejeição auditável de cada decisão shadow no painel.
     - [x] Impor o schema de decisão no structured output do Gemini.

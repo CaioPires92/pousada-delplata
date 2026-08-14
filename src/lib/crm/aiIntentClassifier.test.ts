@@ -138,6 +138,23 @@ describe("classifyIntent", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it("uses the economical Gemini Flash Lite model by default", async () => {
+    process.env.CRM_AI_PROVIDER = "gemini";
+    process.env.GEMINI_API_KEY = "gemini-test-key";
+    process.env.CRM_AI_SHADOW_MODE = "true";
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({}),
+    } as Response);
+
+    await classifyIntent("Tem estacionamento?");
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+      expect.any(Object),
+    );
+  });
+
   it("falls back safely for an unsupported provider", async () => {
     process.env.CRM_AI_PROVIDER = "unsupported";
     process.env.OPENAI_API_KEY = "must-not-be-used";
