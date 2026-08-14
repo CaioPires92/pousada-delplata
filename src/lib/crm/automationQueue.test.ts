@@ -209,16 +209,62 @@ describe("automationQueue", () => {
   it("replays dead letter by creating queue job and marking replayed", async () => {
     vi.mocked(prisma.deadLetterQueueItem.findUnique).mockResolvedValue({
       id: "dlq-1",
+      status: "open",
       conversationId: "conv-1",
       action: "SEND_WHATSAPP_MESSAGE",
       payloadJson: "{\"target\":\"551199@s.whatsapp.net\",\"text\":\"oi\"}",
     } as any);
-    vi.mocked(prisma.automationQueueJob.create).mockResolvedValue({ id: "job-2" } as any);
+    vi.mocked(prisma.deadLetterQueueItem.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.automationQueueJob.upsert).mockResolvedValue({ id: "job-2" } as any);
 
     const result = await replayDeadLetterItem({ deadLetterId: "dlq-1" });
 
     expect(result).toEqual({ ok: true, jobId: "job-2" });
-    expect(prisma.deadLetterQueueItem.update).toHaveBeenCalled();
+    expect(prisma.automationQueueJob.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { dedupeKey: "dead-letter-replay:dlq-1" },
+    }));
+    expect(prisma.deadLetterQueueItem.updateMany).toHaveBeenNthCalledWith(1, {
+      where: { id: "dlq-1", status: "open" },
+      data: { status: "replaying" },
+    });
+    expect(prisma.deadLetterQueueItem.updateMany).toHaveBeenNthCalledWith(2, {
+      where: { id: "dlq-1", status: "replaying" },
+      data: { status: "replayed", replayedAt: expect.any(Date) },
+    });
+  });
+
+  it("does not create another replay when the dead letter was already claimed", async () => {
+    vi.mocked(prisma.deadLetterQueueItem.findUnique).mockResolvedValue({
+      id: "dlq-1",
+      status: "open",
+      conversationId: "conv-1",
+      action: "SEND_WHATSAPP_MESSAGE",
+      payloadJson: "{}",
+    } as any);
+    vi.mocked(prisma.deadLetterQueueItem.updateMany).mockResolvedValue({ count: 0 });
+
+    await expect(replayDeadLetterItem({ deadLetterId: "dlq-1" }))
+      .resolves.toEqual({ ok: false, error: "dead_letter_not_open" });
+    expect(prisma.automationQueueJob.upsert).not.toHaveBeenCalled();
+  });
+
+  it("restores an open dead letter when enqueueing its replay fails", async () => {
+    vi.mocked(prisma.deadLetterQueueItem.findUnique).mockResolvedValue({
+      id: "dlq-1",
+      status: "open",
+      conversationId: "conv-1",
+      action: "SEND_WHATSAPP_MESSAGE",
+      payloadJson: "{}",
+    } as any);
+    vi.mocked(prisma.deadLetterQueueItem.updateMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.automationQueueJob.upsert).mockRejectedValue(new Error("database unavailable"));
+
+    await expect(replayDeadLetterItem({ deadLetterId: "dlq-1" }))
+      .rejects.toThrow("database unavailable");
+    expect(prisma.deadLetterQueueItem.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "dlq-1", status: "replaying" },
+      data: { status: "open" },
+    });
   });
 
   it("dismisses an open dead letter atomically without creating a queue job", async () => {

@@ -284,6 +284,10 @@ export async function replayDeadLetterItem(input: {
     return { ok: false as const, error: "dead_letter_not_found" };
   }
 
+  if (item.status !== "open") {
+    return { ok: false as const, error: "dead_letter_not_open" };
+  }
+
   const payload = parsePayload(item.payloadJson);
   const conversationId = item.conversationId;
 
@@ -291,22 +295,40 @@ export async function replayDeadLetterItem(input: {
     return { ok: false as const, error: "missing_conversation_id" };
   }
 
-  const job = await enqueueAutomationJob({
-    conversationId,
-    action: item.action as QueueAction,
-    payload,
-    journeyType: "replay",
+  const claimed = await prisma.deadLetterQueueItem.updateMany({
+    where: { id: item.id, status: "open" },
+    data: { status: "replaying" },
   });
 
-  await prisma.deadLetterQueueItem.update({
-    where: { id: item.id },
-    data: {
-      status: "replayed",
-      replayedAt: new Date(),
-    },
-  });
+  if (claimed.count === 0) {
+    return { ok: false as const, error: "dead_letter_not_open" };
+  }
 
-  return { ok: true as const, jobId: job.id };
+  try {
+    const job = await enqueueAutomationJob({
+      conversationId,
+      action: item.action as QueueAction,
+      payload,
+      journeyType: "replay",
+      dedupeKey: `dead-letter-replay:${item.id}`,
+    });
+
+    await prisma.deadLetterQueueItem.updateMany({
+      where: { id: item.id, status: "replaying" },
+      data: {
+        status: "replayed",
+        replayedAt: new Date(),
+      },
+    });
+
+    return { ok: true as const, jobId: job.id };
+  } catch (error) {
+    await prisma.deadLetterQueueItem.updateMany({
+      where: { id: item.id, status: "replaying" },
+      data: { status: "open" },
+    });
+    throw error;
+  }
 }
 
 export async function dismissDeadLetterItem(input: {
