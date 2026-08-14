@@ -329,6 +329,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F8.01 Criar dashboard de saúde, latência, erro, custo e conversão.
 - [x] F8.02 Criar alertas de webhook, fila, Evolution, IA, Mapa e dead-letter.
 - [x] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
+  - [x] Isolar toda execução direta do Vitest para nunca contaminar o banco local do CRM.
 - [x] F8.04 Executar testes de segurança e abuso.
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
   - [x] Fazer o relatório de shadow reutilizar o gate real do rollout e expor todos os bloqueios.

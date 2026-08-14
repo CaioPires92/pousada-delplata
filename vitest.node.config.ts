@@ -9,5 +9,6 @@ export default defineConfig({
     },
     test: {
         environment: 'node',
+        globalSetup: ['./scripts/crm/testing/vitest-isolated-database.mjs'],
     },
 });
