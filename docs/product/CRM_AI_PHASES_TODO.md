@@ -331,6 +331,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
 - [x] F8.04 Executar testes de segurança e abuso.
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
+  - [x] Fazer o relatório de shadow reutilizar o gate real do rollout e expor todos os bloqueios.
   - [x] Permitir Gemini como provider alternativo e validar uma chamada real em shadow.
   - [ ] Coletar e revisar a amostra persistida do piloto.
     - [x] Permitir aprovação ou rejeição auditável de cada decisão shadow no painel.
