@@ -372,6 +372,7 @@ teste falha → menor implementação possível → teste passa
   - [x] Disponibilizar listagem administrativa sanitizada da dead-letter.
   - [x] Permitir descarte confirmado da dead-letter pelo dashboard operacional.
   - [x] Tornar o replay de dead-letter atômico na tomada de posse e deduplicado por item.
+  - [x] Permitir replay auditado no dashboard com confirmação digitada e alerta de envio real.
 - [x] F8.10 Criar runbook de incidentes e responsável de plantão.
 - [x] F8.11 Preservar Meta isolada e inativa; não remover seus arquivos nem variáveis.
 
