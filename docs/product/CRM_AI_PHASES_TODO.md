@@ -334,6 +334,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F8.04 Executar testes de segurança e abuso.
 - [ ] F8.05 Executar shadow mode e revisar amostra diária.
   - [x] Fazer o relatório de shadow reutilizar o gate real do rollout e expor todos os bloqueios.
+  - [x] Disponibilizar prévia segura e backfill explícito de mensagens históricas sem enviar respostas ao WhatsApp.
   - [x] Distinguir segurança básica do shadow da aprovação completa do gate no painel.
   - [x] Permitir Gemini como provider alternativo e validar uma chamada real em shadow.
     - [x] Migrar o piloto para `gemini-3.1-flash-lite` após esgotamento de cota do modelo preview.

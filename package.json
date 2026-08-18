@@ -26,6 +26,7 @@
     "test:crm:load": "node scripts/crm/testing/run-crm-load.mjs",
     "test:crm:security": "node scripts/crm/testing/run-crm-security.mjs",
     "crm:shadow:report": "node --env-file=.env --import tsx scripts/crm/testing/report-shadow.ts",
+    "crm:shadow:backfill": "node --env-file=.env --import tsx scripts/crm/testing/backfill-shadow.ts",
     "test:crm:drill": "node scripts/crm/testing/run-crm-operational-drill.mjs",
         "test:mapa": "vitest run src/app/admin/mapa src/app/api/admin/inventory src/app/api/rates src/app/api/availability src/lib/availability/routes-contract.test.ts",
         "test:reservas": "vitest run src/app/reservar src/app/api/bookings src/app/api/coupons src/app/api/mercadopago src/app/api/webhooks/mercadopago src/lib/booking-price.test.ts src/lib/coupons",
