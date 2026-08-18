@@ -12,6 +12,15 @@ type StoredMetadata = {
   policyVersion?: unknown;
 };
 
+const FAQ_HEURISTIC_INTENTS = new Set([
+  "checkin_info",
+  "checkout_info",
+  "amenity",
+  "pet",
+  "parking",
+  "location",
+]);
+
 function integerArgument(name: string, fallback: number) {
   const prefix = `--${name}=`;
   const raw = process.argv.find(argument => argument.startsWith(prefix))?.slice(prefix.length);
@@ -34,6 +43,10 @@ async function main() {
   const commit = process.argv.includes("--commit");
   const limit = Math.min(integerArgument("limit", 20), 100);
   const scan = Math.max(limit, Math.min(integerArgument("scan", 500), 2_000));
+  const heuristicIntent = process.argv
+    .find(argument => argument.startsWith("--heuristic-intent="))
+    ?.slice("--heuristic-intent=".length)
+    .trim();
 
   if (process.env.CRM_AI_SHADOW_MODE !== "true") {
     throw new Error("CRM_AI_SHADOW_MODE_must_be_true");
@@ -76,6 +89,13 @@ async function main() {
 
   const candidates = messages
     .filter(message => message.content?.trim() && !alreadyEvaluated.has(message.id))
+    .filter(message => {
+      if (!heuristicIntent || !message.content) return true;
+      const intent = parseCrmIntent(message.content).intent;
+      return heuristicIntent === "faq"
+        ? FAQ_HEURISTIC_INTENTS.has(intent)
+        : intent === heuristicIntent;
+    })
     .slice(0, limit);
 
   if (!commit) {
@@ -85,6 +105,7 @@ async function main() {
       scanned: messages.length,
       eligible: candidates.length,
       limit,
+      heuristicIntent: heuristicIntent ?? null,
       note: "No provider was called and no database row was created. Use --commit to evaluate.",
     }));
     return;
