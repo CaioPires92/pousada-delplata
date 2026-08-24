@@ -5,6 +5,7 @@ const HOTEL_NAME = process.env.HOTEL_NAME || 'Hotel Pousada Delplata';
 const HOTEL_EMAIL = process.env.HOTEL_EMAIL || 'contato@pousadadelplata.com.br';
 const HOTEL_WHATSAPP = process.env.HOTEL_WHATSAPP || '(19) 99965-4866';
 const DEFAULT_CONTACT_RECEIVER_EMAIL = 'contato@pousadadelplata.com.br';
+const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://pousada-delplata.vercel.app';
 
 function formatPaymentMethodLabel(paymentMethod?: string | null) {
     const method = String(paymentMethod || '').trim().toUpperCase();
@@ -150,22 +151,38 @@ function formatBookingStatusLabel(status?: string | null) {
     return labels[normalized] || normalized;
 }
 
-function normalizeEmail(value: string | undefined | null) {
-    const normalized = String(value || '').trim().toLowerCase();
-    return normalized.length > 0 ? normalized : '';
+function normalizeWhatsAppLinkPhone(value: string | undefined | null) {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (!digits) return '5519999654866';
+    return digits.startsWith('55') ? digits : `55${digits}`;
 }
 
-function buildBccRecipients(toEmail: string | undefined, candidates: Array<string | undefined>) {
-    const toNormalized = normalizeEmail(toEmail);
-    const unique: string[] = [];
+function buildRecoveryWhatsAppUrl(params: {
+    bookingId: string;
+    guestName: string;
+    roomName: string;
+    checkIn?: Date;
+    checkOut?: Date;
+    guestPhone?: string | null;
+}) {
+    const phone = normalizeWhatsAppLinkPhone(process.env.HOTEL_WHATSAPP_LINK || HOTEL_WHATSAPP);
+    const periodLine = params.checkIn && params.checkOut
+        ? `Olá! Vimos que sua reserva para o período de ${formatDatePtBrLong(params.checkIn)} a ${formatDatePtBrLong(params.checkOut)} não foi concluída.`
+        : 'Olá! Vimos que sua reserva não foi concluída.';
+    const message = [
+        periodLine,
+        'Se ainda tiver interesse em se hospedar conosco, estamos à disposição para ajudar com a reserva ou verificar outras opções de datas e acomodações. 😊',
+        `Reserva: ${params.bookingId.slice(0, 8).toUpperCase()}`,
+        `Hóspede: ${params.guestName}`,
+        `Acomodação: ${params.roomName}`,
+        params.guestPhone ? `Contato: ${params.guestPhone}` : null,
+    ].filter(Boolean).join('\n');
 
-    for (const candidate of candidates) {
-        const normalized = normalizeEmail(candidate);
-        if (!normalized || normalized === toNormalized || unique.includes(normalized)) continue;
-        unique.push(normalized);
-    }
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
 
-    return unique.length > 0 ? unique : undefined;
+function buildRecoveryBookingUrl(bookingId: string) {
+    return `${PUBLIC_SITE_URL.replace(/\/$/, '')}/reservar?booking=${encodeURIComponent(bookingId)}`;
 }
 
 // Validar configuração SMTP
@@ -218,14 +235,13 @@ interface BookingEmailData {
 
 function formatRecoveryStage(data: BookingEmailData) {
     const stage = String(data.funnelStage || '').trim().toUpperCase();
-    if (stage === 'PAYMENT_ERROR') return 'Encontramos uma dificuldade na etapa de pagamento.';
-    if (stage === 'PAYMENT_REJECTED') return 'O pagamento não foi aprovado e a reserva ficou incompleta.';
-    if (stage === 'PAYMENT_PENDING') return 'O pagamento ficou pendente de confirmação.';
-    if (stage === 'INVENTORY_RELEASED') return 'A reserva ficou sem conclusao e o quarto voltou ao inventario.';
-    if (stage === 'EXPIRED_CHECK_IN_PASSED') return 'A data de check-in passou sem confirmacao da reserva.';
-    if (stage === 'PAYMENT_ATTEMPT_STARTED') return 'Você chegou à etapa de pagamento, mas não concluiu a reserva.';
-    if (stage === 'BOOKING_CREATED') return 'Seus dados foram recebidos, mas o pagamento ainda não foi concluído.';
-    return 'Você iniciou sua reserva, mas ela ainda não foi concluída.';
+    if (stage === 'CONFIRMED' || stage === 'BOOKING_CONFIRMED' || stage === 'PAYMENT_APPROVED') {
+        return 'Sua reserva foi confirmada com sucesso.';
+    }
+    if (stage === 'EXPIRED_PENDING_BOOKING' || stage === 'BOOKING_CANCELLED' || stage === 'PAYMENT_REJECTED' || stage === 'PAYMENT_ERROR') {
+        return 'Sua reserva expirou por falta de confirmação.';
+    }
+    return 'Sua reserva está pendente de confirmação.';
 }
 
 function isPartialPayment(data: BookingEmailData) {
@@ -531,26 +547,26 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
     const recoveryStageMessage = formatRecoveryStage(data);
     const recoveryCoupon = data.recoveryCoupon;
+    const recoveryBookingUrl = recoveryCoupon?.bookingUrl || buildRecoveryBookingUrl(bookingId);
+    const recoveryWhatsAppUrl = buildRecoveryWhatsAppUrl({
+        bookingId,
+        guestName,
+        roomName,
+        checkIn,
+        checkOut,
+        guestPhone,
+    });
     const recoveryCouponHtml = recoveryCoupon ? `
         <div style="margin:20px 0;padding:20px;text-align:center;background:#f4f3df;border:1px solid #bbb863">
             <p style="margin:0 0 6px;font-weight:bold;color:#283223">Uma condição especial para você concluir sua reserva</p>
             <p style="margin:0 0 12px">${recoveryCoupon.label}</p>
             <div style="font-size:24px;font-weight:bold;letter-spacing:2px;color:#283223">${escapeDiscountEmailHtml(recoveryCoupon.code)}</div>
-            ${recoveryCoupon.expiresAt ? `<p style="margin:10px 0 0;font-size:12px">Válido até ${recoveryCoupon.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.</p>` : ''}
+            ${recoveryCoupon.expiresAt ? `<p style="margin:10px 0 0;font-size:12px">Válido até ${formatDatePtBrLong(recoveryCoupon.expiresAt)}.</p>` : ''}
         </div>
         <div class="cta-wrapper">
-            <a class="cta-button" href="${escapeDiscountEmailHtml(recoveryCoupon.bookingUrl)}" target="_blank" rel="noopener noreferrer">Retomar reserva com desconto</a>
+            <a class="cta-button" href="${escapeDiscountEmailHtml(recoveryBookingUrl)}" target="_blank" rel="noopener noreferrer">Recuperar minha reserva</a>
         </div>
     ` : '';
-
-    const rawWhatsApp = String(process.env.HOTEL_WHATSAPP_LINK || HOTEL_WHATSAPP || '').replace(/\D/g, '');
-    const normalizedWhatsApp = rawWhatsApp
-        ? (rawWhatsApp.startsWith('55') ? rawWhatsApp : `55${rawWhatsApp}`)
-        : '5519999654866';
-    const whatsappMessage = encodeURIComponent(
-        `Olá! Preciso de ajuda com a minha reserva ${bookingCode} no ${HOTEL_NAME}.`
-    );
-    const whatsappUrl = `https://wa.me/${normalizedWhatsApp}?text=${whatsappMessage}`;
 
     return `
 <!DOCTYPE html>
@@ -647,12 +663,16 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         </div>
 
         <div class="notice">
-            Se você quiser, nossa equipe pode te ajudar a concluir a reserva ou tirar qualquer dúvida.
+            Se você quiser, nossa equipe pode te ajudar a concluir a reserva, revisar valores e verificar outras datas.
         </div>
         ${recoveryCouponHtml}
 
         <div class="cta-wrapper">
-            <a class="cta-button" href="${whatsappUrl}" target="_blank" rel="noopener noreferrer">Falar no WhatsApp do Hotel</a>
+            <a class="cta-button" href="${escapeDiscountEmailHtml(recoveryBookingUrl)}" target="_blank" rel="noopener noreferrer">Recuperar minha reserva</a>
+        </div>
+
+        <div class="cta-wrapper">
+            <a class="cta-button" href="${escapeDiscountEmailHtml(recoveryWhatsAppUrl)}" target="_blank" rel="noopener noreferrer">Falar pelo WhatsApp</a>
         </div>
 
         <p>Se você já concluiu a reserva ou não precisa de ajuda agora, pode desconsiderar este e-mail.</p>
@@ -690,6 +710,14 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
     const guestsLabel = formatGuestCount(adults, children);
     const childrenAgesLabel = formatChildrenAgesLabel(childrenAges, children);
     const recoveryStageMessage = formatRecoveryStage(data);
+    const recoveryBookingUrl = buildRecoveryBookingUrl(bookingId);
+    const recoveryWhatsAppUrl = buildRecoveryWhatsAppUrl({
+        bookingId,
+        guestName,
+        roomName,
+        checkIn,
+        checkOut,
+    });
 
     return `
 <!DOCTYPE html>
@@ -763,11 +791,15 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
         </div>
 
         <div class="notice">
-            Acesse nosso site para fazer uma nova reserva ou clique abaixo para falar conosco.
+            Acesse nosso site para recuperar a reserva ou fale conosco pelo WhatsApp.
         </div>
 
         <div class="cta-wrapper" style="text-align: center; margin: 20px 0;">
-            <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #22c55e; color: #ffffff !important; text-decoration: none; font-weight: bold; padding: 12px 18px; border-radius: 8px;">Falar no WhatsApp do Hotel</a>
+            <a href="${recoveryBookingUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #0f172a; color: #ffffff !important; text-decoration: none; font-weight: bold; padding: 12px 18px; border-radius: 8px;">Recuperar minha reserva</a>
+        </div>
+
+        <div class="cta-wrapper" style="text-align: center; margin: 20px 0;">
+            <a href="${recoveryWhatsAppUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #22c55e; color: #ffffff !important; text-decoration: none; font-weight: bold; padding: 12px 18px; border-radius: 8px;">Falar pelo WhatsApp</a>
         </div>
 
         <p>Em caso de dúvidas, fale conosco:</p>
@@ -822,14 +854,10 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingPendingEmailHtml(data);
 
-    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail]);
-
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
-            bcc: bccRecipients,
             subject: `💬 Continue sua reserva de onde parou - ${roomName}`,
             html: htmlContent,
         });
@@ -847,14 +875,10 @@ export async function sendBookingExpiredEmail(data: BookingEmailData) {
     const { guestEmail, roomName } = data;
     const htmlContent = buildBookingExpiredEmailHtml(data);
 
-    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
-    const bccRecipients = buildBccRecipients(guestEmail, [adminEmail]);
-
     try {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
-            bcc: bccRecipients,
             subject: `❌ Reserva Expirada - ${roomName}`,
             html: htmlContent,
         });
@@ -987,17 +1011,16 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     const adultsCount = adults || 0;
     const childrenCount = children || 0;
     const guestsLabel = `${adultsCount + childrenCount} hóspedes (${adultsCount} adultos, ${childrenCount} crianças)`;
+    const recoveryBookingUrl = buildRecoveryBookingUrl(data.bookingId);
+    const recoveryWhatsAppUrl = buildRecoveryWhatsAppUrl({
+        bookingId: data.bookingId,
+        guestName,
+        roomName,
+        checkIn,
+        checkOut,
+        guestPhone,
+    });
     
-    // Configuração do WhatsApp
-    const rawPhone = (guestPhone || guestEmail.split('@')[0]).replace(/\D/g, '');
-    const normalizedPhone = rawPhone.length >= 10 ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : '';
-    
-    let whatsappLink = '';
-    if (normalizedPhone) {
-        const textMessage = encodeURIComponent(`Olá ${guestName}, sou da Pousada Delplata! Vi que você tentou reservar o ${roomName} de ${checkInDate} a ${checkOutDate}, mas a reserva acabou expirando. Tivemos algum problema no site? Ainda tenho disponibilidade e posso tentar fechar com você por aqui!`);
-        whatsappLink = `https://wa.me/${normalizedPhone}?text=${textMessage}`;
-    }
-
     return `
 <!DOCTYPE html>
 <html>
@@ -1058,8 +1081,8 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
 
         <!-- Header -->
         <div class="header-section">
-            <h2>🔔 Reserva não concluída</h2>
-            <p>Um hóspede demonstrou interesse na Pousada Delplata, mas não concluiu o pagamento dentro do prazo.</p>
+            <h2>🔔 Ação da recepção</h2>
+            <p>Uma reserva foi interrompida e a recepção pode tentar recuperar o contato ou validar disponibilidade com o hóspede.</p>
         </div>
 
         <!-- Value Box -->
@@ -1116,23 +1139,25 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
             </table>
         </div>
 
-        ${whatsappLink ? `
         <!-- Recommendation -->
         <div class="recommendation-box">
             <span style="font-size: 18px;">⭐</span>
             <p class="recommendation-text">
-                <strong>Ação recomendada:</strong> verificar a solicitação e, se necessário, entrar em contato com o hóspede.
+                <strong>Ação recomendada:</strong> entrar em contato com o hóspede para recuperar a reserva ou confirmar se ele quer seguir por outra data.
             </p>
         </div>
 
         <!-- Button -->
         <div class="btn-container">
-            <a href="${whatsappLink}" target="_blank" class="btn-primary">
-                💬 RECUPERAR RESERVA
-                <span class="btn-subtitle">Abrir conversa no WhatsApp com mensagem pronta</span>
+            <a href="${recoveryBookingUrl}" target="_blank" class="btn-primary" style="margin-bottom:12px;background:#0f172a;">
+                ✅ RECUPERAR RESERVA
+                <span class="btn-subtitle">Retomar o processo de reserva</span>
+            </a>
+            <a href="${recoveryWhatsAppUrl}" target="_blank" class="btn-primary" style="background:#25D366;">
+                💬 FALAR NO WHATSAPP
+                <span class="btn-subtitle">Abrir conversa com mensagem pronta</span>
             </a>
         </div>
-        ` : ''}
 
         <!-- Footer -->
         <div class="footer">
@@ -1153,7 +1178,6 @@ export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { pho
         return { success: false, error: 'SMTP not configured' };
     }
 
-    const htmlContent = buildAdminRecoveryAlertEmailHtml(data);
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || 'contato@pousadadelplata.com.br';
 
     try {
@@ -1161,7 +1185,7 @@ export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { pho
             from: `"Sistema Admin" <${process.env.SMTP_USER}>`,
             to: adminEmail,
             subject: `🚨 Oportunidade de Recuperação: ${data.guestName} (${data.roomName})`,
-            html: htmlContent,
+            html: buildAdminRecoveryAlertEmailHtml(data),
         });
         return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -1193,14 +1217,16 @@ export async function sendDifficultyAlertEmail(data: {
     }
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || 'contato@pousadadelplata.com.br';
+    const recoveryBookingUrl = data.bookingId ? buildRecoveryBookingUrl(data.bookingId) : '';
+    const recoveryWhatsAppUrl = data.bookingId
+        ? buildRecoveryWhatsAppUrl({
+              bookingId: data.bookingId,
+              guestName: data.guestName,
+              guestPhone: data.guestPhone,
+              roomName: data.roomName || '',
+          })
+        : '';
     
-    let whatsappLink = '';
-    if (data.guestPhone) {
-        const cleanPhone = data.guestPhone.replace(/\D/g, '');
-        const text = encodeURIComponent(`Olá ${data.guestName.split(' ')[0]}, vi que você tentou fazer uma reserva no nosso site mas encontrou dificuldades. Posso te ajudar com a reserva?`);
-        whatsappLink = `https://wa.me/55${cleanPhone}?text=${text}`;
-    }
-
     const html = `
     <html>
     <body style="font-family: Arial, sans-serif; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
@@ -1222,9 +1248,12 @@ export async function sendDifficultyAlertEmail(data: {
         ${data.paymentProviderId ? `<p><strong>ID da transação no Mercado Pago:</strong> ${data.paymentProviderId}</p>` : ''}
         ${data.error ? `<p><strong>Erro ocorrido:</strong> ${data.error}</p>` : ''}
         ${data.funnelStage ? `<p><strong>Etapa do funil:</strong> ${data.funnelStage}</p>` : ''}
-        ${whatsappLink ? `
-        <div style="margin-top: 15px;">
-            <a href="${whatsappLink}" target="_blank" style="background-color: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+        ${recoveryBookingUrl || recoveryWhatsAppUrl ? `
+        <div style="margin-top: 15px; display:flex; gap:12px; flex-wrap:wrap;">
+            <a href="${recoveryBookingUrl}" target="_blank" style="background-color: #0f172a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Recuperar reserva
+            </a>
+            <a href="${recoveryWhatsAppUrl}" target="_blank" style="background-color: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
                 Chamar no WhatsApp
             </a>
         </div>
@@ -1272,9 +1301,7 @@ export async function sendGuestDiscountEmail(data: {
     const code = data.code ? escapeDiscountEmailHtml(data.code) : '';
     const discountLabel = data.discountLabel ? escapeDiscountEmailHtml(data.discountLabel) : '';
     const bookingUrl = escapeDiscountEmailHtml(data.bookingUrl);
-    const expiration = data.expiresAt
-        ? data.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-        : '';
+    const expiration = data.expiresAt ? formatDatePtBrLong(data.expiresAt) : '';
     const couponBlock = code ? `
         <p>Para deixar o convite ainda melhor, incluímos o cupom <strong>${discountLabel}</strong> abaixo.</p>
         <div style="margin:24px 0;padding:22px;text-align:center;background:#f4f3df;border:1px solid #bbb863">

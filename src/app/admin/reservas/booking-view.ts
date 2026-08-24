@@ -93,22 +93,22 @@ export function formatFunnelStage(stage?: string | null) {
     const normalized = String(stage || '').trim().toUpperCase();
     if (!normalized) return 'Etapa não registrada';
 
-    const texts: Record<string, string> = {
-        BOOKING_CREATED: 'Reserva criada',
-        PAYMENT_ATTEMPT_STARTED: 'Pagamento iniciado',
-        PAYMENT_PENDING: 'Pagamento pendente',
-        PAYMENT_APPROVED: 'Pagamento aprovado',
-        PAYMENT_REJECTED: 'Pagamento rejeitado',
-        PAYMENT_ERROR: 'Erro no pagamento',
-        PAYMENT_LINK_CREATED: 'Link de pagamento criado',
-        BOOKING_CONFIRMED: 'Reserva confirmada',
-        BOOKING_CANCELLED: 'Reserva cancelada',
-        EXPIRED_UNPAID: 'Expirou sem concluir',
-        INVENTORY_RELEASED: 'Inventario liberado por abandono',
-        EXPIRED_CHECK_IN_PASSED: 'Expirada apos check-in',
-    };
+    if (normalized === 'CONFIRMED' || normalized === 'BOOKING_CONFIRMED' || normalized === 'PAYMENT_APPROVED') {
+        return 'Confirmada';
+    }
 
-    return texts[normalized] || normalized.replace(/_/g, ' ');
+    if (
+        normalized === 'EXPIRED'
+        || normalized === 'EXPIRED_PENDING_BOOKING'
+        || normalized === 'BOOKING_CANCELLED'
+        || normalized === 'EXPIRED_UNPAID'
+        || normalized === 'PAYMENT_REJECTED'
+        || normalized === 'PAYMENT_ERROR'
+    ) {
+        return 'Expirada';
+    }
+
+    return 'Pendente';
 }
 
 export function getBookingOperationalDate(booking: Booking) {

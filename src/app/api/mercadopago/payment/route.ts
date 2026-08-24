@@ -6,6 +6,7 @@ import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficu
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
+import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
 import {
     DEFAULT_PARTIAL_PAYMENT_SETTINGS,
     calculatePaymentPlan,
@@ -356,6 +357,11 @@ export async function POST(request: Request) {
                 payment: true,
                 guest: true,
                 roomType: true,
+                crmConversation: {
+                    select: {
+                        id: true,
+                    },
+                },
             },
         });
         if (!booking) {
@@ -725,6 +731,18 @@ export async function POST(request: Request) {
                     paymentMethod: normalizedPaymentMethod,
                     localCardSandbox,
                     error: emailError instanceof Error ? emailError.message : String(emailError),
+                });
+            }
+
+            if (booking.crmConversationId || booking.crmConversation?.id) {
+                await enqueueBookingWhatsAppJourney({
+                    bookingId: booking.id,
+                    status: 'CONFIRMED',
+                }).catch((whatsappError) => {
+                    opsLog('warn', 'MP_PAYMENT_CONFIRMED_WHATSAPP_FAILED', {
+                        bookingId,
+                        error: whatsappError instanceof Error ? whatsappError.message : String(whatsappError),
+                    });
                 });
             }
 

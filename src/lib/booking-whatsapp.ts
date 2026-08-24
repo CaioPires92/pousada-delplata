@@ -1,3 +1,5 @@
+import { formatDatePtBrLong } from "@/lib/date";
+
 const DEFAULT_WHATSAPP_PHONE = '5519999654866';
 
 export function normalizeWhatsAppPhone(value: unknown) {
@@ -36,4 +38,44 @@ export function buildBookingWhatsAppUrl(params: {
     ].filter(Boolean);
 
     return `https://wa.me/${normalizeWhatsAppPhone(params.phone)}?text=${encodeURIComponent(details.join('\n'))}`;
+}
+
+export function buildBookingRecoveryWhatsAppMessage(params: {
+    bookingId: string;
+    guestName: string;
+    roomName: string;
+    checkIn: Date;
+    checkOut: Date;
+    stage: 'PENDING' | 'EXPIRED';
+}) {
+    const intro = params.stage === 'EXPIRED'
+        ? 'Olá! Vimos que sua reserva expirou.'
+        : 'Olá! Vimos que sua reserva está pendente.';
+    return [
+        intro,
+        `Período: ${formatDatePtBrLong(params.checkIn)} a ${formatDatePtBrLong(params.checkOut)}.`,
+        `Reserva: ${params.bookingId.slice(0, 8).toUpperCase()}`,
+        `Hóspede: ${params.guestName}`,
+        `Acomodação: ${params.roomName}`,
+        params.stage === 'EXPIRED'
+            ? 'Se ainda quiser seguir com a reserva, posso ajudar a retomar a disponibilidade.'
+            : 'Se ainda quiser seguir com a reserva, posso ajudar a concluir por aqui.',
+    ].join('\n');
+}
+
+export function buildBookingConfirmationWhatsAppMessage(params: {
+    bookingId: string;
+    guestName: string;
+    roomName: string;
+    checkIn: Date;
+    checkOut: Date;
+}) {
+    return [
+        'Olá! Sua reserva foi confirmada com sucesso.',
+        `Período: ${formatDatePtBrLong(params.checkIn)} a ${formatDatePtBrLong(params.checkOut)}.`,
+        `Reserva: ${params.bookingId.slice(0, 8).toUpperCase()}`,
+        `Hóspede: ${params.guestName}`,
+        `Acomodação: ${params.roomName}`,
+        'Se precisar de ajuda antes da chegada, estamos à disposição.',
+    ].join('\n');
 }

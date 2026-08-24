@@ -71,6 +71,19 @@ export async function runAutomationQueueWorker(input?: { maxConversations?: numb
         throw new Error("invalid_queue_payload");
       }
 
+      const maxStalenessHours = typeof job.payload.maxStalenessHours === "number" ? job.payload.maxStalenessHours : null;
+      if (maxStalenessHours !== null) {
+        const scheduledAt = new Date(job.createdAt);
+        const ageMs = now.getTime() - scheduledAt.getTime();
+        const maxAgeMs = maxStalenessHours * 60 * 60 * 1000;
+        if (ageMs > maxAgeMs) {
+          return {
+            cancelled: true as const,
+            reason: "stale_booking_whatsapp_job",
+          };
+        }
+      }
+
       if (
         isProactiveJourney(job.journeyType)
         && isWithinQuietHours({

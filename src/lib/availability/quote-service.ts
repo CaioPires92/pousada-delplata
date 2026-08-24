@@ -115,8 +115,6 @@ export async function queryAvailabilityQuote(
       rates: { orderBy: { createdAt: "desc" } },
     },
   });
-  const ttlMinutes = Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || "15", 10) || 30);
-  const pendingThreshold = new Date(calculatedAtDate.getTime() - ttlMinutes * 60 * 1000);
   const roomTypeIds = roomTypes.map(room => room.id);
   const [activeBookings, inventoryAdjustments, fourGuestInventoryAdjustments] = await Promise.all([
     client.booking.findMany({
@@ -124,10 +122,7 @@ export async function queryAvailabilityQuote(
         roomTypeId: { in: roomTypeIds },
         checkIn: { lt: dateFromDayKey(input.checkout) },
         checkOut: { gt: dateFromDayKey(input.checkin) },
-        OR: [
-          { status: { in: ["CONFIRMED", "PAID"] } },
-          { status: "PENDING", createdAt: { gte: pendingThreshold } },
-        ],
+        status: { in: ["CONFIRMED", "PAID"] },
       },
       select: {
         roomTypeId: true,

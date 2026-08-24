@@ -54,7 +54,7 @@ async function seed() {
 
         {
             name: 'Apartamento Superior',
-            description: 'Apartamento na ala principal, próximo ao café da manhã, com TV, frigobar, ventilador de teto e ar-condicionado.',
+            description: 'Apartamento na ala principal, próximo ao café da manhã, com Smart TV, frigobar, ventilador de teto e ar-condicionado.',
             capacity: 3,
             maxGuests: 4,
             inventoryFor4Guests: 2,
@@ -63,12 +63,12 @@ async function seed() {
             child6To11Fee: 50,
             totalUnits: 8,
             basePrice: 699.00,
-            amenities: 'Ar-condicionado, Ventilador de teto, TV, WiFi',
+            amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
         },
 
         {
             name: 'Chalé',
-            description: 'Chalé com varanda e café da manhã a 70 metros da ala principal. Não possui ar-condicionado.',
+            description: 'Chalé com varanda, Smart TV e café da manhã a 70 metros da ala principal. Não possui ar-condicionado.',
             capacity: 3,
             maxGuests: 4,
             inventoryFor4Guests: 2,
@@ -77,7 +77,7 @@ async function seed() {
             child6To11Fee: 50,
             totalUnits: 6,
             basePrice: 499.00,
-            amenities: 'Varanda, TV, WiFi, Ventilador de teto, Tomadas 110v',
+            amenities: 'Varanda, Smart TV, WiFi, Ventilador de teto, Tomadas 110v',
         },
         {
             name: 'Apartamento Anexo',

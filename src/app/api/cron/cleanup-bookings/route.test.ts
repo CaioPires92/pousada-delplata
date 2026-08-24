@@ -1,15 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 import prisma from '@/lib/prisma';
-import { sendAdminRecoveryAlertEmail, sendBookingExpiredEmail, sendBookingPendingEmail } from '@/lib/email';
+import { sendBookingExpiredEmail } from '@/lib/email';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 
 vi.mock('@/lib/email', () => ({
-    sendAdminRecoveryAlertEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingCreatedAlertEmail: vi.fn().mockResolvedValue({ success: true }),
     sendBookingExpiredEmail: vi.fn().mockResolvedValue({ success: true }),
-    sendBookingPendingEmail: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 vi.mock('@/lib/booking-status-alert', () => ({
@@ -51,34 +49,12 @@ describe('GET /api/cron/cleanup-bookings', () => {
         expect(res.status).toBe(401);
     });
 
-    it('sends a recovery reminder, releases idle inventory, and only expires after check-in has passed', async () => {
+    it('expires stale pending bookings and notifies the guest', async () => {
         (prisma.booking.findMany as any)
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce([
                 {
-                    id: 'booking-pending-mail',
-                    guest: { name: 'A', email: 'a@example.com' },
-                    roomType: { name: 'R1' },
-                    checkIn: new Date('2026-08-10'),
-                    checkOut: new Date('2026-08-11'),
-                    totalPrice: 100,
-                    payment: null,
-                },
-            ])
-            .mockResolvedValueOnce([
-                {
-                    id: 'booking-hold-release-1',
-                    guest: { name: 'B', email: 'b@example.com' },
-                    roomType: { name: 'R2' },
-                    checkIn: new Date('2026-08-10'),
-                    checkOut: new Date('2026-08-11'),
-                    totalPrice: 200,
-                    payment: null,
-                },
-            ])
-            .mockResolvedValueOnce([
-                {
-                    id: 'booking-expired-checkin-1',
+                    id: 'booking-expired-pending-1',
                     guest: { name: 'C', email: 'c@example.com' },
                     roomType: { name: 'R3' },
                     checkIn: new Date('2026-02-10'),
@@ -104,26 +80,19 @@ describe('GET /api/cron/cleanup-bookings', () => {
 
         expect(res.status).toBe(200);
         expect(data.success).toBe(true);
-        expect(data.couponReleaseCount).toBe(2);
-        expect(data.pendingEmailCount).toBe(1);
-        expect(data.holdReleasedCount).toBe(1);
-        expect(data.expiredEmailCount).toBe(0);
-        expect(sendBookingPendingEmail).toHaveBeenCalledWith(expect.objectContaining({
-            bookingId: 'booking-pending-mail',
-        }));
-        expect(sendBookingExpiredEmail).not.toHaveBeenCalled();
-        expect(sendAdminRecoveryAlertEmail).toHaveBeenCalledWith(expect.objectContaining({
-            bookingId: 'booking-hold-release-1',
+        expect(data.couponReleaseCount).toBe(1);
+        expect(sendBookingExpiredEmail).toHaveBeenCalledWith(expect.objectContaining({
+            bookingId: 'booking-expired-pending-1',
         }));
         expect(sendBookingStatusAlertEmail).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 'booking-expired-checkin-1' }),
+            expect.objectContaining({ id: 'booking-expired-pending-1' }),
             expect.objectContaining({ bookingStatus: 'EXPIRED' })
         );
-        expect(prisma.booking.updateMany).toHaveBeenCalledTimes(2);
+        expect(prisma.booking.updateMany).toHaveBeenCalledTimes(1);
         expect(prisma.couponRedemption.updateMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    bookingId: { in: ['booking-hold-release-1'] },
+                    bookingId: { in: ['booking-expired-pending-1'] },
                 }),
                 data: expect.objectContaining({
                     status: 'RELEASED',
@@ -132,31 +101,4 @@ describe('GET /api/cron/cleanup-bookings', () => {
         );
     });
 
-    it('nao marca lembrete como enviado quando o SMTP falha', async () => {
-        (prisma.booking.findMany as any)
-            .mockResolvedValueOnce([])
-            .mockResolvedValueOnce([{
-                id: 'booking-email-failure',
-                guest: { name: 'A', email: 'a@example.com', phone: null },
-                roomType: { name: 'R1' },
-                checkIn: new Date('2026-08-10'),
-                checkOut: new Date('2026-08-11'),
-                totalPrice: 100,
-                payment: null,
-                funnelStage: 'PAYMENT_ERROR',
-                lastErrorMessage: 'card_rejected',
-            }])
-            .mockResolvedValueOnce([])
-            .mockResolvedValueOnce([]);
-        vi.mocked(sendBookingPendingEmail).mockResolvedValueOnce({ success: false, error: 'smtp_failed' });
-
-        const res = await GET(new Request('http://localhost/api/cron/cleanup-bookings', {
-            headers: { authorization: 'Bearer secret' },
-        }));
-        const data = await res.json();
-
-        expect(res.status).toBe(200);
-        expect(data.pendingEmailCount).toBe(0);
-        expect(prisma.booking.update).not.toHaveBeenCalled();
-    });
 });

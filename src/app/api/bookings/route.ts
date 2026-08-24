@@ -7,13 +7,17 @@ import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/
 import { compareDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { sendBookingPendingEmail } from '@/lib/email';
 import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 import { markCouponGrantRedeemed } from '@/lib/crm/couponGrant';
+import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
+import { setWhatsappConsent } from '@/lib/crm/whatsappConsent';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+        const whatsappConsentAccepted = Boolean(body?.whatsappConsentAccepted);
         const { roomTypeId, checkIn, checkOut, guest, adults, childrenAges } = body;
         const adultsCount = Math.max(1, Number.parseInt(String(adults ?? 1), 10) || 1);
         const childrenCount = Math.max(0, Number.parseInt(String(body?.children ?? 0), 10) || 0);
@@ -54,17 +58,12 @@ export async function POST(request: Request) {
             if (!roomType) return null;
 
             const nightKeys = eachDayKeyInclusive(checkIn, prevDayKey(checkOut));
-            const ttlMinutes = Math.max(1, parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
-            const pendingThreshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
             const activeBookings = await tx.booking.findMany({
                 where: {
                     roomTypeId,
                     checkIn: { lt: new Date(`${checkOut}T00:00:00Z`) },
                     checkOut: { gt: new Date(`${checkIn}T00:00:00Z`) },
-                    OR: [
-                        { status: { in: ['CONFIRMED', 'PAID'] } },
-                        { status: 'PENDING', createdAt: { gte: pendingThreshold } },
-                    ],
+                    status: { in: ['CONFIRMED', 'PAID'] },
                 },
                 select: {
                     checkIn: true,
@@ -291,6 +290,7 @@ export async function POST(request: Request) {
             }
         }
 
+        let crmConversationId: string | null = null;
         try {
             const reconciliation = await reconcileBookingToCrm({
                 bookingId: booking.id,
@@ -298,6 +298,15 @@ export async function POST(request: Request) {
                 guestPhone: booking.guest?.phone ?? guest.phone,
             });
             if (reconciliation.ok) {
+                crmConversationId = reconciliation.conversationId;
+                if (whatsappConsentAccepted) {
+                    await setWhatsappConsent({
+                        contactId: reconciliation.contactId,
+                        optInWhatsapp: true,
+                        origin: 'system',
+                        sourceOrigin: 'booking_checkout',
+                    });
+                }
                 await publishBookingLifecycleEvent({
                     bookingId: booking.id,
                     event: 'ReservationStarted',
@@ -309,6 +318,40 @@ export async function POST(request: Request) {
             }
         } catch (reconciliationError) {
             console.error('[Booking API] Failed to reconcile booking with CRM:', reconciliationError);
+        }
+
+        if (crmConversationId) {
+            try {
+                await enqueueBookingWhatsAppJourney({ bookingId: booking.id, status: 'PENDING' });
+            } catch (whatsappError) {
+                console.error('[Booking API] Failed to enqueue pending WhatsApp recovery message:', whatsappError);
+            }
+        }
+
+        try {
+            await sendBookingPendingEmail({
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                guestPhone: booking.guest.phone,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+                paymentMethod: null,
+                paymentInstallments: null,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
+                funnelStage: booking.funnelStage,
+                lastErrorMessage: booking.lastErrorMessage,
+            });
+            await prisma.booking.updateMany({
+                where: { id: booking.id, pendingEmailSentAt: null },
+                data: { pendingEmailSentAt: new Date() },
+            });
+        } catch (emailError) {
+            console.error('[Booking API] Failed to send guest pending email:', emailError);
         }
 
         try {
@@ -343,6 +386,3 @@ export async function POST(request: Request) {
         );
     }
 }
-
-
-

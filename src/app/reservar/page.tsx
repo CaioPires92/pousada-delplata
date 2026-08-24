@@ -286,6 +286,7 @@ function ReservarContent() {
     const [error, setError] = useState('');
     const [availabilityRetryNonce, setAvailabilityRetryNonce] = useState(0);
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [whatsappConsentAccepted, setWhatsappConsentAccepted] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
@@ -989,6 +990,7 @@ function ReservarContent() {
                     childrenAges,
                     totalPrice: bookingTotal,
                     guest,
+                    whatsappConsentAccepted,
                     coupon: couponPayload,
                 }),
             });
@@ -2270,6 +2272,22 @@ function ReservarContent() {
                                         </div>
 
                                         <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    id="whatsapp-consent"
+                                                    checked={whatsappConsentAccepted}
+                                                    onChange={(e) => setWhatsappConsentAccepted(e.target.checked)}
+                                                    disabled={processing}
+                                                    className="mt-1 h-4 w-4 rounded-none border-gray-300 text-primary focus:ring-primary"
+                                                />
+                                                <label htmlFor="whatsapp-consent" className="text-sm text-muted-foreground cursor-pointer">
+                                                    Quero receber mensagens da pousada por WhatsApp sobre minha reserva, lembretes e confirmação.
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-4">
                                             <div className="flex items-start gap-3">
                                                 <input
                                                     type="checkbox"

@@ -6,8 +6,16 @@ const FAQ_ITEMS = [
         answer: 'Informe check-in, check-out e hóspedes. O motor mostra as acomodações disponíveis e o valor total para as datas escolhidas.',
     },
     {
+        question: 'Qual é o horário de check-in e check-out?',
+        answer: 'O check-in é a partir das 14h e o check-out vai até 12h.',
+    },
+    {
         question: 'Quais meios de pagamento aparecem no site?',
         answer: 'O pagamento pode apresentar Pix ou cartão. As opções disponíveis são mostradas pelo Mercado Pago antes da conclusão.',
+    },
+    {
+        question: 'As comodidades são iguais em todas as acomodações?',
+        answer: 'Não. As comodidades variam conforme a categoria do quarto. Antes de reservar, confira a descrição da acomodação escolhida no motor.',
     },
     {
         question: 'Onde consulto as condições de cancelamento?',

@@ -4,6 +4,7 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
 
 export const runtime = 'nodejs';
 
@@ -136,6 +137,13 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
             }
         ).catch((emailError) => {
             console.error('[Admin Test Payment] Failed to send status alert:', emailError);
+        });
+
+        await enqueueBookingWhatsAppJourney({
+            bookingId: booking.id,
+            status: 'CONFIRMED',
+        }).catch((whatsappError) => {
+            console.error('[Admin Test Payment] Failed to enqueue confirmation WhatsApp:', whatsappError);
         });
 
         return NextResponse.json({

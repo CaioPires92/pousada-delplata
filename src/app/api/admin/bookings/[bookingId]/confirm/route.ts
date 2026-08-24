@@ -4,6 +4,7 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
+import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +27,9 @@ export async function POST(
                 guest: true,
                 roomType: true,
                 payment: true,
+                crmConversation: {
+                    select: { id: true },
+                },
             },
         });
 
@@ -87,6 +91,13 @@ export async function POST(
             paymentStatus: booking.payment?.status || 'APPROVED',
         }).catch((emailError) => {
             console.error('[Admin Booking Confirm] Failed to send status alert:', emailError);
+        });
+
+        await enqueueBookingWhatsAppJourney({
+            bookingId,
+            status: 'CONFIRMED',
+        }).catch((whatsappError) => {
+            console.error('[Admin Booking Confirm] Failed to enqueue confirmation WhatsApp:', whatsappError);
         });
 
         return NextResponse.json({ ok: true, bookingId, status: 'CONFIRMED' });

@@ -1,20 +1,10 @@
 import prisma from '@/lib/prisma';
-import { sendAdminRecoveryAlertEmail } from '@/lib/email';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { sendBookingExpiredEmail } from '@/lib/email';
+import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
 
-const INVENTORY_RELEASED_STAGE = 'INVENTORY_RELEASED';
-
-export function getPendingBookingHoldTtlMinutes() {
-    return Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_TTL_MINUTES || '15', 10) || 15);
-}
-
-export function getPendingBookingReminderMinutes() {
-    const ttlMinutes = getPendingBookingHoldTtlMinutes();
-    const configured = Math.max(
-        1,
-        Number.parseInt(process.env.PENDING_BOOKING_REMINDER_MINUTES || '10', 10) || 10
-    );
-    return Math.min(configured, Math.max(1, ttlMinutes - 1));
+export function getPendingBookingExpirationHours() {
+    return Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_EXPIRATION_HOURS || '24', 10) || 24);
 }
 
 export function getTodayDateInSaoPauloAsUtcDate(now = new Date()) {
@@ -30,115 +20,19 @@ export function getTodayDateInSaoPauloAsUtcDate(now = new Date()) {
     return new Date(`${year}-${month}-${day}T00:00:00.000Z`);
 }
 
-export async function releaseStalePendingBookingHolds(params: {
+export async function expireStalePendingBookings(params: {
     source: string;
     sendAdminAlerts?: boolean;
     limit?: number;
 }) {
-    const ttlMinutes = getPendingBookingHoldTtlMinutes();
-    const threshold = new Date(Date.now() - ttlMinutes * 60 * 1000);
-    const today = getTodayDateInSaoPauloAsUtcDate();
-    const limit = Math.max(1, Math.min(params.limit || 50, 200));
-
-    const staleBookings = await prisma.booking.findMany({
-        where: {
-            status: 'PENDING',
-            createdAt: { lt: threshold },
-            checkIn: { gte: today },
-            OR: [
-                { funnelStage: null },
-                { NOT: { funnelStage: INVENTORY_RELEASED_STAGE } },
-            ],
-        },
-        include: {
-            guest: true,
-            roomType: true,
-            payment: true,
-        },
-        orderBy: { createdAt: 'asc' },
-        take: limit,
-    });
-
-    if (staleBookings.length === 0) {
-        return { holdReleasedCount: 0, alertCount: 0, couponReleaseCount: 0 };
-    }
-
-    const bookingIds = staleBookings.map((booking) => booking.id);
-    const releasedHolds = await prisma.booking.updateMany({
-        where: {
-            id: { in: bookingIds },
-            status: 'PENDING',
-        },
-        data: {
-            funnelStage: INVENTORY_RELEASED_STAGE,
-            funnelUpdatedAt: new Date(),
-            lastErrorMessage: `inventory_released_after_${ttlMinutes}_minutes`,
-        },
-    });
-
-    const released = await prisma.couponRedemption.updateMany({
-        where: {
-            bookingId: { in: bookingIds },
-            status: { in: ['RESERVED', 'CONFIRMED'] },
-        },
-        data: {
-            status: 'RELEASED',
-            releasedAt: new Date(),
-        },
-    });
-
-    let alertCount = 0;
-    if (params.sendAdminAlerts) {
-        for (const booking of staleBookings) {
-            await sendBookingStatusAlertEmail(booking, {
-                bookingStatus: 'PENDING',
-                paymentStatus: booking.payment?.status || 'PENDING',
-            })
-                .then((result) => {
-                    if (result?.success) alertCount++;
-                })
-                .catch((error) => {
-                    console.error(`[Release Pending Booking Hold] Failed status alert (${params.source}):`, error);
-                });
-            await sendAdminRecoveryAlertEmail({
-                guestName: booking.guest.name,
-                guestEmail: booking.guest.email,
-                guestPhone: booking.guest.phone,
-                bookingId: booking.id,
-                roomName: booking.roomType.name,
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                totalPrice: Number(booking.totalPrice),
-                paymentMethod: booking.payment?.method || null,
-                paymentInstallments: booking.payment?.installments ?? null,
-                adults: booking.adults,
-                children: booking.children,
-                childrenAges: booking.childrenAges,
-            }).catch((error) => {
-                console.error(`[Release Pending Booking Hold] Failed recovery alert (${params.source}):`, error);
-            });
-        }
-    }
-
-    return {
-        holdReleasedCount: releasedHolds.count,
-        alertCount,
-        couponReleaseCount: released.count,
-    };
-}
-
-export async function expirePastCheckInPendingBookings(params: {
-    source: string;
-    sendAdminAlerts?: boolean;
-    limit?: number;
-}) {
-    const today = getTodayDateInSaoPauloAsUtcDate();
+    const expirationHours = getPendingBookingExpirationHours();
+    const threshold = new Date(Date.now() - expirationHours * 60 * 60 * 1000);
     const limit = Math.max(1, Math.min(params.limit || 50, 200));
 
     const expiredBookings = await prisma.booking.findMany({
         where: {
             status: 'PENDING',
-            checkIn: { lt: today },
+            createdAt: { lt: threshold },
         },
         include: {
             guest: true,
@@ -161,9 +55,9 @@ export async function expirePastCheckInPendingBookings(params: {
         },
         data: {
             status: 'EXPIRED',
-            funnelStage: 'EXPIRED_CHECK_IN_PASSED',
+            funnelStage: 'EXPIRED_PENDING_BOOKING',
             funnelUpdatedAt: new Date(),
-            lastErrorMessage: 'check_in_date_passed',
+            lastErrorMessage: `pending_expired_after_${expirationHours}_hours`,
         },
     });
 
@@ -181,6 +75,28 @@ export async function expirePastCheckInPendingBookings(params: {
     let alertCount = 0;
     if (params.sendAdminAlerts) {
         for (const booking of expiredBookings) {
+            await sendBookingExpiredEmail({
+                guestName: booking.guest.name,
+                guestEmail: booking.guest.email,
+                guestPhone: booking.guest.phone,
+                bookingId: booking.id,
+                roomName: booking.roomType.name,
+                checkIn: booking.checkIn,
+                checkOut: booking.checkOut,
+                totalPrice: Number(booking.totalPrice),
+                paymentMethod: booking.payment?.method || null,
+                paymentInstallments: booking.payment?.installments ?? null,
+                adults: booking.adults,
+                children: booking.children,
+                childrenAges: booking.childrenAges,
+                funnelStage: 'EXPIRED_PENDING_BOOKING',
+                lastErrorMessage: `pending_expired_after_${expirationHours}_hours`,
+            }).catch((error) => {
+                console.error(`[Expire Pending Bookings] Failed guest email (${params.source}):`, error);
+            });
+            await enqueueBookingWhatsAppJourney({ bookingId: booking.id, status: 'EXPIRED' }).catch((error) => {
+                console.error(`[Expire Pending Bookings] Failed WhatsApp recovery job (${params.source}):`, error);
+            });
             await sendBookingStatusAlertEmail(booking, {
                 bookingStatus: 'EXPIRED',
                 paymentStatus: booking.payment?.status || 'PENDING',

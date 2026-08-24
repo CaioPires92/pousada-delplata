@@ -9,6 +9,9 @@ export type QueueJourneyType =
   | "broadcast"
   | "n8n_delivery"
   | "post_stay"
+  | "booking_pending"
+  | "booking_expired"
+  | "booking_confirmed"
   | "replay";
 
 type QueuePayload = {
@@ -19,6 +22,7 @@ type QueuePayload = {
   couponGrantId?: string;
   postStayStep?: string;
   checkoutConfirmedAt?: string;
+  maxStalenessHours?: number;
 };
 
 type AutomationQueueClient = Pick<typeof prisma, "automationQueueJob">;
@@ -132,6 +136,7 @@ export async function processNextAutomationJobForConversation(
     action: string;
     payload: QueuePayload;
     journeyType?: string | null;
+    createdAt: Date;
   }) => Promise<AutomationJobRunnerResult>,
   options: { now?: Date } = {},
 ) {
@@ -185,6 +190,7 @@ export async function processNextAutomationJobForConversation(
       action: candidate.action,
       payload,
       journeyType: candidate.journeyType,
+      createdAt: candidate.createdAt,
     });
 
     if (runnerResult && "rescheduled" in runnerResult && runnerResult.rescheduled) {
