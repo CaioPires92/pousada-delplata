@@ -127,6 +127,18 @@ async function ensureRateUniqueIndex() {
     return 1;
 }
 
+async function ensureIndex(table, indexName, ddl) {
+    const indexes = await getIndexes(table);
+    if (indexes.has(indexName)) {
+        console.log(`OK: ${indexName}`);
+        return 0;
+    }
+
+    await client.execute(ddl);
+    console.log(`ADDED: ${indexName}`);
+    return 1;
+}
+
 async function migrate() {
     console.log('Turso migration: checking schema drift...');
 
@@ -156,6 +168,10 @@ async function migrate() {
         { name: 'paymentMode', ddl: "ALTER TABLE Payment ADD COLUMN paymentMode TEXT NOT NULL DEFAULT 'FULL'" },
         { name: 'balanceDueAt', ddl: 'ALTER TABLE Payment ADD COLUMN balanceDueAt TEXT' },
         { name: 'balanceDueDate', ddl: 'ALTER TABLE Payment ADD COLUMN balanceDueDate DATETIME' },
+    ];
+
+    const bookingDefs = [
+        { name: 'checkoutConfirmedAt', ddl: 'ALTER TABLE Booking ADD COLUMN checkoutConfirmedAt DATETIME' },
     ];
 
     const couponDefs = [
@@ -221,6 +237,12 @@ async function migrate() {
         )
     `);
     const addedPayment = await ensureColumns('Payment', paymentDefs);
+    const addedBooking = await ensureColumns('Booking', bookingDefs);
+    const addedBookingIndexes = await ensureIndex(
+        'Booking',
+        'Booking_checkoutConfirmedAt_idx',
+        'CREATE INDEX "Booking_checkoutConfirmedAt_idx" ON "Booking"("checkoutConfirmedAt")'
+    );
 
     const totalAdded = addedRoomType
         + addedRate
@@ -230,7 +252,9 @@ async function migrate() {
         + addedCoupon
         + addedPartialPaymentSettings
         + addedDiscountPolicySettings
-        + addedPayment;
+        + addedPayment
+        + addedBooking
+        + addedBookingIndexes;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');
