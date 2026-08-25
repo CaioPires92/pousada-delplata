@@ -91,17 +91,27 @@ export const blogPosts: BlogPost[] = [
       {
         type: "heading",
         content: "Próximo evento confirmado",
+        visibleUntil: "2026-09-20",
       },
       {
         type: "list",
         items: [
           "Festa D'Italia 2026: de 18 a 20 de setembro, com entrada gratuita.",
         ],
+        visibleUntil: "2026-09-20",
+      },
+      {
+        type: "image",
+        src: "/fotos/jardim-aptos/DJI_0903.jpg",
+        alt: "Área externa da Pousada Delplata em Serra Negra",
+        caption: "Imagem da Pousada Delplata para ajudar no planejamento da hospedagem durante a Festa D'Italia.",
+        visibleUntil: "2026-09-20",
       },
       {
         type: "paragraph",
         content:
           "A Festa D'Italia reúne a programação especial de setembro em Serra Negra. Como o evento acontece durante três dias, vale consultar a hospedagem com antecedência para escolher melhor a acomodação.",
+        visibleUntil: "2026-09-20",
       },
       {
         type: "heading",

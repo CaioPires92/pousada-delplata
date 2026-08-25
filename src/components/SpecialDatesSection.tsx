@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ArrowRight, CalendarDays, MoonStar } from 'lucide-react';
 import { buildReservarUrl, type SpecialDateConfig } from '@/constants/specialDates';
+import { useCurrentDateKey } from '@/hooks/useCurrentDateKey';
 
 type SpecialDatesSectionProps = {
     dates: SpecialDateConfig[];
@@ -45,9 +46,13 @@ function getSpecialDateHref(specialDate: SpecialDateConfig) {
 }
 
 export default function SpecialDatesSection({ dates, onDateClick }: SpecialDatesSectionProps) {
+    const currentDateKey = useCurrentDateKey();
     const enabledDates = useMemo(
-        () => dates.filter((item) => item.enabled).sort((a, b) => a.dateFrom.localeCompare(b.dateFrom)).slice(0, 3),
-        [dates]
+        () => dates
+            .filter((item) => item.enabled && (!currentDateKey || (item.dateTo || item.dateFrom) >= currentDateKey))
+            .sort((a, b) => a.dateFrom.localeCompare(b.dateFrom))
+            .slice(0, 3),
+        [currentDateKey, dates]
     );
     const [activeDateId, setActiveDateId] = useState(enabledDates[0]?.id ?? null);
 

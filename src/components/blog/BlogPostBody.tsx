@@ -1,16 +1,23 @@
+"use client";
+
 import Image from "next/image";
 import { BlogContentBlock } from "@/types/blog";
+import { useCurrentDateKey } from "@/hooks/useCurrentDateKey";
 
 interface BlogPostBodyProps {
   content: BlogContentBlock[];
 }
 
 export function BlogPostBody({ content }: BlogPostBodyProps) {
-  const firstParagraphIndex = content.findIndex((block) => block.type === "paragraph");
+  const currentDateKey = useCurrentDateKey();
+  const visibleContent = currentDateKey
+    ? content.filter((block) => !block.visibleUntil || currentDateKey <= block.visibleUntil)
+    : content;
+  const firstParagraphIndex = visibleContent.findIndex((block) => block.type === "paragraph");
 
   return (
     <div className="space-y-6 text-[1.02rem] leading-8 text-foreground/80">
-      {content.map((block, index) => {
+      {visibleContent.map((block, index) => {
         if (block.type === "paragraph") {
           const isLeadParagraph = index === firstParagraphIndex;
 

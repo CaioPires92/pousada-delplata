@@ -7,7 +7,11 @@ export type BlogCategorySlug =
 
 export type BlogFunnelStage = "topo" | "meio" | "fundo";
 
-export type BlogContentBlock =
+type BlogContentVisibility = {
+  visibleUntil?: string;
+};
+
+export type BlogContentBlock = BlogContentVisibility & (
   | {
       type: "paragraph";
       content: string;
@@ -32,7 +36,8 @@ export type BlogContentBlock =
       type: "callout";
       title?: string;
       content: string;
-    };
+    }
+);
 
 export interface BlogCategory {
   slug: BlogCategorySlug;

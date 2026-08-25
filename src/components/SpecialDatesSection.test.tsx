@@ -1,8 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import SpecialDatesSection from './SpecialDatesSection';
 import type { SpecialDateConfig } from '@/constants/specialDates';
+
+const currentDateState = { value: '2026-01-01' };
+
+vi.mock('@/hooks/useCurrentDateKey', () => ({
+    useCurrentDateKey: () => currentDateState.value,
+}));
 
 vi.mock('next/link', () => ({
     default: ({ href, children, ...props }: { href: string; children: ReactNode }) => (
@@ -22,9 +28,20 @@ const baseDate: SpecialDateConfig = {
 };
 
 describe('SpecialDatesSection', () => {
+    beforeEach(() => {
+        currentDateState.value = '2026-01-01';
+    });
+
     it('não renderiza seção quando não há itens habilitados', () => {
         render(<SpecialDatesSection dates={[{ ...baseDate, enabled: false }]} />);
         expect(screen.queryByText(/Próximos feriados/i)).not.toBeInTheDocument();
+    });
+
+    it('remove automaticamente uma data especial depois do fim do evento', () => {
+        currentDateState.value = '2026-06-08';
+        render(<SpecialDatesSection dates={[baseDate]} />);
+
+        expect(screen.queryByText('Corpus Christi')).not.toBeInTheDocument();
     });
 
     it('renderiza a versão editorial com CTA único', () => {
