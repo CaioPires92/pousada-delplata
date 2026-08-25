@@ -61,6 +61,15 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         enabled: true,
     },
     {
+        id: 'festa-ditalia-2026',
+        title: "Festa D'Italia 2026",
+        description: "A Festa D'Italia acontece em Serra Negra de 18 a 20 de setembro, com entrada gratuita.",
+        dateFrom: '2026-09-18',
+        dateTo: '2026-09-20',
+        enabled: true,
+        bannerLabel: "Festa D'Italia 2026 em Serra Negra, com entrada gratuita.",
+    },
+    {
         id: 'nossa-senhora-aparecida-2026',
         title: 'Nossa Sr.a Aparecida - Padroeira do Brasil',
         description: 'Consulte as acomodações disponíveis para o feriado de Nossa Senhora Aparecida.',

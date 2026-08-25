@@ -1,11 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
+    SPECIAL_DATES,
     buildReservarUrl,
     getActiveBannerSpecialDate,
     type SpecialDateConfig,
 } from './specialDates';
 
 describe('specialDates helpers', () => {
+    it("inclui a Festa D'Italia 2026 no periodo divulgado", () => {
+        expect(SPECIAL_DATES).toContainEqual(expect.objectContaining({
+            id: 'festa-ditalia-2026',
+            title: "Festa D'Italia 2026",
+            dateFrom: '2026-09-18',
+            dateTo: '2026-09-20',
+            enabled: true,
+        }));
+    });
+
     it('buildReservarUrl gera query correta com datas válidas', () => {
         const url = buildReservarUrl({
             checkIn: '2026-06-04',
