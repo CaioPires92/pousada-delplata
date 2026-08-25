@@ -44,6 +44,7 @@ describe("automation queue worker n8n delivery", () => {
       await runner({
         id: "job-1",
         action: "EMIT_N8N_EVENT",
+        createdAt: new Date("2026-08-05T18:29:00.000Z"),
         payload: {
           event: {
             schemaVersion: 1,
@@ -78,6 +79,7 @@ describe("automation queue worker n8n delivery", () => {
       const result = await runner({
         id: "job-send-1",
         action: "SEND_WHATSAPP_MESSAGE",
+        createdAt: new Date("2026-08-11T12:00:00.000Z"),
         payload: { target: "5511999999999", text: "Resposta automática" },
       });
       expect(result).toEqual({
@@ -104,6 +106,7 @@ describe("automation queue worker n8n delivery", () => {
       const result = await runner({
         id: "job-send-optout",
         action: "SEND_WHATSAPP_MESSAGE",
+        createdAt: new Date("2026-08-10T18:00:00.000Z"),
         payload: { target: "5511999999999", text: "Follow-up" },
       });
       expect(result).toEqual({ cancelled: true, reason: "contact_opted_out" });
@@ -122,6 +125,7 @@ describe("automation queue worker n8n delivery", () => {
         id: "job-quiet",
         action: "SEND_WHATSAPP_MESSAGE",
         journeyType: "commercial_followup",
+        createdAt: new Date("2026-08-11T01:00:00.000Z"),
         payload: { target: "5511999999999", text: "Follow-up" },
       });
       expect(result).toMatchObject({
@@ -160,6 +164,7 @@ describe("automation queue worker n8n delivery", () => {
         id: "job-coupon",
         action: "SEND_WHATSAPP_MESSAGE",
         journeyType: "post_stay",
+        createdAt: new Date("2026-08-11T14:30:00.000Z"),
         payload: {
           target: "5511999999999",
           text: "Seu cupom",
