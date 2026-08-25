@@ -66,6 +66,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         description: "A Festa D'Italia acontece em Serra Negra de 18 a 20 de setembro, com entrada gratuita.",
         dateFrom: '2026-09-18',
         dateTo: '2026-09-20',
+        image: '/fotos/jardim-aptos/DJI_0903.jpg',
         enabled: true,
         bannerLabel: "Festa D'Italia 2026 em Serra Negra, com entrada gratuita.",
     },
