@@ -68,6 +68,7 @@ export interface BlogPost {
   summary: string;
   publishedAt: string;
   updatedAt?: string;
+  expiresAt?: string;
   readingTime: string;
   category: BlogCategorySlug;
   tags: string[];

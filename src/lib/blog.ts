@@ -4,6 +4,20 @@ import { blogCategories, blogPosts } from "@/data/blog-posts";
 import { BlogCategory, BlogPost } from "@/types/blog";
 
 const FALLBACK_SITE_URL = "http://localhost:3001";
+const BRAZIL_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function getBrazilDateKey() {
+  return BRAZIL_DATE_FORMATTER.format(new Date());
+}
+
+export function isBlogPostActive(post: BlogPost, currentDateKey = getBrazilDateKey()) {
+  return !post.expiresAt || currentDateKey <= post.expiresAt;
+}
 
 export function getSiteUrl() {
   const envUrl =
@@ -42,14 +56,14 @@ export function getBlogCategoryBySlug(slug?: string | null) {
   return blogCategories.find((category) => category.slug === slug);
 }
 
-export function getAllBlogPosts() {
-  return [...blogPosts].sort((left, right) =>
+export function getAllBlogPosts(currentDateKey = getBrazilDateKey()) {
+  return blogPosts.filter((post) => isBlogPostActive(post, currentDateKey)).sort((left, right) =>
     right.publishedAt.localeCompare(left.publishedAt),
   );
 }
 
-export function getBlogPostBySlug(slug: string) {
-  return blogPosts.find((post) => post.slug === slug);
+export function getBlogPostBySlug(slug: string, currentDateKey = getBrazilDateKey()) {
+  return blogPosts.find((post) => post.slug === slug && isBlogPostActive(post, currentDateKey));
 }
 
 export function getBlogPostsByCategory(category?: string | null) {
@@ -80,7 +94,7 @@ export function getRelatedBlogPosts(post: BlogPost, limit = 3) {
 }
 
 export function getCategoryPostCount(category: BlogCategory) {
-  return blogPosts.filter((post) => post.category === category.slug).length;
+  return getAllBlogPosts().filter((post) => post.category === category.slug).length;
 }
 
 function buildBaseOpenGraph({

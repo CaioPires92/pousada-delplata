@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { BlogCategoryFilter } from "@/components/blog/BlogCategoryFilter";
 import { BlogCta } from "@/components/blog/BlogCta";
@@ -20,6 +19,8 @@ type BlogPageProps = {
     category?: string;
   }>;
 };
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   searchParams,

@@ -40,6 +40,88 @@ export const blogCategories: BlogCategory[] = [
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "festa-ditalia-serra-negra-2026",
+    title: "Festa D'Italia 2026 em Serra Negra: datas e programação",
+    excerpt:
+      "A Festa D'Italia acontece de 18 a 20 de setembro em Serra Negra, com entrada gratuita, música e apresentações culturais.",
+    summary:
+      "Confira quando acontece a Festa D'Italia 2026, os destaques da programação e como planejar a hospedagem.",
+    publishedAt: "2026-08-25",
+    updatedAt: "2026-08-25",
+    expiresAt: "2026-09-20",
+    readingTime: "4 min",
+    category: "guias-sazonais",
+    tags: ["Festa D'Italia", "Serra Negra", "eventos", "setembro", "2026"],
+    coverImage: {
+      src: "/fotos/jardim-aptos/DJI_0903.jpg",
+      alt: "Área externa da Pousada Delplata em Serra Negra",
+    },
+    seo: {
+      title: "Festa D'Italia 2026 em Serra Negra | Programação",
+      description:
+        "Veja as datas e os destaques da Festa D'Italia 2026 em Serra Negra, com programação gratuita de 18 a 20 de setembro.",
+    },
+    featured: true,
+    seedDemo: true,
+    funnelStage: "topo",
+    content: [
+      {
+        type: "paragraph",
+        content:
+          "A Festa D'Italia 2026 acontece de 18 a 20 de setembro na Av. Dep. Campos Vergal, em Serra Negra. A programação tem entrada gratuita e integra as comemorações do 198º aniversário da cidade.",
+      },
+      {
+        type: "heading",
+        content: "Quando e onde acontece",
+      },
+      {
+        type: "list",
+        items: [
+          "Datas: 18, 19 e 20 de setembro de 2026.",
+          "Local principal: Av. Dep. Campos Vergal, em Serra Negra.",
+          "Entrada gratuita.",
+        ],
+      },
+      {
+        type: "image",
+        src: "/fotos/jardim-aptos/DJI_0903.jpg",
+        alt: "Área externa da Pousada Delplata em Serra Negra",
+        caption: "Imagem institucional da Pousada Delplata para o planejamento da hospedagem durante o evento.",
+      },
+      {
+        type: "heading",
+        content: "Destaques da programação",
+      },
+      {
+        type: "list",
+        items: [
+          "18/09: abertura oficial às 17h, seguida por atrações musicais.",
+          "19/09: dança italiana e apresentações musicais ao longo do dia.",
+          "20/09: programação a partir das 10h30, com música e atrações culturais até a noite.",
+        ],
+      },
+      {
+        type: "paragraph",
+        content:
+          "Entre as atrações divulgadas estão grupos de dança italiana, a Corporação Musical Lira de Serra Negra, Itália Mia, Tony Angeli e Trio, além de outros artistas. A programação está sujeita a alterações, por isso é importante conferir novamente os canais locais próximo à viagem.",
+      },
+      {
+        type: "source",
+        label: "F2 Serra Negra — programação do aniversário de Serra Negra",
+        href: "https://www.f2serranegra.com.br/aniversario-serra-negra",
+      },
+      {
+        type: "heading",
+        content: "Como planejar a hospedagem",
+      },
+      {
+        type: "paragraph",
+        content:
+          "Eventos de fim de semana podem aumentar a procura por acomodações em Serra Negra. Consulte disponibilidade com antecedência e confirme as datas da estadia de acordo com os dias da programação que pretende acompanhar.",
+      },
+    ],
+  },
+  {
     slug: "eventos-em-serra-negra-em-2026",
     title: "Eventos em Serra Negra em 2026: o que já está confirmado",
     excerpt:
@@ -87,39 +169,6 @@ export const blogPosts: BlogPost[] = [
           "Festa das Nações 2026: de 1º a 3 de maio.",
           "Festival do Café & Riquezas da Serra: de 22 a 24 de maio.",
         ],
-      },
-      {
-        type: "heading",
-        content: "Próximo evento confirmado",
-        visibleUntil: "2026-09-20",
-      },
-      {
-        type: "list",
-        items: [
-          "18/09: abertura oficial às 17h, seguida por atrações musicais na Av. Dep. Campos Vergal.",
-          "19/09: apresentações de dança italiana e shows ao longo do dia.",
-          "20/09: programação musical a partir das 10h30, com atrações até a noite.",
-        ],
-        visibleUntil: "2026-09-20",
-      },
-      {
-        type: "image",
-        src: "/fotos/jardim-aptos/DJI_0903.jpg",
-        alt: "Área externa da Pousada Delplata em Serra Negra",
-        caption: "Imagem da Pousada Delplata para ajudar no planejamento da hospedagem durante a Festa D'Italia.",
-        visibleUntil: "2026-09-20",
-      },
-      {
-        type: "paragraph",
-        content:
-          "A Festa D'Italia integra as comemorações do 198º aniversário de Serra Negra. A programação gratuita acontece de 18 a 20 de setembro na Av. Dep. Campos Vergal, com música, dança e apresentações ligadas à cultura italiana. As comemorações do aniversário da cidade continuam nos dias 22 e 23 de setembro, com outras atrações.",
-        visibleUntil: "2026-09-20",
-      },
-      {
-        type: "source",
-        label: "F2 Serra Negra — programação do aniversário de Serra Negra",
-        href: "https://www.f2serranegra.com.br/aniversario-serra-negra",
-        visibleUntil: "2026-09-20",
       },
       {
         type: "heading",

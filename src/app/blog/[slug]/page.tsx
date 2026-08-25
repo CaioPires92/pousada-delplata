@@ -13,7 +13,6 @@ import {
   buildBlogPostMetadata,
   buildBreadcrumbSchema,
   formatBlogDate,
-  getAllBlogPosts,
   getBlogCategoryBySlug,
   getBlogPostBySlug,
   getRelatedBlogPosts,
@@ -25,13 +24,7 @@ type BlogPostPageProps = {
   }>;
 };
 
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return getAllBlogPosts().map((post) => ({
-    slug: post.slug,
-  }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
