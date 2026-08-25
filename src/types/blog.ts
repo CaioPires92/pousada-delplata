@@ -37,6 +37,11 @@ export type BlogContentBlock = BlogContentVisibility & (
       title?: string;
       content: string;
     }
+  | {
+      type: "source";
+      label: string;
+      href: string;
+    }
 );
 
 export interface BlogCategory {

@@ -96,7 +96,9 @@ export const blogPosts: BlogPost[] = [
       {
         type: "list",
         items: [
-          "Festa D'Italia 2026: de 18 a 20 de setembro, com entrada gratuita.",
+          "18/09: abertura oficial às 17h, seguida por atrações musicais na Av. Dep. Campos Vergal.",
+          "19/09: apresentações de dança italiana e shows ao longo do dia.",
+          "20/09: programação musical a partir das 10h30, com atrações até a noite.",
         ],
         visibleUntil: "2026-09-20",
       },
@@ -110,7 +112,13 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         content:
-          "A Festa D'Italia reúne a programação especial de setembro em Serra Negra. Como o evento acontece durante três dias, vale consultar a hospedagem com antecedência para escolher melhor a acomodação.",
+          "A Festa D'Italia integra as comemorações do 198º aniversário de Serra Negra. A programação gratuita acontece de 18 a 20 de setembro na Av. Dep. Campos Vergal, com música, dança e apresentações ligadas à cultura italiana. As comemorações do aniversário da cidade continuam nos dias 22 e 23 de setembro, com outras atrações.",
+        visibleUntil: "2026-09-20",
+      },
+      {
+        type: "source",
+        label: "F2 Serra Negra — programação do aniversário de Serra Negra",
+        href: "https://www.f2serranegra.com.br/aniversario-serra-negra",
         visibleUntil: "2026-09-20",
       },
       {

@@ -98,6 +98,22 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
           );
         }
 
+        if (block.type === "source") {
+          return (
+            <p key={index} className="text-sm leading-6 text-foreground/65">
+              Fonte:{' '}
+              <a
+                href={block.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary underline decoration-secondary/60 underline-offset-4 hover:text-primary/75"
+              >
+                {block.label}
+              </a>
+            </p>
+          );
+        }
+
         return (
           <aside
             key={index}

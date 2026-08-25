@@ -33,4 +33,17 @@ describe('BlogPostBody', () => {
 
     expect(screen.queryByText("Festa D'Italia")).not.toBeInTheDocument();
   });
+
+  it('renderiza uma fonte externa identificada', () => {
+    render(<BlogPostBody content={[{
+      type: 'source',
+      label: 'F2 Serra Negra',
+      href: 'https://www.f2serranegra.com.br/aniversario-serra-negra',
+    }]} />);
+
+    expect(screen.getByRole('link', { name: 'F2 Serra Negra' })).toHaveAttribute(
+      'href',
+      'https://www.f2serranegra.com.br/aniversario-serra-negra'
+    );
+  });
 });
