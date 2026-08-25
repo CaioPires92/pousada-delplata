@@ -6,6 +6,7 @@ import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 import { markCouponGrantRedeemed } from '@/lib/crm/couponGrant';
+import { setWhatsappConsent } from '@/lib/crm/whatsappConsent';
 
 vi.mock('next/server', async (importOriginal) => {
   const actual = await importOriginal<typeof import('next/server')>();
@@ -56,6 +57,9 @@ vi.mock('@/lib/crm/bookingLifecycle', () => ({
 }));
 vi.mock('@/lib/crm/couponGrant', () => ({
   markCouponGrantRedeemed: vi.fn().mockResolvedValue({ updated: true, reason: null }),
+}));
+vi.mock('@/lib/crm/whatsappConsent', () => ({
+  setWhatsappConsent: vi.fn().mockResolvedValue({ contact: { optInWhatsapp: true } }),
 }));
 
 describe('Bookings API', () => {
@@ -152,6 +156,10 @@ describe('Bookings API', () => {
     expect(publishBookingLifecycleEvent).toHaveBeenCalledWith(expect.objectContaining({
       bookingId: 'booking-1',
       event: 'ReservationStarted',
+    }));
+    expect(setWhatsappConsent).toHaveBeenCalledWith(expect.objectContaining({
+      optInWhatsapp: true,
+      sourceOrigin: 'booking_checkout_default',
     }));
     expect(data).toEqual({
       ...mockBooking,

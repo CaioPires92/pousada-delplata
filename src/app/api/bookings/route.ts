@@ -17,7 +17,6 @@ import { setWhatsappConsent } from '@/lib/crm/whatsappConsent';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const whatsappConsentAccepted = Boolean(body?.whatsappConsentAccepted);
         const { roomTypeId, checkIn, checkOut, guest, adults, childrenAges } = body;
         const adultsCount = Math.max(1, Number.parseInt(String(adults ?? 1), 10) || 1);
         const childrenCount = Math.max(0, Number.parseInt(String(body?.children ?? 0), 10) || 0);
@@ -307,19 +306,14 @@ export async function POST(request: Request) {
                         if (!reconciliation.ok) return;
 
                         await Promise.all([
-                            (async () => {
-                                if (!whatsappConsentAccepted) return;
-                                try {
-                                    await setWhatsappConsent({
-                                        contactId: reconciliation.contactId,
-                                        optInWhatsapp: true,
-                                        origin: 'system',
-                                        sourceOrigin: 'booking_checkout',
-                                    });
-                                } catch (consentError) {
-                                    console.error('[Booking API] Failed to save WhatsApp consent:', consentError);
-                                }
-                            })(),
+                            setWhatsappConsent({
+                                contactId: reconciliation.contactId,
+                                optInWhatsapp: true,
+                                origin: 'system',
+                                sourceOrigin: 'booking_checkout_default',
+                            }).catch((consentError) => {
+                                console.error('[Booking API] Failed to enable booking WhatsApp messages:', consentError);
+                            }),
                             publishBookingLifecycleEvent({
                                 bookingId: booking.id,
                                 event: 'ReservationStarted',
