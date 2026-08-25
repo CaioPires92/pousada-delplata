@@ -172,6 +172,8 @@ async function migrate() {
 
     const bookingDefs = [
         { name: 'checkoutConfirmedAt', ddl: 'ALTER TABLE Booking ADD COLUMN checkoutConfirmedAt DATETIME' },
+        { name: 'crmContactId', ddl: 'ALTER TABLE Booking ADD COLUMN crmContactId TEXT' },
+        { name: 'crmConversationId', ddl: 'ALTER TABLE Booking ADD COLUMN crmConversationId TEXT' },
     ];
 
     const couponDefs = [
@@ -243,6 +245,16 @@ async function migrate() {
         'Booking_checkoutConfirmedAt_idx',
         'CREATE INDEX "Booking_checkoutConfirmedAt_idx" ON "Booking"("checkoutConfirmedAt")'
     );
+    const addedBookingContactIndex = await ensureIndex(
+        'Booking',
+        'Booking_crmContactId_idx',
+        'CREATE INDEX "Booking_crmContactId_idx" ON "Booking"("crmContactId")'
+    );
+    const addedBookingConversationIndex = await ensureIndex(
+        'Booking',
+        'Booking_crmConversationId_idx',
+        'CREATE INDEX "Booking_crmConversationId_idx" ON "Booking"("crmConversationId")'
+    );
 
     const totalAdded = addedRoomType
         + addedRate
@@ -254,7 +266,9 @@ async function migrate() {
         + addedDiscountPolicySettings
         + addedPayment
         + addedBooking
-        + addedBookingIndexes;
+        + addedBookingIndexes
+        + addedBookingContactIndex
+        + addedBookingConversationIndex;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');
