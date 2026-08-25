@@ -47,7 +47,7 @@ export const blogPosts: BlogPost[] = [
     summary:
       "Um guia curto para separar o que já passou do que ainda vale acompanhar em 2026.",
     publishedAt: "2026-06-08",
-    updatedAt: "2026-06-08",
+    updatedAt: "2026-08-25",
     readingTime: "6 min",
     category: "guias-sazonais",
     tags: ["eventos", "Serra Negra", "2026", "festival", "feriados"],
@@ -90,13 +90,18 @@ export const blogPosts: BlogPost[] = [
       },
       {
         type: "heading",
-        content: "O que ainda vale acompanhar",
+        content: "Próximo evento confirmado",
       },
       {
         type: "list",
         items: [
-          "Festival de Inverno Serra Negra In Concert 2026: de 19 de junho a 26 de julho.",
+          "Festa D'Italia 2026: de 18 a 20 de setembro, com entrada gratuita.",
         ],
+      },
+      {
+        type: "paragraph",
+        content:
+          "A Festa D'Italia reúne a programação especial de setembro em Serra Negra. Como o evento acontece durante três dias, vale consultar a hospedagem com antecedência para escolher melhor a acomodação.",
       },
       {
         type: "heading",
@@ -110,7 +115,7 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         content:
-          "A página oficial de eventos anuais também sinaliza períodos importantes do segundo semestre, mesmo antes da programação completa sair. Depois de 8 de junho de 2026, vale acompanhar o Desafio do Morro do Cristo em agosto, a Festa D’Itália e o aniversário da cidade em setembro, ações de outubro, o Acender das Luzes e o Natal Luzes da Serra em novembro, além de Natal e Réveillon em dezembro.",
+          "A página oficial de eventos anuais também sinaliza outros períodos importantes do segundo semestre, mesmo antes da programação completa sair. Vale acompanhar o aniversário da cidade em setembro, ações de outubro, o Acender das Luzes e o Natal Luzes da Serra em novembro, além de Natal e Réveillon em dezembro.",
       },
       {
         type: "heading",
