@@ -4,6 +4,7 @@ import { sendBookingConfirmationEmail } from '@/lib/email';
 import {
     expireStalePendingBookings,
 } from '@/lib/expire-stale-bookings';
+import { reconcileBookingsWithKanban } from '@/lib/crm/bookingKanbanReconciliation';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,8 @@ export async function GET(request: Request) {
             limit: 200,
         });
 
+        const reconciliation = await reconcileBookingsWithKanban();
+
         console.log(
             `[Cron Cleanup] ${expiration.expiredCount} reservas expiradas por pendencia acima de 24h. alertas: ${expiration.alertCount}, cupons liberados: ${expiration.couponReleaseCount}.`
         );
@@ -76,6 +79,7 @@ export async function GET(request: Request) {
             confirmationEmailCount,
             expiredEmailCount: expiration.guestExpiredEmailCount,
             couponReleaseCount: expiration.couponReleaseCount,
+            reconciliation,
         });
     } catch (error) {
         console.error('Erro no Cron:', error);
