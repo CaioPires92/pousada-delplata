@@ -997,10 +997,16 @@ function ReservarContent() {
 
             if (!bookingResponse.ok) {
                 const errorData = await bookingResponse.json().catch(() => ({}));
-                if (errorData?.error === 'room_unavailable') {
-                    throw new Error('Essa acomodação não está mais disponível para a ocupação selecionada. Faça uma nova busca.');
-                }
-                throw new Error(errorData.message || errorData.error || 'Erro ao criar reserva');
+                const knownMessages: Record<string, string> = {
+                    required_fields_missing: 'Preencha os dados obrigatórios do hóspede e da estadia antes de continuar.',
+                    room_unavailable: 'Essa acomodação não está mais disponível para a ocupação selecionada. Faça uma nova busca.',
+                    min_stay_required: `Para esta data, a estadia mínima é de ${Number(errorData?.minLos) || 1} noite${Number(errorData?.minLos) > 1 ? 's' : ''}.`,
+                };
+                throw new Error(
+                    errorData?.message ||
+                    knownMessages[String(errorData?.error || '')] ||
+                    'Não foi possível salvar sua reserva. Tente novamente em instantes.'
+                );
             }
 
             const booking = await bookingResponse.json();

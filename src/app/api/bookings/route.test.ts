@@ -7,6 +7,14 @@ import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
 import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 import { markCouponGrantRedeemed } from '@/lib/crm/couponGrant';
 
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>();
+  return {
+    ...actual,
+    after: (callback: () => unknown) => callback(),
+  };
+});
+
 vi.mock('@/lib/prisma', () => ({
   default: {
     $transaction: vi.fn(),
@@ -28,6 +36,7 @@ vi.mock('@/lib/prisma', () => ({
     booking: {
       findMany: vi.fn(),
       create: vi.fn(),
+      updateMany: vi.fn(),
     },
     couponRedemption: {
       findUnique: vi.fn(),
@@ -114,6 +123,7 @@ describe('Bookings API', () => {
     (prisma.guest.findFirst as any).mockResolvedValue(null);
     (prisma.guest.create as any).mockResolvedValue(mockGuest);
     (prisma.booking.create as any).mockResolvedValue(mockBooking);
+    (sendBookingStatusAlertEmail as any).mockRejectedValueOnce(new Error('SMTP unavailable'));
 
     const body = {
       roomTypeId: 'room-1',
@@ -368,7 +378,8 @@ describe('Bookings API', () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    expect(data.error).toBe('Campos obrigatórios ausentes');
+    expect(data.error).toBe('required_fields_missing');
+    expect(data.message).toContain('dados obrigatorios');
   });
 
   it('should not expose internal database errors to the guest', async () => {
@@ -397,7 +408,7 @@ describe('Bookings API', () => {
 
     expect(res.status).toBe(500);
     expect(data.error).toBe('booking_create_failed');
-    expect(data.message).toContain('Fale com a pousada');
+    expect(data.message).toContain('fale com a pousada');
     expect(JSON.stringify(data)).not.toContain('prisma.booking.create');
     expect(JSON.stringify(data)).not.toContain('SQL_INPUT_ERROR');
   });

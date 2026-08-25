@@ -36,6 +36,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run prisma:generate
+      - run: npm run check:vercel-crons
       - run: npm run typecheck
 
   crm:

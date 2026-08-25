@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { calculateBookingPrice } from '@/lib/booking-price';
@@ -23,7 +23,10 @@ export async function POST(request: Request) {
         const childrenCount = Math.max(0, Number.parseInt(String(body?.children ?? 0), 10) || 0);
 
         if (!roomTypeId || !checkIn || !checkOut || !guest || !guest.email) {
-            return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
+            return NextResponse.json({
+                error: 'required_fields_missing',
+                message: 'Preencha os dados obrigatorios do hospede e da estadia antes de continuar.',
+            }, { status: 400 });
         }
 
         const agesArrayInput = Array.isArray(childrenAges)
@@ -282,86 +285,101 @@ export async function POST(request: Request) {
         });
         if (!booking) return NextResponse.json({ error: 'Quarto não encontrado' }, { status: 404 });
 
-        if (redeemedCouponId) {
-            try {
-                await markCouponGrantRedeemed(redeemedCouponId);
-            } catch (trackingError) {
-                console.error('[Booking API] Failed to track coupon redemption:', trackingError);
-            }
-        }
+        // The booking is already durable. Optional integrations must never delay or
+        // change the successful reservation response.
+        after(async () => {
+            await Promise.all([
+                (async () => {
+                    if (!redeemedCouponId) return;
+                    try {
+                        await markCouponGrantRedeemed(redeemedCouponId);
+                    } catch (trackingError) {
+                        console.error('[Booking API] Failed to track coupon redemption:', trackingError);
+                    }
+                })(),
+                (async () => {
+                    try {
+                        const reconciliation = await reconcileBookingToCrm({
+                            bookingId: booking.id,
+                            guestEmail: booking.guest?.email ?? guest.email,
+                            guestPhone: booking.guest?.phone ?? guest.phone,
+                        });
+                        if (!reconciliation.ok) return;
 
-        let crmConversationId: string | null = null;
-        try {
-            const reconciliation = await reconcileBookingToCrm({
-                bookingId: booking.id,
-                guestEmail: booking.guest?.email ?? guest.email,
-                guestPhone: booking.guest?.phone ?? guest.phone,
-            });
-            if (reconciliation.ok) {
-                crmConversationId = reconciliation.conversationId;
-                if (whatsappConsentAccepted) {
-                    await setWhatsappConsent({
-                        contactId: reconciliation.contactId,
-                        optInWhatsapp: true,
-                        origin: 'system',
-                        sourceOrigin: 'booking_checkout',
-                    });
-                }
-                await publishBookingLifecycleEvent({
-                    bookingId: booking.id,
-                    event: 'ReservationStarted',
-                    eventId: `booking:${booking.id}:reservation-started`,
-                    origin: 'system',
-                    reason: 'Reserva iniciada pelo motor de reservas',
-                    metadata: { source: 'booking_created' },
-                });
-            }
-        } catch (reconciliationError) {
-            console.error('[Booking API] Failed to reconcile booking with CRM:', reconciliationError);
-        }
-
-        if (crmConversationId) {
-            try {
-                await enqueueBookingWhatsAppJourney({ bookingId: booking.id, status: 'PENDING' });
-            } catch (whatsappError) {
-                console.error('[Booking API] Failed to enqueue pending WhatsApp recovery message:', whatsappError);
-            }
-        }
-
-        try {
-            await sendBookingPendingEmail({
-                guestName: booking.guest.name,
-                guestEmail: booking.guest.email,
-                guestPhone: booking.guest.phone,
-                bookingId: booking.id,
-                roomName: booking.roomType.name,
-                checkIn: booking.checkIn,
-                checkOut: booking.checkOut,
-                totalPrice: Number(booking.totalPrice),
-                paymentMethod: null,
-                paymentInstallments: null,
-                adults: booking.adults,
-                children: booking.children,
-                childrenAges: booking.childrenAges,
-                funnelStage: booking.funnelStage,
-                lastErrorMessage: booking.lastErrorMessage,
-            });
-            await prisma.booking.updateMany({
-                where: { id: booking.id, pendingEmailSentAt: null },
-                data: { pendingEmailSentAt: new Date() },
-            });
-        } catch (emailError) {
-            console.error('[Booking API] Failed to send guest pending email:', emailError);
-        }
-
-        try {
-            await sendBookingStatusAlertEmail(booking, {
-                bookingStatus: 'PENDING',
-                paymentStatus: 'PENDING',
-            });
-        } catch (emailError) {
-            console.error('[Booking API] Failed to send pending booking alert email:', emailError);
-        }
+                        await Promise.all([
+                            (async () => {
+                                if (!whatsappConsentAccepted) return;
+                                try {
+                                    await setWhatsappConsent({
+                                        contactId: reconciliation.contactId,
+                                        optInWhatsapp: true,
+                                        origin: 'system',
+                                        sourceOrigin: 'booking_checkout',
+                                    });
+                                } catch (consentError) {
+                                    console.error('[Booking API] Failed to save WhatsApp consent:', consentError);
+                                }
+                            })(),
+                            publishBookingLifecycleEvent({
+                                bookingId: booking.id,
+                                event: 'ReservationStarted',
+                                eventId: `booking:${booking.id}:reservation-started`,
+                                origin: 'system',
+                                reason: 'Reserva iniciada pelo motor de reservas',
+                                metadata: { source: 'booking_created' },
+                            }).catch((lifecycleError) => {
+                                console.error('[Booking API] Failed to publish booking lifecycle event:', lifecycleError);
+                            }),
+                            reconciliation.conversationId
+                                ? enqueueBookingWhatsAppJourney({ bookingId: booking.id, status: 'PENDING' })
+                                    .catch((whatsappError) => {
+                                        console.error('[Booking API] Failed to enqueue pending WhatsApp message:', whatsappError);
+                                    })
+                                : Promise.resolve(),
+                        ]);
+                    } catch (reconciliationError) {
+                        console.error('[Booking API] Failed to reconcile booking with CRM:', reconciliationError);
+                    }
+                })(),
+                (async () => {
+                    try {
+                        await sendBookingPendingEmail({
+                            guestName: booking.guest.name,
+                            guestEmail: booking.guest.email,
+                            guestPhone: booking.guest.phone,
+                            bookingId: booking.id,
+                            roomName: booking.roomType.name,
+                            checkIn: booking.checkIn,
+                            checkOut: booking.checkOut,
+                            totalPrice: Number(booking.totalPrice),
+                            paymentMethod: null,
+                            paymentInstallments: null,
+                            adults: booking.adults,
+                            children: booking.children,
+                            childrenAges: booking.childrenAges,
+                            funnelStage: booking.funnelStage,
+                            lastErrorMessage: booking.lastErrorMessage,
+                        });
+                        await prisma.booking.updateMany({
+                            where: { id: booking.id, pendingEmailSentAt: null },
+                            data: { pendingEmailSentAt: new Date() },
+                        });
+                    } catch (emailError) {
+                        console.error('[Booking API] Failed to send guest pending email:', emailError);
+                    }
+                })(),
+                (async () => {
+                    try {
+                        await sendBookingStatusAlertEmail(booking, {
+                            bookingStatus: 'PENDING',
+                            paymentStatus: 'PENDING',
+                        });
+                    } catch (emailError) {
+                        console.error('[Booking API] Failed to send pending booking alert email:', emailError);
+                    }
+                })(),
+            ]);
+        });
 
         return NextResponse.json(booking, { status: 201 });
 
@@ -369,18 +387,26 @@ export async function POST(request: Request) {
         console.error('[Booking API Error]:', error);
         if (typeof error?.message === 'string' && error.message.startsWith('min_stay_required:')) {
             const minLos = error.message.split(':')[1] || '1';
-            return NextResponse.json({ error: 'min_stay_required', minLos: Number(minLos) }, { status: 400 });
+            const nights = Number(minLos);
+            return NextResponse.json({
+                error: 'min_stay_required',
+                minLos: nights,
+                message: `Para esta data, a estadia minima e de ${nights} noite${nights > 1 ? 's' : ''}.`,
+            }, { status: 400 });
         }
         if (typeof error?.message === 'string' && error.message.startsWith('coupon_')) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         if (error?.message === 'room_unavailable') {
-            return NextResponse.json({ error: 'room_unavailable' }, { status: 409 });
+            return NextResponse.json({
+                error: 'room_unavailable',
+                message: 'Essa acomodacao nao esta mais disponivel para a ocupacao selecionada. Faca uma nova busca.',
+            }, { status: 409 });
         }
         return NextResponse.json(
             {
                 error: 'booking_create_failed',
-                message: 'Nao foi possivel iniciar sua reserva agora. Fale com a pousada pelo WhatsApp para receber ajuda.',
+                message: 'Nao foi possivel salvar sua reserva. Tente novamente em instantes. Se o erro continuar, fale com a pousada pelo WhatsApp.',
             },
             { status: 500 }
         );
