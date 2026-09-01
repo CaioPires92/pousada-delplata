@@ -62,12 +62,34 @@ describe('Admin Login API', () => {
         const req = new Request('http://localhost/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'admin@delplata.com.br', password: 'wrong' }),
+            body: JSON.stringify({ email: '  admin@delplata.com.br  ', password: 'wrong' }),
         });
 
         const res = await POST(req as any);
         expect(res.status).toBe(401);
         await expect(res.json()).resolves.toEqual({ error: 'invalid_credentials' });
+    });
+
+    it('normalizes the client IP before applying rate limiting', async () => {
+        vi.resetModules();
+        ({ POST } = await import('./route'));
+        prisma = (await import('@/lib/prisma')).default;
+
+        process.env.ADMIN_JWT_SECRET = 'secret';
+        (prisma.adminUser.findUnique as any).mockResolvedValue(null);
+
+        const req = new Request('http://localhost/api/admin/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-forwarded-for': ' 10.0.0.2 , 10.0.0.3 ',
+            },
+            body: JSON.stringify({ email: 'admin@delplata.com.br', password: 'wrong' }),
+        });
+
+        const res = await POST(req as any);
+
+        expect(res.status).toBe(401);
     });
 
     it('should return 200 and set admin_session cookie for valid credentials', async () => {
@@ -89,7 +111,7 @@ describe('Admin Login API', () => {
         const req = new Request('http://localhost/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'admin@delplata.com.br', password: 'correct' }),
+            body: JSON.stringify({ email: '  admin@delplata.com.br  ', password: 'correct' }),
         });
 
         const res = await POST(req as any);

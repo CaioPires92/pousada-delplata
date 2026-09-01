@@ -60,7 +60,7 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
 
     it('sends assist email and updates pendingEmailSentAt', async () => {
         const response = await POST(assistRequest(), {
-            params: Promise.resolve({ bookingId: 'booking-1' }),
+            params: Promise.resolve({ bookingId: ' booking-1 ' }),
         });
         const data = await response.json();
 
@@ -88,7 +88,7 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
         });
 
         const response = await POST(assistRequest(), {
-            params: Promise.resolve({ bookingId: 'booking-1' }),
+            params: Promise.resolve({ bookingId: ' booking-1 ' }),
         });
 
         expect(response.status).toBe(429);
@@ -148,8 +148,8 @@ describe('POST /api/admin/bookings/[bookingId]/assist-email', () => {
 
         const response = await POST(assistRequest({
             channels: { email: false, whatsapp: true },
-            couponCode: 'VOLTA10',
-        }), { params: Promise.resolve({ bookingId: 'booking-1' }) });
+            couponCode: ' VOLTA10 ',
+        }), { params: Promise.resolve({ bookingId: ' booking-1 ' }) });
         const data = await response.json();
 
         expect(response.status).toBe(200);

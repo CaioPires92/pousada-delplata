@@ -70,6 +70,47 @@ describe('POST /api/coupons/reserve', () => {
         expect(prisma.couponAttemptLog.create).toHaveBeenCalledTimes(1);
     });
 
+    it('normalizes whitespace around reserve request fields', async () => {
+        (reserveCouponUsage as any).mockResolvedValue({
+            valid: true,
+            reason: 'OK',
+            couponId: 'coupon-1',
+            discountAmount: 30,
+            subtotal: 200,
+            total: 170,
+            reservationId: 'res-1',
+            reservationExpiresAt: '2026-02-11T10:15:00.000Z',
+        });
+
+        const req = new Request('http://localhost/api/coupons/reserve', {
+            method: 'POST',
+            body: JSON.stringify({
+                code: '  VIP10  ',
+                guest: { email: '  john@example.com  ', phone: '  11999999999  ' },
+                context: {
+                    roomTypeId: '  room-1  ',
+                    source: '  direct  ',
+                    subtotal: 200,
+                    checkIn: ' 2026-02-10 ',
+                    checkOut: ' 2026-02-11 ',
+                },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(reserveCouponUsage).toHaveBeenCalledWith(expect.objectContaining({
+            code: 'VIP10',
+            guestEmail: 'john@example.com',
+            guestPhone: '11999999999',
+            roomTypeId: 'room-1',
+            source: 'direct',
+            checkIn: '2026-02-10',
+            checkOut: '2026-02-11',
+        }));
+    });
+
     it('returns 500 on unhandled error', async () => {
         (reserveCouponUsage as any).mockRejectedValue(new Error('boom'));
 

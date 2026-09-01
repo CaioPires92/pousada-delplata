@@ -58,16 +58,40 @@ describe('POST resend hotel confirmation', () => {
 
         const response = await POST(
             new Request('https://example.com', { method: 'POST' }),
-            { params: Promise.resolve({ bookingId: 'booking-1' }) }
+            { params: Promise.resolve({ bookingId: ' booking-1 ' }) }
         );
         const data = await response.json();
 
         expect(response.status).toBe(200);
         expect(data.messageId).toBe('mail-123');
+        expect(data.bookingId).toBe('booking-1');
         expect(sendBookingStatusAlertEmail).toHaveBeenCalledWith(
             confirmedBooking,
             { bookingStatus: 'CONFIRMED', paymentStatus: 'APPROVED' }
         );
+    });
+
+    it('normalizes whitespace around bookingId', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue(confirmedBooking);
+        (sendBookingStatusAlertEmail as any).mockResolvedValue({
+            success: true,
+            messageId: 'mail-123',
+        });
+
+        const response = await POST(
+            new Request('https://example.com', { method: 'POST' }),
+            { params: Promise.resolve({ bookingId: ' booking-1 ' }) }
+        );
+
+        expect(response.status).toBe(200);
+        expect(prisma.booking.findUnique).toHaveBeenCalledWith({
+            where: { id: 'booking-1' },
+            include: {
+                guest: true,
+                roomType: true,
+                payment: true,
+            },
+        });
     });
 
     it('bloqueia reserva ainda não confirmada', async () => {

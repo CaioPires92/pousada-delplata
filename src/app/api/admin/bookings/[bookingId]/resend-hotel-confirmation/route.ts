@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { opsLog } from '@/lib/ops-log';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -15,12 +16,13 @@ export async function POST(
         if (auth instanceof Response) return auth;
 
         const { bookingId } = await params;
-        if (!bookingId) {
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: {
                 guest: true,
                 roomType: true,
@@ -52,7 +54,7 @@ export async function POST(
 
         if (!result.success) {
             opsLog('error', 'ADMIN_HOTEL_CONFIRMATION_RESEND_FAILED', {
-                bookingId,
+                bookingId: normalizedBookingId,
                 adminId: auth.adminId,
                 error: result.error instanceof Error ? result.error.message : String(result.error),
             });
@@ -66,14 +68,14 @@ export async function POST(
         }
 
         opsLog('info', 'ADMIN_HOTEL_CONFIRMATION_RESENT', {
-            bookingId,
+            bookingId: normalizedBookingId,
             adminId: auth.adminId,
             messageId: result.messageId,
         });
 
         return NextResponse.json({
             ok: true,
-            bookingId,
+            bookingId: normalizedBookingId,
             messageId: result.messageId,
         });
     } catch (error) {

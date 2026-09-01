@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { expireStalePendingBookings } from '@/lib/expire-stale-bookings';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -38,7 +39,7 @@ function toNumber(value: unknown, fallback = 0) {
 }
 
 function toInt(value: unknown, fallback = 0) {
-    const parsed = Number.parseInt(String(value), 10);
+    const parsed = Number.parseInt(asNullableString(value) ?? '', 10);
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
@@ -66,7 +67,7 @@ function mapByField(rows: Row[], field: string) {
 }
 
 function parseYmd(raw: string) {
-    const value = String(raw || '').trim();
+    const value = asNullableString(raw) ?? '';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
 
     const date = new Date(`${value}T00:00:00.000Z`);
@@ -78,10 +79,10 @@ function parseYmd(raw: string) {
 function parseBookingFilters(request: Request) {
     const params = new URL(request.url).searchParams;
     const warnings: string[] = [];
-    const dateFieldRaw = String(params.get('dateField') || 'checkIn').trim();
+    const dateFieldRaw = asNullableString(params.get('dateField')) ?? 'checkIn';
     const dateField: DateField = dateFieldRaw === 'createdAt' ? 'createdAt' : 'checkIn';
 
-    const statusRaw = String(params.get('status') || '').trim().toUpperCase();
+    const statusRaw = (asNullableString(params.get('status')) ?? '').toUpperCase();
     const status = statusRaw && statusRaw !== 'ALL' && ALLOWED_BOOKING_STATUSES.has(statusRaw)
         ? statusRaw
         : undefined;
@@ -112,13 +113,13 @@ function parseBookingFilters(request: Request) {
     const limitRaw = params.get('limit');
     let limit: number | undefined;
     if (limitRaw) {
-        const parsed = Number.parseInt(limitRaw, 10);
+        const parsed = Number.parseInt(asNullableString(limitRaw) ?? '', 10);
         if (Number.isFinite(parsed) && parsed > 0) {
             limit = Math.min(parsed, 500);
         }
     }
 
-    const cursorRaw = String(params.get('cursor') || '').trim();
+    const cursorRaw = asNullableString(params.get('cursor')) ?? '';
     const cursor = cursorRaw || undefined;
 
     const filters: BookingQueryFilters = {
@@ -135,29 +136,29 @@ function parseBookingFilters(request: Request) {
 
 function normalizeBooking(booking: Row, guest?: Row, roomType?: Row, payment?: Row | null) {
     return {
-        id: String(booking.id || ''),
+        id: asNullableString(booking.id) ?? '',
         adults: Math.max(0, toInt(booking.adults, 1)),
         children: Math.max(0, toInt(booking.children, 0)),
-        childrenAges: typeof booking.childrenAges === 'string' ? booking.childrenAges : null,
+        childrenAges: asNullableString(booking.childrenAges),
         checkIn: booking.checkIn ?? null,
         checkOut: booking.checkOut ?? null,
         totalPrice: toNumber(booking.totalPrice, 0),
-        status: String(booking.status || ''),
-        funnelStage: booking.funnelStage ? String(booking.funnelStage) : null,
+        status: asNullableString(booking.status) ?? '',
+        funnelStage: asNullableString(booking.funnelStage),
         funnelUpdatedAt: booking.funnelUpdatedAt ?? null,
-        lastErrorMessage: booking.lastErrorMessage ? String(booking.lastErrorMessage) : null,
+        lastErrorMessage: asNullableString(booking.lastErrorMessage),
         createdAt: booking.createdAt ?? null,
         guest: {
-            name: String(guest?.name || 'Não informado'),
-            email: String(guest?.email || '-'),
-            phone: String(guest?.phone || '-'),
+            name: asNullableString(guest?.name) ?? 'Não informado',
+            email: asNullableString(guest?.email) ?? '-',
+            phone: asNullableString(guest?.phone) ?? '-',
         },
         roomType: {
-            name: String(roomType?.name || 'Não informado'),
+            name: asNullableString(roomType?.name) ?? 'Não informado',
         },
         payment: payment
             ? {
-                  status: String(payment.status || ''),
+                  status: asNullableString(payment.status) ?? '',
                   amount: toNumber(payment.amount, 0),
                   totalAmount: payment.totalAmount == null ? null : toNumber(payment.totalAmount, 0),
                   remainingAmount: payment.remainingAmount == null ? null : toNumber(payment.remainingAmount, 0),
@@ -310,7 +311,7 @@ async function fetchRowsByIds(params: {
 }
 
 function toDate(value: unknown) {
-    const parsed = new Date(String(value || ''));
+    const parsed = new Date(asNullableString(value) ?? '');
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 

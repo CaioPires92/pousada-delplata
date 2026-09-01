@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { requireAdminAuth } from "@/lib/admin-auth";
-import { confirmBookingCheckout } from "@/lib/crm/bookingCheckout";
+import prisma from "@/lib/prisma";
+import { asNullableString } from "@/lib/requestValue";
 
 export async function POST(
   _request: Request,
@@ -11,13 +12,16 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { bookingId } = await context.params;
-  const result = await confirmBookingCheckout({ bookingId });
-  if (result.ok) return NextResponse.json(result);
+  const normalizedBookingId = asNullableString(bookingId);
+  if (!normalizedBookingId) {
+    return NextResponse.json({ ok: false, reason: "booking_id_required" }, { status: 400 });
+  }
 
-  const status = result.reason === "booking_not_found"
-    ? 404
-    : result.reason === "checkout_event_failed"
-      ? 503
-      : 409;
-  return NextResponse.json(result, { status });
+  const booking = await prisma.booking.findUnique({ where: { id: normalizedBookingId } });
+  if (!booking) return NextResponse.json({ ok: false, reason: "booking_not_found" }, { status: 404 });
+  const updated = await prisma.booking.update({
+    where: { id: normalizedBookingId },
+    data: { checkoutConfirmedAt: new Date() },
+  });
+  return NextResponse.json({ ok: true, bookingId: updated.id, checkoutConfirmedAt: updated.checkoutConfirmedAt });
 }

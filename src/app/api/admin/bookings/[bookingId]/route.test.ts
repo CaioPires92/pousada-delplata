@@ -48,14 +48,34 @@ describe('DELETE /api/admin/bookings/[bookingId]', () => {
                 body: JSON.stringify({ confirmDelete: true }),
             }),
             {
-                params: Promise.resolve({ bookingId: 'booking-1' }),
+                params: Promise.resolve({ bookingId: ' booking-1 ' }),
             }
         );
         const data = await response.json();
 
         expect(response.status).toBe(200);
         expect(data.ok).toBe(true);
+        expect(data.bookingId).toBe('booking-1');
         expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('normalizes whitespace around bookingId', async () => {
+        const response = await DELETE(
+            new Request('http://localhost/api/admin/bookings/ booking-1 ', {
+                method: 'DELETE',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ confirmDelete: true }),
+            }),
+            {
+                params: Promise.resolve({ bookingId: ' booking-1 ' }),
+            }
+        );
+
+        expect(response.status).toBe(200);
+        expect(prisma.booking.findUnique).toHaveBeenCalledWith({
+            where: { id: 'booking-1' },
+            include: { payment: true },
+        });
     });
 
     it('requires delete confirmation payload', async () => {

@@ -33,12 +33,13 @@ describe('POST /api/admin/bookings/[bookingId]/expire', () => {
 
     it('expires pending booking', async () => {
         const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/expire', { method: 'POST' }), {
-            params: Promise.resolve({ bookingId: 'booking-1' }),
+            params: Promise.resolve({ bookingId: ' booking-1 ' }),
         });
         const data = await response.json();
 
         expect(response.status).toBe(200);
         expect(data.ok).toBe(true);
+        expect(data.bookingId).toBe('booking-1');
         expect(prisma.booking.update).toHaveBeenCalledWith({
             where: { id: 'booking-1' },
             data: { status: 'EXPIRED' },

@@ -4,6 +4,7 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { sendBookingPendingEmail } from '@/lib/email';
 import { opsLog } from '@/lib/ops-log';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail, normalizeGuestPhone } from '@/lib/coupons/hash';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -27,16 +28,17 @@ export async function POST(
         const body = await request.json().catch(() => ({}));
         const emailRequested = Boolean(body?.channels?.email);
         const whatsappRequested = Boolean(body?.channels?.whatsapp);
-        const couponCode = normalizeCouponCode(String(body?.couponCode || ''));
+        const normalizedBookingId = asNullableString(bookingId);
+        const couponCode = normalizeCouponCode(asNullableString(body?.couponCode) ?? '');
         if (!emailRequested && !whatsappRequested) {
             return NextResponse.json({ error: 'CHANNEL_REQUIRED', message: 'Selecione ao menos um canal.' }, { status: 400 });
         }
-        if (!bookingId) {
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: {
                 guest: true,
                 roomType: true,

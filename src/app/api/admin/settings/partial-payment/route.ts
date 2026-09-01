@@ -7,6 +7,7 @@ import {
     validatePartialPaymentSettings,
     type PartialPaymentSettings,
 } from '@/lib/partial-payment';
+import { asNullableString } from '@/lib/requestValue';
 
 const SETTINGS_ID = 'default';
 
@@ -49,7 +50,14 @@ export async function PUT(request: Request) {
         if (auth instanceof Response) return auth;
 
         const body = await request.json().catch(() => ({}));
-        const settings = normalizePartialPaymentSettings(body);
+        const settings = normalizePartialPaymentSettings({
+            ...body,
+            percentage: asNullableString(body?.percentage) ?? body?.percentage,
+            minimumBookingAmount: asNullableString(body?.minimumBookingAmount) ?? body?.minimumBookingAmount,
+            minimumLeadTimeDays: asNullableString(body?.minimumLeadTimeDays) ?? body?.minimumLeadTimeDays,
+            balanceDueAt: asNullableString(body?.balanceDueAt) ?? body?.balanceDueAt,
+            defaultPaymentMode: asNullableString(body?.defaultPaymentMode) ?? body?.defaultPaymentMode,
+        });
         const validation = validatePartialPaymentSettings(settings);
 
         if (!validation.valid) {

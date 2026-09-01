@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
-import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
 
 export async function POST(request: Request) {
     try {
@@ -93,16 +92,6 @@ export async function POST(request: Request) {
                 },
             });
         } catch { console.error('Aviso: Tabela Payment não encontrada ou erro na gravação.'); }
-
-        await publishBookingLifecycleEvent({
-            bookingId: booking.id,
-            event: 'PaymentPending',
-            eventId: `mercadopago:preference:${String(result.id)}:pending`,
-            origin: 'human_api',
-            actorType: 'human',
-            reason: 'Preferência de pagamento criada',
-            metadata: { provider: 'MERCADOPAGO' },
-        });
 
         return NextResponse.json({ preferenceId: result.id, initPoint: result.init_point });
 

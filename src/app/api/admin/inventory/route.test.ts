@@ -45,7 +45,7 @@ describe('Admin Inventory API - day key safety', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 roomTypeId: 'room-1',
-                date: '2026-02-10',
+                date: ' 2026-02-10 ',
                 totalUnits: 3,
             }),
         });

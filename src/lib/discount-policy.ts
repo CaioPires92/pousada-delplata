@@ -1,3 +1,5 @@
+import { asNullableString } from "@/lib/requestValue";
+
 export type DiscountBlockedDateRange = {
     start: string;
     end: string;
@@ -49,9 +51,9 @@ export function parseBlockedDateRanges(value: unknown): DiscountBlockedDateRange
 
     return input
         .map((item) => ({
-            start: String(item?.start || '').trim(),
-            end: String(item?.end || '').trim(),
-            label: String(item?.label || '').trim().slice(0, 80),
+            start: asNullableString(item?.start) ?? '',
+            end: asNullableString(item?.end) ?? '',
+            label: (asNullableString(item?.label) ?? '').slice(0, 80),
         }))
         .filter((item) => isValidIsoDate(item.start) && isValidIsoDate(item.end) && item.start <= item.end);
 }

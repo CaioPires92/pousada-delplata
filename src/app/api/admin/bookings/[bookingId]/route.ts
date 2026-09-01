@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -30,7 +31,8 @@ export async function DELETE(
         if (auth instanceof Response) return auth;
 
         const { bookingId } = await params;
-        if (!bookingId) {
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
@@ -49,7 +51,7 @@ export async function DELETE(
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: { payment: true },
         });
 
@@ -70,25 +72,25 @@ export async function DELETE(
 
         await prisma.$transaction([
             prisma.couponRedemption.updateMany({
-                where: { bookingId },
+                where: { bookingId: normalizedBookingId },
                 data: {
                     status: 'RELEASED',
                     bookingId: null,
                     releasedAt: new Date(),
                 },
             }),
-            prisma.payment.deleteMany({ where: { bookingId } }),
-            prisma.booking.delete({ where: { id: bookingId } }),
+            prisma.payment.deleteMany({ where: { bookingId: normalizedBookingId } }),
+            prisma.booking.delete({ where: { id: normalizedBookingId } }),
         ]);
 
         opsLog('info', 'ADMIN_BOOKING_DELETED', {
-            bookingId,
+            bookingId: normalizedBookingId,
             adminId: auth.adminId,
             hadApprovedPayment: isApprovedPayment,
             confirmedByAdmin: true,
         });
 
-        return NextResponse.json({ ok: true, bookingId });
+        return NextResponse.json({ ok: true, bookingId: normalizedBookingId });
     } catch (error) {
         console.error('[Admin Booking Delete] Error:', error);
         return NextResponse.json(

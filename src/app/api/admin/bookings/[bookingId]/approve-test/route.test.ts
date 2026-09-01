@@ -83,4 +83,20 @@ describe('POST /api/admin/bookings/[bookingId]/approve-test', () => {
         });
         expect(sendGa4PurchaseServerEvent).toHaveBeenCalledTimes(1);
     });
+
+    it('normalizes whitespace around bookingId', async () => {
+        const response = await POST(makeRequest(), {
+            params: Promise.resolve({ bookingId: ' booking-1 ' }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(prisma.booking.findUnique).toHaveBeenCalledWith({
+            where: { id: 'booking-1' },
+            include: {
+                payment: true,
+                guest: true,
+                roomType: true,
+            },
+        });
+    });
 });

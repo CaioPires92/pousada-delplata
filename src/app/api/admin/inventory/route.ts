@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, normalizeChildrenAgesInput, requiresFourGuestInventory } from '@/lib/guest-capacity';
+import { asNullableString } from '@/lib/requestValue';
 
 export async function POST(request: Request) {
     try {
@@ -14,10 +15,11 @@ export async function POST(request: Request) {
         const { roomTypeId, startDate, endDate, updates, date, totalUnits, inventoryType, daysOfWeek } = body;
         const targetInventoryType = inventoryType === 'fourGuests' ? 'fourGuests' : 'standard';
         const coerceToYmd = (input: unknown, label: string): string => {
-            if (typeof input !== 'string' || !input.trim()) {
+            const normalized = asNullableString(input);
+            if (!normalized) {
                 throw new Error(`${label} inválida`);
             }
-            const value = input.includes('T') ? input.slice(0, 10) : input.trim();
+            const value = normalized.includes('T') ? normalized.slice(0, 10) : normalized;
             assertDayKey(value, label);
             return value;
         };

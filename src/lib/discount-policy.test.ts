@@ -29,4 +29,21 @@ describe('discount policy', () => {
         expect(result.errors.percentage).toBeTruthy();
         expect(result.errors.validityDays).toBeTruthy();
     });
+
+    it('normalizes blocked date ranges with whitespace and truncates labels', () => {
+        const policy = normalizeDiscountPolicy({
+            blockedDateRanges: [{
+                start: ' 2026-12-30 ',
+                end: ' 2027-01-01 ',
+                label: ' Réveillon '.repeat(8),
+            }],
+        });
+
+        expect(policy.blockedDateRanges).toEqual([{
+            start: '2026-12-30',
+            end: '2027-01-01',
+            label: expect.stringContaining('Réveillon'),
+        }]);
+        expect(policy.blockedDateRanges[0].label.length).toBeLessThanOrEqual(80);
+    });
 });

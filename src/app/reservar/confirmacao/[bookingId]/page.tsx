@@ -66,12 +66,6 @@ interface BookingData {
         balanceDueAt?: string | null;
         balanceDueDate?: string | null;
     } | null;
-    crmConversation?: {
-        contact?: {
-            optInWhatsapp?: boolean | null;
-            optOutAt?: string | null;
-        } | null;
-    } | null;
 }
 
 const PAYMENT_REJECTED_STATUSES = ['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'];
@@ -156,14 +150,6 @@ function formatPaymentStatus(status?: string | null) {
     if (normalized === 'REFUNDED') return 'Estornado';
     if (normalized === 'CHARGED_BACK') return 'Chargeback';
     return normalized || 'Em analise';
-}
-
-function formatWhatsappConsent(booking?: BookingData | null) {
-    const optedIn = Boolean(booking?.crmConversation?.contact?.optInWhatsapp);
-    const optedOut = Boolean(booking?.crmConversation?.contact?.optOutAt);
-    if (optedOut) return 'Não autorizado';
-    if (optedIn) return 'Autorizado';
-    return 'Pendente de confirmação';
 }
 
 function isPartialPayment(payment?: BookingData['payment']) {
@@ -348,7 +334,6 @@ export default function ConfirmacaoPage() {
     const totalAmount = booking?.payment?.totalAmount ?? booking?.totalPrice;
     const paidAmount = booking?.payment?.amount;
     const remainingAmount = booking?.payment?.remainingAmount;
-    const whatsappConsentLabel = formatWhatsappConsent(booking);
 
     return (
         <main className="min-h-screen bg-background px-4 pb-14 pt-28 text-primary md:px-6 md:pt-32">
@@ -615,7 +600,6 @@ export default function ConfirmacaoPage() {
                                     <p>Nossa equipe esta a disposicao para qualquer ajuste ou duvida sobre a reserva.</p>
                                     <div className="flex items-start gap-3">
                                         <Phone className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
-                                        <p>WhatsApp para avisos da reserva: {whatsappConsentLabel}</p>
                                     </div>
                                     <div className="flex items-start gap-3">
                                         <Mail className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />

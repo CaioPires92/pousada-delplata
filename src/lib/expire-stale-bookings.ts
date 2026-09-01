@@ -1,7 +1,6 @@
 import prisma from '@/lib/prisma';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendBookingExpiredEmail } from '@/lib/email';
-import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
 
 export function getPendingBookingExpirationHours() {
     return Math.max(1, Number.parseInt(process.env.PENDING_BOOKING_EXPIRATION_HOURS || '24', 10) || 24);
@@ -93,9 +92,6 @@ export async function expireStalePendingBookings(params: {
                 lastErrorMessage: `pending_expired_after_${expirationHours}_hours`,
             }).catch((error) => {
                 console.error(`[Expire Pending Bookings] Failed guest email (${params.source}):`, error);
-            });
-            await enqueueBookingWhatsAppJourney({ bookingId: booking.id, status: 'EXPIRED' }).catch((error) => {
-                console.error(`[Expire Pending Bookings] Failed WhatsApp recovery job (${params.source}):`, error);
             });
             await sendBookingStatusAlertEmail(booking, {
                 bookingStatus: 'EXPIRED',

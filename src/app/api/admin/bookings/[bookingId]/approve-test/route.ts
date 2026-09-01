@@ -4,13 +4,14 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
-import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
 function isTestPaymentsEnabled() {
+    const enabled = (asNullableString(process.env.ENABLE_TEST_PAYMENTS) ?? '').toLowerCase();
     return process.env.NODE_ENV !== 'production'
-        && String(process.env.ENABLE_TEST_PAYMENTS || '').trim().toLowerCase() === 'true';
+        && enabled === 'true';
 }
 
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ bookingId: string }> }) {
@@ -29,12 +30,13 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
         }
 
         const { bookingId } = await params;
-        if (!bookingId) {
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: {
                 payment: true,
                 guest: true,
@@ -137,13 +139,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
             }
         ).catch((emailError) => {
             console.error('[Admin Test Payment] Failed to send status alert:', emailError);
-        });
-
-        await enqueueBookingWhatsAppJourney({
-            bookingId: booking.id,
-            status: 'CONFIRMED',
-        }).catch((whatsappError) => {
-            console.error('[Admin Test Payment] Failed to enqueue confirmation WhatsApp:', whatsappError);
         });
 
         return NextResponse.json({

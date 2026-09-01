@@ -8,10 +8,12 @@ import {
     normalizeCouponCode,
 } from '@/lib/coupons/hash';
 import { decryptCouponCode, encryptCouponCode } from '@/lib/coupons/code-vault';
+import { asNullableString } from '@/lib/requestValue';
 
 function parseDate(value: unknown): Date | null {
-    if (!value) return null;
-    const d = new Date(String(value));
+    const normalized = asNullableString(value);
+    if (!normalized) return null;
+    const d = new Date(normalized);
     return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -29,7 +31,7 @@ function parseIntNullable(value: unknown): number | null {
 
 function parseStringArray(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
-    return value.map((v) => String(v || '').trim()).filter(Boolean);
+    return value.map((v) => asNullableString(v) ?? '').filter(Boolean);
 }
 
 function generateCouponCode(len = 10): string {
@@ -76,8 +78,8 @@ export async function POST(request: Request) {
 
         const body = await request.json();
 
-        const name = String(body?.name || '').trim();
-        const type = String(body?.type || '').trim().toUpperCase();
+        const name = asNullableString(body?.name) ?? '';
+        const type = (asNullableString(body?.type) ?? '').toUpperCase();
         const value = parseNumber(body?.value);
 
         if (!name) return NextResponse.json({ error: 'Nome obrigatorio' }, { status: 400 });
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
         }
 
         const shouldGenerate = Boolean(body?.generateCode);
-        const providedCode = normalizeCouponCode(String(body?.code || ''));
+        const providedCode = normalizeCouponCode(asNullableString(body?.code) ?? '');
         const createdCode = shouldGenerate || !providedCode ? generateCouponCode() : providedCode;
         const code = normalizeCouponCode(createdCode);
 
@@ -109,8 +111,8 @@ export async function POST(request: Request) {
         const maxDiscountAmount = parseNumber(body?.maxDiscountAmount);
         const minBookingValue = parseNumber(body?.minBookingValue);
         const maxGlobalUses = parseIntNullable(body?.maxGlobalUses);
-        const startsAt = parseDate(body?.startsAt);
-        const endsAt = parseDate(body?.endsAt);
+        const startsAt = parseDate(asNullableString(body?.startsAt) ?? body?.startsAt);
+        const endsAt = parseDate(asNullableString(body?.endsAt) ?? body?.endsAt);
 
         if (startsAt && endsAt && startsAt > endsAt) {
             return NextResponse.json({ error: 'Periodo invalido' }, { status: 400 });
@@ -132,8 +134,8 @@ export async function POST(request: Request) {
                 endsAt,
                 maxGlobalUses,
                 maxUsesPerGuest: parseIntNullable(body?.maxUsesPerGuest),
-                bindEmail: String(body?.bindEmail || '').trim().toLowerCase() || null,
-                bindPhone: String(body?.bindPhone || '').replace(/\D/g, '') || null,
+                bindEmail: (asNullableString(body?.bindEmail) ?? '').toLowerCase() || null,
+                bindPhone: (asNullableString(body?.bindPhone) ?? '').replace(/\D/g, '') || null,
                 allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
                 allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
                 singleUse: Boolean(body?.singleUse),

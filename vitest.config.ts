@@ -8,7 +8,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.tsx'],
-    globalSetup: ['./scripts/crm/testing/vitest-isolated-database.mjs'],
     alias: {
       '@': path.resolve(__dirname, './src'),
     },

@@ -2,15 +2,14 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
 function getPublicBaseUrl(request: Request) {
-    const configured = String(
-        process.env.NEXT_PUBLIC_BASE_URL
-        || process.env.NEXT_PUBLIC_APP_URL
-        || ''
-    ).trim().replace(/\/+$/, '');
+    const configured = (asNullableString(process.env.NEXT_PUBLIC_BASE_URL)
+        ?? asNullableString(process.env.NEXT_PUBLIC_APP_URL)
+        ?? '').replace(/\/+$/, '');
 
     if (configured.startsWith('https://') || configured.startsWith('http://localhost')) {
         return configured;
@@ -32,7 +31,7 @@ function buildWhatsAppUrl(params: {
     const digits = String(params.phone || '').replace(/\D/g, '');
     if (!digits) return null;
     const normalizedPhone = digits.startsWith('55') ? digits : `55${digits}`;
-    const firstName = String(params.guestName || '').trim().split(/\s+/)[0] || 'tudo bem';
+    const firstName = (asNullableString(params.guestName) ?? '').split(/\s+/)[0] || 'tudo bem';
     const formatDate = (date: Date) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(date);
     const message = [
         `Olá, ${firstName}! Tudo bem?`,
@@ -53,12 +52,13 @@ export async function POST(
         if (auth instanceof Response) return auth;
 
         const { bookingId } = await params;
-        if (!bookingId) {
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: { roomType: true, guest: true, payment: true },
         });
         if (!booking) {
@@ -80,7 +80,7 @@ export async function POST(
             );
         }
 
-        const accessToken = String(process.env.MP_ACCESS_TOKEN || '').trim();
+        const accessToken = asNullableString(process.env.MP_ACCESS_TOKEN) ?? '';
         const publicBaseUrl = getPublicBaseUrl(request);
         if (!accessToken || !publicBaseUrl) {
             return NextResponse.json(

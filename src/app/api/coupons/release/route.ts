@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { releaseCouponReservation } from '@/lib/coupons/reservation';
+import { asNullableString } from '@/lib/requestValue';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        const reservationId = String(body?.reservationId || '').trim();
-        const guestEmail = body?.guest?.email ? String(body.guest.email) : undefined;
+        const reservationId = asNullableString(body?.reservationId) ?? '';
+        const guestEmail = asNullableString(body?.guest?.email) ?? undefined;
 
         if (!reservationId) {
             return NextResponse.json({ released: false, error: 'reservationId is required' }, { status: 400 });
