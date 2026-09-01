@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { asNullableString } from '@/lib/requestValue';
 
 function isTestPayment(payment: { provider?: string | null; method?: string | null; providerId?: string | null }) {
-    const provider = String(payment.provider || '').trim().toUpperCase();
-    const method = String(payment.method || '').trim().toUpperCase();
-    const providerId = String(payment.providerId || '').trim().toUpperCase();
+    const provider = (asNullableString(payment.provider) ?? '').toUpperCase();
+    const method = (asNullableString(payment.method) ?? '').toUpperCase();
+    const providerId = (asNullableString(payment.providerId) ?? '').toUpperCase();
     return provider === 'MANUAL_TEST' || method === 'MANUAL_TEST' || providerId.startsWith('TEST_');
 }
 

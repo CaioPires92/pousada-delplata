@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { asNullableString } from '@/lib/requestValue';
 
 function parseLimit(raw: string | null) {
-    const n = Number.parseInt(String(raw || ''), 10);
+    const n = Number.parseInt(asNullableString(raw) ?? '', 10);
     if (!Number.isFinite(n) || n <= 0) return 50;
     return Math.min(n, 200);
 }
@@ -15,10 +16,10 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url);
         const limit = parseLimit(searchParams.get('limit'));
-        const result = String(searchParams.get('result') || '').trim().toUpperCase();
-        const reason = String(searchParams.get('reason') || '').trim().toUpperCase();
-        const codePrefix = String(searchParams.get('codePrefix') || '').trim().toUpperCase();
-        const days = Number.parseInt(String(searchParams.get('days') || ''), 10);
+        const result = (asNullableString(searchParams.get('result')) ?? '').toUpperCase();
+        const reason = (asNullableString(searchParams.get('reason')) ?? '').toUpperCase();
+        const codePrefix = (asNullableString(searchParams.get('codePrefix')) ?? '').toUpperCase();
+        const days = Number.parseInt(asNullableString(searchParams.get('days')) ?? '', 10);
 
         const where: any = {};
 

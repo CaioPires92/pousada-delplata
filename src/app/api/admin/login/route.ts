@@ -4,6 +4,7 @@ import { opsLog } from '@/lib/ops-log';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getAdminSessionCookieName, signAdminJwt } from '@/lib/admin-jwt';
+import { asNullableString } from '@/lib/requestValue';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -22,8 +23,8 @@ const upstashRatelimit =
 
 function getClientIp(request: NextRequest) {
     const header = request.headers.get('x-forwarded-for');
-    const ip = header ? header.split(',')[0]?.trim() : undefined;
-    return ip || request.headers.get('x-real-ip') || 'unknown';
+    const ip = asNullableString(header ? header.split(',')[0] : null);
+    return ip || asNullableString(request.headers.get('x-real-ip')) || 'unknown';
 }
 
 async function consumeFailedLoginSlot(key: string) {
@@ -73,8 +74,8 @@ export async function POST(request: NextRequest) {
 
         const { email, password } = await request.json();
         const ip = getClientIp(request);
-        const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
-        const passwordValue = typeof password === 'string' ? password : '';
+        const normalizedEmail = (asNullableString(email) ?? '').toLowerCase();
+        const passwordValue = asNullableString(password) ?? '';
 
         const invalid = async () => {
             opsLog('warn', 'ADMIN_LOGIN_INVALID', { reason: 'INVALID_CREDENTIALS' });

@@ -172,8 +172,6 @@ async function migrate() {
 
     const bookingDefs = [
         { name: 'checkoutConfirmedAt', ddl: 'ALTER TABLE Booking ADD COLUMN checkoutConfirmedAt DATETIME' },
-        { name: 'crmContactId', ddl: 'ALTER TABLE Booking ADD COLUMN crmContactId TEXT' },
-        { name: 'crmConversationId', ddl: 'ALTER TABLE Booking ADD COLUMN crmConversationId TEXT' },
     ];
 
     const couponDefs = [
@@ -188,28 +186,11 @@ async function migrate() {
         { name: 'stackable', ddl: 'ALTER TABLE Coupon ADD COLUMN stackable BOOLEAN NOT NULL DEFAULT false' },
     ];
 
-    const pipelineCardDefs = [
-        { name: 'bookingId', ddl: 'ALTER TABLE PipelineCard ADD COLUMN bookingId TEXT' },
-        { name: 'estimatedValue', ddl: 'ALTER TABLE PipelineCard ADD COLUMN estimatedValue REAL' },
-        { name: 'intendedArrival', ddl: 'ALTER TABLE PipelineCard ADD COLUMN intendedArrival DATETIME' },
-        { name: 'lossReason', ddl: 'ALTER TABLE PipelineCard ADD COLUMN lossReason TEXT' },
-        { name: 'intendedCheckin', ddl: 'ALTER TABLE PipelineCard ADD COLUMN intendedCheckin DATETIME' },
-        { name: 'intendedCheckout', ddl: 'ALTER TABLE PipelineCard ADD COLUMN intendedCheckout DATETIME' },
-        { name: 'adults', ddl: 'ALTER TABLE PipelineCard ADD COLUMN adults INTEGER' },
-        { name: 'children', ddl: 'ALTER TABLE PipelineCard ADD COLUMN children INTEGER' },
-        { name: 'roomTypeInterest', ddl: 'ALTER TABLE PipelineCard ADD COLUMN roomTypeInterest TEXT' },
-        { name: 'lostReason', ddl: 'ALTER TABLE PipelineCard ADD COLUMN lostReason TEXT' },
-        { name: 'tags', ddl: 'ALTER TABLE PipelineCard ADD COLUMN tags TEXT' },
-        { name: 'followUpAt', ddl: 'ALTER TABLE PipelineCard ADD COLUMN followUpAt DATETIME' },
-        { name: 'quoteStatus', ddl: 'ALTER TABLE PipelineCard ADD COLUMN quoteStatus TEXT' },
-        { name: 'upsellStatus', ddl: 'ALTER TABLE PipelineCard ADD COLUMN upsellStatus TEXT' },
-    ];
 
     const addedRoomType = await ensureColumns('RoomType', roomTypeDefs);
     const addedRate = await ensureColumns('Rate', rateDefs);
     const addedRateIndexes = await ensureRateUniqueIndex();
     const addedInventoryAdjustment = await ensureColumns('InventoryAdjustment', inventoryAdjustmentDefs);
-    const addedPipelineCard = await ensureColumns('PipelineCard', pipelineCardDefs);
     const addedCoupon = await ensureColumns('Coupon', couponDefs);
     const addedPartialPaymentSettings = await ensureTable('PartialPaymentSettings', `
         CREATE TABLE "PartialPaymentSettings" (
@@ -245,30 +226,17 @@ async function migrate() {
         'Booking_checkoutConfirmedAt_idx',
         'CREATE INDEX "Booking_checkoutConfirmedAt_idx" ON "Booking"("checkoutConfirmedAt")'
     );
-    const addedBookingContactIndex = await ensureIndex(
-        'Booking',
-        'Booking_crmContactId_idx',
-        'CREATE INDEX "Booking_crmContactId_idx" ON "Booking"("crmContactId")'
-    );
-    const addedBookingConversationIndex = await ensureIndex(
-        'Booking',
-        'Booking_crmConversationId_idx',
-        'CREATE INDEX "Booking_crmConversationId_idx" ON "Booking"("crmConversationId")'
-    );
 
     const totalAdded = addedRoomType
         + addedRate
         + addedRateIndexes
         + addedInventoryAdjustment
-        + addedPipelineCard
         + addedCoupon
         + addedPartialPaymentSettings
         + addedDiscountPolicySettings
         + addedPayment
         + addedBooking
         + addedBookingIndexes
-        + addedBookingContactIndex
-        + addedBookingConversationIndex;
     if (totalAdded === 0) console.log('schema ok');
 
     console.log('Migration complete.');

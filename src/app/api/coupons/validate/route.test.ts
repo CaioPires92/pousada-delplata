@@ -69,6 +69,47 @@ describe('POST /api/coupons/validate', () => {
         expect(prisma.couponAttemptLog.create).toHaveBeenCalledTimes(1);
     });
 
+    it('normalizes whitespace around coupon request fields', async () => {
+        (validateCoupon as any).mockResolvedValue({
+            valid: true,
+            reason: 'OK',
+            couponId: 'coupon-1',
+            couponType: 'PERCENT',
+            couponValue: 10,
+            discountAmount: 100,
+            subtotal: 1000,
+            total: 900,
+        });
+
+        const req = new Request('http://localhost/api/coupons/validate', {
+            method: 'POST',
+            body: JSON.stringify({
+                code: '  WELCOME10  ',
+                guest: { email: '  john@example.com  ', phone: '  (11) 99999-0000  ' },
+                context: {
+                    subtotal: 1000,
+                    roomTypeId: '  room-1  ',
+                    source: '  direct  ',
+                    checkIn: ' 2026-09-12 ',
+                    checkOut: ' 2026-09-13 ',
+                },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(validateCoupon).toHaveBeenCalledWith(expect.objectContaining({
+            code: 'WELCOME10',
+            guestEmail: 'john@example.com',
+            guestPhone: '(11) 99999-0000',
+            roomTypeId: 'room-1',
+            source: 'direct',
+            checkIn: '2026-09-12',
+            checkOut: '2026-09-13',
+        }));
+    });
+
     it('returns invalid result from validator with HTTP 200', async () => {
         (validateCoupon as any).mockResolvedValue({
             valid: false,
@@ -91,6 +132,7 @@ describe('POST /api/coupons/validate', () => {
         expect(data.valid).toBe(false);
         expect(data.reason).toBe('EXPIRED');
     });
+
     it('returns 429 when validate rate limit is exceeded', async () => {
         (validateCoupon as any).mockResolvedValue({
             valid: false,

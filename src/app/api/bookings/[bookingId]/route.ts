@@ -20,16 +20,6 @@ export async function GET(
                     },
                 },
                 payment: true,
-                crmConversation: {
-                    select: {
-                        contact: {
-                            select: {
-                                optInWhatsapp: true,
-                                optOutAt: true,
-                            },
-                        },
-                    },
-                },
             },
         });
 

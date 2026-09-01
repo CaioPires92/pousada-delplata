@@ -43,7 +43,7 @@ describe('Admin Calendar API', () => {
 
     it('queries rate overlap with inclusive UTC day bounds', async () => {
         const req = new Request(
-            'http://localhost/api/admin/calendar?roomTypeId=room-1&startDate=2026-02-01&endDate=2026-02-16'
+            'http://localhost/api/admin/calendar?roomTypeId= room-1 &startDate= 2026-02-01 &endDate= 2026-02-16 '
         );
 
         const res = await GET(req);

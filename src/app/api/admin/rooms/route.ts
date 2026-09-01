@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { asNullableString } from '@/lib/requestValue';
 
 export async function GET() {
     try {
@@ -48,26 +49,27 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
         }
 
-        const inventoryTotal = Number.parseInt(String(totalUnits), 10);
-        const inventoryFor4 = Math.max(0, Number.parseInt(String(inventoryFor4Guests ?? 0), 10) || 0);
+        const inventoryTotal = Number.parseInt(asNullableString(totalUnits) ?? '', 10);
+        const inventoryFor4 = Math.max(0, Number.parseInt(asNullableString(inventoryFor4Guests ?? 0) ?? '', 10) || 0);
         if (inventoryFor4 > inventoryTotal) {
             return NextResponse.json({ error: 'Subinventário de 4 hóspedes não pode exceder o total de unidades' }, { status: 400 });
         }
 
         const room = await prisma.roomType.create({
             data: {
-                name: String(name),
-                description: String(description),
-                capacity: Number.parseInt(String(capacity), 10),
+                name: asNullableString(name) ?? '',
+                description: asNullableString(description) ?? '',
+                capacity: Number.parseInt(asNullableString(capacity) ?? '', 10),
                 totalUnits: inventoryTotal,
                 inventoryFor4Guests: inventoryFor4,
                 maxGuests: inventoryFor4 > 0 ? 4 : 3,
-                basePrice: Number(String(basePrice)),
-                amenities: String(amenities || ''),
+                basePrice: Number(asNullableString(basePrice) ?? ''),
+                amenities: asNullableString(amenities) ?? '',
                 photos: Array.isArray(photos)
                     ? {
                         create: photos
-                            .filter((url: unknown) => typeof url === 'string' && url.trim().length > 0)
+                            .map((url: unknown) => asNullableString(url))
+                            .filter((url): url is string => Boolean(url))
                             .map((url: string) => ({ url })),
                     }
                     : undefined,
@@ -93,19 +95,19 @@ export async function PATCH(request: Request) {
         const body = await request.json();
         const { roomTypeId, totalUnits, inventoryFor4Guests, basePrice, capacity } = body;
 
-        if (totalUnits !== undefined && totalUnits < 0) {
+        if (totalUnits !== undefined && Number(totalUnits) < 0) {
             return NextResponse.json(
                 { error: 'Quantidade inválida' },
                 { status: 400 }
             );
         }
-        if (capacity !== undefined && capacity < 0) {
+        if (capacity !== undefined && Number(capacity) < 0) {
             return NextResponse.json(
                 { error: 'Capacidade inválida' },
                 { status: 400 }
             );
         }
-        if (inventoryFor4Guests !== undefined && inventoryFor4Guests < 0) {
+        if (inventoryFor4Guests !== undefined && Number(inventoryFor4Guests) < 0) {
             return NextResponse.json(
                 { error: 'Subinventário de 4 hóspedes inválido' },
                 { status: 400 }

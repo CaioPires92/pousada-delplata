@@ -84,6 +84,24 @@ describe('POST /api/admin/bookings/[bookingId]/discount', () => {
         }));
     });
 
+    it('normalizes whitespace around bookingId and couponCode', async () => {
+        const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {
+            method: 'POST',
+            body: JSON.stringify({
+                channels: { email: true, whatsapp: false },
+                couponCode: '  VOLTA10  ',
+            }),
+        }), { params: Promise.resolve({ bookingId: ' booking-1 ' }) });
+
+        expect(response.status).toBe(200);
+        expect(prisma.booking.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: 'booking-1' },
+        }));
+        expect(sendGuestDiscountEmail).toHaveBeenCalledWith(expect.objectContaining({
+            code: 'VOLTA10',
+        }));
+    });
+
     it('rejeita cupom inexistente ou inativo', async () => {
         (prisma.coupon.findFirst as any).mockResolvedValueOnce(null);
         const response = await POST(new Request('http://localhost/api/admin/bookings/booking-1/discount', {

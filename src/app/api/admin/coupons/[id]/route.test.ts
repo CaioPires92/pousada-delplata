@@ -37,9 +37,11 @@ describe('Admin Coupons API /api/admin/coupons/[id]', () => {
         const req = new Request('http://localhost/api/admin/coupons/coupon-1', {
             method: 'PUT',
             body: JSON.stringify({
-                name: 'Atualizado',
-                type: 'PERCENT',
+                name: '  Atualizado  ',
+                type: '  PERCENT  ',
                 value: 15,
+                bindEmail: '  VIP@EXAMPLE.COM  ',
+                bindPhone: ' (55) 19 99999-0000 ',
             }),
         });
 
@@ -48,6 +50,14 @@ describe('Admin Coupons API /api/admin/coupons/[id]', () => {
 
         expect(res.status).toBe(200);
         expect(data.coupon.id).toBe('coupon-1');
+        expect(prisma.coupon.update).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                name: 'Atualizado',
+                type: 'PERCENT',
+                bindEmail: 'vip@example.com',
+                bindPhone: '5519999990000',
+            }),
+        }));
     });
 
     it('returns updatedCode when code is changed manually', async () => {
@@ -75,6 +85,47 @@ describe('Admin Coupons API /api/admin/coupons/[id]', () => {
 
         expect(res.status).toBe(200);
         expect(data.updatedCode).toBe('VIP15');
+    });
+
+    it('normalizes whitespace and arrays when updating coupon data', async () => {
+        (prisma.coupon.findUnique as any).mockResolvedValue({
+            id: 'coupon-1',
+            active: true,
+            singleUse: true,
+            stackable: false,
+        });
+        (prisma.coupon.findFirst as any).mockResolvedValue(null);
+        (prisma.coupon.update as any).mockResolvedValue({ id: 'coupon-1', name: 'Atualizado' });
+
+        const req = new Request('http://localhost/api/admin/coupons/coupon-1', {
+            method: 'PUT',
+            body: JSON.stringify({
+                name: '  Atualizado  ',
+                type: '  percent  ',
+                value: ' 15 ',
+                code: '  vip15  ',
+                startsAt: ' 2026-08-27T00:00:00.000Z ',
+                endsAt: ' 2026-09-27T00:00:00.000Z ',
+                allowedRoomTypeIds: [' room-1 ', 'room-2 '],
+                allowedSources: [' direct ', ' whatsapp '],
+            }),
+        });
+
+        const res = await PUT(req as any, { params: Promise.resolve({ id: 'coupon-1' }) });
+
+        expect(res.status).toBe(200);
+        expect(prisma.coupon.update).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                name: 'Atualizado',
+                type: 'PERCENT',
+                codeHash: expect.any(String),
+                codePrefix: 'VIP',
+                startsAt: new Date('2026-08-27T00:00:00.000Z'),
+                endsAt: new Date('2026-09-27T00:00:00.000Z'),
+                allowedRoomTypeIds: JSON.stringify(['room-1', 'room-2']),
+                allowedSources: JSON.stringify(['direct', 'whatsapp']),
+            }),
+        }));
     });
 
     it('returns 409 when updating with duplicate code', async () => {

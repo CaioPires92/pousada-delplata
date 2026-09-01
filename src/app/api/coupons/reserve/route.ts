@@ -3,19 +3,20 @@ import prisma from '@/lib/prisma';
 import { getCouponCodePrefix, hashTelemetryValue, normalizeGuestEmail } from '@/lib/coupons/hash';
 import { reserveCouponUsage } from '@/lib/coupons/reservation';
 import { shouldThrottleCouponRequest } from '@/lib/coupons/rate-limit';
+import { asNullableString } from '@/lib/requestValue';
 
 export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        const code = String(body?.code || '');
-        const guestEmail = String(body?.guest?.email || '');
-        const guestPhone = String(body?.guest?.phone || '');
-        const roomTypeId = String(body?.context?.roomTypeId || '');
-        const source = String(body?.context?.source || 'direct');
+        const code = asNullableString(body?.code) ?? '';
+        const guestEmail = asNullableString(body?.guest?.email) ?? '';
+        const guestPhone = asNullableString(body?.guest?.phone) ?? '';
+        const roomTypeId = asNullableString(body?.context?.roomTypeId) ?? '';
+        const source = asNullableString(body?.context?.source) ?? 'direct';
         const subtotal = Number(body?.context?.subtotal);
-        const checkIn = String(body?.context?.checkIn || '');
-        const checkOut = String(body?.context?.checkOut || '');
+        const checkIn = asNullableString(body?.context?.checkIn) ?? '';
+        const checkOut = asNullableString(body?.context?.checkOut) ?? '';
 
         if (shouldThrottleCouponRequest({ scope: 'reserve', request, guestEmail })) {
             return NextResponse.json({ valid: false, reason: 'TOO_MANY_ATTEMPTS' }, { status: 429 });

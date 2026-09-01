@@ -9,6 +9,7 @@ import {
     normalizeGuestPhone,
 } from '@/lib/coupons/hash';
 import { opsLog } from '@/lib/ops-log';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -44,16 +45,20 @@ export async function POST(
         if (auth instanceof Response) return auth;
 
         const { bookingId } = await params;
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
+            return NextResponse.json({ error: 'BOOKING_ID_REQUIRED', message: 'Informe a reserva.' }, { status: 400 });
+        }
         const body = await request.json().catch(() => ({}));
         const emailRequested = Boolean(body?.channels?.email);
         const whatsappRequested = Boolean(body?.channels?.whatsapp);
-        const couponCode = normalizeCouponCode(String(body?.couponCode || ''));
+        const couponCode = normalizeCouponCode(asNullableString(body?.couponCode) ?? '');
         if (!emailRequested && !whatsappRequested) {
             return NextResponse.json({ error: 'CHANNEL_REQUIRED', message: 'Selecione ao menos um canal.' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: { guest: true },
         });
         if (!booking) {
@@ -128,7 +133,7 @@ export async function POST(
             : null;
 
         opsLog('info', 'ADMIN_BOOKING_RETURN_INVITE_SENT', {
-            bookingId,
+            bookingId: normalizedBookingId,
             adminId: auth.adminId,
             couponId: coupon?.id || null,
             emailRequested,

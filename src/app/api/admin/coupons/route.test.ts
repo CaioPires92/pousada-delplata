@@ -42,7 +42,7 @@ describe('Admin Coupons API /api/admin/coupons', () => {
         expect(res.status).toBe(401);
     });
 
-    it('creates coupon with generated code', async () => {
+    it('creates coupon with normalized provided code and dates', async () => {
         (prisma.coupon.findFirst as any).mockResolvedValue(null);
         (prisma.coupon.create as any).mockResolvedValue({ id: 'coupon-1', name: 'VIP' });
 
@@ -52,8 +52,11 @@ describe('Admin Coupons API /api/admin/coupons', () => {
                 name: 'VIP Fevereiro',
                 type: 'PERCENT',
                 value: 10,
-                generateCode: true,
                 active: true,
+                bindEmail: '  vip@example.com  ',
+                code: '  VIP10  ',
+                startsAt: ' 2026-08-27T00:00:00.000Z ',
+                endsAt: ' 2026-09-27T00:00:00.000Z ',
             }),
         });
 
@@ -62,9 +65,46 @@ describe('Admin Coupons API /api/admin/coupons', () => {
 
         expect(res.status).toBe(201);
         expect(data.coupon.id).toBe('coupon-1');
-        expect(typeof data.createdCode).toBe('string');
-        expect(data.createdCode.length).toBe(10);
+        expect(data.createdCode).toBe('VIP10');
         expect(prisma.coupon.create).toHaveBeenCalledTimes(1);
+        expect(prisma.coupon.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                name: 'VIP Fevereiro',
+                type: 'PERCENT',
+                bindEmail: 'vip@example.com',
+                startsAt: new Date('2026-08-27T00:00:00.000Z'),
+                endsAt: new Date('2026-09-27T00:00:00.000Z'),
+            }),
+        }));
+    });
+
+    it('normalizes string arrays and trims coupon inputs', async () => {
+        (prisma.coupon.findFirst as any).mockResolvedValue(null);
+        (prisma.coupon.create as any).mockResolvedValue({ id: 'coupon-2', name: 'Férias' });
+
+        const req = new Request('http://localhost/api/admin/coupons', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: '  Férias  ',
+                type: ' fixed ',
+                value: ' 50 ',
+                code: '  ferias50  ',
+                allowedRoomTypeIds: [' room-1 ', ' ', 'room-2'],
+                allowedSources: [' direct ', null, 'whatsapp '],
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(201);
+        expect(prisma.coupon.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                name: 'Férias',
+                type: ' FIXED ',
+                allowedRoomTypeIds: JSON.stringify(['room-1', 'room-2']),
+                allowedSources: JSON.stringify(['direct', 'whatsapp']),
+            }),
+        }));
     });
 
     it('rejects invalid coupon payload', async () => {

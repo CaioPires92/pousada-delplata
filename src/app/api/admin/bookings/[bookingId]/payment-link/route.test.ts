@@ -40,8 +40,8 @@ const booking = {
 describe('POST admin booking payment link', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        process.env.MP_ACCESS_TOKEN = 'APP_USR-test';
-        process.env.NEXT_PUBLIC_BASE_URL = 'https://pousadadelplata.com.br';
+        process.env.MP_ACCESS_TOKEN = '  APP_USR-test  ';
+        process.env.NEXT_PUBLIC_BASE_URL = '  https://pousadadelplata.com.br/  ';
     });
 
     it('gera link, mensagem de WhatsApp e atualiza o funil', async () => {
@@ -65,9 +65,34 @@ describe('POST admin booking payment link', () => {
         expect(response.status).toBe(200);
         expect(data.paymentLink).toContain('pref-123');
         expect(data.whatsappUrl).toContain('wa.me/5511999999999');
+        expect(data.whatsappUrl).toContain('Edvaldo');
         expect(prisma.booking.update).toHaveBeenCalledWith({
             where: { id: 'booking-1' },
             data: expect.objectContaining({ funnelStage: 'PAYMENT_LINK_CREATED' }),
+        });
+    });
+
+    it('normalizes whitespace around bookingId', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue(booking);
+        (prisma.booking.update as any).mockResolvedValue(booking);
+        vi.stubGlobal('fetch', vi.fn(async () => ({
+            ok: true,
+            status: 201,
+            json: async () => ({
+                id: 'pref-123',
+                init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-123',
+            }),
+        })));
+
+        const response = await POST(
+            new Request('https://pousadadelplata.com.br/api/admin/bookings/ booking-1 /payment-link', { method: 'POST' }),
+            { params: Promise.resolve({ bookingId: ' booking-1 ' }) }
+        );
+
+        expect(response.status).toBe(200);
+        expect(prisma.booking.findUnique).toHaveBeenCalledWith({
+            where: { id: 'booking-1' },
+            include: { roomType: true, guest: true, payment: true },
         });
     });
 

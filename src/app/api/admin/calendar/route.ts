@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { getEffectiveGuestCounts, normalizeChildrenAgesInput, requiresFourGuestInventory } from '@/lib/guest-capacity';
+import { asNullableString } from '@/lib/requestValue';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,9 +13,9 @@ export async function GET(request: Request) {
     if (auth instanceof Response) return auth;
 
     const { searchParams } = new URL(request.url);
-    const roomTypeId = searchParams.get('roomTypeId');
-    const startDateParam = searchParams.get('startDate');
-    const endDateParam = searchParams.get('endDate');
+    const roomTypeId = asNullableString(searchParams.get('roomTypeId'));
+    const startDateParam = asNullableString(searchParams.get('startDate'));
+    const endDateParam = asNullableString(searchParams.get('endDate'));
 
     if (!roomTypeId || !startDateParam || !endDateParam) {
         return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });

@@ -5,8 +5,6 @@ import { opsLog } from '@/lib/ops-log';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
-import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
-import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
 import {
     DEFAULT_PARTIAL_PAYMENT_SETTINGS,
     calculatePaymentPlan,
@@ -357,11 +355,6 @@ export async function POST(request: Request) {
                 payment: true,
                 guest: true,
                 roomType: true,
-                crmConversation: {
-                    select: {
-                        id: true,
-                    },
-                },
             },
         });
         if (!booking) {
@@ -615,34 +608,6 @@ export async function POST(request: Request) {
         });
 
         if (normalizedStatus === 'APPROVED') {
-            await publishBookingLifecycleEvent({
-                bookingId,
-                event: 'PaymentApproved',
-                eventId: `mercadopago:payment:${String(result.id)}:approved`,
-                origin: 'human_api',
-                actorType: 'human',
-                reason: 'Pagamento aprovado pelo Mercado Pago',
-                metadata: {
-                    provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
-                    paymentStatus: normalizedStatus,
-                },
-            });
-        } else if (normalizedStatus === 'PENDING' || normalizedStatus === 'IN_PROCESS') {
-            await publishBookingLifecycleEvent({
-                bookingId,
-                event: 'PaymentPending',
-                eventId: `mercadopago:payment:${String(result.id)}:pending`,
-                origin: 'human_api',
-                actorType: 'human',
-                reason: 'Pagamento aguardando confirmação do Mercado Pago',
-                metadata: {
-                    provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
-                    paymentStatus: normalizedStatus,
-                },
-            });
-        }
-
-        if (normalizedStatus === 'APPROVED') {
             await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
                 data: {
@@ -652,21 +617,6 @@ export async function POST(request: Request) {
                     lastErrorMessage: null,
                 },
             });
-
-            if (String(booking.status || '').toUpperCase() === 'PENDING') {
-                await publishBookingLifecycleEvent({
-                    bookingId,
-                    event: 'BookingConfirmed',
-                    eventId: `booking:${bookingId}:confirmed:mercadopago:${String(result.id)}`,
-                    origin: 'human_api',
-                    actorType: 'human',
-                    reason: 'Reserva confirmada após pagamento aprovado',
-                    metadata: {
-                        provider: localCardSandbox ? 'MERCADOPAGO_SANDBOX' : 'MERCADOPAGO',
-                        bookingStatus: 'CONFIRMED',
-                    },
-                });
-            }
 
             const approvedEmailPayload = {
                 guestName: booking.guest.name,
@@ -731,18 +681,6 @@ export async function POST(request: Request) {
                     paymentMethod: normalizedPaymentMethod,
                     localCardSandbox,
                     error: emailError instanceof Error ? emailError.message : String(emailError),
-                });
-            }
-
-            if (booking.crmConversationId || booking.crmConversation?.id) {
-                await enqueueBookingWhatsAppJourney({
-                    bookingId: booking.id,
-                    status: 'CONFIRMED',
-                }).catch((whatsappError) => {
-                    opsLog('warn', 'MP_PAYMENT_CONFIRMED_WHATSAPP_FAILED', {
-                        bookingId,
-                        error: whatsappError instanceof Error ? whatsappError.message : String(whatsappError),
-                    });
                 });
             }
 

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -15,12 +16,13 @@ export async function POST(
         if (auth instanceof Response) return auth;
 
         const { bookingId } = await params;
-        if (!bookingId) {
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: {
                 guest: true,
                 roomType: true,
@@ -43,16 +45,16 @@ export async function POST(
         }
 
         if (String(booking.status || '').toUpperCase() === 'EXPIRED') {
-            return NextResponse.json({ ok: true, alreadyExpired: true, bookingId });
+            return NextResponse.json({ ok: true, alreadyExpired: true, bookingId: normalizedBookingId });
         }
 
         await prisma.booking.update({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             data: { status: 'EXPIRED' },
         });
 
         opsLog('info', 'ADMIN_BOOKING_MARKED_EXPIRED', {
-            bookingId,
+            bookingId: normalizedBookingId,
             adminId: auth.adminId,
         });
 
@@ -63,7 +65,7 @@ export async function POST(
             console.error('[Admin Booking Expire] Failed to send status alert:', emailError);
         });
 
-        return NextResponse.json({ ok: true, bookingId, status: 'EXPIRED' });
+        return NextResponse.json({ ok: true, bookingId: normalizedBookingId, status: 'EXPIRED' });
     } catch (error) {
         console.error('[Admin Booking Expire] Error:', error);
         return NextResponse.json(

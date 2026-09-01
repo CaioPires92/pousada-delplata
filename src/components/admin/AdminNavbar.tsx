@@ -14,12 +14,7 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    KanbanSquare,
-    MessageSquare,
-    BarChart3,
-    Bot,
-    CreditCard,
-    ListTodo
+    CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +45,6 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
             label: 'Visão geral',
             items: [
                 { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
             ],
         },
         {
@@ -67,15 +61,6 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
             items: [
                 { href: '/admin/settings/partial-payment', label: 'Pagamento Parcial', icon: CreditCard },
                 { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
-            ],
-        },
-        {
-            label: 'Atendimento e CRM',
-            items: [
-                { href: '/admin/inbox', label: 'Caixa de Entrada', icon: MessageSquare },
-                { href: '/admin/pipeline', label: 'Kanban de Vendas', icon: KanbanSquare },
-                { href: '/admin/settings/chatbot', label: 'Chatbot e IA', icon: Bot },
-                { href: '/admin/automation-jobs', label: 'Fila de Automação', icon: ListTodo },
             ],
         },
     ];

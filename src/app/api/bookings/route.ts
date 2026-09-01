@@ -8,11 +8,6 @@ import { compareDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendBookingPendingEmail } from '@/lib/email';
-import { reconcileBookingToCrm } from '@/lib/crm/bookingCrmLink';
-import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
-import { markCouponGrantRedeemed } from '@/lib/crm/couponGrant';
-import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
-import { setWhatsappConsent } from '@/lib/crm/whatsappConsent';
 
 export async function POST(request: Request) {
     try {
@@ -43,7 +38,6 @@ export async function POST(request: Request) {
             typeof body?.coupon?.reservationId === 'string' ? body.coupon.reservationId.trim() : '';
         const couponCode = typeof body?.coupon?.code === 'string' ? body.coupon.code : '';
 
-        let redeemedCouponId: string | null = null;
         const booking = await prisma.$transaction(async (tx) => {
             const roomType = await tx.roomType.findUnique({
                 where: { id: roomTypeId },
@@ -206,7 +200,6 @@ export async function POST(request: Request) {
                 if (!reservation || !reservation.coupon) {
                     throw new Error('coupon_reservation_not_found');
                 }
-                redeemedCouponId = reservation.coupon.id;
 
                 if (reservation.status !== 'RESERVED' || reservation.bookingId) {
                     throw new Error('coupon_reservation_unavailable');
@@ -288,53 +281,6 @@ export async function POST(request: Request) {
         // change the successful reservation response.
         after(async () => {
             await Promise.all([
-                (async () => {
-                    if (!redeemedCouponId) return;
-                    try {
-                        await markCouponGrantRedeemed(redeemedCouponId);
-                    } catch (trackingError) {
-                        console.error('[Booking API] Failed to track coupon redemption:', trackingError);
-                    }
-                })(),
-                (async () => {
-                    try {
-                        const reconciliation = await reconcileBookingToCrm({
-                            bookingId: booking.id,
-                            guestEmail: booking.guest?.email ?? guest.email,
-                            guestPhone: booking.guest?.phone ?? guest.phone,
-                        });
-                        if (!reconciliation.ok) return;
-
-                        await Promise.all([
-                            setWhatsappConsent({
-                                contactId: reconciliation.contactId,
-                                optInWhatsapp: true,
-                                origin: 'system',
-                                sourceOrigin: 'booking_checkout_default',
-                            }).catch((consentError) => {
-                                console.error('[Booking API] Failed to enable booking WhatsApp messages:', consentError);
-                            }),
-                            publishBookingLifecycleEvent({
-                                bookingId: booking.id,
-                                event: 'ReservationStarted',
-                                eventId: `booking:${booking.id}:reservation-started`,
-                                origin: 'system',
-                                reason: 'Reserva iniciada pelo motor de reservas',
-                                metadata: { source: 'booking_created' },
-                            }).catch((lifecycleError) => {
-                                console.error('[Booking API] Failed to publish booking lifecycle event:', lifecycleError);
-                            }),
-                            reconciliation.conversationId
-                                ? enqueueBookingWhatsAppJourney({ bookingId: booking.id, status: 'PENDING' })
-                                    .catch((whatsappError) => {
-                                        console.error('[Booking API] Failed to enqueue pending WhatsApp message:', whatsappError);
-                                    })
-                                : Promise.resolve(),
-                        ]);
-                    } catch (reconciliationError) {
-                        console.error('[Booking API] Failed to reconcile booking with CRM:', reconciliationError);
-                    }
-                })(),
                 (async () => {
                     try {
                         await sendBookingPendingEmail({

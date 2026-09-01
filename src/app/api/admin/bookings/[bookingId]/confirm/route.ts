@@ -3,8 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
-import { publishBookingLifecycleEvent } from '@/lib/crm/bookingLifecycle';
-import { enqueueBookingWhatsAppJourney } from '@/lib/crm/booking-whatsapp-journeys';
+import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
 
@@ -17,19 +16,17 @@ export async function POST(
         if (auth instanceof Response) return auth;
 
         const { bookingId } = await params;
-        if (!bookingId) {
+        const normalizedBookingId = asNullableString(bookingId);
+        if (!normalizedBookingId) {
             return NextResponse.json({ error: 'BOOKING_ID_REQUIRED' }, { status: 400 });
         }
 
         const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
+            where: { id: normalizedBookingId },
             include: {
                 guest: true,
                 roomType: true,
                 payment: true,
-                crmConversation: {
-                    select: { id: true },
-                },
             },
         });
 
@@ -39,7 +36,7 @@ export async function POST(
 
         const bookingStatus = String(booking.status || '').toUpperCase();
         if (bookingStatus === 'CONFIRMED') {
-            return NextResponse.json({ ok: true, alreadyConfirmed: true, bookingId });
+            return NextResponse.json({ ok: true, alreadyConfirmed: true, bookingId: normalizedBookingId });
         }
 
         if (bookingStatus === 'CANCELLED' || bookingStatus === 'REFUNDED') {
@@ -54,36 +51,26 @@ export async function POST(
 
         await prisma.$transaction([
             prisma.booking.update({
-                where: { id: bookingId },
+                where: { id: normalizedBookingId },
                 data: { status: 'CONFIRMED' },
             }),
             prisma.couponRedemption.updateMany({
                 where: {
-                    bookingId,
+                    bookingId: normalizedBookingId,
                     status: 'RESERVED',
                 },
                 data: {
                     status: 'CONFIRMED',
                     confirmedAt: new Date(),
-                    bookingId,
+                    bookingId: normalizedBookingId,
                 },
             }),
         ]);
 
         opsLog('info', 'ADMIN_BOOKING_CONFIRMED', {
-            bookingId,
+            bookingId: normalizedBookingId,
             adminId: auth.adminId,
             previousStatus: bookingStatus,
-        });
-
-        await publishBookingLifecycleEvent({
-            bookingId,
-            event: 'BookingConfirmed',
-            eventId: `booking:${bookingId}:confirmed:admin`,
-            actorType: 'human',
-            origin: 'admin_ui',
-            reason: 'Reserva confirmada manualmente',
-            metadata: { previousStatus: bookingStatus },
         });
 
         await sendBookingStatusAlertEmail(booking, {
@@ -93,14 +80,7 @@ export async function POST(
             console.error('[Admin Booking Confirm] Failed to send status alert:', emailError);
         });
 
-        await enqueueBookingWhatsAppJourney({
-            bookingId,
-            status: 'CONFIRMED',
-        }).catch((whatsappError) => {
-            console.error('[Admin Booking Confirm] Failed to enqueue confirmation WhatsApp:', whatsappError);
-        });
-
-        return NextResponse.json({ ok: true, bookingId, status: 'CONFIRMED' });
+        return NextResponse.json({ ok: true, bookingId: normalizedBookingId, status: 'CONFIRMED' });
     } catch (error) {
         console.error('[Admin Booking Confirm] Error:', error);
         return NextResponse.json(

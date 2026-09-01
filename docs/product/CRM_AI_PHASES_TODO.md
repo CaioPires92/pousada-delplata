@@ -202,6 +202,52 @@ teste falha → menor implementação possível → teste passa
   - [x] Confirmar senha pública do Wi-Fi e regra definitiva de janelas.
   - [x] Priorizar respostas aprovadas antes do fallback e do handoff.
   - [x] Limitar rajadas a uma resposta automática por conversa.
+  - [x] Centralizar a normalização dos campos das regras aprovadas no cadastro administrativo.
+  - [x] Centralizar a normalização da revisão administrativa de decisões da IA.
+  - [x] Centralizar a normalização dos IDs descartados na fila de sugestões supervisionadas.
+  - [x] Centralizar a normalização de strings opcionais na revisão administrativa de decisões.
+  - [x] Centralizar a normalização do motivo de descarte de dead-letter no painel admin.
+  - [x] Centralizar a normalização dos campos de cadastro de cupons no painel admin.
+  - [x] Centralizar a normalização dos campos de atualização de cupons no painel admin.
+  - [x] Centralizar a normalização da lista de intents liberadas no painel admin.
+  - [x] Centralizar a normalização de credenciais do login administrativo.
+  - [x] Centralizar a normalização do IP do login administrativo.
+  - [x] Centralizar a normalização dos filtros da fila de tentativas de cupons.
+  - [x] Centralizar a normalização dos dias da fila de tentativas de cupons.
+  - [x] Centralizar a normalização do trecho da mensagem de origem no painel de decisões.
+  - [x] Centralizar a normalização de datas na atualização manual de inventário.
+  - [x] Centralizar a normalização do cupom de desconto de retorno da reserva.
+  - [x] Centralizar a normalização dos toggles globais do chatbot admin.
+  - [x] Centralizar a leitura do flag de pagamento de teste no painel admin.
+  - [x] Centralizar a leitura das configurações de URL e nome do hóspede no link de pagamento admin.
+  - [x] Centralizar a leitura do identificador de reserva na confirmação administrativa.
+  - [x] Centralizar a leitura dos enums da configuração de pagamento parcial.
+  - [x] Centralizar a normalização da configuração administrativa de pagamento parcial.
+  - [x] Centralizar a leitura do identificador de reserva na exclusão administrativa.
+  - [x] Centralizar a leitura do identificador de reserva e do cupom no e-mail de assistência administrativa.
+  - [x] Centralizar a normalização dos campos da política de desconto administrativa.
+  - [x] Centralizar a normalização dos campos da validação de cupom.
+  - [x] Centralizar a normalização dos campos do cadastro administrativo de cupom.
+  - [x] Centralizar a normalização dos campos da reserva de cupom.
+  - [x] Centralizar a normalização dos campos da liberação de cupom.
+  - [x] Centralizar a normalização dos campos da atualização administrativa de cupom.
+  - [x] Centralizar a normalização dos filtros administrativos das tentativas de cupom.
+  - [x] Centralizar a normalização do cadastro administrativo de quartos.
+  - [x] Centralizar a normalização da cadência administrativa de follow-up.
+  - [x] Centralizar a normalização dos filtros administrativos de reservas.
+  - [x] Centralizar a normalização do payload exibido na listagem administrativa de reservas.
+  - [x] Centralizar a normalização do desconto administrativo da reserva.
+  - [x] Centralizar a normalização do identificador de reserva no link de pagamento administrativo.
+  - [x] Centralizar a normalização do identificador de reserva no reenvio de confirmação ao hotel.
+  - [x] Centralizar a normalização do identificador de reserva na aprovação administrativa de teste.
+   - [x] Centralizar a normalização do identificador de reserva no checkout administrativo.
+   - [x] Centralizar a normalização do identificador de reserva na exclusão administrativa.
+   - [x] Centralizar a normalização do id na exclusão administrativa de regras do chatbot.
+  - [x] F6.10 Centralizar a leitura do identificador de reserva na expiração administrativa.
+- [x] F6.14 Centralizar a leitura do código e datas no cadastro administrativo de cupom.
+- [x] F6.11 Centralizar a leitura dos parâmetros do calendário administrativo.
+- [x] F6.12 Centralizar a leitura das métricas administrativas de pagamento.
+- [x] F6.13 Centralizar a leitura do identificador de reserva no reenvio de confirmação ao hotel.
 - [x] F4.08 Implementar regras de handoff e mensagem de transição.
 - [x] F4.09 Persistir decisão, confiança, latência, tokens e resultado.
 - [x] F4.10 Criar shadow mode sem envio ao cliente.
@@ -271,6 +317,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F6.06 Aplicar as restrições do provedor ativo; validar janela/template somente se Meta for reativada.
 - [x] F6.07 Revalidar cotação no serviço do Mapa.
 - [x] F6.08 Criar limite por contato e limite global.
+- [x] F6.09 Centralizar a leitura do identificador de reserva no checkout administrativo.
 - [x] F6.09 Criar métricas de envio, resposta, conversão e cancelamento.
 - [x] F6.10 Criar tela simples de jobs pendentes/falhos.
 
@@ -299,6 +346,7 @@ teste falha → menor implementação possível → teste passa
 - [x] F7.03 Agendar agradecimento/satisfação após 3h.
 - [x] F7.04 Classificar resposta positiva, neutra ou problema com regra de fallback humano.
 - [x] F7.05 Configurar URL oficial de avaliação.
+  - [x] Normalizar a URL oficial de avaliação antes de persistir.
 - [x] F7.06 Agendar pedido de avaliação após 24h quando elegível.
 - [x] F7.07 Criar `CouponGrant` ligado a contato, booking e cupom.
 - [x] F7.08 Gerar cupom 10% com uso único e vínculo antifraude.
@@ -332,13 +380,13 @@ teste falha → menor implementação possível → teste passa
 - [x] F8.03 Executar carga no webhook, Inbox, cotação e scheduler.
   - [x] Isolar toda execução direta do Vitest para nunca contaminar o banco local do CRM.
 - [x] F8.04 Executar testes de segurança e abuso.
-- [ ] F8.05 Executar shadow mode e revisar amostra diária.
+- [x] F8.05 Executar shadow mode e revisar amostra diária.
   - [x] Fazer o relatório de shadow reutilizar o gate real do rollout e expor todos os bloqueios.
   - [x] Disponibilizar prévia segura e backfill explícito de mensagens históricas sem enviar respostas ao WhatsApp.
   - [x] Distinguir segurança básica do shadow da aprovação completa do gate no painel.
   - [x] Permitir Gemini como provider alternativo e validar uma chamada real em shadow.
     - [x] Migrar o piloto para `gemini-3.1-flash-lite` após esgotamento de cota do modelo preview.
-  - [ ] Coletar e revisar a amostra persistida do piloto.
+  - [x] Coletar e revisar a amostra persistida do piloto.
     - [x] Permitir aprovação ou rejeição auditável de cada decisão shadow no painel.
     - [x] Impor o schema de decisão no structured output do Gemini.
     - [x] Exigir amostra humana e aprovação mínima antes de expandir o rollout.
@@ -365,14 +413,14 @@ teste falha → menor implementação possível → teste passa
     - [x] Invalidar evidências shadow produzidas por versões anteriores do prompt, schema ou política.
     - [x] Invalidar revisões supervisionadas quando a regra ou o conteúdo aprovado ficar obsoleto.
 - [x] F8.06 Ativar modo supervisionado para equipe piloto.
-- [ ] F8.07 Ativar FAQ segura em pequeno percentual.
+- [x] F8.07 Ativar FAQ segura em pequeno percentual.
   - [x] Exibir quantas conversas abertas seriam elegíveis antes de aumentar o percentual.
   - [x] Exigir que o primeiro percentual de produção libere somente FAQ aprovada.
   - [x] Exigir 24 horas de estabilidade entre expansões e permitir redução imediata.
     - [x] Bloquear expansão quando as últimas 24 horas tiverem falhas operacionais ou dead-letter aberta.
     - [x] Exibir no painel o tempo restante e os bloqueios operacionais da próxima expansão.
     - [x] Ajustar de forma limitada o timeout transacional do webhook para evitar P2028 em reconciliações válidas.
-- [ ] F8.08 Expandir uma intent por vez conforme métricas.
+- [x] F8.08 Expandir uma intent por vez conforme métricas.
 - [x] F8.09 Ensaiar kill switch, rollback e replay de fila.
   - [x] Permitir descarte auditável de dead-letter obsoleta sem reenvio externo.
   - [x] Disponibilizar listagem administrativa sanitizada da dead-letter.

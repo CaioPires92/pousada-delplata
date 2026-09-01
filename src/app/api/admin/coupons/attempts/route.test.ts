@@ -42,7 +42,7 @@ describe('Admin Coupon Attempts API /api/admin/coupons/attempts', () => {
         (prisma.couponAttemptLog.findMany as any).mockResolvedValue([]);
 
         const req = new Request(
-            'http://localhost/api/admin/coupons/attempts?limit=20&result=invalid&reason=too_many_attempts&codePrefix=vip&days=7'
+            'http://localhost/api/admin/coupons/attempts?limit=20&result= invalid &reason= too_many_attempts &codePrefix= vip &days=7'
         );
         const res = await GET(req);
 
@@ -53,6 +53,26 @@ describe('Admin Coupon Attempts API /api/admin/coupons/attempts', () => {
         expect(args.where.result).toBe('INVALID');
         expect(args.where.reason).toBe('TOO_MANY_ATTEMPTS');
         expect(args.where.codePrefix.startsWith).toBe('VIP');
+        expect(args.where.createdAt.gte).toBeInstanceOf(Date);
+    });
+
+    it('normalizes whitespace in the limit filter', async () => {
+        (prisma.couponAttemptLog.findMany as any).mockResolvedValue([]);
+
+        const req = new Request('http://localhost/api/admin/coupons/attempts?limit= 20 ');
+        await GET(req);
+
+        const args = (prisma.couponAttemptLog.findMany as any).mock.calls[0][0];
+        expect(args.take).toBe(20);
+    });
+
+    it('normalizes whitespace in the days filter', async () => {
+        (prisma.couponAttemptLog.findMany as any).mockResolvedValue([]);
+
+        const req = new Request('http://localhost/api/admin/coupons/attempts?days= 7 ');
+        await GET(req);
+
+        const args = (prisma.couponAttemptLog.findMany as any).mock.calls[0][0];
         expect(args.where.createdAt.gte).toBeInstanceOf(Date);
     });
 

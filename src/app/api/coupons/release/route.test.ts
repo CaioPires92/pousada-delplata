@@ -46,6 +46,26 @@ describe('POST /api/coupons/release', () => {
         });
     });
 
+    it('normalizes whitespace around reservation release fields', async () => {
+        (releaseCouponReservation as any).mockResolvedValue({ released: true });
+
+        const req = new Request('http://localhost/api/coupons/release', {
+            method: 'POST',
+            body: JSON.stringify({
+                reservationId: '  res-1  ',
+                guest: { email: '  john@example.com  ' },
+            }),
+        });
+
+        const res = await POST(req);
+
+        expect(res.status).toBe(200);
+        expect(releaseCouponReservation).toHaveBeenCalledWith({
+            reservationId: 'res-1',
+            guestEmail: 'john@example.com',
+        });
+    });
+
     it('returns 500 on service error', async () => {
         (releaseCouponReservation as any).mockRejectedValue(new Error('boom'));
 

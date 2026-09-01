@@ -81,9 +81,9 @@ describe('/api/admin/settings/partial-payment', () => {
                 percentage: 50,
                 minimumBookingAmount: 1000,
                 minimumLeadTimeDays: 3,
-                balanceDueAt: 'BEFORE_CHECK_IN',
+                balanceDueAt: ' BEFORE_CHECK_IN ',
                 balanceDueDaysBeforeCheckIn: 2,
-                defaultPaymentMode: 'PARTIAL',
+                defaultPaymentMode: ' PARTIAL ',
             }),
         }));
         const data = await response.json();
@@ -93,6 +93,43 @@ describe('/api/admin/settings/partial-payment', () => {
         expect(data.settings.defaultPaymentMode).toBe('PARTIAL');
         expect(prisma.partialPaymentSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
             where: { id: 'default' },
+        }));
+    });
+
+    it('normalizes whitespace in numeric and enum fields', async () => {
+        (prisma.partialPaymentSettings.upsert as any).mockResolvedValue({
+            id: 'default',
+            enabled: true,
+            percentage: 40,
+            minimumBookingAmount: 800,
+            minimumLeadTimeDays: 5,
+            balanceDueAt: 'BEFORE_CHECK_IN',
+            balanceDueDaysBeforeCheckIn: 3,
+            defaultPaymentMode: 'PARTIAL',
+        });
+
+        const response = await PUT(new Request('http://localhost/api/admin/settings/partial-payment', {
+            method: 'PUT',
+            body: JSON.stringify({
+                enabled: true,
+                percentage: ' 40 ',
+                minimumBookingAmount: ' 800 ',
+                minimumLeadTimeDays: ' 5 ',
+                balanceDueAt: ' BEFORE_CHECK_IN ',
+                balanceDueDaysBeforeCheckIn: 3,
+                defaultPaymentMode: ' PARTIAL ',
+            }),
+        }));
+
+        expect(response.status).toBe(200);
+        expect(prisma.partialPaymentSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            update: expect.objectContaining({
+                percentage: 40,
+                minimumBookingAmount: 800,
+                minimumLeadTimeDays: 5,
+                balanceDueAt: 'BEFORE_CHECK_IN',
+                defaultPaymentMode: 'PARTIAL',
+            }),
         }));
     });
 });

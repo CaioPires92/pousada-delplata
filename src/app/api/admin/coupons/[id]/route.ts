@@ -7,10 +7,12 @@ import {
     normalizeCouponCode,
 } from '@/lib/coupons/hash';
 import { encryptCouponCode } from '@/lib/coupons/code-vault';
+import { asNullableString } from '@/lib/requestValue';
 
 function parseDate(value: unknown): Date | null {
-    if (!value) return null;
-    const d = new Date(String(value));
+    const normalized = asNullableString(value);
+    if (!normalized) return null;
+    const d = new Date(normalized);
     return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -28,7 +30,7 @@ function parseIntNullable(value: unknown): number | null {
 
 function parseStringArray(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
-    return value.map((item) => String(item || '').trim()).filter(Boolean);
+    return value.map((item) => asNullableString(item) ?? '').filter(Boolean);
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -42,8 +44,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const current = await prisma.coupon.findUnique({ where: { id } });
         if (!current) return NextResponse.json({ error: 'Cupom nao encontrado' }, { status: 404 });
 
-        const name = String(body?.name || '').trim();
-        const type = String(body?.type || '').trim().toUpperCase();
+        const name = asNullableString(body?.name) ?? '';
+        const type = (asNullableString(body?.type) ?? '').toUpperCase();
         const value = parseNumber(body?.value);
 
         if (!name) return NextResponse.json({ error: 'Nome obrigatorio' }, { status: 400 });
@@ -57,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             return NextResponse.json({ error: 'Percentual deve ser <= 100' }, { status: 400 });
         }
 
-        const codeInput = normalizeCouponCode(String(body?.code || ''));
+        const codeInput = normalizeCouponCode(asNullableString(body?.code) ?? '');
         const updatedCode = codeInput || undefined;
         let codeHash: string | undefined;
         let codePrefix: string | undefined;
@@ -100,8 +102,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 endsAt,
                 maxGlobalUses,
                 maxUsesPerGuest: parseIntNullable(body?.maxUsesPerGuest),
-                bindEmail: String(body?.bindEmail || '').trim().toLowerCase() || null,
-                bindPhone: String(body?.bindPhone || '').replace(/\D/g, '') || null,
+                bindEmail: (asNullableString(body?.bindEmail) ?? '').toLowerCase() || null,
+                bindPhone: (asNullableString(body?.bindPhone) ?? '').replace(/\D/g, '') || null,
                 allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
                 allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
                 singleUse: Boolean(body?.singleUse),
