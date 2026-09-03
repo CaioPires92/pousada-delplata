@@ -10,6 +10,7 @@ import {
 } from '@/lib/coupons/hash';
 import { opsLog } from '@/lib/ops-log';
 import { asNullableString } from '@/lib/requestValue';
+import { formatDatePtBrLong } from '@/lib/date';
 
 export const runtime = 'nodejs';
 
@@ -30,7 +31,7 @@ function buildWhatsAppUrl(
     const internationalPhone = normalizedPhone.startsWith('55') ? normalizedPhone : `55${normalizedPhone}`;
     const firstName = guestName.trim().split(/\s+/)[0] || 'tudo bem';
     const couponText = coupon
-        ? ` Para deixar o convite ainda melhor, use o cupom *${coupon.code}* (${coupon.label})${coupon.expiresAt ? `, válido até ${coupon.expiresAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}. O desconto é exclusivo para reservas pelo site oficial.`
+        ? ` Para deixar o convite ainda melhor, use o cupom *${coupon.code}* (${coupon.label})${coupon.expiresAt ? `, válido até ${formatDatePtBrLong(coupon.expiresAt)}` : ''}. O desconto é exclusivo para reservas pelo site oficial.`
         : '';
     const message = `Olá, ${firstName}! Gostaríamos de receber você novamente na Pousada Delplata.${couponText} Planeje sua próxima estadia aqui: ${bookingUrl}`;
     return `https://wa.me/${internationalPhone}?text=${encodeURIComponent(message)}`;

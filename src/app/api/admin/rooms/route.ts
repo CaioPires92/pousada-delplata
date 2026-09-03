@@ -94,6 +94,7 @@ export async function PATCH(request: Request) {
 
         const body = await request.json();
         const { roomTypeId, totalUnits, inventoryFor4Guests, basePrice, capacity } = body;
+        const normalizedRoomTypeId = asNullableString(roomTypeId);
 
         if (totalUnits !== undefined && Number(totalUnits) < 0) {
             return NextResponse.json(
@@ -114,7 +115,7 @@ export async function PATCH(request: Request) {
             );
         }
 
-        if (roomTypeId === 'all') {
+        if (normalizedRoomTypeId === 'all') {
             const rooms = await prisma.roomType.findMany({
                 select: { id: true, basePrice: true, totalUnits: true, inventoryFor4Guests: true }
             });
@@ -163,7 +164,7 @@ export async function PATCH(request: Request) {
             });
         } else {
             const existingRoom = await prisma.roomType.findUnique({
-                where: { id: roomTypeId },
+                where: { id: normalizedRoomTypeId || '' },
                 select: { basePrice: true, totalUnits: true, inventoryFor4Guests: true }
             });
             if (!existingRoom) {
@@ -177,7 +178,7 @@ export async function PATCH(request: Request) {
             const nextInventoryFor4Guests = Math.max(0, Math.min(nextTotalUnits, nextInventoryFor4GuestsRaw));
 
             await prisma.roomType.update({
-                where: { id: roomTypeId },
+                where: { id: normalizedRoomTypeId || '' },
                 data: {
                     ...(totalUnits !== undefined ? { totalUnits: nextTotalUnits } : {}),
                     ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
@@ -194,7 +195,7 @@ export async function PATCH(request: Request) {
             if (existingRoom && basePrice !== undefined && Number(existingRoom.basePrice) !== Number(basePrice)) {
                 await prisma.rate.updateMany({
                     where: {
-                        roomTypeId,
+                        roomTypeId: normalizedRoomTypeId || '',
                         price: Number(existingRoom.basePrice),
                         stopSell: false,
                         cta: false,

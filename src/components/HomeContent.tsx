@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 
 import { motion } from "framer-motion";
 
@@ -17,8 +18,12 @@ import {
 } from "@/lib/analytics";
 import { formatDateBRFromYmd } from "@/lib/date";
 import SocialProofBadges from "@/components/SocialProofBadges";
-import HomeAvailabilityOffers, { type HomeOfferSummary } from "@/components/HomeAvailabilityOffers";
-import SpecialDatesSection from "@/components/SpecialDatesSection";
+import type { HomeOfferSummary } from "@/components/HomeAvailabilityOffers";
+
+const HomeAvailabilityOffers = dynamic(() => import("@/components/HomeAvailabilityOffers"), {
+  loading: () => <section aria-label="Ofertas disponíveis" className="min-h-[420px] bg-white" />,
+});
+const SpecialDatesSection = dynamic(() => import("@/components/SpecialDatesSection"));
 import {
   SPECIAL_DATES,
 } from "@/constants/specialDates";
@@ -217,7 +222,7 @@ export default function HomeContent() {
             fill
             sizes="100vw"
             className="object-cover object-center"
-            quality={88}
+            quality={75}
             priority
           />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.72)_0%,rgba(40,50,35,0.46)_38%,rgba(40,50,35,0.18)_65%,rgba(9,9,9,0.18)_100%)]" />
@@ -411,7 +416,6 @@ export default function HomeContent() {
                   fill
                   sizes="(max-width: 768px) 50vw, 33vw"
                   className="object-cover"
-                  unoptimized
                 />
               </div>
             ))}

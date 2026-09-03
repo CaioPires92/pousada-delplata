@@ -66,6 +66,11 @@ describe('Admin Rooms API /api/admin/rooms', () => {
         (prisma.roomType.findMany as any).mockResolvedValue([
             { id: 'room-1', basePrice: 300, totalUnits: 4, inventoryFor4Guests: 1 },
         ]);
+        (prisma.roomType.findUnique as any).mockResolvedValue({
+            basePrice: 300,
+            totalUnits: 4,
+            inventoryFor4Guests: 1,
+        });
         (prisma.roomType.update as any).mockResolvedValue({ id: 'room-1' });
         (prisma.rate.updateMany as any).mockResolvedValue({ count: 1 });
 
@@ -84,7 +89,7 @@ describe('Admin Rooms API /api/admin/rooms', () => {
 
         expect(res.status).toBe(200);
         expect(prisma.roomType.update).toHaveBeenCalledWith(expect.objectContaining({
-            where: { id: ' room-1 ' },
+            where: { id: 'room-1' },
             data: expect.objectContaining({
                 totalUnits: 6,
                 inventoryFor4Guests: 6,

@@ -38,7 +38,7 @@ describe('POST /api/admin/bookings/[bookingId]/discount', () => {
             value: 10,
             active: true,
             startsAt: null,
-            endsAt: new Date('2026-08-31T12:00:00Z'),
+            endsAt: new Date('2099-08-31T12:00:00Z'),
             maxGlobalUses: 20,
             bindEmail: null,
             bindPhone: null,

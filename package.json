@@ -9,7 +9,7 @@
         "dev:all": "bash ./scripts/shared/dev-all.sh",
         "build": "npm run prisma:generate && npm run check:vercel-crons && next build --webpack",
         "start": "next start",
-        "lint": "eslint",
+        "lint": "eslint src",
         "check:vercel-crons": "node scripts/check-vercel-crons.js",
         "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
         "test": "vitest run",

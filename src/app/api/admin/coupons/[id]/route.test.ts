@@ -119,7 +119,7 @@ describe('Admin Coupons API /api/admin/coupons/[id]', () => {
                 name: 'Atualizado',
                 type: 'PERCENT',
                 codeHash: expect.any(String),
-                codePrefix: 'VIP',
+                codePrefix: 'VIP15',
                 startsAt: new Date('2026-08-27T00:00:00.000Z'),
                 endsAt: new Date('2026-09-27T00:00:00.000Z'),
                 allowedRoomTypeIds: JSON.stringify(['room-1', 'room-2']),

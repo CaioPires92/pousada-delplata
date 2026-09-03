@@ -100,7 +100,7 @@ describe('Admin Coupons API /api/admin/coupons', () => {
         expect(prisma.coupon.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 name: 'Férias',
-                type: ' FIXED ',
+                type: 'FIXED',
                 allowedRoomTypeIds: JSON.stringify(['room-1', 'room-2']),
                 allowedSources: JSON.stringify(['direct', 'whatsapp']),
             }),

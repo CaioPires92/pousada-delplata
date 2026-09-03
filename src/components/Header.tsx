@@ -35,12 +35,6 @@ export default function Header() {
     // Determine header style based on page and scroll state
     const isTransparent = isTransparentPath && !isScrolled;
 
-    const handleHomeClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        // Force full page reload to clear all client state and ensure a fresh start
-        window.location.href = "/";
-    };
-
     if (pathname.startsWith('/admin')) return null;
 
     const isHomeHero = pathname === "/" && isTransparent;
@@ -57,7 +51,7 @@ export default function Header() {
                     {/* Logo */}
                     <Link
                         href="/"
-                        onClick={handleHomeClick}
+                        aria-label="Ir para a página inicial"
                         className={`relative transition-opacity hover:opacity-90 ${isHomeHero ? "h-20 w-44 sm:h-24 sm:w-56 lg:h-28 lg:w-64" : "h-24 w-72"}`}
                     >
                         <Image
@@ -66,12 +60,11 @@ export default function Header() {
                             fill
                             sizes="(max-width: 768px) 100vw, 320px"
                             className="object-contain object-left"
-                            priority
                         />
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <nav className={`hidden md:flex items-center ${isHomeHero ? "gap-5 lg:gap-9" : "gap-8"}`}>
+                    <nav aria-label="Navegação principal" className={`hidden md:flex items-center ${isHomeHero ? "gap-5 lg:gap-9" : "gap-8"}`}>
                         {navLinks.map((link) => (
                             <Link
                                 key={`${link.href}-${link.label}`}
@@ -101,6 +94,10 @@ export default function Header() {
 
                     {/* Mobile Menu Button */}
                     <button
+                        type="button"
+                        aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+                        aria-expanded={isMobileMenuOpen}
+                        aria-controls="mobile-navigation"
                         className={`md:hidden p-2 ${!isTransparent ? "text-primary" : "text-white"}`}
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
@@ -110,7 +107,7 @@ export default function Header() {
 
                 {/* Mobile Navigation */}
                 {isMobileMenuOpen && (
-                    <nav className="md:hidden space-y-4 border-t border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-4 pb-6 pt-5">
+                    <nav id="mobile-navigation" aria-label="Navegação mobile" className="md:hidden space-y-4 border-t border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-4 pb-6 pt-5">
                         {navLinks.map((link) => (
                             <Link
                                 key={`${link.href}-${link.label}`}

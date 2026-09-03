@@ -36,7 +36,7 @@ vi.mock('./HomeAvailabilityOffers', () => ({
 }));
 
 describe('HomeContent', () => {
-  it('apresenta uma proposta comercial baseada apenas em informações confirmadas', () => {
+  it('apresenta uma proposta comercial baseada apenas em informações confirmadas', async () => {
     render(<HomeContent />);
 
     expect(screen.getByRole('heading', {
@@ -46,7 +46,7 @@ describe('HomeContent', () => {
     expect(screen.getByText(/Piscinas, café da manhã e acomodações na ala principal/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ver preços e disponibilidade/i })).toHaveAttribute('href', '/reservar');
     expect(screen.getByText(/Consulte valores para sua estadia/i)).toBeInTheDocument();
-    expect(screen.getByTestId('home-availability-offers')).toBeInTheDocument();
+    expect(await screen.findByTestId('home-availability-offers')).toBeInTheDocument();
     expect(screen.queryByText(/Melhor tarifa garantida/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/ótimo custo-benefício/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/mais privacidade/i)).not.toBeInTheDocument();

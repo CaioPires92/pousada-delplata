@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { MapPin, Phone, Mail, MessageCircle, Instagram, Facebook } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -8,35 +7,14 @@ import Image from "next/image";
 export default function Footer() {
     const currentYear = new Date().getFullYear();
 
-    const containerVariants = {
-        hidden: { opacity: 0 },
-        visible: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1,
-            },
-        },
-    };
-
-    const itemVariants = {
-        hidden: { opacity: 0, y: 20 },
-        visible: {
-            opacity: 1,
-            y: 0,
-        },
-    };
-
     return (
         <footer className="bg-primary text-white">
             <div className="container py-16">
-                <motion.div
-                    initial={false}
-                    animate="visible"
-                    variants={containerVariants}
+                <div
                     className="grid grid-cols-1 md:grid-cols-3 gap-12"
                 >
                     {/* About */}
-                    <motion.div variants={itemVariants} className="space-y-4">
+                    <div className="space-y-4">
                         <div className="relative h-32 w-80">
                             <Image
                                 src="/fotos/logo.png"
@@ -49,10 +27,10 @@ export default function Footer() {
                         <p className="text-white/80 leading-relaxed">
                             O Hotel Pousada Delplata é um local tranquilo e rodeado de muita natureza, ambiente ideal para descansar, sair da rotina e renovar as energias.
                         </p>
-                    </motion.div>
+                    </div>
 
                     {/* Quick Links */}
-                    <motion.div variants={itemVariants} className="space-y-4">
+                    <div className="space-y-4">
                         <h4 className="text-xl font-semibold font-heading">Links Rápidos</h4>
                         <ul className="space-y-3">
                             {[
@@ -72,10 +50,10 @@ export default function Footer() {
                                 </li>
                             ))}
                         </ul>
-                    </motion.div>
+                    </div>
 
                     {/* Contact */}
-                    <motion.div variants={itemVariants} className="space-y-4">
+                    <div className="space-y-4">
                         <h4 className="text-xl font-semibold font-heading">Contato</h4>
                         <ul className="space-y-3">
                             <li className="flex items-start gap-3 text-white/80">
@@ -114,23 +92,19 @@ export default function Footer() {
                                 </a>
                             </li>
                         </ul>
-                    </motion.div>
-                </motion.div>
+                    </div>
+                </div>
             </div>
 
             {/* Copyright */}
             <div className="border-t border-white/10">
                 <div className="container py-6">
-                    <motion.p
-                        initial={false}
-                        animate={{ opacity: 1 }}
+                    <p
                         className="text-center text-white/60 text-sm"
                     >
                         © {currentYear} Hotel Pousada Delplata. Todos os direitos reservados.
-                    </motion.p>
-                    <motion.p
-                        initial={false}
-                        animate={{ opacity: 1 }}
+                    </p>
+                    <p
                         className="mt-2 text-center text-white/60 text-sm"
                     >
                         Desenvolvido por{" "}
@@ -143,7 +117,7 @@ export default function Footer() {
                             Caio Pires
                         </a>
                         .
-                    </motion.p>
+                    </p>
                 </div>
             </div>
         </footer>

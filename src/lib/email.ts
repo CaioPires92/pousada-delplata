@@ -858,6 +858,7 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: guestEmail,
+            bcc: [process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL],
             subject: `💬 Continue sua reserva de onde parou - ${roomName}`,
             html: htmlContent,
         });
