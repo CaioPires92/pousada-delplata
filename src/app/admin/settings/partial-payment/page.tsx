@@ -94,6 +94,8 @@ export default function PartialPaymentSettingsPage() {
     }
 
     useEffect(() => {
+        // This effect intentionally hydrates the form from the remote admin setting.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void fetchSettings();
     }, []);
 
