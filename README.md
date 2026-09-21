@@ -1,47 +1,30 @@
-# Delplata-Motor
+# Delplata Motor
 
-Repositorio monolitico com dois projetos:
+Site institucional e motor de reservas da Pousada Delplata.
 
-1. Site + Motor de Reservas
-2. CRM + WhatsApp
+## Principais áreas
 
-## Onde comeca cada projeto
+- site público e páginas institucionais: `src/app`;
+- disponibilidade, tarifas e inventário: `src/app/api/availability`, `src/app/admin/mapa` e `src/lib/availability`;
+- reservas e pagamentos: `src/app/reservar`, `src/app/api/bookings` e `src/app/api/mercadopago`;
+- painel administrativo de reservas: `src/app/admin/reservas`;
+- banco e migrations: `prisma`.
 
-- Site + Motor: `src/app` (rotas publicas e reserva), `src/app/api/availability`, `src/app/api/bookings`, `src/app/api/payments`, `src/lib/mercadopago`.
-- CRM + WhatsApp: `src/app/admin/inbox`, `src/app/admin/crm`, `src/app/api/crm`, `src/app/api/whatsapp`, `src/lib/crm`, `src/lib/whatsapp`.
-
-Detalhamento completo em:
-- `docs/architecture/PROJECT_BOUNDARIES.md`
-- `docs/architecture/REPO_OWNERSHIP_MAP.md`
-- `docs/projects/RESERVAS_SCOPE.md`
-- `docs/projects/CRM_N8N_SCOPE.md`
-
-## Scripts uteis
+## Desenvolvimento
 
 ```bash
-npm run dev
-npm run crm:reset
-npm run crm:reinstall
-npm run crm:docker:up
-npm run crm:evolution:create
-npm run crm:evolution:qr
-npm run crm:evolution:webhook
+npm ci
+npm run dev:web
+```
+
+## Verificação
+
+```bash
 npm run lint
 npm run typecheck
 npm run test
+npm run build
 ```
 
-## CRM local no WSL
-
-O caminho operacional suportado para Evolution local e sempre o compose em `evolution-docker/`.
-
-Se o app estiver rodando no WSL e a Evolution estiver no Docker Desktop do Windows, `npm run crm:docker:up` agora:
-
-- sobe a stack pelo Docker disponivel (WSL ou Windows);
-- detecta quando `localhost:8080` do WSL nao enxerga a Evolution do Windows;
-- inicia um bridge local em `127.0.0.1:8080` para manter `EVOLUTION_API_URL=http://localhost:8080` funcionando no app.
-
-## Observacao
-
-Existe trabalho em andamento no repositorio (arquivos modificados). A organizacao documental acima foi feita para clarificar fronteiras sem alterar comportamento de runtime.
+Mais detalhes estão em `docs/README.md`.
 # delplata-dashboard

@@ -59,9 +59,6 @@ deploy-hostinger-lean
 # raw photos (optimized versions in /public/fotos)
 /assets/FOTOS/
 
-# local Evolution API clone/runtime
-/evolution-api/
-
 # local sqlite artifacts
 *.db
 *.bak
@@ -69,10 +66,6 @@ deploy-hostinger-lean
 /db
 /db-wal
 
-/scratch/evolution-bridge.log
-/scratch/evolution-bridge.pid
-/scratch/crm/
-/scratch/evolution/
 
 /trash/for-review/email-patches/
 /trash/for-review/sensitive-db-scripts/

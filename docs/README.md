@@ -1,31 +1,19 @@
-# Documentacao do projeto
+# Documentação do projeto
 
-## Mapa rapido
+## Mapa rápido
 
-- `docs/architecture/PROJECT_BOUNDARIES.md`: fronteiras entre os dois projetos no mesmo repositorio.
-- `docs/architecture/REPO_OWNERSHIP_MAP.md`: mapa por pasta (ownership) de cada projeto.
-- `docs/architecture/MAPA_SOURCE_OF_TRUTH.md`: decisão oficial sobre tarifas, inventário e disponibilidade.
-- `docs/architecture/DESIGN_SYSTEM.md`: padrao visual e tokens compartilhados.
-- `docs/projects/RESERVAS_SCOPE.md`: escopo do Site + Motor de Reservas.
-- `docs/projects/CRM_N8N_SCOPE.md`: escopo do CRM + Fluxos n8n.
+- `docs/architecture/PROJECT_BOUNDARIES.md`: limites do site e motor de reservas.
+- `docs/architecture/REPO_OWNERSHIP_MAP.md`: responsabilidades por pasta.
+- `docs/architecture/MAPA_SOURCE_OF_TRUTH.md`: fonte oficial de tarifas, inventário e disponibilidade.
+- `docs/architecture/DESIGN_SYSTEM.md`: tokens e convenções visuais.
+- `docs/projects/RESERVAS_SCOPE.md`: escopo do motor de reservas.
 
-## Produto e operacao
+## Produto e operação
 
-- `docs/product/`: PRD, PDD, checklists e planos de produto.
-- `docs/ops/`: runbooks operacionais do CRM/n8n.
+- `docs/product/`: decisões e documentação do produto de reservas.
+- `docs/ops/`: procedimentos operacionais do motor de reservas.
+- `docs/TURSO_COUPONS_SQL.md`: notas de SQL/Turso para cupons.
 
-## Material tecnico adicional
+## Histórico
 
-- `docs/product/CRM_AI_PRD.md`: especificação atual do CRM com IA e WhatsApp oficial da Meta.
-- `docs/product/CRM_AI_PHASES_TODO.md`: fases, regras de negócio, testes e microtarefas do CRM.
-- `docs/product/CRM_PHASE_0_BASELINE.md`: baseline técnico e gates iniciais.
-- `docs/product/CRM_PHASE_0_SECURITY_AUDIT.md`: inventário seguro de bancos, backups e arquivos de ambiente.
-- `docs/product/CRM_PHASE_1_BASELINE.md`: contrato observado de disponibilidade antes da extração do serviço único.
-- `docs/product/CRM_PHASE_2_BASELINE.md`: evolução do adaptador de mensageria e integração Meta.
-- `docs/ops/CRM_ROLLBACK_RUNBOOK.md`: rollback local, GitHub, Vercel, Turso e migração Meta.
-- `docs/TURSO_COUPONS_SQL.md`: notas de SQL/Turso.
-
-## Historico
-
-- `docs/root-legacy/`: documentacao antiga preservada.
-- `docs/archive/crm-legacy/`: SPECs e SDDs anteriores do CRM, preservados apenas para consulta histórica.
+- `docs/root-legacy/`: material antigo preservado para referência do site.

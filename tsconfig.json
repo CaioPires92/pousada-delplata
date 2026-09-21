@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "evolution-api", "scratch", "trash", ".artifacts"]
+  "exclude": ["node_modules", "scratch", "trash", ".artifacts"]
 }

@@ -5,11 +5,6 @@ import React from 'react';
 
 // Unit/integration tests must never call production integrations merely because
 // Vitest loaded values from a developer's local .env file.
-delete process.env.N8N_WEBHOOK_URL;
-delete process.env.OPENAI_API_KEY;
-delete process.env.EVOLUTION_API_URL;
-delete process.env.EVOLUTION_API_KEY;
-process.env.N8N_ENABLED = 'false';
 
 // Clean up after each test case (e.g. clearing jsdom)
 afterEach(() => {

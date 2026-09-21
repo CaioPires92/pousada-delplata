@@ -1,4 +1,4 @@
-# Design System Basico (Site + CRM)
+# Design System Básico
 
 ## Objetivo
 Padronizar visual sem alterar layout funcional existente.
@@ -14,16 +14,16 @@ Fonte: `src/app/globals.css`
 
 ## Regras de uso
 
-- Site publico e CRM devem reutilizar os mesmos tokens CSS.
+- Site público e painel administrativo devem reutilizar os mesmos tokens CSS.
 - Novos componentes devem consumir classes utilitarias/Tailwind derivadas dos tokens.
 - Evitar cores hardcoded em componentes novos; preferir variaveis de tema.
-- Estados de pipeline/automacao devem usar semantica (sucesso/aviso/erro), nao cor arbitraria.
+- Estados da interface devem usar semântica (sucesso/aviso/erro), não cor arbitrária.
 
 ## Estrutura recomendada
 
 - Base UI compartilhada: `src/components/ui/*`
 - Componentes de dominio reservas: `src/components/*` relacionados ao fluxo de reserva
-- Componentes de dominio CRM: `src/components/admin/*` e componentes dedicados em `src/app/admin/*`
+- Componentes administrativos: `src/components/admin/*` e componentes dedicados em `src/app/admin/*`
 
 ## Checklist para novos PRs
 

@@ -17,8 +17,6 @@
     "src/**/__tests__/**",
     "scripts/**",
     "docs/**",
-    "trash/**",
-    "n8n/**",
-    "sdd-crm-delplata/**"
+    "trash/**"
   ]
 }
