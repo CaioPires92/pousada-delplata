@@ -138,47 +138,35 @@ async function handleQuote(request: Request) {
       ? quote.options.filter((option) => option.roomTypeName.toLowerCase().includes(roomTypeFilter))
       : quote.options;
 
-    const options = filteredOptions.map((option) => ({
-      roomTypeId: option.roomTypeId,
-      roomTypeName: option.roomTypeName,
-      available: option.remainingUnits > 0,
-      remainingUnits: option.remainingUnits,
-      maxGuests: option.maxGuests,
-      nights: quote.nights,
-      minLos: option.minLos,
-      totalPrice: option.totalPrice,
-      currency: "BRL",
-      dailyAverage: Math.round((option.totalPrice / quote.nights) * 100) / 100,
-      priceBreakdown: option.priceBreakdown,
-      bookingUrl: buildBookingUrl(request, {
-        checkIn,
-        checkOut,
-        adults,
-        childrenAges,
-        roomTypeId: option.roomTypeId,
-      }),
-    }));
+    const options = [...filteredOptions]
+      .sort((a, b) => a.totalPrice - b.totalPrice)
+      .slice(0, 3)
+      .map((option) => ({
+        roomTypeName: option.roomTypeName,
+        available: option.remainingUnits > 0,
+        totalPrice: option.totalPrice,
+        dailyAverage: Math.round((option.totalPrice / quote.nights) * 100) / 100,
+        bookingUrl: buildBookingUrl(request, {
+          checkIn,
+          checkOut,
+          adults,
+          childrenAges,
+          roomTypeId: option.roomTypeId,
+        }),
+      }));
+    const hasAvailableOptions = options.some((option) => option.available);
 
     return NextResponse.json({
       ok: true,
       checkIn: quote.checkin,
       checkOut: quote.checkout,
-      adults,
-      children: childrenAges.length,
-      childrenAges,
       nights: quote.nights,
-      quoteId: quote.quoteId,
-      calculatedAt: quote.calculatedAt,
-      expiresAt: quote.expiresAt,
-      available: options.length > 0,
+      currency: "BRL",
+      available: hasAvailableOptions,
       options,
-      message: options.length > 0
+      message: hasAvailableOptions
         ? "Cotacao calculada com disponibilidade no motor de reservas."
         : "Nao ha acomodacoes disponiveis para os filtros informados.",
-      notes: [
-        "Valores e disponibilidade sao consultados no motor de reservas.",
-        "A reserva so fica garantida apos finalizar o processo no site ou confirmacao da recepcao.",
-      ],
     });
   } catch {
     return NextResponse.json({
