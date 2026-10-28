@@ -14,7 +14,7 @@ export const metadata = buildPageMetadata({
 export default function ContactPage() {
     return (
         <main className="min-h-screen bg-background">
-            <section className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
+            <section data-page-hero className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
                 <div className="absolute inset-0">
                     <Image
                         src="/fotos/jardim-aptos/DSC_0258.jpg"

@@ -9,14 +9,12 @@ import { trackClickReservar } from '@/lib/analytics';
 const DISMISSED_KEY = 'delplata-booking-assistant-dismissed';
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
 
-function hasLeftHomeHero() {
-    const hero = document.querySelector<HTMLElement>('[data-home-hero]');
+function getPageHero() {
+    return document.querySelector<HTMLElement>('[data-home-hero], [data-page-hero]');
+}
 
-    if (hero) {
-        return hero.getBoundingClientRect().bottom <= 0;
-    }
-
-    return window.scrollY > window.innerHeight * 0.9;
+function hasLeftPageHero(hero: HTMLElement) {
+    return hero.getBoundingClientRect().bottom <= 0;
 }
 
 export default function MobileBookingBar() {
@@ -27,26 +25,26 @@ export default function MobileBookingBar() {
     ));
 
     const isExcludedPage = pathname.startsWith('/admin') || pathname.startsWith('/reservar');
-    const isHome = pathname === '/';
-
     useEffect(() => {
         if (isExcludedPage || isDismissed) {
             return;
         }
 
-        if (!isHome) {
+        const hero = getPageHero();
+
+        if (!hero) {
             const timer = window.setTimeout(() => setIsVisible(true), 700);
             return () => window.clearTimeout(timer);
         }
 
         const handleScroll = () => {
-            if (hasLeftHomeHero()) {
+            if (hasLeftPageHero(hero)) {
                 setIsVisible(true);
             }
         };
 
         const handleReservationInteraction = () => {
-            if (hasLeftHomeHero()) {
+            if (hasLeftPageHero(hero)) {
                 setIsVisible(true);
             }
         };
@@ -59,7 +57,7 @@ export default function MobileBookingBar() {
             window.removeEventListener('scroll', handleScroll);
             window.removeEventListener(RESERVA_INTERACTION_EVENT, handleReservationInteraction);
         };
-    }, [isDismissed, isExcludedPage, isHome]);
+    }, [isDismissed, isExcludedPage]);
 
     const handleDismiss = () => {
         sessionStorage.setItem(DISMISSED_KEY, '1');

@@ -148,7 +148,7 @@ export default function LeisurePage() {
 
     return (
         <main className="min-h-screen bg-background">
-            <section className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
+            <section data-page-hero className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
                 <div className="absolute inset-0">
                     <Image
                         src="/fotos/piscina-aptos/DJI_0845.jpg"

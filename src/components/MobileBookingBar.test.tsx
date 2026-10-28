@@ -56,6 +56,28 @@ describe('MobileBookingBar', () => {
         fireEvent.scroll(window);
 
         expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+        hero.remove();
+    });
+
+    it('waits until the visitor leaves an internal page hero', () => {
+        const hero = document.createElement('section');
+        hero.setAttribute('data-page-hero', '');
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: 320,
+        }) as DOMRect);
+        document.body.appendChild(hero);
+
+        render(<MobileBookingBar />);
+
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: -1,
+        }) as DOMRect);
+        fireEvent.scroll(window);
+
+        expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+        hero.remove();
     });
 
     it('can be dismissed for the current session', async () => {
