@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, ShieldCheck, X } from 'lucide-react';
+import { CalendarDays, X } from 'lucide-react';
 import { trackClickReservar } from '@/lib/analytics';
 
 const DISMISSED_KEY = 'delplata-booking-assistant-dismissed';
@@ -95,38 +95,27 @@ export default function MobileBookingBar() {
                     Ver preços e disponibilidade
                 </Link>
             </div>
-            <aside className="fixed bottom-6 right-6 z-40 hidden w-[320px] border border-white/18 bg-[#283223] text-white shadow-[0_24px_70px_rgba(0,0,0,0.30)] md:block">
+            <aside className="fixed bottom-5 right-5 z-40 hidden w-[280px] border border-primary/15 bg-white p-4 text-primary shadow-[0_12px_32px_rgba(9,9,9,0.14)] md:block">
                 <button
                     type="button"
                     onClick={handleDismiss}
-                    className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center text-white/60 transition-colors hover:text-white"
+                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center text-primary/45 transition-colors hover:text-primary"
                     aria-label="Fechar lembrete de reserva"
                 >
                     <X className="h-4 w-4" />
                 </button>
-                <div className="border-b border-white/15 px-5 py-4 pr-12">
-                    <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
-                        Reserva direta
-                    </p>
-                    <h2 className="mt-1 text-lg font-semibold leading-tight">Consulte datas e valores</h2>
-                    <p className="mt-1 text-sm leading-5 text-white/72">
-                        Veja disponibilidade online antes de decidir.
-                    </p>
-                </div>
-                <div className="space-y-4 p-5">
-                    <div className="flex items-start gap-3 text-sm leading-5 text-white/78">
-                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--brand-gold)]" />
-                        <span>Café da manhã, total da estadia e pagamento aparecem antes de finalizar.</span>
-                    </div>
-                    <Link
-                        href="/reservar"
-                        onClick={() => trackClickReservar('booking_assistant_desktop')}
-                        className="flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-4 text-center text-sm font-semibold text-[#283223] transition-colors hover:bg-[color:var(--brand-gold)]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#283223]"
-                    >
-                        <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                        Ver disponibilidade
-                    </Link>
-                </div>
+                <p className="pr-8 text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-gold)]">
+                    Reserva direta
+                </p>
+                <h2 className="mt-1 pr-8 text-base font-semibold leading-tight">Consulte datas e valores</h2>
+                <Link
+                    href="/reservar"
+                    onClick={() => trackClickReservar('booking_assistant_desktop')}
+                    className="mt-3 flex h-10 items-center justify-center gap-2 bg-primary px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                    Ver disponibilidade
+                </Link>
             </aside>
         </>
     );
