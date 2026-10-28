@@ -31,24 +31,19 @@ export default function MobileBookingBar() {
         }
 
         setIsVisible(false);
-        const hero = getPageHero();
-
-        if (!hero) {
-            const timer = window.setTimeout(() => setIsVisible(true), 700);
-            return () => window.clearTimeout(timer);
-        }
-
-        const handleScroll = () => {
-            setIsVisible(hasLeftPageHero(hero));
+        const updateVisibility = () => {
+            const hero = getPageHero();
+            setIsVisible(hero ? hasLeftPageHero(hero) : true);
         };
 
-        handleScroll();
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        window.addEventListener(RESERVA_INTERACTION_EVENT, handleScroll);
+        const timer = window.setTimeout(updateVisibility, 700);
+        window.addEventListener('scroll', updateVisibility, { passive: true });
+        window.addEventListener(RESERVA_INTERACTION_EVENT, updateVisibility);
 
         return () => {
-            window.removeEventListener('scroll', handleScroll);
-            window.removeEventListener(RESERVA_INTERACTION_EVENT, handleScroll);
+            window.clearTimeout(timer);
+            window.removeEventListener('scroll', updateVisibility);
+            window.removeEventListener(RESERVA_INTERACTION_EVENT, updateVisibility);
         };
     }, [isDismissed, isExcludedPage, pathname]);
 
