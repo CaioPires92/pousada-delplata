@@ -28,6 +28,9 @@ const nextConfig: NextConfig = {
 
   // Image optimization
   images: {
+    // Serve local assets directly. The hosted Next.js optimizer can reject
+    // uncached images, while these files are already web-ready.
+    unoptimized: true,
     qualities: [72, 74, 75, 76, 82, 84, 85, 88],
     remotePatterns: [
       {
