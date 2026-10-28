@@ -56,6 +56,13 @@ describe('MobileBookingBar', () => {
         fireEvent.scroll(window);
 
         expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: 640,
+        }) as DOMRect);
+        fireEvent.scroll(window);
+
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
         hero.remove();
     });
 
