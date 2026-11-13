@@ -17,6 +17,7 @@ Não há migração de banco: CPF e endereço vão do navegador direto para o ch
 - URL: `https://<dominio-do-site>/api/webhooks/asaas`
 - Token de autenticação: um segredo novo com 32 caracteres ou mais (ex.: `openssl rand -hex 32`). É o mesmo valor de `ASAAS_WEBHOOK_TOKEN`.
 - Fila ativa e e-mail para avisos de falha preenchido.
+- Tipo de envio: **não sequencial** (`NON_SEQUENTIALLY`). Com envio sequencial, um único evento recusado trava todos os seguintes, e a reserva paga não confirma. No cartão parcelado, o Asaas manda um `PAYMENT_CONFIRMED` por parcela, com o valor da parcela; o webhook aceita isso, mas o envio não sequencial evita que outro erro bloqueie a fila.
 - Eventos:
   - `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`
   - `PAYMENT_AWAITING_RISK_ANALYSIS`, `PAYMENT_REPROVED_BY_RISK_ANALYSIS`

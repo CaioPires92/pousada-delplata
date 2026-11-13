@@ -335,4 +335,38 @@ describe('POST /api/webhooks/asaas', () => {
         expect(transactionClient.payment.upsert).not.toHaveBeenCalled();
         expect(sendBookingConfirmationEmail).not.toHaveBeenCalled();
     });
+
+    describe('cartao parcelado (um PAYMENT_CONFIRMED por parcela)', () => {
+        it('aceita a parcela com valor compativel e confirma a reserva', async () => {
+            const response = await sendEvent('PAYMENT_CONFIRMED', { value: 116.67, installmentNumber: 1 });
+            expect(response.status).toBe(200);
+            expect(transactionClient.booking.update).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({ status: 'CONFIRMED' }),
+            }));
+            // 350 / 116,67 = 3 parcelas (e nao "1x", que e o numero da parcela).
+            expect(vi.mocked(sendBookingConfirmationEmail).mock.calls[0][0]).toMatchObject({ paymentInstallments: 3 });
+        });
+
+        it('recusa parcela com valor incompativel (422) e nao envia e-mail', async () => {
+            const response = await sendEvent('PAYMENT_CONFIRMED', { value: 1, installmentNumber: 2 });
+            expect(response.status).toBe(422);
+            expect(sendBookingConfirmationEmail).not.toHaveBeenCalled();
+            expect(sendBookingCreatedAlertEmail).not.toHaveBeenCalled();
+        });
+
+        it('sem installmentNumber continua exigindo o valor exato', async () => {
+            const response = await sendEvent('PAYMENT_CONFIRMED', { value: 116.67 });
+            expect(response.status).toBe(422);
+        });
+
+        it('reentrega das parcelas seguintes nao confirma nem envia e-mail de novo', async () => {
+            transactionClient.booking.findUnique.mockResolvedValue({
+                ...booking, status: 'CONFIRMED', payment: { ...booking.payment, status: 'APPROVED' },
+            });
+            const response = await sendEvent('PAYMENT_CONFIRMED', { value: 116.67, installmentNumber: 2 });
+            expect(response.status).toBe(200);
+            expect(sendBookingConfirmationEmail).not.toHaveBeenCalled();
+            expect(sendBookingCreatedAlertEmail).not.toHaveBeenCalled();
+        });
+    });
 });

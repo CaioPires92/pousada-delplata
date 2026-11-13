@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 
+import { ASAAS_MAX_INSTALLMENTS } from '@/lib/asaas/client';
 import { hasRoomForBooking } from '@/lib/availability/room-check';
 import { getRoomHoldEnd } from '@/lib/booking-payment-window';
 import { isPaymentUnderReview } from '@/lib/mercadopago/payment-under-review';
@@ -103,7 +104,14 @@ export async function POST(request: Request) {
             total + (Number(item.value) * Math.max(1, Number(item.quantity) || 1))
         ), 0);
         const receivedAmount = Number(body.payment?.value ?? checkoutAmount);
-        if (APPROVED_EVENTS.has(event) && (!Number.isFinite(receivedAmount) || Math.abs(receivedAmount - expectedAmount) > 0.01)) {
+        // Cartao parcelado: o Asaas envia um PAYMENT_CONFIRMED por parcela, com o valor da PARCELA.
+        // Aceita se couber entre total/maximo de parcelas e o total; o total segue validado no
+        // CHECKOUT_PAID. Responder 422 aqui travava a fila sequencial do webhook.
+        const isInstallmentEvent = Number(body.payment?.installmentNumber) > 0 && body.payment?.value != null;
+        const amountMatches = isInstallmentEvent
+            ? receivedAmount <= expectedAmount + 0.01 && receivedAmount >= expectedAmount / ASAAS_MAX_INSTALLMENTS - 0.05
+            : Math.abs(receivedAmount - expectedAmount) <= 0.01;
+        if (APPROVED_EVENTS.has(event) && (!Number.isFinite(receivedAmount) || !amountMatches)) {
             await tx.booking.update({
                 where: { id: bookingId },
                 data: { funnelStage: 'PAYMENT_VALIDATION_FAILED', funnelUpdatedAt: new Date(), lastErrorMessage: 'invalid_payment_amount' },
@@ -167,7 +175,11 @@ export async function POST(request: Request) {
                     data: { status: 'RELEASED', releasedAt: new Date() },
                 });
             }
-            return { booking, confirmedNow, invalidAmount: false, method, approvedOnInactiveBooking, paidWithoutRoom };
+            // installmentNumber e o numero DESTA parcela (1, 2, 3...), nao a quantidade.
+            const installmentCount = isInstallmentEvent && receivedAmount > 0
+                ? Math.max(1, Math.round(expectedAmount / receivedAmount))
+                : null;
+            return { booking, confirmedNow, invalidAmount: false, method, approvedOnInactiveBooking, paidWithoutRoom, installmentCount };
         }
 
         if (RISK_ANALYSIS_PENDING_EVENTS.has(event) || RISK_ANALYSIS_REJECTED_EVENTS.has(event)) {
@@ -232,7 +244,7 @@ export async function POST(request: Request) {
             checkOut: booking.checkOut,
             totalPrice: Number(booking.totalPrice),
             paymentMethod: result.method,
-            paymentInstallments: body.payment?.installmentNumber || null,
+            paymentInstallments: result.installmentCount ?? null,
             paymentMode: booking.payment?.paymentMode || 'FULL',
             paidAmount: Number(booking.payment?.amount ?? booking.totalPrice),
             remainingAmount: Number(booking.payment?.remainingAmount || 0),
