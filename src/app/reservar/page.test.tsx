@@ -603,7 +603,7 @@ describe('ReservarPage', () => {
     mockHostedCheckoutApi();
     render(<ReservarPage />);
     await screen.findByText('Suíte Especial');
-    fireEvent.click(screen.getByRole('button', { name: /^Escolher$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Escolher acomodação$/i }));
     fireEvent.change(screen.getByLabelText(/Nome Completo/i), { target: { value: 'Maria Silva' } });
     fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'maria@example.com' } });
     fireEvent.change(screen.getByLabelText(/Telefone\/WhatsApp/i), { target: { value: '(11) 99999-0000' } });
