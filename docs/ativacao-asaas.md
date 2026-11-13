@@ -7,14 +7,14 @@ Não há migração de banco: CPF e endereço vão do navegador direto para o ch
 ## 1. Conta Asaas da pousada
 
 - [ ] Conta aprovada e com Pix e cartão de crédito habilitados.
-- [ ] Em *Minha conta → Informações*, cadastre o site `https://<dominio-do-site>`. O checkout manda o hóspede de volta para `/reservar/confirmacao/...`, e o Asaas pode recusar URLs de retorno de um domínio diferente do cadastrado (confira como está a conta do Refúgio).
+- [ ] Em *Minha conta → Informações*, cadastre o site `https://www.pousadadelplata.com.br`. O checkout manda o hóspede de volta para `/reservar/confirmacao/...`, e o Asaas pode recusar URLs de retorno de um domínio diferente do cadastrado.
 - [ ] Gere a chave de API de **produção** (*Integrações → Chaves de API*). Nunca use a chave de outra pousada.
 
 ## 2. Webhook no painel do Asaas
 
 *Integrações → Webhooks → Adicionar*:
 
-- URL: `https://<dominio-do-site>/api/webhooks/asaas`
+- URL: `https://www.pousadadelplata.com.br/api/webhooks/asaas`
 - Token de autenticação: um segredo novo com 32 caracteres ou mais (ex.: `openssl rand -hex 32`). É o mesmo valor de `ASAAS_WEBHOOK_TOKEN`.
 - Fila ativa e e-mail para avisos de falha preenchido.
 - Tipo de envio: **não sequencial** (`NON_SEQUENTIALLY`). Com envio sequencial, um único evento recusado trava todos os seguintes, e a reserva paga não confirma. No cartão parcelado, o Asaas manda um `PAYMENT_CONFIRMED` por parcela, com o valor da parcela; o webhook aceita isso, mas o envio não sequencial evita que outro erro bloqueie a fila.
