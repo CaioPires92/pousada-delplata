@@ -3,6 +3,7 @@ export interface Booking {
     adults: number;
     children: number;
     childrenAges?: string | null;
+    pets?: number;
     checkIn?: string | null;
     checkOut?: string | null;
     totalPrice: number;
@@ -11,6 +12,8 @@ export interface Booking {
     funnelUpdatedAt?: string | null;
     lastErrorMessage?: string | null;
     createdAt?: string | null;
+    hospedinReservationId?: string | null;
+    hospedinRegisteredAt?: string | null;
     guest: {
         name: string;
         email: string;

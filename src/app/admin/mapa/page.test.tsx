@@ -172,7 +172,180 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         });
     }, 30000);
 
-    it('exibe a linha compacta de quadruplo no mapa', async () => {
+    it('mostra esgotado em laranja quando o inventário STD é zero', async () => {
+        setupMapFetch({
+            date: fixedTodayKey,
+            price: 320,
+            stopSell: false,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            rateId: 'rate-sold-out',
+            totalInventory: 0,
+            capacityTotal: 4,
+            bookingsCount: 4,
+            available: 0,
+            fourGuestInventory: 0,
+            fourGuestCapacityTotal: 0,
+            isAdjusted: true
+        });
+
+        render(<MapaPage />);
+
+        await waitFor(() => {
+            expect(screen.getAllByRole('button', { name: 'ESGOTADO' })[0]).toHaveClass('bg-amber-100');
+        }, { timeout: 5000 });
+    }, 30000);
+
+    it('sincroniza somente o período visível no mapa mensal', async () => {
+        let syncPayload: Record<string, unknown> | null = null;
+        setupMapFetch({
+            date: fixedTodayKey,
+            price: 320,
+            stopSell: false,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            totalInventory: 4,
+            capacityTotal: 5,
+            bookingsCount: 0,
+            available: 4,
+        });
+        const previousImplementation = mockFetch.getMockImplementation();
+        mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+            if (url.includes('/api/admin/hospedin-sync')) {
+                syncPayload = JSON.parse(String(init?.body));
+                return createJsonResponse({
+                    message: 'Sincronização processada!',
+                    results: [{
+                        roomName: 'Apartamento Teste',
+                        manualOverrides: [{
+                            date: fixedTodayKey,
+                            hospedinUnits: 0,
+                            automaticUnits: 0,
+                            manualUnits: 1,
+                        }],
+                    }],
+                });
+            }
+            return previousImplementation!(input, init);
+        });
+
+        render(<MapaPage />);
+
+        const syncButton = await screen.findByRole('button', { name: 'Sincronizar 11/03 a 31/03' });
+        fireEvent.click(syncButton);
+
+        await waitFor(() => {
+            expect(syncPayload).toEqual(expect.objectContaining({
+                startDate: '2026-03-11',
+                endDate: '2026-03-31',
+            }));
+        });
+        expect(await screen.findByRole('dialog', { name: 'Sincronização concluída com ajustes manuais' })).toBeInTheDocument();
+    }, 30000);
+
+    it('não mostra sucesso quando o Hospedin recusa todos os quartos e exibe o erro real', async () => {
+        setupMapFetch({
+            date: fixedTodayKey,
+            price: 320,
+            stopSell: false,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            totalInventory: 4,
+            capacityTotal: 5,
+            bookingsCount: 0,
+            available: 4,
+        });
+        const previousImplementation = mockFetch.getMockImplementation();
+        mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+            if (url.includes('/api/admin/hospedin-sync')) {
+                return createJsonResponse({
+                    message: 'Sincronização processada!',
+                    duration: '1.8s',
+                    results: [
+                        { roomName: 'Quarto Triplo', error: 'Hospedin API Error: Forbidden for placeType 283900' },
+                        { roomName: 'Quarto Duplo', error: 'Hospedin API Error: Forbidden for placeType 284992' },
+                    ],
+                });
+            }
+            return previousImplementation!(input, init);
+        });
+
+        render(<MapaPage />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Sincronizar 11/03 a 31/03' }, { timeout: 5000 }));
+
+        expect(await screen.findByText(/O Hospedin recusou a sincronização/, undefined, { timeout: 5000 })).toBeInTheDocument();
+        expect(screen.getByText(/Quarto Triplo: Hospedin API Error: Forbidden/)).toBeInTheDocument();
+        expect(screen.queryByText(/Sincronização concluída:/)).not.toBeInTheDocument();
+    }, 30000);
+
+    it('mostra a hora da última sincronização do Hospedin vinda do banco', async () => {
+        setupMapFetch({
+            date: fixedTodayKey,
+            price: 320,
+            stopSell: false,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            totalInventory: 4,
+            capacityTotal: 5,
+            bookingsCount: 0,
+            available: 4,
+            hospedinSyncedAt: new Date().toISOString(),
+        });
+
+        render(<MapaPage />);
+
+        const freshness = await screen.findByTestId('hospedin-freshness', undefined, { timeout: 5000 });
+        expect(freshness).toHaveTextContent('Hospedin atualizado');
+        expect(freshness).not.toHaveTextContent('desatualizado');
+    }, 30000);
+
+    it('usa modal visual ao abrir inventário acima do automático', async () => {
+        setupMapFetch({
+            date: fixedTodayKey,
+            price: 320,
+            stopSell: false,
+            cta: false,
+            ctd: false,
+            minLos: 1,
+            totalInventory: 0,
+            capacityTotal: 4,
+            bookingsCount: 0,
+            available: 0,
+            hospedinUnits: 0,
+            automaticInventory: 0,
+            inventorySource: 'hospedin',
+        });
+        const previousImplementation = mockFetch.getMockImplementation();
+        mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+            if (url.includes('/api/admin/inventory')) {
+                return createJsonResponse({
+                    error: 'CONFIRM_ABOVE_AUTOMATIC',
+                    hospedinUnits: 0,
+                    automaticAvailable: 0,
+                    requestedUnits: 1,
+                    safetyBuffer: 1,
+                }, false, 409);
+            }
+            return previousImplementation!(input, init);
+        });
+
+        render(<MapaPage />);
+        const increaseButtons = await screen.findAllByRole('button', { name: 'Aumentar STD' });
+        fireEvent.click(increaseButtons[0]);
+
+        expect(await screen.findByRole('dialog', { name: 'Confirmar abertura manual' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Manter aberto manualmente' })).toBeInTheDocument();
+    }, 30000);
+
+    it('oculta a linha 4P e mantém apenas o inventário STD no mapa', async () => {
         setupMapFetch({
             date: fixedTodayKey,
             price: 350,
@@ -195,7 +368,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         render(<MapaPage />);
 
         await waitFor(() => {
-            expect(screen.getByText('4P')).toBeInTheDocument();
+            expect(screen.queryByText('4P')).not.toBeInTheDocument();
             expect(screen.getByText('STD')).toBeInTheDocument();
         });
     }, 30000);
@@ -286,7 +459,7 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
         });
     }, 30000);
 
-    it('envia inventário em lote de quadruplo para a rota administrativa correta', async () => {
+    it('oculta 4P na edição em lote e mantém o envio do inventário STD', async () => {
         let ratePayload: Record<string, unknown> | null = null;
         let inventoryPayload: Record<string, unknown> | null = null;
 
@@ -342,9 +515,11 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
             expect(screen.getByTestId('bulk-modal')).toBeInTheDocument();
         });
 
+        expect(screen.queryByText('QUADRUPLO')).not.toBeInTheDocument();
+
         fireEvent.change(screen.getByLabelText('Data inicial'), { target: { value: '2026-03-09' } });
         fireEvent.change(screen.getByLabelText('Data final'), { target: { value: '2026-03-11' } });
-        fireEvent.change(screen.getByLabelText('Alterar quantidade de quartos disponíveis (quadruplo)'), { target: { value: '1' } });
+        fireEvent.change(screen.getByLabelText('Alterar quantidade de quartos disponíveis'), { target: { value: '1' } });
         fireEvent.click(screen.getByRole('button', { name: /Aplicar alterações em lote/i }));
 
         await waitFor(() => {
@@ -354,9 +529,9 @@ describe('Admin Mapa de Tarifas - UI refinements', () => {
                 startDate: '2026-03-09',
                 endDate: '2026-03-11',
                 updates: {
-                    fourGuestInventory: 1,
+                    inventory: 1,
                 },
-                inventoryType: 'fourGuests',
+                inventoryType: 'standard',
                 daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
             });
         });

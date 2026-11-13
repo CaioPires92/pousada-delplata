@@ -18,6 +18,7 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/expire-stale-bookings', () => ({
     expireStalePendingBookings: vi.fn().mockResolvedValue(undefined),
+    sendPendingRecoveryEmails: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('Admin bookings API /api/admin/bookings', () => {
@@ -42,9 +43,10 @@ describe('Admin bookings API /api/admin/bookings', () => {
     it('normalizes text fields in the returned bookings payload', async () => {
         (prisma.booking.findMany as any).mockResolvedValue([{
             id: ' booking-1 ',
-            adults: 2,
+            adults: 5,
             children: 0,
             childrenAges: ' 4,7 ',
+            pets: 2,
             checkIn: new Date('2026-08-27T00:00:00.000Z'),
             checkOut: new Date('2026-08-28T00:00:00.000Z'),
             totalPrice: 300,
@@ -71,7 +73,7 @@ describe('Admin bookings API /api/admin/bookings', () => {
                 balanceDueDate: null,
                 method: 'PIX',
                 cardBrand: null,
-                installments: null,
+                installments: 3,
                 provider: 'Mercado Pago',
             },
         }]);
@@ -82,6 +84,9 @@ describe('Admin bookings API /api/admin/bookings', () => {
         expect(response.status).toBe(200);
         expect(data[0]).toMatchObject({
             id: 'booking-1',
+            adults: 5,
+            children: 0,
+            pets: 2,
             status: 'confirmed',
             funnelStage: 'payment_link_created',
             lastErrorMessage: 'algo deu errado',
@@ -96,6 +101,7 @@ describe('Admin bookings API /api/admin/bookings', () => {
             payment: {
                 status: 'approved',
                 method: 'PIX',
+                installments: 3,
                 provider: 'Mercado Pago',
             },
         });

@@ -17,6 +17,8 @@ vi.mock('@/lib/prisma', () => ({
             count: vi.fn(),
         },
         inventoryAdjustment: {
+            findMany: vi.fn(),
+            findUnique: vi.fn(),
             upsert: vi.fn(),
         },
         fourGuestInventoryAdjustment: {
@@ -32,6 +34,8 @@ describe('Admin Inventory API - day key safety', () => {
         (prisma.roomType.findUnique as any).mockResolvedValue({ id: 'room-1', totalUnits: 8, inventoryFor4Guests: 2 });
         (prisma.booking.findMany as any).mockResolvedValue([]);
         (prisma.booking.count as any).mockResolvedValue(0);
+        (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+        (prisma.inventoryAdjustment.findUnique as any).mockResolvedValue(null);
         (prisma.inventoryAdjustment.upsert as any).mockResolvedValue({
             roomTypeId: 'room-1',
             dateKey: '2026-02-10',
@@ -134,5 +138,58 @@ describe('Admin Inventory API - day key safety', () => {
         expect(prisma.fourGuestInventoryAdjustment.upsert).toHaveBeenCalledTimes(1);
         const upsertArgs = (prisma.fourGuestInventoryAdjustment.upsert as any).mock.calls[0][0];
         expect(upsertArgs.where.roomTypeId_dateKey.dateKey).toBe('2026-02-11');
+    });
+
+    it('requires confirmation before exceeding automatic Hospedin inventory', async () => {
+        (prisma.inventoryAdjustment.findUnique as any).mockResolvedValue({
+            roomTypeId: 'room-1',
+            dateKey: '2026-02-10',
+            hospedinUnits: 2,
+            manualOverrideUnits: null,
+            totalUnits: 1,
+        });
+
+        const req = new Request('http://localhost/api/admin/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomTypeId: 'room-1', date: '2026-02-10', totalUnits: 2 }),
+        });
+
+        const res = await POST(req);
+        expect(res.status).toBe(409);
+        await expect(res.json()).resolves.toMatchObject({
+            error: 'CONFIRM_ABOVE_AUTOMATIC',
+            hospedinUnits: 2,
+            automaticAvailable: 1,
+            safetyBuffer: 1,
+        });
+        expect(prisma.inventoryAdjustment.upsert).not.toHaveBeenCalled();
+    });
+
+    it('removes manual override and restores automatic inventory', async () => {
+        (prisma.inventoryAdjustment.findUnique as any).mockResolvedValue({
+            roomTypeId: 'room-1',
+            dateKey: '2026-02-10',
+            hospedinUnits: 3,
+            manualOverrideUnits: 3,
+            totalUnits: 3,
+        });
+
+        const req = new Request('http://localhost/api/admin/inventory', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                date: '2026-02-10',
+                totalUnits: 0,
+                resetManualOverride: true,
+            }),
+        });
+
+        const res = await POST(req);
+        expect(res.status).toBe(200);
+        expect(prisma.inventoryAdjustment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            update: expect.objectContaining({ totalUnits: 2, manualOverrideUnits: null }),
+        }));
     });
 });

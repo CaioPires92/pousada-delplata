@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { isMobileRequest } from "@/lib/device";
 
 import { queryAvailabilityQuote } from "@/lib/availability/quote-service";
 import { normalizeCouponCode } from "@/lib/coupons/hash";
 import { validateCoupon } from "@/lib/coupons/validate";
 import { getDiscountPolicy } from "@/lib/discount-policy-store";
+import { toPublicPromotion } from "@/lib/promotions/engine";
+import { resolveStayPricing, type CouponBlockedReason } from "@/lib/promotions/stacking";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,11 @@ function getPromoMessage(reason: string) {
   return "Cupom indisponível no momento.";
 }
 
+function getCouponBlockedMessage(reason: CouponBlockedReason) {
+  if (reason === "PROMOTION_EXCLUSIVE") return "Esta oferta não acumula com cupons.";
+  return "A oferta atual já tem o melhor preço; o cupom não acumula com ela.";
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -34,6 +42,7 @@ export async function GET(request: Request) {
     }
 
     const adults = Number.parseInt(searchParams.get("adults") || "2", 10);
+    const pets = Math.max(0, Number.parseInt(searchParams.get("pets") || "0", 10) || 0);
     const childrenAges = searchParams.get("childrenAges")?.split(",").map(Number) || [];
     const promoCode = normalizeCouponCode(searchParams.get("promo") || searchParams.get("coupon") || "");
     const quote = await queryAvailabilityQuote({
@@ -41,6 +50,8 @@ export async function GET(request: Request) {
       checkout: checkOut,
       adults,
       childrenAges,
+      pets,
+      isMobile: isMobileRequest(request),
       includeRoomDetails: true,
     });
 
@@ -59,46 +70,78 @@ export async function GET(request: Request) {
     let promoMessage: string | undefined;
     const discountPolicy = promoCode ? await getDiscountPolicy() : null;
     const rooms = await Promise.all(quote.options.map(async option => {
-      let discountAmount = 0;
-      let priceDiscounted: number | undefined;
-      let roomPromoApplied = false;
+      // Promoção automática + cupom: regra única de compatibilidade (ver promotions/stacking).
+      const pricing = await resolveStayPricing({
+        fullTotal: option.totalPrice,
+        promotion: option.promotion,
+        evaluateCoupon: promoCode
+          ? async subtotal => {
+              const couponResult = await validateCoupon({
+                code: promoCode,
+                subtotal,
+                roomTypeId: option.roomTypeId,
+                source: "direct",
+                checkIn,
+                checkOut,
+                blockedDateRanges: discountPolicy?.blockedDateRanges,
+                preview: true,
+              });
+              return {
+                valid: couponResult.valid,
+                reason: couponResult.reason,
+                couponId: couponResult.couponId,
+                stackable: couponResult.stackable,
+                discountAmount: couponResult.discountAmount,
+                total: couponResult.total,
+              };
+            }
+          : null,
+      });
+
+      const roomPromoApplied = pricing.couponApplied && pricing.couponDiscount > 0;
       let roomPromoMessage: string | undefined;
 
       if (promoCode) {
-        const couponResult = await validateCoupon({
-          code: promoCode,
-          subtotal: option.totalPrice,
-          roomTypeId: option.roomTypeId,
-          source: "direct",
-          checkIn,
-          checkOut,
-          blockedDateRanges: discountPolicy?.blockedDateRanges,
-          preview: true,
-        });
-
-        if (couponResult.valid) {
-          discountAmount = Number(couponResult.discountAmount || 0);
-          priceDiscounted = Number(couponResult.total || option.totalPrice);
-          roomPromoApplied = priceDiscounted < option.totalPrice;
-          roomPromoMessage = getPromoMessage(couponResult.reason || "OK");
-          if (roomPromoApplied) promoApplied = true;
+        if (roomPromoApplied) {
+          roomPromoMessage = getPromoMessage("OK");
+          promoApplied = true;
+        } else if (pricing.couponBlockedReason) {
+          roomPromoMessage = getCouponBlockedMessage(pricing.couponBlockedReason);
         } else {
-          roomPromoMessage = getPromoMessage(couponResult.reason || "INVALID_CODE");
-          if (!promoMessage) promoMessage = roomPromoMessage;
+          roomPromoMessage = getPromoMessage(pricing.coupon?.reason || "INVALID_CODE");
         }
+        if (!roomPromoApplied && !promoMessage) promoMessage = roomPromoMessage;
       }
+
+      const publicPromotion = pricing.promotion ? toPublicPromotion(pricing.promotion) : null;
 
       return {
         ...option.roomDetails,
-        totalPrice: roomPromoApplied && Number.isFinite(priceDiscounted)
-          ? Number(priceDiscounted)
-          : option.totalPrice,
-        priceOriginal: option.totalPrice,
-        priceDiscounted: roomPromoApplied ? Number(priceDiscounted) : undefined,
-        discountAmount: roomPromoApplied ? discountAmount : 0,
+        // totalPrice = preço final (promoção + cupom já aplicados).
+        totalPrice: pricing.finalTotal,
+        // priceOriginal = base do cupom (preço após a promoção). O front usa como subtotal do cupom.
+        priceOriginal: pricing.subtotalAfterPromotion,
+        // priceFull = preço cheio, sem nenhum desconto (preço "riscado" da promoção).
+        priceFull: pricing.fullTotal,
+        priceDiscounted: roomPromoApplied ? pricing.finalTotal : undefined,
+        discountAmount: roomPromoApplied ? pricing.couponDiscount : 0,
         promoApplied: roomPromoApplied,
         promoMessage: roomPromoMessage,
         promoCodeNormalized: promoCode || undefined,
+        couponBlockedReason: pricing.couponBlockedReason,
+        promotion: publicPromotion
+          ? {
+              id: publicPromotion.id,
+              name: publicPromotion.name,
+              type: publicPromotion.type,
+              badgeLabel: publicPromotion.badgeLabel,
+              discountPercent: publicPromotion.discountPercent,
+              discountAmount: pricing.promotionDiscount,
+              exclusive: publicPromotion.exclusive,
+              stackWithCoupons: publicPromotion.stackWithCoupons,
+              items: publicPromotion.items,
+            }
+          : null,
         priceBreakdown: option.priceBreakdown,
         isAvailable: true,
         remainingUnits: option.remainingUnits,

@@ -1,14 +1,17 @@
 "use client";
 
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Users, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { DateField } from "@/components/booking-search/DateField";
+import { GuestsPanel } from "@/components/booking-search/GuestsPanel";
 import { Button } from "@/components/ui/button";
 import { getLocalRoomPhotos } from "@/lib/room-photos";
+import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch } from "@/lib/booking-search";
 
 type HomeOffer = {
   id: string;
@@ -31,6 +34,7 @@ type OfferSearch = OfferWindow & {
   adults: number;
   children: number;
   childrenAges: number[];
+  pets: number;
 };
 
 export type HomeOfferSummary = {
@@ -69,7 +73,18 @@ function makeSearch(nights = 1): OfferSearch {
     adults: 2,
     children: 0,
     childrenAges: [],
+    pets: 0,
   };
+}
+
+/** "20–21 nov" ou "30 out – 02 nov" (para os avisos ao hóspede). */
+function formatShortRange(checkIn: string, checkOut: string) {
+  const start = fromDayKey(checkIn);
+  const end = fromDayKey(checkOut);
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${format(start, "dd")}–${format(end, "dd MMM", { locale: ptBR })}`;
+  }
+  return `${format(start, "dd MMM", { locale: ptBR })} – ${format(end, "dd MMM", { locale: ptBR })}`;
 }
 
 function calculateNights(checkIn: string, checkOut: string) {
@@ -79,10 +94,6 @@ function calculateNights(checkIn: string, checkOut: string) {
   return Math.max(1, diff);
 }
 
-function getNextDayKey(checkIn: string) {
-  return format(addDays(new Date(`${checkIn}T12:00:00`), 1), "yyyy-MM-dd");
-}
-
 function makeOfferSearchKey(search: OfferSearch) {
   return [
     search.checkIn,
@@ -90,6 +101,7 @@ function makeOfferSearchKey(search: OfferSearch) {
     search.adults,
     search.children,
     search.childrenAges.slice(0, search.children).join(","),
+    search.pets,
   ].join("|");
 }
 
@@ -129,6 +141,7 @@ async function requestOffers(search: OfferSearch, signal: AbortSignal) {
   if (search.children > 0) {
     params.set("childrenAges", search.childrenAges.slice(0, search.children).map((age) => String(age)).join(","));
   }
+  if (search.pets > 0) params.set("pets", String(search.pets));
   const response = await fetch(`/api/availability?${params.toString()}`, {
     cache: "no-store",
     signal,
@@ -146,6 +159,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const [offers, setOffers] = useState<HomeOffer[] | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [openPicker, setOpenPicker] = useState<"checkIn" | "checkOut" | null>(null);
   const lastLoadedSearchKeyRef = useRef("");
   const initialFallbackAppliedRef = useRef(false);
 
@@ -176,7 +191,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
     const controller = new AbortController();
 
     async function loadOffers() {
-      const currentSearchKey = makeOfferSearchKey(offerSearch);
+      const requestedSearch = offerSearch;
+      const currentSearchKey = makeOfferSearchKey(requestedSearch);
       if (lastLoadedSearchKeyRef.current === currentSearchKey) return;
 
       try {
@@ -184,6 +200,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
         setUnavailable(false);
 
         let nextSearch = offerSearch;
+        let nextNotice: string | null = null;
         let result = await requestOffers(nextSearch, controller.signal);
 
         if (!result.response.ok && result.data?.error === "min_stay_required") {
@@ -193,6 +210,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
             checkOut: format(addDays(new Date(`${nextSearch.checkIn}T12:00:00`), requiredNights), "yyyy-MM-dd"),
             nights: requiredNights,
           };
+          nextNotice = `${minStayMessage(requiredNights)} Mostrando ${formatShortRange(nextSearch.checkIn, nextSearch.checkOut)}.`;
           result = await requestOffers(nextSearch, controller.signal);
         }
 
@@ -227,6 +245,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               .sort((left: HomeOffer, right: HomeOffer) => Number(left.totalPrice) - Number(right.totalPrice));
 
             if (fallbackOffers.length > 0) {
+              nextNotice = `Sem vagas para ${formatShortRange(offerSearch.checkIn, offerSearch.checkOut)}. Mostrando a primeira data disponível: ${formatShortRange(fallbackSearch.checkIn, fallbackSearch.checkOut)}.`;
               nextSearch = fallbackSearch;
               validOffers = fallbackOffers;
               break;
@@ -236,7 +255,10 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
 
         lastLoadedSearchKeyRef.current = makeOfferSearchKey(nextSearch);
         setOfferSearch(nextSearch);
-        setDraftSearch(nextSearch);
+        // Não sobrescreve o que o hóspede já está editando no modal enquanto a consulta carregava.
+        const requestedKey = makeOfferSearchKey(requestedSearch);
+        setDraftSearch((current) => (makeOfferSearchKey(current) === requestedKey ? nextSearch : current));
+        setNotice(nextNotice);
         setOffers(validOffers);
         setUnavailable(validOffers.length === 0);
         onLowestOfferChange?.(
@@ -270,60 +292,42 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   }).toString()}`;
   const dateLabel = `${format(new Date(`${offerSearch.checkIn}T12:00:00`), "dd MMM", { locale: ptBR })} – ${format(new Date(`${offerSearch.checkOut}T12:00:00`), "dd MMM yyyy", { locale: ptBR })}`;
   const guestLabel = `${offerSearch.adults} adulto${offerSearch.adults === 1 ? "" : "s"}${offerSearch.children > 0 ? ` e ${offerSearch.children} criança${offerSearch.children === 1 ? "" : "s"}` : ""}`;
-  const canApplyDraft = Boolean(draftSearch.checkIn && draftSearch.checkOut)
-    && new Date(`${draftSearch.checkOut}T12:00:00`) > new Date(`${draftSearch.checkIn}T12:00:00`)
-    && draftSearch.adults >= 1
-    && draftSearch.adults + draftSearch.children <= 4;
+  const draftValidation = validateBookingSearch(draftSearch);
+  const canApplyDraft = draftValidation.ok;
 
   const openSearchModal = () => {
     setDraftSearch(offerSearch);
     setIsSearchModalOpen(true);
   };
 
-  const updateDraftCheckIn = (checkIn: string) => {
-    if (!checkIn) {
-      setDraftSearch((current) => ({ ...current, checkIn }));
-      return;
-    }
-
-    setDraftSearch((current) => ({
-      ...current,
-      checkIn,
-      checkOut: getNextDayKey(checkIn),
-    }));
+  const updateDraftCheckIn = (date: Date | undefined) => {
+    if (!date) return;
+    const checkIn = toDayKey(date);
+    setDraftSearch((current) => ({ ...current, checkIn, checkOut: toDayKey(addDays(date, 1)) }));
+    setOpenPicker("checkOut");
   };
 
-  const updateDraftCheckOut = (checkOut: string) => {
-    setDraftSearch((current) => {
-      if (!current.checkIn || !checkOut) return { ...current, checkOut };
-
-      const minimumCheckOut = getNextDayKey(current.checkIn);
-      const normalizedCheckOut = new Date(`${checkOut}T12:00:00`) <= new Date(`${current.checkIn}T12:00:00`)
-        ? minimumCheckOut
-        : checkOut;
-
-      return { ...current, checkOut: normalizedCheckOut };
-    });
+  const updateDraftCheckOut = (date: Date | undefined) => {
+    if (!date) return;
+    setDraftSearch((current) => ({ ...current, checkOut: toDayKey(date) }));
+    setOpenPicker(null);
   };
 
-  const updateDraftChildren = (children: number) => {
-    const normalizedChildren = Math.min(Math.max(children, 0), Math.max(0, 4 - draftSearch.adults));
-    setDraftSearch((current) => {
-      const nextAges = current.childrenAges.slice(0, normalizedChildren);
-      while (nextAges.length < normalizedChildren) nextAges.push(0);
-      return { ...current, children: normalizedChildren, childrenAges: nextAges };
-    });
-  };
+  // Atualiza os cards sozinho assim que datas/hóspedes do modal ficam válidos (sem botão "aplicar").
+  useEffect(() => {
+    if (!isSearchModalOpen || !canApplyDraft) return;
+    if (makeOfferSearchKey(draftSearch) === makeOfferSearchKey(offerSearch)) return;
 
-  const applyDraftSearch = () => {
-    if (!canApplyDraft) return;
-    setOfferSearch({
-      ...draftSearch,
-      nights: calculateNights(draftSearch.checkIn, draftSearch.checkOut),
-      childrenAges: draftSearch.childrenAges.slice(0, draftSearch.children),
-    });
-    setIsSearchModalOpen(false);
-  };
+    const timeoutId = window.setTimeout(() => {
+      setNotice(null);
+      setOfferSearch({
+        ...draftSearch,
+        nights: calculateNights(draftSearch.checkIn, draftSearch.checkOut),
+        childrenAges: draftSearch.childrenAges.slice(0, draftSearch.children),
+      });
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [canApplyDraft, draftSearch, isSearchModalOpen, offerSearch]);
 
   const openRoomGallery = (room: HomeOffer) => {
     const photos = getOfferPhotos(room);
@@ -353,6 +357,11 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#1d1b19]/70 md:text-base">
               Valores calculados pelo motor para {guestLabel}, de {dateLabel}. Altere as datas para consultar sua estadia.
             </p>
+            {notice ? (
+              <p role="status" className="mt-3 inline-block max-w-2xl border border-brand-gold/40 bg-brand-gold/15 px-3 py-2 text-sm font-medium text-brand-brown-dark">
+                {notice}
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -378,92 +387,65 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <label className="space-y-2 text-sm font-semibold text-primary">
-                  Check-in
-                  <input
-                    type="date"
-                    value={draftSearch.checkIn}
-                    min={format(new Date(), "yyyy-MM-dd")}
-                    onChange={(event) => updateDraftCheckIn(event.target.value)}
-                    className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
+                <div className="space-y-2 text-sm font-semibold text-brand-brown-dark">
+                  <span id="home-search-checkin">Check-in</span>
+                  <DateField
+                    value={fromDayKey(draftSearch.checkIn)}
+                    onSelect={updateDraftCheckIn}
+                    open={openPicker === "checkIn"}
+                    onOpenChange={(open) => setOpenPicker(open ? "checkIn" : null)}
+                    disabled={{ before: startOfDay(new Date()) }}
+                    contentClassName="z-[70] w-auto p-0"
+                    trigger={
+                      <button type="button" aria-labelledby="home-search-checkin" className="h-12 w-full rounded-none border border-brand-brown-dark/15 bg-white px-3 text-left font-medium text-foreground">
+                        {format(fromDayKey(draftSearch.checkIn), "dd/MM/yyyy", { locale: ptBR })}
+                      </button>
+                    }
                   />
-                </label>
-                <label className="space-y-2 text-sm font-semibold text-primary">
-                  Check-out
-                  <input
-                    type="date"
-                    value={draftSearch.checkOut}
-                    min={draftSearch.checkIn ? getNextDayKey(draftSearch.checkIn) : undefined}
-                    onChange={(event) => updateDraftCheckOut(event.target.value)}
-                    className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
+                </div>
+                <div className="space-y-2 text-sm font-semibold text-brand-brown-dark">
+                  <span id="home-search-checkout">Check-out</span>
+                  <DateField
+                    value={fromDayKey(draftSearch.checkOut)}
+                    openMonth={fromDayKey(draftSearch.checkIn)}
+                    onSelect={updateDraftCheckOut}
+                    open={openPicker === "checkOut"}
+                    onOpenChange={(open) => setOpenPicker(open ? "checkOut" : null)}
+                    disabled={{ before: addDays(fromDayKey(draftSearch.checkIn), 1) }}
+                    contentClassName="z-[70] w-auto p-0"
+                    trigger={
+                      <button type="button" aria-labelledby="home-search-checkout" className="h-12 w-full rounded-none border border-brand-brown-dark/15 bg-white px-3 text-left font-medium text-foreground">
+                        {format(fromDayKey(draftSearch.checkOut), "dd/MM/yyyy", { locale: ptBR })}
+                      </button>
+                    }
                   />
-                </label>
-                <label className="space-y-2 text-sm font-semibold text-primary">
-                  Adultos
-                  <select
-                    value={draftSearch.adults}
-                    onChange={(event) => {
-                      const adults = Number(event.target.value);
-                      setDraftSearch((current) => {
-                        const children = Math.min(current.children, Math.max(0, 4 - adults));
-                        return { ...current, adults, children, childrenAges: current.childrenAges.slice(0, children) };
-                      });
-                    }}
-                    className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
-                  >
-                    {[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}
-                  </select>
-                </label>
-                <label className="space-y-2 text-sm font-semibold text-primary">
-                  Crianças
-                  <select
-                    value={draftSearch.children}
-                    onChange={(event) => updateDraftChildren(Number(event.target.value))}
-                    className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
-                  >
-                    {Array.from({ length: Math.max(0, 4 - draftSearch.adults) + 1 }, (_, index) => (
-                      <option key={index} value={index}>{index}</option>
-                    ))}
-                  </select>
-                </label>
+                </div>
               </div>
 
-              {draftSearch.children > 0 ? (
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {draftSearch.childrenAges.slice(0, draftSearch.children).map((age, index) => (
-                    <label key={index} className="space-y-2 text-sm font-semibold text-primary">
-                      Idade da criança {index + 1}
-                      <select
-                        value={age}
-                        onChange={(event) => {
-                          const nextAge = Number(event.target.value);
-                          setDraftSearch((current) => {
-                            const nextAges = current.childrenAges.slice();
-                            nextAges[index] = nextAge;
-                            return { ...current, childrenAges: nextAges };
-                          });
-                        }}
-                        className="h-12 w-full rounded-none border border-primary/15 bg-white px-3 font-medium text-foreground"
-                      >
-                        {Array.from({ length: 18 }, (_, value) => (
-                          <option key={value} value={value}>{value} anos</option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
+              <GuestsPanel
+                className="mt-6"
+                tone="light"
+                value={{ adults: draftSearch.adults, children: draftSearch.children, childrenAges: draftSearch.childrenAges, pets: draftSearch.pets }}
+                onChange={(next) =>
+                  setDraftSearch((current) => ({
+                    ...current,
+                    adults: next.adults,
+                    children: next.children,
+                    childrenAges: next.childrenAges.map((age) => age ?? 0),
+                    pets: next.pets,
+                  }))
+                }
+                guestsError={!draftValidation.ok && draftValidation.field === "guests" ? draftValidation.message : undefined}
+                agesError={!draftValidation.ok && draftValidation.field === "childrenAges" ? draftValidation.message : undefined}
+              />
+
+              {!draftValidation.ok && draftValidation.field === "dates" ? (
+                <p role="alert" className="mt-4 text-sm text-destructive">{draftValidation.message}</p>
               ) : null}
 
-              {!canApplyDraft ? (
-                <p className="mt-4 text-sm text-destructive">Revise as datas e mantenha até 4 hóspedes por acomodação.</p>
-              ) : null}
-
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button type="button" variant="outline" className="rounded-none" onClick={() => setIsSearchModalOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" className="rounded-none" onClick={applyDraftSearch} disabled={!canApplyDraft}>
-                  Atualizar valores
+              <div className="mt-6 flex justify-end">
+                <Button type="button" className="rounded-none" onClick={() => setIsSearchModalOpen(false)}>
+                  Concluir
                 </Button>
               </div>
             </div>
@@ -501,7 +483,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               const image = photos[0] ?? null;
               const canOpenGallery = photos.length > 0;
               const amenities = String(room.amenities || "")
-                .split(",")
+                .split(/[;,]/)
                 .map((item) => item.trim())
                 .filter(Boolean)
                 .slice(0, 3);

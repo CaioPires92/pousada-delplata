@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
-import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { expireBooking } from '@/lib/expire-stale-bookings';
+import { hasPaymentUnderReview } from '@/lib/mercadopago/payment-under-review';
 import { asNullableString } from '@/lib/requestValue';
 
 export const runtime = 'nodejs';
@@ -48,21 +49,38 @@ export async function POST(
             return NextResponse.json({ ok: true, alreadyExpired: true, bookingId: normalizedBookingId });
         }
 
-        await prisma.booking.update({
-            where: { id: normalizedBookingId },
-            data: { status: 'EXPIRED' },
+        if (await hasPaymentUnderReview(booking.id)) {
+            return NextResponse.json(
+                {
+                    error: 'BOOKING_HAS_PAYMENT_UNDER_REVIEW',
+                    message: 'Ha um pagamento com cartao em analise pelo Mercado Pago. Aguarde a conclusao antes de expirar.',
+                },
+                { status: 409 }
+            );
+        }
+
+        // Mesmos efeitos da expiracao automatica: cupom liberado, alerta e, para reserva
+        // pendente, o e-mail ao hospede. A transicao e condicionada ao status lido.
+        const currentStatus = String(booking.status || '');
+        const result = await expireBooking(booking, {
+            source: 'admin_manual_expire',
+            expectedStatus: currentStatus,
+            reason: 'expired_by_admin',
+            sendGuestEmail: currentStatus.toUpperCase() === 'PENDING',
+            sendAdminAlert: true,
         });
+        if (!result.expired) {
+            return NextResponse.json(
+                { error: 'BOOKING_STATUS_CHANGED', message: 'A reserva mudou de status. Atualize a pagina e tente novamente.' },
+                { status: 409 }
+            );
+        }
 
         opsLog('info', 'ADMIN_BOOKING_MARKED_EXPIRED', {
             bookingId: normalizedBookingId,
             adminId: auth.adminId,
-        });
-
-        await sendBookingStatusAlertEmail(booking, {
-            bookingStatus: 'EXPIRED',
-            paymentStatus: booking.payment?.status || 'PENDING',
-        }).catch((emailError) => {
-            console.error('[Admin Booking Expire] Failed to send status alert:', emailError);
+            couponReleased: result.couponReleased,
+            guestEmailSent: result.guestEmailSent,
         });
 
         return NextResponse.json({ ok: true, bookingId: normalizedBookingId, status: 'EXPIRED' });

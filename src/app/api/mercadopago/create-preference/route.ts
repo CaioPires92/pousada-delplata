@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { signBookingAccessToken } from '@/lib/booking-access';
+import { buildPreferenceExpirationFields, getBookingPaymentWindow, PAYMENT_WINDOW_MESSAGES } from '@/lib/booking-payment-window';
 
 export async function POST(request: Request) {
     try {
@@ -16,6 +18,10 @@ export async function POST(request: Request) {
         });
 
         if (!booking) return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
+        const paymentWindow = getBookingPaymentWindow(booking);
+        if (!paymentWindow.open) {
+            return NextResponse.json({ error: paymentWindow.reason, message: PAYMENT_WINDOW_MESSAGES[paymentWindow.reason] }, { status: 409 });
+        }
 
         const accessToken = process.env.MP_ACCESS_TOKEN;
         
@@ -30,6 +36,9 @@ export async function POST(request: Request) {
             `https://${process.env.VERCEL_URL}`;
 
         const phoneNumber = booking.guest.phone.replace(/\D/g, '');
+        const bookingAccessToken = await signBookingAccessToken(booking.id);
+        const confirmationUrl = new URL(`/reservar/confirmacao/${booking.id}`, dynamicBaseUrl);
+        if (bookingAccessToken) confirmationUrl.hash = new URLSearchParams({ access: bookingAccessToken }).toString();
 
         const preferenceData = {
             items: [
@@ -50,12 +59,13 @@ export async function POST(request: Request) {
                 },
             },
             back_urls: {
-                success: `${dynamicBaseUrl}/reservar/confirmacao/${booking.id}`,
-                failure: `${dynamicBaseUrl}/reservar/confirmacao/${booking.id}`,
-                pending: `${dynamicBaseUrl}/reservar/confirmacao/${booking.id}`,
+                success: confirmationUrl.toString(),
+                failure: confirmationUrl.toString(),
+                pending: confirmationUrl.toString(),
             },
             auto_return: 'approved',
             external_reference: booking.id,
+            ...buildPreferenceExpirationFields(paymentWindow.deadline),
             notification_url: publicBaseUrl.startsWith('https') ? `${publicBaseUrl}/api/webhooks/mercadopago` : undefined,
         };
 

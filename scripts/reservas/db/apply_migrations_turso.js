@@ -3,6 +3,13 @@ const path = require('path');
 const crypto = require('crypto');
 const { createClient } = require('@libsql/client');
 require('dotenv').config();
+const {
+  GuardError,
+  parseFlagsStrict,
+  sanitizeErrorMessage,
+  assertSafeTarget,
+  assertWriteConfirmation,
+} = require('../../shared/db-safety');
 
 const MIGRATIONS_TABLE = '_app_migrations';
 
@@ -175,6 +182,14 @@ async function partialPaymentMigrationNeedsRepair(client) {
 }
 
 async function main() {
+  // T1b: migrações alteram o schema do banco. Exigem --confirm=YES digitado e, por serem sempre remotas
+  // (libsql://), --allow-remote + --confirm-host=<hostname exato>. Nada é conectado antes disso.
+  const flags = parseFlagsStrict(process.argv.slice(2), {
+    value: ['confirm', 'confirm-host'],
+    boolean: ['allow-remote'],
+  });
+  assertWriteConfirmation(flags, false);
+  assertSafeTarget(process.env.DATABASE_URL, flags);
   const { url, token } = ensureTursoEnv();
   const client = createClient({ url, authToken: token });
   const migrations = listMigrationFiles();
@@ -218,6 +233,10 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Falha ao aplicar migrations no Turso:', err);
+  if (err instanceof GuardError) {
+    console.error(err.message);
+    process.exit(err.exitCode);
+  }
+  console.error('Falha ao aplicar migrations no Turso:', sanitizeErrorMessage(err));
   process.exit(1);
 });

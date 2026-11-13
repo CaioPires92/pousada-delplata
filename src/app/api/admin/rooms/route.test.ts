@@ -55,7 +55,7 @@ describe('Admin Rooms API /api/admin/rooms', () => {
                 capacity: 3,
                 totalUnits: 5,
                 inventoryFor4Guests: 1,
-                maxGuests: 4,
+                maxGuests: 3,
                 basePrice: 399.9,
                 amenities: 'wifi, piscina',
             }),

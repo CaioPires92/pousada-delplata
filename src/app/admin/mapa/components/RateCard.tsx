@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import styles from '../mapa.module.css';
 
 interface RateCardProps {
-  status: 'ABERTO' | 'FECHADO';
+  status: 'ABERTO' | 'FECHADO' | 'ESGOTADO';
   occupancy: number;
   inventorySTD: number;
   inventory4P: number;
@@ -17,6 +17,7 @@ interface RateCardProps {
   cta: boolean;
   ctd: boolean;
   is4PNA?: boolean;
+  show4P?: boolean;
   onStatusToggle: () => void;
   onInventorySTDChange: (val: number) => void;
   onInventory4PChange: (val: number) => void;
@@ -41,6 +42,7 @@ export const RateCard: React.FC<RateCardProps> = ({
   cta,
   ctd,
   is4PNA = false,
+  show4P = true,
   onStatusToggle,
   onInventorySTDChange,
   onInventory4PChange,
@@ -55,6 +57,7 @@ export const RateCard: React.FC<RateCardProps> = ({
   testIdPrefix,
 }) => {
   const isOpen = status === 'ABERTO';
+  const isSoldOut = status === 'ESGOTADO';
   const [localPrice, setLocalPrice] = React.useState<string>(price ? price.toString() : '');
 
   // Sync local price when prop changes from outside (e.g. after save or fetch)
@@ -83,7 +86,7 @@ export const RateCard: React.FC<RateCardProps> = ({
   return (
     <div className={cn(
       "flex flex-col w-[120px] min-w-[120px] transition-all border-r border-slate-100",
-      !isOpen && "bg-red-50/20"
+      !isOpen && (isSoldOut ? "bg-amber-50/30" : "bg-red-50/20")
     )}>
       {/* 1. Status Row */}
       <div 
@@ -101,10 +104,17 @@ export const RateCard: React.FC<RateCardProps> = ({
           data-no-drag="true"
           className={cn(
             "px-3 py-1 rounded-full text-[9px] font-black tracking-widest transition-all flex items-center gap-1.5",
-            isOpen ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+            isOpen
+              ? "bg-emerald-100 text-emerald-700"
+              : isSoldOut
+                ? "bg-amber-100 text-amber-700"
+                : "bg-red-100 text-red-700"
           )}
         >
-          <div className={cn("h-1.5 w-1.5 rounded-full animate-pulse", isOpen ? "bg-emerald-500" : "bg-red-500")} />
+          <div className={cn(
+            "h-1.5 w-1.5 rounded-full animate-pulse",
+            isOpen ? "bg-emerald-500" : isSoldOut ? "bg-amber-500" : "bg-red-500"
+          )} />
           {status}
         </button>
       </div>
@@ -162,25 +172,27 @@ export const RateCard: React.FC<RateCardProps> = ({
       </div>
 
       {/* 5. Inventory 4P Row */}
-      <div 
-        onMouseDown={(e) => onDragStart?.(e, 'fourGuestInventory')}
-        onMouseEnter={(e) => onDragEnter?.(e, 'fourGuestInventory')}
-        data-inventory-selection-cell="true"
-        className={cn(
-          "h-12 flex items-center justify-center border-b border-slate-100 px-2 cursor-cell select-none",
-          selectedFields.includes('fourGuestInventory') && styles.inventorySelectionCell
-        )}
-      >
-        <InventoryControl
-          label="4P"
-          value={inventory4P}
-          onIncrement={() => onInventory4PChange(inventory4P + 1)}
-          onDecrement={() => onInventory4PChange(inventory4P - 1)}
-          disabled={disabled}
-          isNA={is4PNA}
-          hideLabel
-        />
-      </div>
+      {show4P && (
+        <div
+          onMouseDown={(e) => onDragStart?.(e, 'fourGuestInventory')}
+          onMouseEnter={(e) => onDragEnter?.(e, 'fourGuestInventory')}
+          data-inventory-selection-cell="true"
+          className={cn(
+            "h-12 flex items-center justify-center border-b border-slate-100 px-2 cursor-cell select-none",
+            selectedFields.includes('fourGuestInventory') && styles.inventorySelectionCell
+          )}
+        >
+          <InventoryControl
+            label="4P"
+            value={inventory4P}
+            onIncrement={() => onInventory4PChange(inventory4P + 1)}
+            onDecrement={() => onInventory4PChange(inventory4P - 1)}
+            disabled={disabled}
+            isNA={is4PNA}
+            hideLabel
+          />
+        </div>
+      )}
 
       {/* 6. MinLos Row */}
       <div 

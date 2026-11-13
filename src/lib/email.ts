@@ -7,6 +7,35 @@ const HOTEL_WHATSAPP = process.env.HOTEL_WHATSAPP || '(19) 99965-4866';
 const DEFAULT_CONTACT_RECEIVER_EMAIL = 'contato@pousadadelplata.com.br';
 const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'https://pousada-delplata.vercel.app';
 
+export function normalizeSingleEmailAddress(value: unknown) {
+    const email = String(value || '').trim();
+    if (!email || email.length > 254) return null;
+    if (/[\u0000-\u0020\u007f()<>,;:\[\]"\\]/.test(email)) return null;
+
+    const separator = email.indexOf('@');
+    if (separator <= 0 || separator !== email.lastIndexOf('@') || separator === email.length - 1) return null;
+
+    const local = email.slice(0, separator);
+    const domain = email.slice(separator + 1);
+    if (local.length > 64 || local.startsWith('.') || local.endsWith('.') || local.includes('..')) return null;
+    if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return null;
+
+    return email;
+}
+
+function escapeEmailHtml(value: unknown) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function sanitizeEmailHeader(value: unknown, maxLength = 160) {
+    return String(value ?? '').replace(/[\r\n]+/g, ' ').trim().slice(0, maxLength);
+}
+
 function formatPaymentMethodLabel(paymentMethod?: string | null) {
     const method = String(paymentMethod || '').trim().toUpperCase();
     if (!method) return 'Não informado';
@@ -191,10 +220,11 @@ if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
 }
 
 // Configurar transporter
+const smtpPort = Number(process.env.SMTP_PORT) || 587;
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false, // true para 465, false para outras portas
+    port: smtpPort,
+    secure: smtpPort === 465,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -220,6 +250,7 @@ interface BookingEmailData {
     adults?: number | null;
     children?: number | null;
     childrenAges?: string | number[] | null;
+    pets?: number | null;
     bookingStatus?: string | null;
     paymentStatus?: string | null;
     funnelStage?: string | null;
@@ -233,13 +264,43 @@ interface BookingEmailData {
     };
 }
 
+type EmailSendResult = {
+    success: boolean;
+    messageId?: string;
+    error?: unknown;
+};
+
+function sanitizeBookingEmailData(data: BookingEmailData): BookingEmailData {
+    return {
+        ...data,
+        guestName: escapeEmailHtml(data.guestName),
+        guestEmail: escapeEmailHtml(data.guestEmail),
+        guestPhone: data.guestPhone ? escapeEmailHtml(data.guestPhone) : data.guestPhone,
+        roomName: escapeEmailHtml(data.roomName),
+        paymentMethod: data.paymentMethod ? escapeEmailHtml(data.paymentMethod) : data.paymentMethod,
+        bookingStatus: data.bookingStatus ? escapeEmailHtml(data.bookingStatus) : data.bookingStatus,
+        paymentStatus: data.paymentStatus ? escapeEmailHtml(data.paymentStatus) : data.paymentStatus,
+        funnelStage: data.funnelStage ? escapeEmailHtml(data.funnelStage) : data.funnelStage,
+        lastErrorMessage: data.lastErrorMessage ? escapeEmailHtml(data.lastErrorMessage) : data.lastErrorMessage,
+        recoveryCoupon: data.recoveryCoupon ? {
+            ...data.recoveryCoupon,
+            code: escapeEmailHtml(data.recoveryCoupon.code),
+            label: escapeEmailHtml(data.recoveryCoupon.label),
+            bookingUrl: escapeEmailHtml(data.recoveryCoupon.bookingUrl),
+        } : undefined,
+    };
+}
+
 function formatRecoveryStage(data: BookingEmailData) {
     const stage = String(data.funnelStage || '').trim().toUpperCase();
     if (stage === 'CONFIRMED' || stage === 'BOOKING_CONFIRMED' || stage === 'PAYMENT_APPROVED') {
         return 'Sua reserva foi confirmada com sucesso.';
     }
-    if (stage === 'EXPIRED_PENDING_BOOKING' || stage === 'BOOKING_CANCELLED' || stage === 'PAYMENT_REJECTED' || stage === 'PAYMENT_ERROR') {
+    if (stage === 'EXPIRED_PENDING_BOOKING' || stage === 'BOOKING_CANCELLED') {
         return 'Sua reserva expirou por falta de confirmação.';
+    }
+    if (stage === 'PAYMENT_REJECTED' || stage === 'PAYMENT_ERROR' || stage === 'PAYMENT_VALIDATION_FAILED') {
+        return 'O pagamento não foi concluído, mas sua reserva ainda está pendente e dá tempo de finalizar.';
     }
     return 'Sua reserva está pendente de confirmação.';
 }
@@ -276,6 +337,7 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
         adults,
         children,
         childrenAges,
+        pets,
     } = data;
 
     const checkInFormatted = formatDatePtBrLong(checkIn);
@@ -461,6 +523,11 @@ export function buildBookingConfirmationEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Idade(s) das crianças:</span>
                 <span class="detail-value">${childrenAgesLabel}</span>
             </div>` : ''}
+            ${Number(pets || 0) > 0 ? `
+            <div class="detail-row">
+                <span class="detail-label">Pets:</span>
+                <span class="detail-value">${pets}</span>
+            </div>` : ''}
         </div>
 
         <div class="booking-details">
@@ -538,6 +605,7 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
         adults,
         children,
         childrenAges,
+        pets,
     } = data;
     const checkInFormatted = formatDatePtBrLong(checkIn);
     const checkOutFormatted = formatDatePtBrLong(checkOut);
@@ -660,6 +728,11 @@ export function buildBookingPendingEmailHtml(data: BookingEmailData) {
                 <span class="detail-label">Idade(s) das crianças:</span>
                 <span class="detail-value">${childrenAgesLabel}</span>
             </div>` : ''}
+            ${Number(pets || 0) > 0 ? `
+            <div class="detail-row">
+                <span class="detail-label">Pets:</span>
+                <span class="detail-value">${pets}</span>
+            </div>` : ''}
         </div>
 
         <div class="notice">
@@ -746,7 +819,7 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
     <div class="content">
         <p>Olá <strong>${guestName}</strong>,</p>
         <p>${recoveryStageMessage}</p>
-        <p>O tempo da sua reserva esgotou, mas <strong>ainda queremos te receber!</strong> O quarto foi liberado no site, mas você pode nos chamar no WhatsApp para verificar se ainda há disponibilidade ou tentar novamente.</p>
+        <p>O prazo para concluir o pagamento terminou e a reserva foi cancelada, mas <strong>ainda queremos te receber!</strong> Chame a gente no WhatsApp para verificar a disponibilidade ou faça uma nova reserva pelo site.</p>
 
         <div class="booking-details">
             <h2 style="margin-top: 0; color: #0f172a;">Detalhes da Reserva</h2>
@@ -815,7 +888,7 @@ export function buildBookingExpiredEmailHtml(data: BookingEmailData) {
     `;
 }
 
-export async function sendBookingConfirmationEmail(data: BookingEmailData) {
+export async function sendBookingConfirmationEmail(data: BookingEmailData): Promise<EmailSendResult> {
     // Verificar se SMTP está configurado
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         console.error('❌ SMTP não configurado. Configure SMTP_USER e SMTP_PASS no .env');
@@ -825,8 +898,11 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
         };
     }
 
-    const { guestEmail, roomName, bookingId } = data;
-    const htmlContent = buildBookingConfirmationEmailHtml(data);
+    const guestEmail = normalizeSingleEmailAddress(data.guestEmail);
+    if (!guestEmail) return { success: false, error: 'INVALID_EMAIL_RECIPIENT' };
+
+    const { roomName, bookingId } = data;
+    const htmlContent = buildBookingConfirmationEmailHtml(sanitizeBookingEmailData(data));
     const bookingCode = bookingId.slice(0, 8).toUpperCase();
 
     const mailOptions = {
@@ -838,21 +914,23 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
 
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email enviado:', info.messageId);
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        console.error('Erro ao enviar email:', error);
-        return { success: false, error };
+    } catch {
+        console.error('Falha ao enviar email de confirmação.');
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 
-export async function sendBookingPendingEmail(data: BookingEmailData) {
+export async function sendBookingPendingEmail(data: BookingEmailData): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
 
-    const { guestEmail, roomName } = data;
-    const htmlContent = buildBookingPendingEmailHtml(data);
+    const guestEmail = normalizeSingleEmailAddress(data.guestEmail);
+    if (!guestEmail) return { success: false, error: 'INVALID_EMAIL_RECIPIENT' };
+
+    const { roomName } = data;
+    const htmlContent = buildBookingPendingEmailHtml(sanitizeBookingEmailData(data));
 
     try {
         const info = await transporter.sendMail({
@@ -863,18 +941,21 @@ export async function sendBookingPendingEmail(data: BookingEmailData) {
             html: htmlContent,
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 
-export async function sendBookingExpiredEmail(data: BookingEmailData) {
+export async function sendBookingExpiredEmail(data: BookingEmailData): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
 
-    const { guestEmail, roomName } = data;
-    const htmlContent = buildBookingExpiredEmailHtml(data);
+    const guestEmail = normalizeSingleEmailAddress(data.guestEmail);
+    if (!guestEmail) return { success: false, error: 'INVALID_EMAIL_RECIPIENT' };
+
+    const { roomName } = data;
+    const htmlContent = buildBookingExpiredEmailHtml(sanitizeBookingEmailData(data));
 
     try {
         const info = await transporter.sendMail({
@@ -884,8 +965,8 @@ export async function sendBookingExpiredEmail(data: BookingEmailData) {
             html: htmlContent,
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 type ContactEmailData = {
@@ -896,25 +977,32 @@ type ContactEmailData = {
     message: string;
 };
 
-export async function sendContactEmail(data: ContactEmailData) {
+export async function sendContactEmail(data: ContactEmailData): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
 
     const toEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const replyTo = normalizeSingleEmailAddress(data.email);
+    if (!replyTo) return { success: false, error: 'INVALID_REPLY_TO' };
+    const name = escapeEmailHtml(data.name);
+    const email = escapeEmailHtml(replyTo);
+    const phone = escapeEmailHtml(data.phone);
+    const subject = escapeEmailHtml(sanitizeEmailHeader(data.subject));
+    const message = escapeEmailHtml(data.message);
 
     const html = `
 <html>
 <body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <h2 style="margin-top:0; color:#667eea;">Nova mensagem de contato</h2>
   <div style="background:#f9f9f9; padding:16px; border-radius:8px; margin-top:12px;">
-    <p><strong>Nome:</strong> ${data.name}</p>
-    <p><strong>E-mail:</strong> ${data.email}</p>
-    <p><strong>Telefone:</strong> ${data.phone}</p>
-    <p><strong>Assunto:</strong> ${data.subject || 'Não informado'}</p>
+    <p><strong>Nome:</strong> ${name}</p>
+    <p><strong>E-mail:</strong> ${email}</p>
+    <p><strong>Telefone:</strong> ${phone}</p>
+    <p><strong>Assunto:</strong> ${subject || 'Não informado'}</p>
     <p><strong>Mensagem:</strong></p>
     <div style="white-space:pre-wrap; background:#fff; padding:12px; border-radius:6px; border:1px solid #eee;">
-      ${data.message}
+      ${message}
     </div>
   </div>
 </body>
@@ -925,14 +1013,14 @@ export async function sendContactEmail(data: ContactEmailData) {
         const info = await transporter.sendMail({
             from: `"Site Delplata" <${process.env.SMTP_USER}>`,
             to: toEmail,
-            replyTo: data.email,
+            replyTo,
 
-            subject: `Contato: ${data.subject || 'Mensagem do site'}`,
+            subject: `Contato: ${sanitizeEmailHeader(data.subject) || 'Mensagem do site'}`,
             html,
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 
@@ -940,16 +1028,17 @@ export async function sendContactEmail(data: ContactEmailData) {
 
 
 
-export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
+export async function sendBookingCreatedAlertEmail(data: BookingEmailData): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || DEFAULT_CONTACT_RECEIVER_EMAIL;
+    const safeData = sanitizeBookingEmailData(data);
 
     const checkInFormatted = formatDatePtBrLong(data.checkIn);
     const checkOutFormatted = formatDatePtBrLong(data.checkOut);
-    const paymentDetails = getPaymentReceiptDetails(data.paymentMethod, data.paymentInstallments);
+    const paymentDetails = getPaymentReceiptDetails(safeData.paymentMethod, safeData.paymentInstallments);
     const guestsLabel = formatGuestCount(data.adults, data.children);
     const childrenAgesLabel = formatChildrenAgesLabel(data.childrenAges, data.children);
     const partialPayment = isPartialPayment(data);
@@ -959,10 +1048,10 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
 <body style="font-family: Arial, sans-serif; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
   <h2 style="margin-top:0; color:#0f172a;">Atualização de reserva</h2>
   <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px;">
-    <p><strong>Reserva:</strong> ${data.bookingId.slice(0, 8).toUpperCase()}</p>
-    <p><strong>Hóspede:</strong> ${data.guestName} (${data.guestEmail})</p>
-    <p><strong>WhatsApp:</strong> ${String(data.guestPhone || 'Não informado')}</p>
-    <p><strong>Quarto:</strong> ${data.roomName}</p>
+    <p><strong>Reserva:</strong> ${safeData.bookingId.slice(0, 8).toUpperCase()}</p>
+    <p><strong>Hóspede:</strong> ${safeData.guestName} (${safeData.guestEmail})</p>
+    <p><strong>WhatsApp:</strong> ${String(safeData.guestPhone || 'Não informado')}</p>
+    <p><strong>Quarto:</strong> ${safeData.roomName}</p>
     <p><strong>Período:</strong> ${checkInFormatted} - ${checkOutFormatted}</p>
     <p><strong>Hóspedes:</strong> ${guestsLabel}</p>
     ${childrenAgesLabel ? `<p><strong>Idade(s) das crianças:</strong> ${childrenAgesLabel}</p>` : ''}
@@ -973,8 +1062,8 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
     <p><strong>Pagamento do saldo:</strong> ${formatBalanceDueLabel(data)}</p>` : ''}
     <p><strong>Tipo de pagamento:</strong> ${paymentDetails.paymentTypeLabel}</p>
     ${paymentDetails.showInstallments ? `<p><strong>Parcelas:</strong> ${paymentDetails.installmentsLabel}</p>` : ''}
-    <p><strong>Status da reserva:</strong> ${formatBookingStatusLabel(data.bookingStatus)}</p>
-    <p><strong>Status do pagamento:</strong> ${formatBookingStatusLabel(data.paymentStatus)}</p>
+    <p><strong>Status da reserva:</strong> ${formatBookingStatusLabel(safeData.bookingStatus)}</p>
+    <p><strong>Status do pagamento:</strong> ${formatBookingStatusLabel(safeData.paymentStatus)}</p>
     <p><strong>Criada em:</strong> ${formatDateTimePtBr(data.bookingCreatedAt || new Date())}</p>
   </div>
 </body>
@@ -984,12 +1073,12 @@ export async function sendBookingCreatedAlertEmail(data: BookingEmailData) {
         const info = await transporter.sendMail({
             from: `"${HOTEL_NAME}" <${process.env.SMTP_USER}>`,
             to: adminEmail,
-            subject: `📌 Reserva ${formatBookingStatusLabel(data.bookingStatus)} - ${data.roomName}`,
+            subject: `📌 Reserva ${formatBookingStatusLabel(safeData.bookingStatus)} - ${sanitizeEmailHeader(data.roomName)}`,
             html,
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 
@@ -1174,7 +1263,7 @@ export function buildAdminRecoveryAlertEmailHtml(data: BookingEmailData) {
     `;
 }
 
-export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { phone?: string }) {
+export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { phone?: string }): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
@@ -1185,12 +1274,12 @@ export async function sendAdminRecoveryAlertEmail(data: BookingEmailData & { pho
         const info = await transporter.sendMail({
             from: `"Sistema Admin" <${process.env.SMTP_USER}>`,
             to: adminEmail,
-            subject: `🚨 Oportunidade de Recuperação: ${data.guestName} (${data.roomName})`,
-            html: buildAdminRecoveryAlertEmailHtml(data),
+            subject: `🚨 Oportunidade de Recuperação: ${sanitizeEmailHeader(data.guestName)} (${sanitizeEmailHeader(data.roomName)})`,
+            html: buildAdminRecoveryAlertEmailHtml(sanitizeBookingEmailData(data)),
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 
@@ -1212,12 +1301,27 @@ export async function sendDifficultyAlertEmail(data: {
     paymentProviderId?: string | number | null;
     cardLastFour?: string | null;
     installments?: number | null;
-}) {
+}): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
 
     const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || 'contato@pousadadelplata.com.br';
+    const guestName = escapeEmailHtml(data.guestName);
+    const guestEmail = escapeEmailHtml(data.guestEmail);
+    const guestPhone = escapeEmailHtml(data.guestPhone || 'Não informado');
+    const step = escapeEmailHtml(data.step);
+    const reason = escapeEmailHtml(data.reason);
+    const roomName = escapeEmailHtml(data.roomName || '');
+    const error = escapeEmailHtml(data.error || '');
+    const funnelStage = escapeEmailHtml(data.funnelStage || '');
+    const cardBrand = escapeEmailHtml(data.cardBrand || 'Não identificada pelo Mercado Pago');
+    const paymentStatusDetail = escapeEmailHtml(data.paymentStatusDetail || '');
+    const paymentMethodId = escapeEmailHtml(data.paymentMethodId || '');
+    const paymentTypeId = escapeEmailHtml(data.paymentTypeId || '');
+    const paymentProviderId = escapeEmailHtml(data.paymentProviderId || '');
+    const cardLastFour = escapeEmailHtml(data.cardLastFour || '');
+    const bookingId = escapeEmailHtml(data.bookingId || '');
     const recoveryBookingUrl = data.bookingId ? buildRecoveryBookingUrl(data.bookingId) : '';
     const recoveryWhatsAppUrl = data.bookingId
         ? buildRecoveryWhatsAppUrl({
@@ -1233,22 +1337,22 @@ export async function sendDifficultyAlertEmail(data: {
     <body style="font-family: Arial, sans-serif; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
       <h2 style="margin-top:0; color:#dc2626;">Alerta de Dificuldade na Reserva</h2>
       <div style="background:#fef2f2; border:1px solid #fca5a5; padding:16px; border-radius:8px;">
-        <p><strong>Hóspede:</strong> ${data.guestName} (${data.guestEmail})</p>
-        <p><strong>WhatsApp:</strong> ${data.guestPhone || 'Não informado'}</p>
-        <p><strong>Etapa:</strong> ${data.step}</p>
-        <p><strong>Motivo/Detalhes:</strong> ${data.reason}</p>
-        ${data.bookingId ? `<p><strong>ID da Reserva:</strong> ${data.bookingId.slice(0,8).toUpperCase()}</p>` : ''}
-        ${data.roomName ? `<p><strong>Quarto:</strong> ${data.roomName}</p>` : ''}
+        <p><strong>Hóspede:</strong> ${guestName} (${guestEmail})</p>
+        <p><strong>WhatsApp:</strong> ${guestPhone}</p>
+        <p><strong>Etapa:</strong> ${step}</p>
+        <p><strong>Motivo/Detalhes:</strong> ${reason}</p>
+        ${data.bookingId ? `<p><strong>ID da Reserva:</strong> ${bookingId.slice(0,8).toUpperCase()}</p>` : ''}
+        ${data.roomName ? `<p><strong>Quarto:</strong> ${roomName}</p>` : ''}
         ${typeof data.totalPrice === 'number' ? `<p><strong>Valor:</strong> R$ ${data.totalPrice.toFixed(2).replace('.', ',')}</p>` : ''}
-        <p><strong>Bandeira:</strong> ${data.cardBrand || 'Não identificada pelo Mercado Pago'}</p>
-        ${data.cardLastFour ? `<p><strong>Final do cartão:</strong> ${data.cardLastFour}</p>` : ''}
-        ${data.paymentMethodId ? `<p><strong>Meio identificado:</strong> ${data.paymentMethodId}</p>` : ''}
-        ${data.paymentTypeId ? `<p><strong>Tipo de pagamento:</strong> ${data.paymentTypeId}</p>` : ''}
+        <p><strong>Bandeira:</strong> ${cardBrand}</p>
+        ${data.cardLastFour ? `<p><strong>Final do cartão:</strong> ${cardLastFour}</p>` : ''}
+        ${data.paymentMethodId ? `<p><strong>Meio identificado:</strong> ${paymentMethodId}</p>` : ''}
+        ${data.paymentTypeId ? `<p><strong>Tipo de pagamento:</strong> ${paymentTypeId}</p>` : ''}
         ${typeof data.installments === 'number' ? `<p><strong>Parcelas:</strong> ${data.installments}x</p>` : ''}
-        ${data.paymentStatusDetail ? `<p><strong>Motivo técnico do Mercado Pago:</strong> ${data.paymentStatusDetail}</p>` : ''}
-        ${data.paymentProviderId ? `<p><strong>ID da transação no Mercado Pago:</strong> ${data.paymentProviderId}</p>` : ''}
-        ${data.error ? `<p><strong>Erro ocorrido:</strong> ${data.error}</p>` : ''}
-        ${data.funnelStage ? `<p><strong>Etapa do funil:</strong> ${data.funnelStage}</p>` : ''}
+        ${data.paymentStatusDetail ? `<p><strong>Motivo técnico do Mercado Pago:</strong> ${paymentStatusDetail}</p>` : ''}
+        ${data.paymentProviderId ? `<p><strong>ID da transação no Mercado Pago:</strong> ${paymentProviderId}</p>` : ''}
+        ${data.error ? `<p><strong>Erro ocorrido:</strong> ${error}</p>` : ''}
+        ${data.funnelStage ? `<p><strong>Etapa do funil:</strong> ${funnelStage}</p>` : ''}
         ${recoveryBookingUrl || recoveryWhatsAppUrl ? `
         <div style="margin-top: 15px; display:flex; gap:12px; flex-wrap:wrap;">
             <a href="${recoveryBookingUrl}" target="_blank" style="background-color: #0f172a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
@@ -1268,12 +1372,12 @@ export async function sendDifficultyAlertEmail(data: {
         const info = await transporter.sendMail({
             from: `"Sistema Admin" <${process.env.SMTP_USER}>`,
             to: adminEmail,
-            subject: `⚠️ Dificuldade de Pagamento: ${data.guestName}`,
+            subject: `⚠️ Dificuldade de Pagamento: ${sanitizeEmailHeader(data.guestName)}`,
             html,
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }
 
@@ -1293,10 +1397,13 @@ export async function sendGuestDiscountEmail(data: {
     discountLabel?: string;
     expiresAt?: Date | null;
     bookingUrl: string;
-}) {
+}): Promise<EmailSendResult> {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
         return { success: false, error: 'SMTP not configured' };
     }
+
+    const guestEmail = normalizeSingleEmailAddress(data.guestEmail);
+    if (!guestEmail) return { success: false, error: 'INVALID_EMAIL_RECIPIENT' };
 
     const guestName = escapeDiscountEmailHtml(data.guestName);
     const code = data.code ? escapeDiscountEmailHtml(data.code) : '';
@@ -1331,12 +1438,12 @@ export async function sendGuestDiscountEmail(data: {
     try {
         const info = await transporter.sendMail({
             from: `"Pousada Delplata" <${process.env.SMTP_USER}>`,
-            to: data.guestEmail,
+            to: guestEmail,
             subject: `Um convite para você voltar à Pousada Delplata`,
             html,
         });
         return { success: true, messageId: info.messageId };
-    } catch (error) {
-        return { success: false, error };
+    } catch {
+        return { success: false, error: 'EMAIL_SEND_FAILED' };
     }
 }

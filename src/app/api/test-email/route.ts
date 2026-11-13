@@ -1,16 +1,42 @@
 import { NextResponse } from 'next/server';
 import { sendBookingConfirmationEmail } from '@/lib/email';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth } from '@/lib/admin-auth';
+import { consumeRequestLimit, readJsonBody, RequestGuardError } from '@/lib/request-guard';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
     try {
-        const { bookingId } = await request.json();
+        if (process.env.NODE_ENV === 'production') {
+            return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
+        }
 
-        if (!bookingId) {
+        const auth = await requireAdminAuth();
+        if (auth instanceof Response) return auth;
+
+        const body = await readJsonBody<Record<string, unknown>>(request, 2 * 1024);
+        const bookingId = typeof body?.bookingId === 'string' ? body.bookingId.trim() : '';
+
+        if (!bookingId || bookingId.length > 128 || Object.keys(body).some((key) => key !== 'bookingId')) {
             return NextResponse.json(
-                { error: 'bookingId é obrigatório' },
+                { error: 'INVALID_REQUEST' },
                 { status: 400 }
             );
+        }
+
+        const rateLimit = consumeRequestLimit({
+            request,
+            scope: 'admin-test-email',
+            discriminator: `${auth.adminId}:${bookingId}`,
+            limit: 3,
+            windowMs: 15 * 60_000,
+        });
+        if (!rateLimit.allowed) {
+            return NextResponse.json({ error: 'TOO_MANY_EMAIL_REQUESTS' }, {
+                status: 429,
+                headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) },
+            });
         }
 
         // Buscar a reserva
@@ -47,21 +73,20 @@ export async function POST(request: Request) {
         });
 
         if (result.success) {
-            return NextResponse.json({
-                message: 'Email enviado com sucesso!',
-                messageId: result.messageId,
-                sentTo: booking.guest.email,
-            });
+            return NextResponse.json({ success: true });
         } else {
             return NextResponse.json(
-                { error: 'Erro ao enviar email', details: result.error },
-                { status: 500 }
+                { error: 'EMAIL_SEND_FAILED' },
+                { status: 502 }
             );
         }
-    } catch (error: any) {
-        console.error('Erro no teste de email:', error);
+    } catch (error) {
+        if (error instanceof RequestGuardError) {
+            return NextResponse.json({ error: error.code }, { status: error.status });
+        }
+        console.error('Falha na rota administrativa de teste de email.');
         return NextResponse.json(
-            { error: 'Erro ao processar requisição', details: error.message },
+            { error: 'EMAIL_SEND_FAILED' },
             { status: 500 }
         );
     }

@@ -37,15 +37,21 @@ export function getEffectiveGuestCounts(input: { adults: unknown; childrenAges?:
     const childrenAges = normalizeChildrenAgesInput(input.childrenAges);
     const adultsFromChildren = childrenAges.filter((age) => age >= 12).length;
     const childrenUnder12 = childrenAges.filter((age) => age < 12).length;
+    const freeChildren = childrenAges.filter((age) => age <= 5).length;
+    const payingChildren = childrenAges.filter((age) => age >= 6 && age <= 11).length;
     const effectiveAdults = adults + adultsFromChildren;
-    const effectiveGuests = effectiveAdults + childrenUnder12;
+    const effectiveGuests = effectiveAdults + payingChildren;
+    const totalGuests = effectiveAdults + childrenUnder12;
 
     return {
         adults,
         childrenAges,
         effectiveAdults,
         childrenUnder12,
+        freeChildren,
+        payingChildren,
         effectiveGuests,
+        totalGuests,
     };
 }
 

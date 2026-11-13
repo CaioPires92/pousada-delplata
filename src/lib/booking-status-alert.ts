@@ -1,4 +1,4 @@
-import { sendBookingCreatedAlertEmail } from '@/lib/email';
+import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } from '@/lib/email';
 
 type BookingStatusAlertData = {
     id: string;
@@ -41,10 +41,30 @@ export async function sendBookingStatusAlertEmail(
         paymentStatus?: string | null;
     }
 ) {
+    return sendBookingCreatedAlertEmail(toBookingEmailData(booking, params));
+}
+
+export async function sendBookingGuestConfirmationEmail(
+    booking: BookingStatusAlertData,
+    params: {
+        bookingStatus: string;
+        paymentStatus?: string | null;
+    }
+) {
+    return sendBookingConfirmationEmail(toBookingEmailData(booking, params));
+}
+
+function toBookingEmailData(
+    booking: BookingStatusAlertData,
+    params: {
+        bookingStatus: string;
+        paymentStatus?: string | null;
+    }
+) {
     const paidAmount = toNumberOrNull(booking.payment?.amount);
     const remainingAmount = toNumberOrNull(booking.payment?.remainingAmount);
 
-    return sendBookingCreatedAlertEmail({
+    return {
         guestName: booking.guest.name,
         guestEmail: booking.guest.email,
         guestPhone: booking.guest.phone || null,
@@ -66,6 +86,6 @@ export async function sendBookingStatusAlertEmail(
         bookingStatus: params.bookingStatus,
         paymentStatus: params.paymentStatus || booking.payment?.status || params.bookingStatus,
         bookingCreatedAt: booking.createdAt,
-    });
+    };
 }
 

@@ -96,5 +96,6 @@ describe('BookingRowCard', () => {
 
         expect(screen.getByTestId('booking-card-def123456789')).toHaveTextContent('Check-in: 15/04/2026');
         expect(screen.getByTestId('booking-card-def123456789')).toHaveTextContent('Check-out: -');
+        expect(screen.queryByText(/Hospedin/)).not.toBeInTheDocument();
     });
 });

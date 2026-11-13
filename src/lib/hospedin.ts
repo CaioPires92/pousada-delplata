@@ -14,6 +14,7 @@ class HospedinClient {
   private pass: string;
   private accountId: string;
   private token: string | null = null;
+  private authenticationPromise: Promise<string> | null = null;
 
   constructor() {
     this.baseUrl = process.env.HOSPEDIN_BASE_URL || 'https://pms-api.hospedin.com/api/v2';
@@ -24,23 +25,33 @@ class HospedinClient {
 
   private async authenticate(): Promise<string> {
     if (this.token) return this.token;
+    if (this.authenticationPromise) return this.authenticationPromise;
 
-    const response = await fetch(`${this.baseUrl}/authentication/sessions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: this.email,
-        password: this.pass,
-      }),
-    });
+    this.authenticationPromise = (async () => {
+      const response = await fetch(`${this.baseUrl}/authentication/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: this.email,
+          password: this.pass,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Hospedin Auth Failed: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Hospedin Auth Failed: ${response.statusText}`);
+      }
+
+      const data: HospedinSession = await response.json();
+      this.token = data.token;
+      return this.token;
+    })();
+
+    try {
+      return await this.authenticationPromise;
+    } finally {
+      this.authenticationPromise = null;
     }
-
-    const data: HospedinSession = await response.json();
-    this.token = data.token;
-    return this.token;
   }
 
   async getAvailability(
@@ -57,6 +68,7 @@ class HospedinClient {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) {

@@ -60,6 +60,44 @@ describe("queryAvailabilityQuote", () => {
     expect(result.options[0].priceBreakdown.baseTotal).toBe(400);
   });
 
+  it("só oferece térreos, chalés e anexos quando há pets", async () => {
+    const client = fakeClient();
+    client.roomType.findMany.mockResolvedValue([
+      room({ id: "superior", name: "Apartamento Superior", basePrice: 200 }),
+      room({ id: "chale", name: "Chalé", basePrice: 200 }),
+    ]);
+
+    const result = await queryAvailabilityQuote({
+      checkin: "2026-06-15",
+      checkout: "2026-06-17",
+      adults: 2,
+      childrenAges: [],
+      pets: 1,
+    }, client);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.options.map((option) => option.roomTypeId)).toEqual(["chale"]);
+  });
+
+  it("adds R$ 40 per pet for every night", async () => {
+    const client = fakeClient();
+    client.roomType.findMany.mockResolvedValue([room({ name: "Apartamento Térreo", basePrice: 200 })]);
+
+    const result = await queryAvailabilityQuote({
+      checkin: "2026-06-15",
+      checkout: "2026-06-17",
+      adults: 2,
+      childrenAges: [],
+      pets: 2,
+    }, client);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.options[0].priceBreakdown.petTotal).toBe(160);
+    expect(result.options[0].totalPrice).toBe(560);
+  });
+
   it("excludes rooms with no remaining inventory during the requested range", async () => {
     const client = fakeClient();
     client.roomType.findMany.mockResolvedValue([room()]);
@@ -195,6 +233,7 @@ describe("queryAvailabilityQuote", () => {
     expect(client.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
         roomTypeId: { in: ["room-1", "room-2", "room-3"] },
+        hospedinRegisteredAt: null,
       }),
     }));
   });

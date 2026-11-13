@@ -2,25 +2,59 @@ import { after, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { calculateBookingPrice } from '@/lib/booking-price';
+import { roomAcceptsPets } from '@/lib/pet-policy';
 import { parseLocalDate } from '@/lib/date-utils';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/coupons/hash';
 import { compareDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from '@/lib/guest-capacity';
-import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
-import { sendBookingPendingEmail } from '@/lib/email';
+import { runPendingBookingMaintenanceThrottled } from '@/lib/expire-stale-bookings';
+import {
+    getBookingAccessCookieName,
+    getBookingAccessCookieOptions,
+    signBookingAccessToken,
+} from '@/lib/booking-access';
+import { consumeRequestLimit, isHoneypotFilled, readJsonBody, RequestGuardError } from '@/lib/request-guard';
+import { isMobileRequest } from '@/lib/device';
+import { resolveBestPromotion, todayDayKey } from '@/lib/promotions/engine';
+import { loadActivePromotionRules } from '@/lib/promotions/store';
+import { probeCouponFromRecord, resolveStayPricing, type CouponProbe } from '@/lib/promotions/stacking';
+import { getPaymentWindowMinutes, MIN_CHECKOUT_MINUTES, occupyingBookingWhere } from '@/lib/booking-payment-window';
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const body = await readJsonBody<any>(request, 32 * 1024);
+        if (isHoneypotFilled(body)) {
+            return NextResponse.json({ error: 'request_rejected' }, { status: 400 });
+        }
         const { roomTypeId, checkIn, checkOut, guest, adults, childrenAges } = body;
         const adultsCount = Math.max(1, Number.parseInt(String(adults ?? 1), 10) || 1);
         const childrenCount = Math.max(0, Number.parseInt(String(body?.children ?? 0), 10) || 0);
+        const petsCount = Number.parseInt(String(body?.pets ?? 0), 10);
+
+        if (!Number.isInteger(petsCount) || petsCount < 0 || petsCount > 10) {
+            return NextResponse.json({ error: 'invalid_pet_count' }, { status: 400 });
+        }
 
         if (!roomTypeId || !checkIn || !checkOut || !guest || !guest.email) {
             return NextResponse.json({
                 error: 'required_fields_missing',
                 message: 'Preencha os dados obrigatorios do hospede e da estadia antes de continuar.',
             }, { status: 400 });
+        }
+
+        const normalizedGuestEmail = normalizeGuestEmail(guest.email);
+        if (!normalizedGuestEmail) {
+            return NextResponse.json({ error: 'guest_email_invalid' }, { status: 400 });
+        }
+
+        const rateLimit = consumeRequestLimit({
+            request, scope: 'booking', discriminator: normalizedGuestEmail, limit: 8, windowMs: 15 * 60_000,
+        });
+        if (!rateLimit.allowed) {
+            return NextResponse.json({
+                error: 'too_many_attempts',
+                message: 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.',
+            }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } });
         }
 
         const agesArrayInput = Array.isArray(childrenAges)
@@ -38,6 +72,7 @@ export async function POST(request: Request) {
             typeof body?.coupon?.reservationId === 'string' ? body.coupon.reservationId.trim() : '';
         const couponCode = typeof body?.coupon?.code === 'string' ? body.coupon.code : '';
 
+        let reusedPendingBooking = false;
         const booking = await prisma.$transaction(async (tx) => {
             const roomType = await tx.roomType.findUnique({
                 where: { id: roomTypeId },
@@ -52,6 +87,9 @@ export async function POST(request: Request) {
             });
 
             if (!roomType) return null;
+            if (petsCount > 0 && !roomAcceptsPets(roomType.name)) {
+                throw new Error('pets_not_allowed');
+            }
 
             const nightKeys = eachDayKeyInclusive(checkIn, prevDayKey(checkOut));
             const activeBookings = await tx.booking.findMany({
@@ -59,7 +97,12 @@ export async function POST(request: Request) {
                     roomTypeId,
                     checkIn: { lt: new Date(`${checkOut}T00:00:00Z`) },
                     checkOut: { gt: new Date(`${checkIn}T00:00:00Z`) },
-                    status: { in: ['CONFIRMED', 'PAID'] },
+                    hospedinRegisteredAt: null,
+                    // O próprio hóspede refazendo a reserva não pode ser barrado pela pendente dele.
+                    AND: [
+                        occupyingBookingWhere(),
+                        { NOT: { status: 'PENDING', guest: { email: normalizedGuestEmail } } },
+                    ],
                 },
                 select: {
                     checkIn: true,
@@ -76,6 +119,7 @@ export async function POST(request: Request) {
             });
 
             let baseTotalForStay = 0;
+            const nightBaseAmounts: number[] = [];
             let requiredMinLos = 1;
             for (const night of nightKeys) {
                 const rate = roomType.rates.find(r => {
@@ -83,7 +127,9 @@ export async function POST(request: Request) {
                     const rEnd = r.endDate.toISOString().split('T')[0];
                     return night >= rStart && night <= rEnd;
                 });
-                baseTotalForStay += rate ? Number(rate.price) : Number(roomType.basePrice);
+                const nightBaseAmount = rate ? Number(rate.price) : Number(roomType.basePrice);
+                nightBaseAmounts.push(nightBaseAmount);
+                baseTotalForStay += nightBaseAmount;
                 const dayMinLos = rate ? Number(rate.minLos) : 1;
                 if (dayMinLos > requiredMinLos) requiredMinLos = dayMinLos;
             }
@@ -169,10 +215,11 @@ export async function POST(request: Request) {
                 maxGuests: Number(roomType.maxGuests),
                 extraAdultFee: Number(roomType.extraAdultFee),
                 child6To11Fee: Number(roomType.child6To11Fee),
+                pets: petsCount,
             });
 
             let guestRecord = await tx.guest.findFirst({
-                where: { email: guest.email }
+                where: { email: normalizedGuestEmail }
             });
 
             if (guestRecord) {
@@ -182,14 +229,36 @@ export async function POST(request: Request) {
                 });
             } else {
                 guestRecord = await tx.guest.create({
-                    data: { name: guest.name, email: guest.email, phone: guest.phone }
+                    data: { name: guest.name, email: normalizedGuestEmail, phone: guest.phone }
                 });
             }
 
+            // subtotalPrice = preço cheio (sem nenhum desconto); descontos são gravados separadamente.
             const subtotalPrice = Number(breakdown.total);
             let discountAmount = 0;
             let appliedCouponCode: string | null = null;
+            let couponApplied = false;
+            let couponProbe: ((subtotal: number) => CouponProbe) | null = null;
+            let reservedCouponDiscount = 0;
+            let normalizedCouponCode = '';
             const now = new Date();
+
+            // Promoção automática: recalculada aqui no servidor, nunca confiando no valor do front.
+            // Pet é taxa avulsa e fica fora da base do desconto.
+            const promotionRules = await loadActivePromotionRules(tx as unknown as typeof prisma);
+            const promotion = resolveBestPromotion({
+                promotions: promotionRules,
+                bookingDayKey: todayDayKey(now),
+                checkIn,
+                checkOut,
+                roomTypeId,
+                isMobile: isMobileRequest(request),
+                eligibleAmount: breakdown.total - breakdown.petTotal,
+                nightAmounts: nightKeys.map((day: string, index: number) => ({
+                    day,
+                    amount: nightBaseAmounts[index] + breakdown.extrasPerNight,
+                })),
+            });
 
             if (couponReservationId) {
                 const reservation = await tx.couponRedemption.findUnique({
@@ -209,25 +278,75 @@ export async function POST(request: Request) {
                     throw new Error('coupon_reservation_expired');
                 }
 
-                const normalizedGuestEmail = normalizeGuestEmail(guest.email);
-                if (!normalizedGuestEmail) {
-                    throw new Error('coupon_guest_email_required');
-                }
-
                 if (reservation.guestEmail && reservation.guestEmail !== normalizedGuestEmail) {
                     throw new Error('coupon_guest_mismatch');
                 }
 
-                const normalizedCouponCode = normalizeCouponCode(couponCode);
+                normalizedCouponCode = normalizeCouponCode(couponCode);
                 if (normalizedCouponCode) {
                     const expectedHash = hashCouponCode(normalizedCouponCode);
                     if (reservation.coupon.codeHash !== expectedHash) {
                         throw new Error('coupon_code_mismatch');
                     }
-                    appliedCouponCode = normalizedCouponCode;
                 }
 
-                discountAmount = Math.max(0, Math.min(Number(reservation.discountAmount || 0), subtotalPrice));
+                couponProbe = probeCouponFromRecord(reservation.coupon);
+                reservedCouponDiscount = Number(reservation.discountAmount || 0);
+            }
+
+            // Compatibilidade promoção × cupom (mesma regra usada na busca de disponibilidade).
+            const pricing = await resolveStayPricing({
+                fullTotal: subtotalPrice,
+                promotion,
+                evaluateCoupon: couponProbe,
+            });
+
+            if (couponReservationId) {
+                if (pricing.couponApplied) {
+                    couponApplied = true;
+                    appliedCouponCode = normalizedCouponCode || null;
+                    discountAmount = Math.max(0, Math.min(pricing.couponDiscount, reservedCouponDiscount));
+                } else {
+                    // Cupom não acumula com a promoção escolhida (ou perdeu para ela): libera a reserva do cupom.
+                    await tx.couponRedemption.updateMany({
+                        where: { id: couponReservationId, status: 'RESERVED', bookingId: null },
+                        data: { status: 'RELEASED', releasedAt: now },
+                    });
+                }
+            }
+
+            const promotionDiscount = pricing.promotionDiscount;
+            const appliedPromotion = promotionDiscount > 0 ? pricing.promotion : null;
+            const totalPrice = Math.max(0, Math.round((subtotalPrice - promotionDiscount - discountAmount) * 100) / 100);
+            const existingPendingBooking = await tx.booking.findFirst({
+                where: {
+                    roomTypeId,
+                    checkIn: parseLocalDate(checkIn),
+                    checkOut: parseLocalDate(checkOut),
+                    adults: adultsCount,
+                    children: childrenCount,
+                    childrenAges: serializedChildrenAges,
+                    pets: petsCount,
+                    totalPrice,
+                    appliedCouponCode,
+                    promotionId: appliedPromotion?.id ?? null,
+                    status: 'PENDING',
+                    // Só reaproveita se ainda der tempo de pagar.
+                    OR: [
+                        { paymentDeadlineAt: { gte: new Date(Date.now() + (MIN_CHECKOUT_MINUTES + 5) * 60 * 1000) } },
+                        {
+                            paymentDeadlineAt: null,
+                            createdAt: { gte: new Date(Date.now() - Math.min(30, getPaymentWindowMinutes() - MIN_CHECKOUT_MINUTES - 5) * 60 * 1000) },
+                        },
+                    ],
+                    guest: { email: normalizedGuestEmail },
+                },
+                orderBy: { createdAt: 'desc' },
+                include: { guest: true, roomType: true },
+            });
+            if (existingPendingBooking) {
+                reusedPendingBooking = true;
+                return existingPendingBooking;
             }
 
             const bookingRecord = await tx.booking.create({
@@ -239,10 +358,15 @@ export async function POST(request: Request) {
                     adults: adultsCount,
                     children: childrenCount,
                     childrenAges: serializedChildrenAges,
+                    pets: petsCount,
                     subtotalPrice,
                     discountAmount,
                     appliedCouponCode,
-                    totalPrice: Math.max(0, subtotalPrice - discountAmount),
+                    promotionId: appliedPromotion?.id ?? null,
+                    promotionName: appliedPromotion?.name ?? null,
+                    promotionDiscount: appliedPromotion ? promotionDiscount : null,
+                    promotionBreakdown: appliedPromotion ? JSON.stringify(appliedPromotion.items) : null,
+                    totalPrice,
                     status: 'PENDING',
                     funnelStage: 'BOOKING_CREATED',
                     funnelUpdatedAt: new Date(),
@@ -254,7 +378,7 @@ export async function POST(request: Request) {
                 },
             });
 
-            if (couponReservationId) {
+            if (couponReservationId && couponApplied) {
                 const lock = await tx.couponRedemption.updateMany({
                     where: {
                         id: couponReservationId,
@@ -279,51 +403,28 @@ export async function POST(request: Request) {
 
         // The booking is already durable. Optional integrations must never delay or
         // change the successful reservation response.
-        after(async () => {
-            await Promise.all([
-                (async () => {
-                    try {
-                        await sendBookingPendingEmail({
-                            guestName: booking.guest.name,
-                            guestEmail: booking.guest.email,
-                            guestPhone: booking.guest.phone,
-                            bookingId: booking.id,
-                            roomName: booking.roomType.name,
-                            checkIn: booking.checkIn,
-                            checkOut: booking.checkOut,
-                            totalPrice: Number(booking.totalPrice),
-                            paymentMethod: null,
-                            paymentInstallments: null,
-                            adults: booking.adults,
-                            children: booking.children,
-                            childrenAges: booking.childrenAges,
-                            funnelStage: booking.funnelStage,
-                            lastErrorMessage: booking.lastErrorMessage,
-                        });
-                        await prisma.booking.updateMany({
-                            where: { id: booking.id, pendingEmailSentAt: null },
-                            data: { pendingEmailSentAt: new Date() },
-                        });
-                    } catch (emailError) {
-                        console.error('[Booking API] Failed to send guest pending email:', emailError);
-                    }
-                })(),
-                (async () => {
-                    try {
-                        await sendBookingStatusAlertEmail(booking, {
-                            bookingStatus: 'PENDING',
-                            paymentStatus: 'PENDING',
-                        });
-                    } catch (emailError) {
-                        console.error('[Booking API] Failed to send pending booking alert email:', emailError);
-                    }
-                })(),
-            ]);
+        if (!reusedPendingBooking) after(async () => {
+                // Expira reservas cujo bloqueio acabou (o cron diário é pouco frequente).
+            // Sem alerta de "reserva pendente" para a equipe: o aviso sai só quando a reserva é
+            // confirmada (webhook do pagamento). Abandonos aparecem no alerta de reserva expirada.
+            await runPendingBookingMaintenanceThrottled('booking_created');
         });
 
-        return NextResponse.json(booking, { status: 201 });
+        const response = NextResponse.json(booking, { status: reusedPendingBooking ? 200 : 201 });
+        const accessToken = await signBookingAccessToken(booking.id);
+        if (accessToken) {
+            response.cookies.set(
+                getBookingAccessCookieName(booking.id),
+                accessToken,
+                getBookingAccessCookieOptions(booking.id)
+            );
+        }
+        return response;
 
     } catch (error: any) {
+        if (error instanceof RequestGuardError) {
+            return NextResponse.json({ error: error.code }, { status: error.status });
+        }
         console.error('[Booking API Error]:', error);
         if (typeof error?.message === 'string' && error.message.startsWith('min_stay_required:')) {
             const minLos = error.message.split(':')[1] || '1';
@@ -336,6 +437,12 @@ export async function POST(request: Request) {
         }
         if (typeof error?.message === 'string' && error.message.startsWith('coupon_')) {
             return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        if (error?.message === 'pets_not_allowed') {
+            return NextResponse.json({
+                error: 'pets_not_allowed',
+                message: 'Pets sao aceitos apenas nos apartamentos terreos, chales e anexos.',
+            }, { status: 400 });
         }
         if (error?.message === 'room_unavailable') {
             return NextResponse.json({

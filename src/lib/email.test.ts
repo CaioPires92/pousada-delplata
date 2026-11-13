@@ -46,6 +46,42 @@ describe('booking emails', () => {
         expect(sendMailMock.mock.calls[0][0]).not.toHaveProperty('bcc');
     });
 
+    it('rejects recipient lists and structured addresses before Nodemailer', async () => {
+        const { sendBookingConfirmationEmail } = await import('./email');
+
+        const result = await sendBookingConfirmationEmail({
+            ...bookingEmailData,
+            guestEmail: 'maria@example.com, attacker@example.net',
+        });
+
+        expect(result).toEqual({ success: false, error: 'INVALID_EMAIL_RECIPIENT' });
+        expect(sendMailMock).not.toHaveBeenCalled();
+    });
+
+    it('does not return SMTP details when confirmation delivery fails', async () => {
+        const { sendBookingConfirmationEmail } = await import('./email');
+        sendMailMock.mockRejectedValueOnce(new Error('SMTP rejected maria@example.com'));
+
+        const result = await sendBookingConfirmationEmail(bookingEmailData);
+
+        expect(result).toEqual({ success: false, error: 'EMAIL_SEND_FAILED' });
+        expect(JSON.stringify(result)).not.toContain('maria@example.com');
+        expect(JSON.stringify(result)).not.toContain('SMTP rejected');
+    });
+
+    it('escapes persisted guest fields before rendering confirmation HTML', async () => {
+        const { sendBookingConfirmationEmail } = await import('./email');
+
+        await sendBookingConfirmationEmail({
+            ...bookingEmailData,
+            guestName: '<img src=x onerror=alert(1)>',
+        });
+
+        const message = sendMailMock.mock.calls[0][0];
+        expect(message.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+        expect(message.html).not.toContain('<img src=x onerror=alert(1)>');
+    });
+
     it('keeps hotel in bcc for pending recovery emails', async () => {
         const { sendBookingPendingEmail } = await import('./email');
 
@@ -56,6 +92,24 @@ describe('booking emails', () => {
             bcc: ['hotel@example.com'],
             subject: expect.stringContaining('Continue sua reserva'),
         }));
+    });
+
+    it('escapes public contact content and keeps a single validated reply-to address', async () => {
+        const { sendContactEmail } = await import('./email');
+
+        await sendContactEmail({
+            name: '<img src=x onerror=alert(1)>',
+            email: 'guest@example.com',
+            phone: '<b>123</b>',
+            subject: 'Ajuda\r\nBcc: attacker@example.net',
+            message: '<script>alert(1)</script>',
+        });
+
+        const message = sendMailMock.mock.calls[0][0];
+        expect(message.replyTo).toBe('guest@example.com');
+        expect(message.subject).not.toContain('\n');
+        expect(message.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+        expect(message.html).not.toContain('<script>');
     });
 
     it('envia o desconto como um convite pessoal para o hóspede voltar', async () => {

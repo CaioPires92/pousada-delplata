@@ -136,68 +136,89 @@ describe("HomeAvailabilityOffers", () => {
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
   });
 
-  it("atualiza os cards ao consultar outras datas no modal", async () => {
-    fetchMock
-      .mockResolvedValueOnce({
+  it("atualiza os cards sozinho ao mudar datas e hóspedes no modal (sem botão aplicar)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-01T12:00:00"));
+    try {
+      const offer = (price: number) => ({
         ok: true,
-        json: async () => [
-          {
-            id: "room-1",
-            name: "Chalé",
-            maxGuests: 4,
-            amenities: "WiFi",
-            totalPrice: 499,
-            photos: [],
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [
-          {
-            id: "room-1",
-            name: "Chalé",
-            maxGuests: 4,
-            amenities: "WiFi",
-            totalPrice: 750,
-            photos: [],
-          },
-        ],
+        json: async () => [{ id: "room-1", name: "Chalé", maxGuests: 4, amenities: "WiFi", totalPrice: price, photos: [] }],
       });
+      fetchMock.mockResolvedValueOnce(offer(499)).mockResolvedValueOnce(offer(750));
 
-    render(<HomeAvailabilityOffers />);
+      render(<HomeAvailabilityOffers />);
+      await waitFor(() => expect(screen.getByText("R$ 499,00")).toBeInTheDocument());
 
-    await waitFor(() => {
-      expect(screen.getByText("R$ 499,00")).toBeInTheDocument();
-    });
+      fireEvent.click(screen.getByRole("button", { name: /Consultar outras datas/i }));
 
-    fireEvent.click(screen.getByRole("button", { name: /Consultar outras datas/i }));
-    const checkInInput = screen.getByLabelText("Check-in") as HTMLInputElement;
-    const checkOutInput = screen.getByLabelText("Check-out") as HTMLInputElement;
+      // Check-in 10/08: o check-out vira 11/08 e o seletor do check-out abre sozinho.
+      fireEvent.click(screen.getByRole("button", { name: "Check-in" }));
+      fireEvent.click(await screen.findByRole("button", { name: /10 de agosto de 2026/i }));
+      expect(screen.getByRole("button", { name: "Check-out" })).toHaveTextContent("11/08/2026");
 
-    fireEvent.change(checkInInput, { target: { value: "2026-08-10" } });
-    expect(checkOutInput).toHaveValue("2026-08-11");
+      // Check-out 12/08, abrindo no mês do check-in (e não no de hoje).
+      fireEvent.click(await screen.findByRole("button", { name: /12 de agosto de 2026/i }));
+      expect(screen.getByRole("button", { name: "Check-out" })).toHaveTextContent("12/08/2026");
 
-    fireEvent.change(checkOutInput, { target: { value: "2026-08-10" } });
-    expect(checkOutInput).toHaveValue("2026-08-11");
+      fireEvent.click(screen.getByRole("button", { name: /Aumentar adultos/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Aumentar crianças/i }));
 
-    fireEvent.change(screen.getByLabelText("Check-out"), { target: { value: "2026-08-12" } });
-    fireEvent.change(screen.getByLabelText("Adultos"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Crianças"), { target: { value: "1" } });
-    fireEvent.click(screen.getByRole("button", { name: /Atualizar valores/i }));
+      await waitFor(() => expect(screen.getByText("R$ 750,00")).toBeInTheDocument());
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        expect.stringContaining("checkIn=2026-08-10&checkOut=2026-08-12&adults=3&children=1&childrenAges=0"),
+        expect.objectContaining({ cache: "no-store" }),
+      );
+      expect(screen.getByRole("link", { name: /Escolher esta acomodação/i })).toHaveAttribute("href", expect.stringContaining("adults=3"));
+    } finally {
+      vi.useRealTimers();
+    }
+  }, 15000);
 
-    await waitFor(() => {
-      expect(screen.getByText("R$ 750,00")).toBeInTheDocument();
-    });
+  it("bloqueia dias passados no seletor de check-in e não dispara nova consulta ao clicar neles", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-08-15T12:00:00"));
+    try {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => [{ id: "room-1", name: "Chalé", maxGuests: 4, amenities: "WiFi", totalPrice: 499, photos: [] }],
+      });
+      render(<HomeAvailabilityOffers />);
+      await waitFor(() => expect(screen.getByText("R$ 499,00")).toBeInTheDocument());
+      const callsBefore = fetchMock.mock.calls.length;
 
-    expect(fetchMock).toHaveBeenLastCalledWith(
-      expect.stringContaining("checkIn=2026-08-10&checkOut=2026-08-12&adults=3&children=1&childrenAges=0"),
-      expect.objectContaining({ cache: "no-store" }),
-    );
-    expect(screen.getByRole("link", { name: /Escolher esta acomodação/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("adults=3"),
-    );
+      fireEvent.click(screen.getByRole("button", { name: /Consultar outras datas/i }));
+      fireEvent.click(screen.getByRole("button", { name: "Check-in" }));
+
+      const past = await screen.findByRole("button", { name: /10 de agosto de 2026/i });
+      expect(past).toBeDisabled();
+      fireEvent.click(past);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(fetchMock.mock.calls.length).toBe(callsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("avisa quando não há vaga na data inicial e mostra a primeira data disponível", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-11T12:00:00"));
+    try {
+      fetchMock
+        .mockResolvedValueOnce({ ok: true, json: async () => [] }) // 11–12 sem vagas
+        .mockResolvedValueOnce({ ok: true, json: async () => [] }) // 12–13 sem vagas
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{ id: "room-1", name: "Chalé", maxGuests: 4, amenities: "WiFi", totalPrice: 480, photos: [] }],
+        });
+
+      render(<HomeAvailabilityOffers />);
+
+      expect(await screen.findByText(/Sem vagas para 11–12 nov\. Mostrando a primeira data disponível: 13–14 nov\./i)).toBeInTheDocument();
+      expect(screen.getByText("R$ 480,00")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("repete a consulta com a estadia mínima informada pelo motor", async () => {
@@ -226,5 +247,6 @@ describe("HomeAvailabilityOffers", () => {
       expect(screen.getByText(/Total para 3 noites/i)).toBeInTheDocument();
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent(/o mínimo de reservas é 3 noites\. Mostrando/i);
   });
 });

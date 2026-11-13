@@ -1,7 +1,10 @@
 import { afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
+
+// findBy*/waitFor esperam até 5s (padrão 1s): em suíte completa a renderização de páginas grandes demora.
+configure({ asyncUtilTimeout: 5000 });
 
 // Unit/integration tests must never call production integrations merely because
 // Vitest loaded values from a developer's local .env file.
