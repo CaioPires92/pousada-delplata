@@ -1,9 +1,14 @@
 import type { Prisma } from '@prisma/client';
 
-import { PAYMENT_UNDER_REVIEW_STATUSES, PAYMENT_UNDER_REVIEW_WINDOW_MS } from '@/lib/mercadopago/payment-under-review';
+import {
+    PAYMENT_STATUS_UNDER_REVIEW,
+    PAYMENT_UNDER_REVIEW_STATUSES,
+    PAYMENT_UNDER_REVIEW_WINDOW_MS,
+} from '@/lib/mercadopago/payment-under-review';
 
-// Regras de tempo de uma reserva pendente (mesma regra do Refúgio Serrano, adaptada ao MP):
-// - PRAZO DE PAGAMENTO: o link/preferência do Mercado Pago (site ou link do admin) vence nesse horário.
+// Regras de tempo de uma reserva pendente (mesma regra do Refúgio Serrano):
+// - PRAZO DE PAGAMENTO: o checkout do Asaas (site ou link do admin) vence nesse horário.
+//   (Pagamentos antigos do Mercado Pago seguem a mesma regra; ver buildPreferenceExpirationFields.)
 // - BLOQUEIO DO QUARTO: dura o prazo + uma folga. Um pagamento que chega atrasado (Pix gerado
 //   no último minuto, cartão demorando) ainda encontra o quarto reservado: sem overbooking.
 // - Depois do bloqueio a reserva deixa de valer mesmo que o cron ainda não tenha mudado o status
@@ -113,6 +118,15 @@ export function occupyingBookingWhere(now = new Date()): Prisma.BookingWhereInpu
                     { paymentDeadlineAt: { gt: new Date(now.getTime() - graceMs) } },
                     { paymentDeadlineAt: null, createdAt: { gt: holdStart } },
                     { paymentAttempts: underReviewAttemptWhere(now) },
+                    // Cartão em análise no Asaas (gravado pelo webhook em Payment.status).
+                    {
+                        payment: {
+                            is: {
+                                status: PAYMENT_STATUS_UNDER_REVIEW,
+                                updatedAt: { gte: new Date(now.getTime() - PAYMENT_UNDER_REVIEW_WINDOW_MS) },
+                            },
+                        },
+                    },
                 ],
             },
         ],

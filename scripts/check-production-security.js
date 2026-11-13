@@ -7,8 +7,15 @@ function findProductionSecurityErrors(env) {
   if (String(env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS).toLowerCase() === 'true') {
     errors.push('NEXT_PUBLIC_ENABLE_TEST_PAYMENTS não pode estar habilitado em produção.');
   }
-  for (const name of ['MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET', 'ADMIN_JWT_SECRET', 'BOOKING_ACCESS_SECRET']) {
+  // MP_* continuam obrigatórios: o webhook do Mercado Pago ainda recebe estornos/chargebacks antigos.
+  for (const name of ['ASAAS_API_KEY', 'ASAAS_WEBHOOK_TOKEN', 'MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET', 'ADMIN_JWT_SECRET', 'BOOKING_ACCESS_SECRET']) {
     if (!String(env[name] || '').trim()) errors.push(`${name} é obrigatório em produção.`);
+  }
+  if (String(env.ASAAS_ENVIRONMENT || '').trim().toLowerCase() !== 'production') {
+    errors.push('ASAAS_ENVIRONMENT deve ser "production" em produção (senão os pagamentos vão para o sandbox).');
+  }
+  if (String(env.ASAAS_WEBHOOK_TOKEN || '').trim() && String(env.ASAAS_WEBHOOK_TOKEN).trim().length < 32) {
+    errors.push('ASAAS_WEBHOOK_TOKEN deve ter pelo menos 32 caracteres.');
   }
   return errors;
 }

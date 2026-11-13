@@ -16,7 +16,7 @@
         "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
         "test": "cross-env NODE_ENV=test vitest run",
         "test:mapa": "vitest run src/app/admin/mapa src/app/api/admin/inventory src/app/api/rates src/app/api/availability src/lib/availability/routes-contract.test.ts",
-        "test:reservas": "vitest run src/app/reservar src/lib/mercadopago src/app/api/bookings src/app/api/coupons src/app/api/mercadopago src/app/api/webhooks/mercadopago src/lib/booking-price.test.ts src/lib/coupons",
+        "test:reservas": "vitest run src/app/reservar src/lib/mercadopago src/lib/asaas src/lib/billing-address.test.ts src/app/api/bookings src/app/api/coupons src/app/api/asaas src/app/api/webhooks/asaas src/app/api/cep src/app/api/mercadopago src/app/api/webhooks/mercadopago src/lib/booking-price.test.ts src/lib/coupons",
         "test:ui": "vitest run src/components src/app/politica-de-cancelamento",
         "deploy:zip:lean": "powershell -ExecutionPolicy Bypass -File ./scripts/reservas/deploy/create-hostinger-zip.ps1 -OutputZip deploy-hostinger-lean.zip -OptimizeImages",
         "deploy:zip:lean:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/reservas/deploy/create-hostinger-zip.ps1 -OutputZip deploy-hostinger-lean.zip -SkipChecks -OptimizeImages",

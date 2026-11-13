@@ -13,6 +13,7 @@ vi.mock('@/lib/prisma', () => ({
         booking: { findMany: vi.fn(), updateMany: vi.fn() },
         couponRedemption: { updateMany: vi.fn() },
         paymentAttempt: { findMany: vi.fn() },
+        payment: { findMany: vi.fn() },
     },
 }));
 vi.mock('@/lib/email', () => ({
@@ -56,6 +57,7 @@ describe('expireStalePendingBookings', () => {
         db.booking.updateMany.mockResolvedValue({ count: 1 });
         db.couponRedemption.updateMany.mockResolvedValue({ count: 1 });
         db.paymentAttempt.findMany.mockResolvedValue([]);
+        db.payment.findMany.mockResolvedValue([]);
         vi.mocked(sendBookingExpiredEmail).mockResolvedValue({ success: true });
         vi.mocked(sendBookingStatusAlertEmail).mockResolvedValue({ success: true } as any);
     });
@@ -95,6 +97,21 @@ describe('expireStalePendingBookings', () => {
         expect(summary).toMatchObject({ expiredCount: 1, skippedUnderReviewCount: 1 });
         expect(db.booking.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({
             where: { id: 'b1', status: 'PENDING' },
+        }));
+    });
+
+    it('does not expire a booking whose card is under Asaas risk analysis', async () => {
+        db.booking.findMany.mockResolvedValue([booking('b1'), booking('b2')]);
+        db.payment.findMany.mockResolvedValue([{ bookingId: 'b2' }]);
+
+        const summary = await expireStalePendingBookings({ source: 'test', sendAdminAlerts: true });
+
+        expect(summary).toMatchObject({ expiredCount: 1, skippedUnderReviewCount: 1 });
+        expect(db.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ status: 'UNDER_REVIEW' }),
+        }));
+        expect(db.booking.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: 'b2', status: 'PENDING' },
         }));
     });
 
@@ -145,6 +162,7 @@ describe('runPendingBookingMaintenance', () => {
         vi.clearAllMocks();
         db.booking.findMany.mockResolvedValue([]);
         db.paymentAttempt.findMany.mockResolvedValue([]);
+        db.payment.findMany.mockResolvedValue([]);
     });
 
     it('selects only pending bookings past the room hold (deadline + grace)', async () => {

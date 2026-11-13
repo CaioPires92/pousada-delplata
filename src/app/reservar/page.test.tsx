@@ -1,10 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ReservarPage from './page';
 import ReservationPageFallback from './components/ReservationPageFallback';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import {
-  MERCADO_PAGO_DEVICE_CHECKOUT_WAIT_TIMEOUT_MS,
   startMercadoPagoDeviceIdObservation,
   waitForMercadoPagoDeviceId,
 } from '@/lib/mercadopago/device-id';
@@ -85,10 +84,10 @@ function mockHostedCheckoutApi() {
         headers: { get: vi.fn(() => null) },
       };
     }
-    if (url === '/api/mercadopago/checkout-pro') {
+    if (url === '/api/asaas/checkout') {
       return {
         ok: true,
-        json: async () => ({ initPoint: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-1' }),
+        json: async () => ({ initPoint: 'https://sandbox.asaas.com/checkoutSession/show?id=chk-1', bookingAccessToken: 'access-token-1' }),
         headers: { get: vi.fn(() => null) },
       };
     }
@@ -112,7 +111,7 @@ async function renderHostedCheckout() {
   fireEvent.change(screen.getByLabelText(/CPF do pagador/i), { target: { value: '529.982.247-25' } });
   fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
   fireEvent.submit(screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!);
-  return screen.findByRole('button', { name: /Continuar para o Mercado Pago/i });
+  return screen.findByRole('button', { name: /Ir para o pagamento seguro/i });
 }
 
 describe('ReservarPage', () => {
@@ -578,62 +577,53 @@ describe('ReservarPage', () => {
     });
   });
 
-  it('aguarda o Device ID tardio, mostra processamento e bloqueia cliques duplicados no Checkout Pro', async () => {
-    let resolveDeviceId: (deviceId: string | undefined) => void = () => {};
-    vi.mocked(waitForMercadoPagoDeviceId).mockImplementationOnce(() => new Promise((resolve) => {
-      resolveDeviceId = resolve;
-    }));
+  it('abre o checkout do Asaas uma única vez, sem esperar Device ID, e guarda o acesso da reserva', async () => {
     const continueButton = await renderHostedCheckout();
-    expect(screen.getByText(/Modo teste Mercado Pago/i)).toBeInTheDocument();
-    expect(mockFetch).not.toHaveBeenCalledWith(
-      '/api/mercadopago/checkout-pro',
-      expect.anything()
-    );
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/asaas/checkout', expect.anything());
 
     fireEvent.click(continueButton);
     fireEvent.click(continueButton);
-
-    expect(await screen.findByText(/Preparando pagamento seguro/i)).toBeInTheDocument();
-    expect(waitForMercadoPagoDeviceId).toHaveBeenCalledTimes(1);
-    expect(waitForMercadoPagoDeviceId).toHaveBeenCalledWith(MERCADO_PAGO_DEVICE_CHECKOUT_WAIT_TIMEOUT_MS);
-    expect(mockFetch.mock.calls.filter((call) => call[0] === '/api/mercadopago/checkout-pro')).toHaveLength(0);
-
-    await act(async () => {
-      resolveDeviceId('device-session-123');
-    });
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/mercadopago/checkout-pro',
-        expect.objectContaining({ method: 'POST' })
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/asaas/checkout', expect.objectContaining({ method: 'POST' }));
     });
-
-    const checkoutCall = mockFetch.mock.calls.find((call) => call[0] === '/api/mercadopago/checkout-pro');
-    expect(mockFetch.mock.calls.filter((call) => call[0] === '/api/mercadopago/checkout-pro')).toHaveLength(1);
-    expect(JSON.parse(String(checkoutCall?.[1]?.body))).toMatchObject({
-      deviceId: 'device-session-123',
+    expect(mockFetch.mock.calls.filter((call) => call[0] === '/api/asaas/checkout')).toHaveLength(1);
+    expect(waitForMercadoPagoDeviceId).not.toHaveBeenCalled();
+    const checkoutCall = mockFetch.mock.calls.find((call) => call[0] === '/api/asaas/checkout');
+    const payload = JSON.parse(String(checkoutCall?.[1]?.body));
+    expect(payload).not.toHaveProperty('deviceId');
+    expect(payload).toMatchObject({ bookingId: 'booking-standard-value', guestEmail: 'maria@example.com', payerCpf: '52998224725' });
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem('booking_access_booking-standard-value')).toBe('access-token-1');
     });
   });
 
-  it('continua o Checkout Pro sem Device ID após timeout e registra somente indisponibilidade', async () => {
-    window.dataLayer = [];
-    vi.mocked(waitForMercadoPagoDeviceId).mockResolvedValueOnce(undefined);
-    const continueButton = await renderHostedCheckout();
-
-    fireEvent.click(continueButton);
+  it('envia o endereço do hóspede pagador para o checkout abrir preenchido', async () => {
+    vi.stubEnv('NEXT_PUBLIC_ENABLE_TEST_PAYMENTS', 'true');
+    mockHostedCheckoutApi();
+    render(<ReservarPage />);
+    await screen.findByText('Suíte Especial');
+    fireEvent.click(screen.getByRole('button', { name: /^Escolher$/i }));
+    fireEvent.change(screen.getByLabelText(/Nome Completo/i), { target: { value: 'Maria Silva' } });
+    fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'maria@example.com' } });
+    fireEvent.change(screen.getByLabelText(/Telefone\/WhatsApp/i), { target: { value: '(11) 99999-0000' } });
+    fireEvent.change(screen.getByLabelText(/CPF do pagador/i), { target: { value: '529.982.247-25' } });
+    fireEvent.change(screen.getByLabelText(/^Rua/i), { target: { value: 'Rua das Flores' } });
+    fireEvent.change(screen.getByLabelText(/^Número/i), { target: { value: '120' } });
+    fireEvent.change(screen.getByLabelText(/^Bairro/i), { target: { value: 'Centro' } });
+    fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
+    fireEvent.submit(screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!);
+    fireEvent.click(await screen.findByRole('button', { name: /Ir para o pagamento seguro/i }));
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/mercadopago/checkout-pro',
-        expect.objectContaining({ method: 'POST' })
-      );
+      expect(mockFetch.mock.calls.some((call) => call[0] === '/api/asaas/checkout')).toBe(true);
     });
-    const checkoutCall = mockFetch.mock.calls.find((call) => call[0] === '/api/mercadopago/checkout-pro');
-    const checkoutPayload = JSON.parse(String(checkoutCall?.[1]?.body));
-    expect(checkoutPayload).not.toHaveProperty('deviceId');
-    expect(JSON.stringify(window.dataLayer)).toContain('payment_device_id');
-    expect(JSON.stringify(window.dataLayer)).toContain('unavailable');
+    const checkoutCall = mockFetch.mock.calls.find((call) => call[0] === '/api/asaas/checkout');
+    expect(JSON.parse(String(checkoutCall?.[1]?.body)).billing).toMatchObject({
+      address: 'Rua das Flores',
+      addressNumber: '120',
+      province: 'Centro',
+    });
   });
 
   // Fluxo completo de UI é lento sob carga (WSL/suíte completa); limite explícito só nestes testes.
@@ -655,12 +645,12 @@ describe('ReservarPage', () => {
     fireEvent.change(screen.getByLabelText(/CPF do pagador/i), { target: { value: '529.982.247-25' } });
     fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
     fireEvent.submit(screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!);
-    fireEvent.click(await screen.findByRole('button', { name: /Continuar para o Mercado Pago/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Ir para o pagamento seguro/i }));
     await waitFor(() => {
-      expect(mockFetch.mock.calls.some((call) => call[0] === '/api/mercadopago/checkout-pro')).toBe(true);
+      expect(mockFetch.mock.calls.some((call) => call[0] === '/api/asaas/checkout')).toBe(true);
     });
     const bookingCall = mockFetch.mock.calls.find((call) => call[0] === '/api/bookings');
-    const checkoutCall = mockFetch.mock.calls.find((call) => call[0] === '/api/mercadopago/checkout-pro');
+    const checkoutCall = mockFetch.mock.calls.find((call) => call[0] === '/api/asaas/checkout');
     return {
       bookingPayload: JSON.parse(String(bookingCall?.[1]?.body)),
       checkoutPayload: JSON.parse(String(checkoutCall?.[1]?.body)),
@@ -677,8 +667,8 @@ describe('ReservarPage', () => {
     expect(checkoutPayload).toMatchObject({
       payerCpf: '52998224725',
       payer: { type: 'GUEST' },
-      deviceId: 'device-session-123',
     });
+    expect(checkoutPayload).not.toHaveProperty('deviceId');
   }, PAYER_UI_TEST_TIMEOUT_MS);
 
   it('envia dados do terceiro ao Checkout Pro sem alterar os dados do hóspede na reserva', async () => {
@@ -698,6 +688,8 @@ describe('ReservarPage', () => {
       payer: { type: 'THIRD_PARTY', name: 'João Pereira', email: 'joao@example.com' },
     });
     expect(checkoutPayload.payer).not.toHaveProperty('phone');
+    // Terceiro pagando: o endereço do hóspede não vai ao Asaas.
+    expect(checkoutPayload).not.toHaveProperty('billing');
   }, PAYER_UI_TEST_TIMEOUT_MS);
 
   it('volta a enviar o hóspede como pagador ao desmarcar a opção de terceiro', async () => {
@@ -741,7 +733,7 @@ describe('ReservarPage', () => {
     let checkoutCalls = 0;
     const baseImplementation = mockFetch.getMockImplementation()!;
     mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === '/api/mercadopago/checkout-pro') {
+      if (String(input) === '/api/asaas/checkout') {
         checkoutCalls += 1;
         if (checkoutCalls === 1) {
           return {
@@ -772,7 +764,7 @@ describe('ReservarPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Salvar e tentar novamente/i }));
 
     await waitFor(() => expect(checkoutCalls).toBe(2));
-    const checkoutRequests = mockFetch.mock.calls.filter((call) => call[0] === '/api/mercadopago/checkout-pro');
+    const checkoutRequests = mockFetch.mock.calls.filter((call) => call[0] === '/api/asaas/checkout');
     const retryPayload = JSON.parse(String(checkoutRequests[1]?.[1]?.body));
     expect(retryPayload).toMatchObject({
       bookingId: 'booking-standard-value',
@@ -786,10 +778,10 @@ describe('ReservarPage', () => {
     await fillGuestFormUntilPayer();
     const baseImplementation = mockFetch.getMockImplementation()!;
     mockFetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === '/api/mercadopago/checkout-pro') {
+      if (String(input) === '/api/asaas/checkout') {
         return {
           ok: false,
-          json: async () => ({ error: 'PAYMENT_UNDER_REVIEW', message: 'Já existe um pagamento desta reserva em análise pelo Mercado Pago.' }),
+          json: async () => ({ error: 'PAYMENT_UNDER_REVIEW', message: 'Já existe um pagamento desta reserva em análise.' }),
           headers: { get: vi.fn(() => null) },
         };
       }

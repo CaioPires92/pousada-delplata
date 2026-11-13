@@ -88,7 +88,7 @@ function getActionDescription(action: BookingAction, booking: Booking) {
     if (action === 'expire') return 'A reserva será marcada como expirada.';
     if (action === 'assist') return 'Envie ajuda para retomar esta reserva por e-mail, WhatsApp ou ambos. O cupom é opcional.';
     if (action === 'discount') return 'Envie um convite de retorno ao hóspede. Você pode incluir um cupom ativo, se desejar.';
-    if (action === 'payment-link') return 'Será criado um link seguro do Mercado Pago, copiado para a área de transferência e preparado para envio pelo WhatsApp.';
+    if (action === 'payment-link') return 'Será criado um link seguro de pagamento (Asaas), copiado para a área de transferência e preparado para envio pelo WhatsApp.';
     if (action === 'hotel-confirmation') return 'A confirmação completa desta reserva será reenviada para o e-mail administrativo do hotel.';
     return 'Pagamento de teste será aprovado para esta reserva.';
 }

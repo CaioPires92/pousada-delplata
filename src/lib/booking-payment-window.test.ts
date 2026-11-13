@@ -83,5 +83,9 @@ describe('booking payment window', () => {
         expect(where.OR[1].OR[0]).toEqual({ paymentDeadlineAt: { gt: new Date(now.getTime() - 60 * MIN) } });
         expect(where.OR[1].OR[1]).toEqual({ paymentDeadlineAt: null, createdAt: { gt: new Date(now.getTime() - 120 * MIN) } });
         expect(where.OR[1].OR[2].paymentAttempts.some.status.in).toEqual(['IN_PROCESS', 'AUTHORIZED']);
+        // Cartão em análise no Asaas também segura o quarto (até 3 dias).
+        expect(where.OR[1].OR[3]).toEqual({
+            payment: { is: { status: 'UNDER_REVIEW', updatedAt: { gte: new Date(now.getTime() - 3 * 24 * 60 * MIN) } } },
+        });
     });
 });

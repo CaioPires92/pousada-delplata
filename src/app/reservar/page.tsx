@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import SearchWidget from '@/components/SearchWidget';
 import AvailabilityBar from './components/AvailabilityBar';
 import PayerFields from './components/PayerFields';
+import BillingAddressFields, { emptyBillingForm, type BillingForm } from './components/BillingAddressFields';
 import ReservationPageFallback from './components/ReservationPageFallback';
 import ReservationFaq from './components/ReservationFaq';
 import { SiGoogle } from 'react-icons/si';
@@ -54,7 +55,6 @@ import {
     getPolledBookingPaymentStatus,
 } from '@/lib/mercadopago/payment-context';
 import {
-    MERCADO_PAGO_DEVICE_CHECKOUT_WAIT_TIMEOUT_MS,
     startMercadoPagoDeviceIdObservation,
     waitForMercadoPagoDeviceId,
 } from '@/lib/mercadopago/device-id';
@@ -236,7 +236,7 @@ const MP_TEST_SCENARIOS = [
 
 const PAYMENT_LOADING_STEPS = [
     'Validando dados do pagamento',
-    'Enviando ao Mercado Pago',
+    'Abrindo o pagamento seguro',
     'Preparando a confirmacao',
 ];
 
@@ -328,6 +328,8 @@ function ReservarContent() {
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
     const [payerCpf, setPayerCpf] = useState('');
+    // Endereço do pagador (opcional): com ele o checkout do Asaas abre preenchido. Não é gravado.
+    const [billing, setBilling] = useState<BillingForm>(emptyBillingForm);
     // Responsável pelo pagamento: por padrão o hóspede. Dados de terceiro ficam só no navegador
     // e seguem apenas para o Checkout Pro; não alteram o cadastro do hóspede.
     const [payerIsGuest, setPayerIsGuest] = useState(true);
@@ -542,18 +544,8 @@ function ReservarContent() {
         setPaymentStatusMessage('');
         let redirectStarted = false;
         try {
-            const deviceId = await waitForMercadoPagoDeviceId(MERCADO_PAGO_DEVICE_CHECKOUT_WAIT_TIMEOUT_MS);
-            if (!reservationPageActiveRef.current) return;
-
             setIsWaitingForDeviceId(false);
-            if (!deviceId) {
-                trackReservationFunnel({
-                    step: 'payment_device_id',
-                    status: 'error',
-                    message: 'unavailable',
-                });
-            }
-            const response = await fetch('/api/mercadopago/checkout-pro', {
+            const response = await fetch('/api/asaas/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -562,7 +554,15 @@ function ReservarContent() {
                     payerCpf: normalizeCpf(payerCpf),
                     payer: buildCheckoutPayerRequest({ payerIsGuest, thirdParty: thirdPartyPayer }),
                     paymentMode: hostedPaymentMode,
-                    deviceId,
+                    ...(payerIsGuest ? {
+                        billing: {
+                            postalCode: billing.postalCode,
+                            address: billing.address,
+                            addressNumber: billing.addressNumber,
+                            province: billing.province,
+                            complement: billing.complement,
+                        },
+                    } : {}),
                 }),
             });
             const data = await response.json().catch(() => ({}));
@@ -572,13 +572,22 @@ function ReservarContent() {
                     setHostedCheckoutErrorCode(errorCode);
                     if (PAYER_CORRECTION_ERROR_CODES.has(errorCode)) setPayerEditOpen(true);
                 }
-                throw new Error(data?.message || 'Não foi possível abrir o pagamento no Mercado Pago.');
+                throw new Error(data?.message || 'Não foi possível abrir o pagamento. Tente novamente.');
+            }
+
+            // O retorno do Asaas pode chegar sem o token: a confirmação usa esta cópia.
+            if (data?.bookingAccessToken) {
+                try {
+                    window.sessionStorage.setItem(`booking_access_${hostedBookingId}`, String(data.bookingAccessToken));
+                } catch {
+                    // navegador sem sessionStorage: segue com o token da URL/cookie
+                }
             }
 
             trackAddPaymentInfo({
                 bookingId: hostedBookingId,
                 value: hostedPaymentAmount,
-                paymentType: 'checkout_pro',
+                paymentType: 'asaas_checkout',
                 items: selectedRoom ? [{
                     item_id: selectedRoom.id,
                     item_name: selectedRoom.name,
@@ -594,7 +603,7 @@ function ReservarContent() {
                 setPaymentStatus('error');
                 setPaymentError(error instanceof Error
                     ? error.message
-                    : 'Não foi possível abrir o pagamento no Mercado Pago.');
+                    : 'Não foi possível abrir o pagamento. Tente novamente.');
                 setIsSubmittingPayment(false);
             }
         } finally {
@@ -2250,10 +2259,10 @@ function ReservarContent() {
                                         {useHostedMercadoPagoCheckout ? (
                                             <div className="border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-6">
                                                 <p className="text-lg font-semibold text-brand-brown-dark">
-                                                    Finalize com segurança pelo Mercado Pago
+                                                    Finalize com segurança pelo Asaas
                                                 </p>
                                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                                                    Para concluir sua reserva, você será direcionado ao ambiente seguro do Mercado Pago. Se já tiver uma conta, entre para utilizar seus cartões e formas de pagamento disponíveis. Você também poderá escolher Pix.
+                                                    Para concluir sua reserva, você será direcionado ao ambiente seguro do Asaas, onde poderá pagar com Pix ou cartão de crédito.
                                                 </p>
                                                 {showPaymentTestHelper && !isSubmittingPayment ? (
                                                     <Button
@@ -2261,14 +2270,14 @@ function ReservarContent() {
                                                         onClick={() => void handleHostedMercadoPagoCheckout()}
                                                         className="mt-5 h-11 rounded-none"
                                                     >
-                                                        Continuar para o Mercado Pago
+                                                        Ir para o pagamento seguro
                                                     </Button>
                                                 ) : (
                                                     <div className="mt-5 flex items-center gap-3 text-sm text-brand-brown-dark">
                                                         <LoaderCircle className="h-5 w-5 animate-spin" />
                                                         {isWaitingForDeviceId
                                                             ? 'Preparando pagamento seguro...'
-                                                            : 'Redirecionando para o Mercado Pago...'}
+                                                            : 'Redirecionando para o pagamento seguro...'}
                                                     </div>
                                                 )}
                                             </div>
@@ -2530,6 +2539,9 @@ function ReservarContent() {
                                                 onPayerCpfChange={setPayerCpf}
                                                 disabled={processing}
                                             />
+                                            {payerIsGuest ? (
+                                                <BillingAddressFields value={billing} onChange={setBilling} disabled={processing} />
+                                            ) : null}
                                         </div>
 
                                         <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
@@ -2672,7 +2684,7 @@ function ReservarContent() {
                                         </Button>
 
                                         <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> Pagamento processado pelo Mercado Pago
+                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span> Pagamento processado pelo Asaas
                                         </p>
 
                                         <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4 sm:grid-cols-3">
@@ -2696,8 +2708,8 @@ function ReservarContent() {
                                                 <p className="mt-1 text-xs text-foreground/72">Mais de 500 hóspedes avaliando</p>
                                             </div>
                                             <div>
-                                                <p className="text-sm font-semibold text-primary">Reserva direta e segura</p>
-                                                <p className="mt-1 text-xs text-foreground/72">Pagamento processado com proteção via Mercado Pago.</p>
+                                                <p className="text-sm font-semibold text-brand-brown-dark">Reserva direta e segura</p>
+                                                <p className="mt-1 text-xs text-foreground/72">Pagamento processado com proteção via Asaas.</p>
                                             </div>
                                         </div>
                                     </form>
@@ -2848,7 +2860,7 @@ function ReservarContent() {
 
                                     <div className="space-y-2 border-t border-primary/10 pt-4 text-xs text-foreground/72">
                                         <p>Pagamento com Pix ou cartão.</p>
-                                        <p>Dados de pagamento processados pelo Mercado Pago.</p>
+                                        <p>Dados de pagamento processados pelo Asaas.</p>
                                     </div>
 
                                     <Button variant="outline" className="w-full rounded-none border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>

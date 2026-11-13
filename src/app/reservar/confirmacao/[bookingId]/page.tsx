@@ -150,6 +150,15 @@ function formatPaymentMethod(payment?: BookingData['payment']) {
     return 'Aguardando confirmacao';
 }
 
+// Cópia do token salva antes de ir ao checkout do Asaas (o retorno pode vir sem ele).
+function readStoredBookingAccess(bookingId: string) {
+    try {
+        return window.sessionStorage.getItem(`booking_access_${bookingId}`);
+    } catch {
+        return null;
+    }
+}
+
 function formatPaymentStatus(status?: string | null) {
     const normalized = String(status || '').toUpperCase();
 
@@ -159,6 +168,7 @@ function formatPaymentStatus(status?: string | null) {
     if (normalized === 'CANCELLED') return 'Cancelado';
     if (normalized === 'REFUNDED') return 'Estornado';
     if (normalized === 'CHARGED_BACK') return 'Chargeback';
+    if (normalized === 'UNDER_REVIEW') return 'Em analise';
     return normalized || 'Em analise';
 }
 
@@ -274,7 +284,8 @@ export default function ConfirmacaoPage() {
 
         try {
             const accessToken = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('access')
-                || new URLSearchParams(window.location.search).get('access');
+                || new URLSearchParams(window.location.search).get('access')
+                || readStoredBookingAccess(bookingId);
             const response = await fetch(`/api/bookings/${bookingId}`, {
                 headers: accessToken ? { 'x-booking-access-token': accessToken } : undefined,
             });

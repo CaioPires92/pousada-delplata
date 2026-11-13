@@ -41,6 +41,10 @@ interface RoomType {
     name: string;
 }
 
+// Pagamento pelo Asaas: as duas opções geram o link do checkout do Asaas; "Pagar agora" só o abre
+// em outra aba para a equipe concluir com o hóspede. O Brick do Mercado Pago fica desligado.
+const USE_MERCADO_PAGO_BRICK = false;
+
 export default function ReservaManualPage() {
     const router = useRouter();
     const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -204,7 +208,7 @@ export default function ReservaManualPage() {
             setPaymentLink('');
             setPaymentLinkWhatsappUrl('');
 
-            if (paymentFulfillmentMode === 'link') {
+            if (paymentFulfillmentMode === 'link' || !USE_MERCADO_PAGO_BRICK) {
                 await generatePaymentLink(bookingId);
             }
 
@@ -222,7 +226,8 @@ export default function ReservaManualPage() {
 
     useEffect(() => {
         if (
-            paymentFulfillmentMode !== 'checkout'
+            !USE_MERCADO_PAGO_BRICK
+            || paymentFulfillmentMode !== 'checkout'
             || !paymentBookingId
             || paymentAmount === null
             || Number.isNaN(paymentAmount)
@@ -662,7 +667,7 @@ export default function ReservaManualPage() {
                                             placeholder="0,00"
                                         />
                                     </div>
-                                    <p className="text-xs text-slate-500 font-medium italic">Este valor será cobrado no checkout do Mercado Pago.</p>
+                                    <p className="text-xs text-slate-500 font-medium italic">Este valor será cobrado no checkout do Asaas.</p>
                                 </div>
 
                                 <fieldset className="space-y-3 pt-2">
@@ -683,7 +688,7 @@ export default function ReservaManualPage() {
                                         >
                                             <CreditCard className="mb-2 h-5 w-5 text-slate-700" />
                                             <strong className="block text-sm text-slate-900">Pagar agora</strong>
-                                            <span className="mt-1 block text-xs text-slate-500">Abrir cartão ou Pix nesta tela.</span>
+                                            <span className="mt-1 block text-xs text-slate-500">Abrir o pagamento (cartão ou Pix) em outra aba.</span>
                                         </button>
                                         <button
                                             type="button"
@@ -755,7 +760,7 @@ export default function ReservaManualPage() {
                                 </Badge>
                             </div>
                             <CardDescription className="text-slate-400 mt-2 font-medium">
-                                {paymentFulfillmentMode === 'link'
+                                {paymentFulfillmentMode === 'link' || !USE_MERCADO_PAGO_BRICK
                                     ? `Envie o link abaixo para o pagamento da reserva #${paymentBookingId}.`
                                     : `Conclua a transação abaixo para confirmar a reserva #${paymentBookingId}.`}
                             </CardDescription>
@@ -787,14 +792,14 @@ export default function ReservaManualPage() {
                                 </div>
                             )}
 
-                            {paymentFulfillmentMode === 'link' && (
+                            {(paymentFulfillmentMode === 'link' || !USE_MERCADO_PAGO_BRICK) && (
                                 <div className="space-y-5 rounded-2xl border border-sky-100 bg-sky-50/60 p-6">
                                     <div className="flex items-start gap-3">
                                         <Link2 className="mt-0.5 h-5 w-5 shrink-0 text-sky-700" />
                                         <div>
                                             <h4 className="font-bold text-slate-900">Link de pagamento</h4>
                                             <p className="text-sm text-slate-600">
-                                                O hóspede poderá escolher cartão ou outra forma disponibilizada pelo Mercado Pago.
+                                                O hóspede poderá pagar com Pix ou cartão de crédito no ambiente seguro do Asaas.
                                             </p>
                                         </div>
                                     </div>
@@ -804,7 +809,16 @@ export default function ReservaManualPage() {
                                             <div className="rounded-xl border border-sky-100 bg-white p-4 text-sm text-slate-600 break-all">
                                                 {paymentLink}
                                             </div>
-                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="h-12 rounded-xl gap-2 font-bold"
+                                                    onClick={() => window.open(paymentLink, '_blank', 'noopener,noreferrer')}
+                                                >
+                                                    <CreditCard className="h-4 w-4" />
+                                                    Abrir pagamento
+                                                </Button>
                                                 <Button
                                                     type="button"
                                                     variant="outline"
@@ -876,7 +890,7 @@ export default function ReservaManualPage() {
                                 </div>
                             )}
 
-                            {paymentFulfillmentMode === 'checkout' && (
+                            {USE_MERCADO_PAGO_BRICK && paymentFulfillmentMode === 'checkout' && (
                             <div id={paymentContainerId} className="min-h-[300px] flex items-center justify-center">
                                 {!paymentStatusMessage && !paymentError && (
                                     <div className="flex flex-col items-center gap-4 text-slate-400">
@@ -890,7 +904,7 @@ export default function ReservaManualPage() {
                         
                         <CardFooter className="bg-slate-50 border-t border-slate-100 p-6 flex justify-center">
                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center max-w-[400px]">
-                                Ambiente seguro e criptografado processado por <span className="text-blue-500">Mercado Pago</span>
+                                Ambiente seguro e criptografado processado por <span className="text-blue-500">Asaas</span>
                             </p>
                         </CardFooter>
                     </Card>

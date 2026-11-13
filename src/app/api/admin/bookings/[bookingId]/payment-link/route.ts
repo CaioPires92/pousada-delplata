@@ -5,7 +5,14 @@ import { opsLog } from '@/lib/ops-log';
 import { asNullableString } from '@/lib/requestValue';
 import { signBookingAccessToken } from '@/lib/booking-access';
 import { hasPaymentUnderReview } from '@/lib/mercadopago/payment-under-review';
-import { buildPreferenceExpirationFields, getNewPaymentDeadline } from '@/lib/booking-payment-window';
+import { getNewPaymentDeadline, getPaymentWindowMinutes } from '@/lib/booking-payment-window';
+import {
+    ASAAS_MAX_INSTALLMENTS,
+    createAsaasCheckout,
+    getAsaasApiKey,
+    getAsaasCheckoutUrl,
+    getAsaasErrorMessage,
+} from '@/lib/asaas/client';
 
 export const runtime = 'nodejs';
 
@@ -83,11 +90,10 @@ export async function POST(
             );
         }
 
-        const accessToken = asNullableString(process.env.MP_ACCESS_TOKEN) ?? '';
         const publicBaseUrl = getPublicBaseUrl(request);
-        if (!accessToken || !publicBaseUrl) {
+        if (!getAsaasApiKey() || !publicBaseUrl) {
             return NextResponse.json(
-                { error: 'PAYMENT_CONFIGURATION_ERROR', message: 'A configuração do Mercado Pago está incompleta.' },
+                { error: 'PAYMENT_CONFIGURATION_ERROR', message: 'A configuração do Asaas está incompleta.' },
                 { status: 500 }
             );
         }
@@ -95,7 +101,7 @@ export async function POST(
         // Cartão em análise ainda pode ser aprovado: outro link permitiria cobrar duas vezes.
         if (await hasPaymentUnderReview(booking.id)) {
             return NextResponse.json(
-                { error: 'PAYMENT_UNDER_REVIEW', message: 'Já existe um pagamento desta reserva em análise pelo Mercado Pago. Aguarde a conclusão antes de gerar outro link.' },
+                { error: 'PAYMENT_UNDER_REVIEW', message: 'Já existe um pagamento desta reserva em análise. Aguarde a conclusão antes de gerar outro link.' },
                 { status: 409 }
             );
         }
@@ -104,7 +110,8 @@ export async function POST(
         const paymentDeadline = getNewPaymentDeadline();
         const bookingAccessToken = await signBookingAccessToken(booking.id);
         const confirmationUrl = new URL(`/reservar/confirmacao/${booking.id}`, publicBaseUrl);
-        if (bookingAccessToken) confirmationUrl.hash = new URLSearchParams({ access: bookingAccessToken }).toString();
+        // No Asaas o token vai na query (o retorno do checkout não preserva o hash).
+        if (bookingAccessToken) confirmationUrl.searchParams.set('access', bookingAccessToken);
         // O webhook valida o valor aprovado contra Payment.amount (pagamento parcial) ou o total.
         const amountDue = Number(Number(booking.payment?.amount ?? booking.totalPrice).toFixed(2));
         const stayNights = Math.max(1, Math.round(
@@ -112,76 +119,65 @@ export async function POST(
         ));
         const checkIn = booking.checkIn.toISOString().slice(0, 10);
         const checkOut = booking.checkOut.toISOString().slice(0, 10);
-        // Sem `payer`: quem abre o link pode não ser o hóspede, e nome, e-mail e CPF enviados ao
-        // Mercado Pago precisam ser da mesma pessoa. O pagador preenche os próprios dados.
-        const preference = {
+        // Sem customerData: quem abre o link pode não ser o hóspede; o pagador preenche os
+        // próprios dados na tela do Asaas.
+        const { response, result } = await createAsaasCheckout({
+            billingTypes: ['PIX', 'CREDIT_CARD'],
+            chargeTypes: ['DETACHED', 'INSTALLMENT'],
+            installment: { maxInstallmentCount: ASAAS_MAX_INSTALLMENTS },
+            minutesToExpire: getPaymentWindowMinutes(),
+            externalReference: booking.id,
+            callback: {
+                successUrl: confirmationUrl.toString(),
+                cancelUrl: confirmationUrl.toString(),
+                expiredUrl: confirmationUrl.toString(),
+            },
             items: [{
-                id: booking.roomType.id,
-                title: `Pousada Delplata - ${booking.roomType.name}`.slice(0, 120),
-                description: `${stayNights} diária(s), ${checkIn} a ${checkOut}; ${booking.adults} adulto(s), ${booking.children} criança(s)${booking.pets > 0 ? `, ${booking.pets} pet(s)` : ''}`.slice(0, 256),
+                name: `Reserva ${booking.id.slice(0, 8)}`,
+                description: `Pousada Delplata - ${booking.roomType.name}: ${stayNights} diária(s), ${checkIn} a ${checkOut}${booking.pets > 0 ? `, ${booking.pets} pet(s)` : ''}`.slice(0, 500),
                 quantity: 1,
-                unit_price: amountDue,
-                currency_id: 'BRL',
-                category_id: 'travels',
-                event_date: booking.checkIn.toISOString(),
+                value: amountDue,
             }],
-            back_urls: {
-                success: confirmationUrl.toString(),
-                failure: confirmationUrl.toString(),
-                pending: confirmationUrl.toString(),
-            },
-            auto_return: 'approved',
-            external_reference: booking.id,
-            notification_url: `${publicBaseUrl}/api/webhooks/mercadopago`,
-            statement_descriptor: 'POUSADA DELPLATA',
-            ...buildPreferenceExpirationFields(paymentDeadline),
-            payment_methods: {
-                excluded_payment_types: [{ id: 'ticket' }],
-                installments: 12,
-            },
-        };
-
-        const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${accessToken}`,
-                'X-Idempotency-Key': `admin-payment-link-${booking.id}-${Date.now()}`,
-            },
-            body: JSON.stringify(preference),
-        });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result?.init_point) {
+        }, null, { bookingId: booking.id });
+        if (!response.ok || !result?.id) {
             opsLog('error', 'ADMIN_PAYMENT_LINK_CREATE_FAILED', {
                 bookingId: booking.id,
                 adminId: auth.adminId,
                 status: response.status,
-                error: result?.error,
-                // Só códigos: a mensagem crua do MP pode ecoar dados do pagador.
-                causeCodes: Array.isArray(result?.cause)
-                    ? result.cause.map((cause: any) => String(cause?.code || '')).filter(Boolean)
-                    : [],
+                message: getAsaasErrorMessage(result),
             });
             return NextResponse.json(
                 {
                     error: 'PAYMENT_LINK_CREATE_FAILED',
-                    message: 'O Mercado Pago não conseguiu gerar o link.',
+                    message: getAsaasErrorMessage(result) || 'O Asaas não conseguiu gerar o link.',
                 },
                 { status: response.ok ? 502 : response.status }
             );
         }
 
-        await prisma.booking.update({
-            where: { id: booking.id },
-            data: {
-                funnelStage: 'PAYMENT_LINK_CREATED',
-                funnelUpdatedAt: new Date(),
-                lastErrorMessage: null,
-                paymentDeadlineAt: paymentDeadline,
-            },
-        });
+        await prisma.$transaction([
+            // Guarda o id do checkout para o webhook localizar a reserva mesmo sem externalReference.
+            // Valores (parcial/total) ficam como estão: o link cobra Payment.amount ou o total.
+            prisma.payment.upsert({
+                where: { bookingId: booking.id },
+                update: { status: 'PENDING', provider: 'ASAAS', providerId: String(result.id) },
+                create: {
+                    bookingId: booking.id, amount: amountDue, totalAmount: booking.totalPrice, remainingAmount: 0,
+                    paymentMode: 'FULL', status: 'PENDING', provider: 'ASAAS', providerId: String(result.id),
+                },
+            }),
+            prisma.booking.update({
+                where: { id: booking.id },
+                data: {
+                    funnelStage: 'PAYMENT_LINK_CREATED',
+                    funnelUpdatedAt: new Date(),
+                    lastErrorMessage: null,
+                    paymentDeadlineAt: paymentDeadline,
+                },
+            }),
+        ]);
 
-        const paymentLink = String(result.init_point);
+        const paymentLink = getAsaasCheckoutUrl(String(result.id));
         const whatsappUrl = buildWhatsAppUrl({
             phone: booking.guest.phone,
             guestName: booking.guest.name,
@@ -193,13 +189,13 @@ export async function POST(
         opsLog('info', 'ADMIN_PAYMENT_LINK_CREATED', {
             bookingId: booking.id,
             adminId: auth.adminId,
-            preferenceId: result.id,
+            checkoutId: result.id,
         });
 
         return NextResponse.json({
             success: true,
             paymentLink,
-            preferenceId: result.id,
+            paymentLinkId: result.id,
             whatsappUrl,
         });
     } catch (error) {
