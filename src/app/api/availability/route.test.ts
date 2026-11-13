@@ -1121,9 +1121,9 @@ describe('Availability API - Promoções automáticas', () => {
     const res = await GET(query(1, 2, '&pets=1'));
     const [data] = await res.json();
 
-    expect(data.priceFull).toBe(1080); // 1000 + 1 pet * R$ 40 * 2 noites
+    expect(data.priceFull).toBe(1040); // 1000 + 1 pet * R$ 20 * 2 noites
     expect(data.promotion.discountAmount).toBe(100); // 10% só de 1000
-    expect(data.totalPrice).toBe(980);
+    expect(data.totalPrice).toBe(940);
   });
 
   it('não aplica promoção fora da regra de antecedência', async () => {
