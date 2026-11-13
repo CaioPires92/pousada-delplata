@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculateBookingPrice, BookingPriceError } from '@/lib/booking-price';
 
 describe('calculateBookingPrice', () => {
-    it('charges R$ 40 per pet per night', () => {
+    it('charges R$ 20 per pet per night', () => {
         const breakdown = calculateBookingPrice({
             nights: 3,
             baseTotalForStay: 600,
@@ -14,8 +14,8 @@ describe('calculateBookingPrice', () => {
             pets: 2,
         });
 
-        expect(breakdown.petTotal).toBe(240);
-        expect(breakdown.total).toBe(840);
+        expect(breakdown.petTotal).toBe(120);
+        expect(breakdown.total).toBe(720);
     });
     it('keeps base total for 2 adults included', () => {
         const breakdown = calculateBookingPrice({

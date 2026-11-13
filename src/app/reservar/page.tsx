@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { PET_FEE_PER_NIGHT } from '@/lib/booking-price';
 import { useCallback, useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -2835,7 +2836,7 @@ function ReservarContent() {
                                                 ) : null}
                                                 {selectedRoom.priceBreakdown.petTotal > 0 ? (
                                                     <div className="flex justify-between">
-                                                        <span>Pets (R$ 40 por pet/diária)</span>
+                                                        <span>Pets ({formatCurrencyBRL(PET_FEE_PER_NIGHT)} por pet/diária)</span>
                                                         <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.petTotal))}</span>
                                                     </div>
                                                 ) : null}

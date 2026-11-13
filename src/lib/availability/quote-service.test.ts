@@ -80,7 +80,7 @@ describe("queryAvailabilityQuote", () => {
     expect(result.options.map((option) => option.roomTypeId)).toEqual(["chale"]);
   });
 
-  it("adds R$ 40 per pet for every night", async () => {
+  it("adds R$ 20 per pet for every night", async () => {
     const client = fakeClient();
     client.roomType.findMany.mockResolvedValue([room({ name: "Apartamento Térreo", basePrice: 200 })]);
 
@@ -94,8 +94,8 @@ describe("queryAvailabilityQuote", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.options[0].priceBreakdown.petTotal).toBe(160);
-    expect(result.options[0].totalPrice).toBe(560);
+    expect(result.options[0].priceBreakdown.petTotal).toBe(80);
+    expect(result.options[0].totalPrice).toBe(480);
   });
 
   it("excludes rooms with no remaining inventory during the requested range", async () => {

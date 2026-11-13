@@ -68,6 +68,6 @@ O build agora roda `verify:production` (checagem de segurança + typecheck + tes
 
 ## Pendências
 
-- Valor da taxa de pet e limite de pets por reserva (hoje R$ 40 por pet por noite, até 10 pets, herdado do Villa).
+- Limite de pets por reserva (hoje até 10, herdado do Villa). Taxa definida: R$ 20 por pet por diária.
 - Auditoria de aprovação do Mercado Pago no banco de produção (consultas só de leitura), pendente de acesso.
 - Webhook do Mercado Pago: conferir no painel do MP que a URL é `https://www.pousadadelplata.com.br/api/webhooks/mercadopago`.

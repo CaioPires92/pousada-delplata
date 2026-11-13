@@ -26,7 +26,7 @@ export type BookingPriceBreakdown = {
     total: number;
 };
 
-export const PET_FEE_PER_NIGHT = 40;
+export const PET_FEE_PER_NIGHT = 20;
 
 export class BookingPriceError extends Error {
     code: 'invalid_input' | 'invalid_guests' | 'missing_children_ages' | 'capacity_exceeded';
