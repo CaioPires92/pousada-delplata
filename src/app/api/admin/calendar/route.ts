@@ -4,6 +4,8 @@ import { compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { getEffectiveGuestCounts, normalizeChildrenAgesInput, requiresFourGuestInventory } from '@/lib/guest-capacity';
 import { asNullableString } from '@/lib/requestValue';
+import { getAutomaticInventory, HOSPEDIN_SAFETY_BUFFER } from '@/lib/inventory-policy';
+import { occupyingBookingWhere } from '@/lib/booking-payment-window';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -88,7 +90,8 @@ export async function GET(request: Request) {
         const activeBookings = await prisma.booking.findMany({
             where: {
                 roomTypeId,
-                status: { in: ['CONFIRMED', 'PAID'] },
+                hospedinRegisteredAt: null,
+                ...occupyingBookingWhere(),
                 // Filtro de sobreposição
                 checkIn: { lte: rangeEnd },
                 checkOut: { gt: rangeStart }
@@ -144,6 +147,10 @@ export async function GET(request: Request) {
                 ? Math.max(0, fourGuestAdjustedTotal - bookingsFor4GuestsCount)
                 : Math.max(0, fourGuestCapacityTotal - bookingsFor4GuestsCount);
             const available = totalInventory;
+            const hospedinUnits = adjustment?.hospedinUnits ?? null;
+            const automaticInventory = hospedinUnits === null
+                ? Math.max(0, capacityTotal - bookingsCount)
+                : Math.max(0, getAutomaticInventory(hospedinUnits, capacityTotal) - bookingsCount);
 
             return {
                 date: dateStr,
@@ -159,6 +166,15 @@ export async function GET(request: Request) {
                 occupiedUnits,
                 available,
                 isAdjusted: !!adjustment,
+                inventorySource: adjustment?.manualOverrideUnits !== null && adjustment?.manualOverrideUnits !== undefined
+                    ? 'manual'
+                    : hospedinUnits !== null
+                        ? 'hospedin'
+                        : 'capacity',
+                hospedinUnits,
+                automaticInventory,
+                safetyBuffer: HOSPEDIN_SAFETY_BUFFER,
+                hospedinSyncedAt: adjustment?.hospedinSyncedAt ?? null,
                 fourGuestInventory,
                 fourGuestCapacityTotal,
                 bookingsFor4GuestsCount,

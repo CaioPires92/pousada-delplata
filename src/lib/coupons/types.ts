@@ -31,6 +31,8 @@ export type CouponValidationResult = {
     couponId?: string;
     couponType?: 'PERCENT' | 'FIXED';
     couponValue?: number;
+    /** Cupom permite acumular com promoção automática (que também permita). */
+    stackable?: boolean;
     discountAmount?: number;
     subtotal?: number;
     total?: number;

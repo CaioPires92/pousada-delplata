@@ -3,6 +3,9 @@ import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
 import { asNullableString } from '@/lib/requestValue';
+import { signBookingAccessToken } from '@/lib/booking-access';
+import { hasPaymentUnderReview } from '@/lib/mercadopago/payment-under-review';
+import { buildPreferenceExpirationFields, getNewPaymentDeadline } from '@/lib/booking-payment-window';
 
 export const runtime = 'nodejs';
 
@@ -89,34 +92,53 @@ export async function POST(
             );
         }
 
-        const phone = String(booking.guest.phone || '').replace(/\D/g, '');
-        const confirmationUrl = `${publicBaseUrl}/reservar/confirmacao/${booking.id}`;
+        // Cartão em análise ainda pode ser aprovado: outro link permitiria cobrar duas vezes.
+        if (await hasPaymentUnderReview(booking.id)) {
+            return NextResponse.json(
+                { error: 'PAYMENT_UNDER_REVIEW', message: 'Já existe um pagamento desta reserva em análise pelo Mercado Pago. Aguarde a conclusão antes de gerar outro link.' },
+                { status: 409 }
+            );
+        }
+
+        // Novo link = novo prazo: a reserva volta a segurar o quarto até o link vencer (+ folga).
+        const paymentDeadline = getNewPaymentDeadline();
+        const bookingAccessToken = await signBookingAccessToken(booking.id);
+        const confirmationUrl = new URL(`/reservar/confirmacao/${booking.id}`, publicBaseUrl);
+        if (bookingAccessToken) confirmationUrl.hash = new URLSearchParams({ access: bookingAccessToken }).toString();
+        // O webhook valida o valor aprovado contra Payment.amount (pagamento parcial) ou o total.
+        const amountDue = Number(Number(booking.payment?.amount ?? booking.totalPrice).toFixed(2));
+        const stayNights = Math.max(1, Math.round(
+            (booking.checkOut.getTime() - booking.checkIn.getTime()) / 86_400_000
+        ));
+        const checkIn = booking.checkIn.toISOString().slice(0, 10);
+        const checkOut = booking.checkOut.toISOString().slice(0, 10);
+        // Sem `payer`: quem abre o link pode não ser o hóspede, e nome, e-mail e CPF enviados ao
+        // Mercado Pago precisam ser da mesma pessoa. O pagador preenche os próprios dados.
         const preference = {
             items: [{
                 id: booking.roomType.id,
-                title: `Pousada Delplata - ${booking.roomType.name}`,
+                title: `Pousada Delplata - ${booking.roomType.name}`.slice(0, 120),
+                description: `${stayNights} diária(s), ${checkIn} a ${checkOut}; ${booking.adults} adulto(s), ${booking.children} criança(s)${booking.pets > 0 ? `, ${booking.pets} pet(s)` : ''}`.slice(0, 256),
                 quantity: 1,
-                unit_price: Number(Number(booking.totalPrice).toFixed(2)),
+                unit_price: amountDue,
                 currency_id: 'BRL',
+                category_id: 'travels',
+                event_date: booking.checkIn.toISOString(),
             }],
-            payer: {
-                name: booking.guest.name,
-                email: booking.guest.email,
-                ...(phone ? {
-                    phone: {
-                        area_code: phone.slice(0, 2),
-                        number: phone.slice(2),
-                    },
-                } : {}),
-            },
             back_urls: {
-                success: confirmationUrl,
-                failure: confirmationUrl,
-                pending: confirmationUrl,
+                success: confirmationUrl.toString(),
+                failure: confirmationUrl.toString(),
+                pending: confirmationUrl.toString(),
             },
             auto_return: 'approved',
             external_reference: booking.id,
             notification_url: `${publicBaseUrl}/api/webhooks/mercadopago`,
+            statement_descriptor: 'POUSADA DELPLATA',
+            ...buildPreferenceExpirationFields(paymentDeadline),
+            payment_methods: {
+                excluded_payment_types: [{ id: 'ticket' }],
+                installments: 12,
+            },
         };
 
         const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
@@ -135,12 +157,15 @@ export async function POST(
                 adminId: auth.adminId,
                 status: response.status,
                 error: result?.error,
-                message: result?.message,
+                // Só códigos: a mensagem crua do MP pode ecoar dados do pagador.
+                causeCodes: Array.isArray(result?.cause)
+                    ? result.cause.map((cause: any) => String(cause?.code || '')).filter(Boolean)
+                    : [],
             });
             return NextResponse.json(
                 {
                     error: 'PAYMENT_LINK_CREATE_FAILED',
-                    message: result?.message || 'O Mercado Pago não conseguiu gerar o link.',
+                    message: 'O Mercado Pago não conseguiu gerar o link.',
                 },
                 { status: response.ok ? 502 : response.status }
             );
@@ -152,6 +177,7 @@ export async function POST(
                 funnelStage: 'PAYMENT_LINK_CREATED',
                 funnelUpdatedAt: new Date(),
                 lastErrorMessage: null,
+                paymentDeadlineAt: paymentDeadline,
             },
         });
 

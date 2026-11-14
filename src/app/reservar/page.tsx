@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { PET_FEE_PER_NIGHT } from '@/lib/booking-price';
 import { useCallback, useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import SearchWidget from '@/components/SearchWidget';
 import AvailabilityBar from './components/AvailabilityBar';
+import PayerFields from './components/PayerFields';
 import ReservationPageFallback from './components/ReservationPageFallback';
 import ReservationFaq from './components/ReservationFaq';
 import { SiGoogle } from 'react-icons/si';
@@ -46,6 +48,19 @@ import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
 import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
+import { MAX_BOOKING_GUESTS } from '@/lib/booking-capacity';
+import {
+    getPaymentRejectionMessage,
+    getPolledBookingPaymentStatus,
+} from '@/lib/mercadopago/payment-context';
+import {
+    MERCADO_PAGO_DEVICE_CHECKOUT_WAIT_TIMEOUT_MS,
+    startMercadoPagoDeviceIdObservation,
+    waitForMercadoPagoDeviceId,
+} from '@/lib/mercadopago/device-id';
+import { requiresHostedMercadoPagoCheckout } from '@/lib/mercadopago/high-value-checkout';
+import { isValidCpf, normalizeCpf } from '@/lib/cpf';
+import { buildCheckoutPayerRequest, validateThirdPartyPayerForm } from '@/lib/mercadopago/checkout-payer';
 import {
     mountLatestPaymentBrick,
     safelyUnmountPaymentBrick,
@@ -68,6 +83,22 @@ interface Room {
     promoApplied?: boolean;
     promoMessage?: string;
     promoCodeNormalized?: string;
+    /** Preço cheio, sem nenhum desconto (preço riscado). */
+    priceFull?: number;
+    /** Promoção automática (Última Hora / Antecipada / Sazonal) já aplicada em totalPrice. */
+    promotion?: {
+        id: string;
+        name: string;
+        type: 'LAST_MINUTE' | 'EARLY_BIRD' | 'SEASONAL';
+        badgeLabel: string;
+        discountPercent: number;
+        discountAmount: number;
+        exclusive: boolean;
+        stackWithCoupons: boolean;
+        /** Promoções acumuladas (quando há mais de uma, cada uma com sua etiqueta). */
+        items?: Array<{ id: string; name: string; badgeLabel: string; showBadge?: boolean; discountPercent: number; discountAmount: number }>;
+    } | null;
+    couponBlockedReason?: 'PROMOTION_EXCLUSIVE' | 'PROMOTION_BETTER_OFFER';
     minLos?: number;
     priceBreakdown?: {
         nights: number;
@@ -79,6 +110,9 @@ interface Room {
         extrasPerNight: number;
         extraAdultTotal: number;
         childTotal: number;
+        pets: number;
+        petFeePerNight: number;
+        petTotal: number;
         total: number;
     };
     photos: { url: string }[];
@@ -108,6 +142,7 @@ interface RoomGalleryState {
 type PaymentMode = 'FULL' | 'PARTIAL';
 
 type PartialPaymentEvaluation = {
+    pixDiscountEnabled: boolean;
     enabled: boolean;
     eligible: boolean;
     reasons: string[];
@@ -120,10 +155,8 @@ type PartialPaymentEvaluation = {
     balanceDueDate: string | null;
 };
 
-const PIX_DISCOUNT_RATE = 0.05;
-
 function applyPixDiscount(amount: number) {
-    return Number((amount * (1 - PIX_DISCOUNT_RATE)).toFixed(2));
+    return Number((amount * 0.95).toFixed(2));
 }
 
 function isPixBrickPayment(formData: any) {
@@ -207,6 +240,23 @@ const PAYMENT_LOADING_STEPS = [
     'Preparando a confirmacao',
 ];
 
+const PAYMENT_APPROVAL_FEEDBACK_MS = 1500;
+// Erros do Checkout Pro que o hóspede resolve corrigindo os dados do pagador.
+const PAYER_CORRECTION_ERROR_CODES = new Set(['INVALID_PAYER_DATA', 'INVALID_PAYER_IDENTIFICATION']);
+// Erros que não se resolvem alterando o pagador: não oferecem "Corrigir dados do pagador".
+const PAYER_CORRECTION_NOT_APPLICABLE_CODES = new Set([
+    'PAYMENT_UNDER_REVIEW',
+    'BOOKING_NOT_PAYABLE',
+    'BOOKING_NOT_FOUND',
+    'TOO_MANY_PAYMENT_ATTEMPTS',
+]);
+
+function waitForPaymentApprovalFeedback() {
+    return new Promise<void>((resolve) => {
+        window.setTimeout(resolve, PAYMENT_APPROVAL_FEEDBACK_MS);
+    });
+}
+
 function getAmenityIcon(amenity: string) {
     const normalized = String(amenity || '').toLowerCase();
 
@@ -260,6 +310,7 @@ function ReservarContent() {
     const adults = searchParams.get('adults') || '2';
     const children = searchParams.get('children') || '0';
     const childrenAgesParam = searchParams.get('childrenAges') || '';
+    const pets = Math.max(0, Number.parseInt(searchParams.get('pets') || '0', 10) || 0);
     const promoFromQuery = String(searchParams.get('promo') || searchParams.get('coupon') || '').trim().toUpperCase();
     const preferredRoomTypeId = String(searchParams.get('roomTypeId') || '').trim();
 
@@ -276,6 +327,15 @@ function ReservarContent() {
     const [availableRooms, setAvailableRooms] = useState<Room[] | null>(null);
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [guest, setGuest] = useState<Guest>({ name: '', email: '', phone: '' });
+    const [payerCpf, setPayerCpf] = useState('');
+    // Responsável pelo pagamento: por padrão o hóspede. Dados de terceiro ficam só no navegador
+    // e seguem apenas para o Checkout Pro; não alteram o cadastro do hóspede.
+    const [payerIsGuest, setPayerIsGuest] = useState(true);
+    const [thirdPartyPayer, setThirdPartyPayer] = useState({ name: '', email: '', phone: '' });
+    // Correção do pagador na etapa de pagamento, sem criar outra reserva.
+    const [payerEditOpen, setPayerEditOpen] = useState(false);
+    const [hostedCheckoutErrorCode, setHostedCheckoutErrorCode] = useState('');
+    const [website, setWebsite] = useState('');
     const [couponEnabled, setCouponEnabled] = useState(Boolean(promoFromQuery));
     const [couponCode, setCouponCode] = useState('');
     const [couponMessage, setCouponMessage] = useState('');
@@ -296,6 +356,7 @@ function ReservarContent() {
     const [paymentStatusMessage, setPaymentStatusMessage] = useState<string>('');
     const [paymentRetryNonce, setPaymentRetryNonce] = useState(0);
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+    const [isWaitingForDeviceId, setIsWaitingForDeviceId] = useState(false);
     const [testDataCopied, setTestDataCopied] = useState<string | null>(null);
     const [pixData, setPixData] = useState<{ qr_code?: string; qr_code_base64?: string; ticket_url?: string } | null>(null);
     const [pixCopied, setPixCopied] = useState(false);
@@ -305,15 +366,17 @@ function ReservarContent() {
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const bookingSubmitLockRef = useRef(false);
     const paymentSubmitLockRef = useRef(false);
+    const hostedCheckoutSubmitLockRef = useRef(false);
     const paymentBrickRef = useRef<PaymentBrickController | null>(null);
     const paymentBrickRequestRef = useRef(0);
     const paymentContainerId = 'paymentBrick_container';
     const mountedRef = useRef(true);
+    const reservationPageActiveRef = useRef(true);
     const lastKeyRef = useRef<string>(''); // Track last request to avoid duplicates
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
     const selectedRoomRef = useRef<Room | null>(null);
     const autoSelectedRoomKeyRef = useRef<string>('');
-    const maxGuests = 4;
+    const maxGuests = MAX_BOOKING_GUESTS;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
     const totalGuests = numAdults + numChildren;
@@ -449,6 +512,7 @@ function ReservarContent() {
     const bookingTotal = appliedCoupon
         ? Number(appliedCoupon.total || Math.max(0, bookingSubtotal - bookingDiscount))
         : (selectedRoom ? Number(selectedRoom.totalPrice) : 0);
+    const useHostedMercadoPagoCheckout = requiresHostedMercadoPagoCheckout(bookingTotal);
     const handleRetryPayment = () => {
         setPaymentError('');
         setPaymentStatus('idle');
@@ -457,6 +521,101 @@ function ReservarContent() {
         setPixData(null);
 
         setPaymentRetryNonce((prev) => prev + 1);
+    };
+    const handleHostedMercadoPagoCheckout = async (override?: {
+        bookingId: string;
+        paymentMode: PaymentMode;
+        paymentAmount: number;
+    }) => {
+        const hostedBookingId = override?.bookingId || paymentBookingId;
+        const hostedPaymentMode = override?.paymentMode || paymentMode;
+        const hostedPaymentAmount = Number(override?.paymentAmount ?? paymentAmount ?? 0);
+        if (!hostedBookingId || hostedCheckoutSubmitLockRef.current || isSubmittingPayment) return;
+
+        hostedCheckoutSubmitLockRef.current = true;
+        setIsSubmittingPayment(true);
+        setIsWaitingForDeviceId(true);
+        setPayerEditOpen(false);
+        setHostedCheckoutErrorCode('');
+        setPaymentError('');
+        setPaymentStatus('idle');
+        setPaymentStatusMessage('');
+        let redirectStarted = false;
+        try {
+            const deviceId = await waitForMercadoPagoDeviceId(MERCADO_PAGO_DEVICE_CHECKOUT_WAIT_TIMEOUT_MS);
+            if (!reservationPageActiveRef.current) return;
+
+            setIsWaitingForDeviceId(false);
+            if (!deviceId) {
+                trackReservationFunnel({
+                    step: 'payment_device_id',
+                    status: 'error',
+                    message: 'unavailable',
+                });
+            }
+            const response = await fetch('/api/mercadopago/checkout-pro', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    bookingId: hostedBookingId,
+                    guestEmail: guest.email,
+                    payerCpf: normalizeCpf(payerCpf),
+                    payer: buildCheckoutPayerRequest({ payerIsGuest, thirdParty: thirdPartyPayer }),
+                    paymentMode: hostedPaymentMode,
+                    deviceId,
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data?.initPoint) {
+                const errorCode = String(data?.error || '');
+                if (reservationPageActiveRef.current) {
+                    setHostedCheckoutErrorCode(errorCode);
+                    if (PAYER_CORRECTION_ERROR_CODES.has(errorCode)) setPayerEditOpen(true);
+                }
+                throw new Error(data?.message || 'Não foi possível abrir o pagamento no Mercado Pago.');
+            }
+
+            trackAddPaymentInfo({
+                bookingId: hostedBookingId,
+                value: hostedPaymentAmount,
+                paymentType: 'checkout_pro',
+                items: selectedRoom ? [{
+                    item_id: selectedRoom.id,
+                    item_name: selectedRoom.name,
+                    item_category: 'Hospedagem',
+                    price: hostedPaymentAmount,
+                    quantity: 1,
+                }] : [],
+            });
+            window.location.assign(String(data.initPoint));
+            redirectStarted = true;
+        } catch (error) {
+            if (reservationPageActiveRef.current) {
+                setPaymentStatus('error');
+                setPaymentError(error instanceof Error
+                    ? error.message
+                    : 'Não foi possível abrir o pagamento no Mercado Pago.');
+                setIsSubmittingPayment(false);
+            }
+        } finally {
+            if (reservationPageActiveRef.current) setIsWaitingForDeviceId(false);
+            if (!redirectStarted) hostedCheckoutSubmitLockRef.current = false;
+        }
+    };
+    // Revalida os dados corrigidos do pagador antes de pedir uma nova preferência.
+    const handleRetryWithPayerCorrection = () => {
+        if (!payerIsGuest) {
+            const thirdPartyPayerError = validateThirdPartyPayerForm(thirdPartyPayer);
+            if (thirdPartyPayerError) {
+                setPaymentError(thirdPartyPayerError);
+                return;
+            }
+        }
+        if (!isValidCpf(payerCpf)) {
+            setPaymentError('Informe um CPF válido para continuar com o pagamento.');
+            return;
+        }
+        void handleHostedMercadoPagoCheckout();
     };
     const handlePaymentModeChange = (nextMode: PaymentMode) => {
         if (!partialPaymentEvaluation || !partialPaymentEvaluation.eligible) return;
@@ -479,10 +638,7 @@ function ReservarContent() {
     const totalSteps = 3;
     const progressPercent = Math.round((currentStep / totalSteps) * 100);
     const showPaymentTestHelper = process.env.NODE_ENV !== 'production'
-        && (
-            process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true'
-            || process.env.NEXT_PUBLIC_MP_PUBLIC_KEY?.startsWith('TEST-')
-        );
+        && process.env.NEXT_PUBLIC_ENABLE_TEST_PAYMENTS === 'true';
 
     const copyTestValue = async (key: string, value: string) => {
         try {
@@ -494,6 +650,15 @@ function ReservarContent() {
         }
     };
     const paymentLoadingStepIndex = isSubmittingPayment ? 1 : 0;
+
+    useEffect(() => {
+        reservationPageActiveRef.current = true;
+        const stopDeviceIdObservation = startMercadoPagoDeviceIdObservation();
+        return () => {
+            reservationPageActiveRef.current = false;
+            stopDeviceIdObservation();
+        };
+    }, []);
 
     useEffect(() => {
         selectedRoomRef.current = selectedRoom;
@@ -515,6 +680,7 @@ function ReservarContent() {
             }, 0);
             return () => window.clearTimeout(timeoutId);
         }
+
     }, [promoFromQuery, selectedRoom]);
 
     useEffect(() => {
@@ -606,7 +772,7 @@ function ReservarContent() {
 
         // Create stable request key for deduplication
         const normalizedPromo = promoFromQuery;
-        const requestKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}|${normalizedPromo}`;
+        const requestKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}|${pets}|${normalizedPromo}`;
 
         // Deduplicate: if same request already in flight or just completed, skip
         if (requestKey === lastKeyRef.current) {
@@ -627,9 +793,10 @@ function ReservarContent() {
             }
 
             const childrenAgesQuery = childrenAges.length > 0 ? `&childrenAges=${encodeURIComponent(childrenAges.join(','))}` : '';
+            const petsQuery = pets > 0 ? `&pets=${pets}` : '';
             const promoQuery = normalizedPromo ? `&promo=${encodeURIComponent(normalizedPromo)}` : '';
             const response = await fetch(
-                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}${promoQuery}`,
+                `/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=${adults}&children=${children}${childrenAgesQuery}${petsQuery}${promoQuery}`,
                 { cache: 'no-store', signal }
             );
             if (!response.ok) {
@@ -718,7 +885,7 @@ function ReservarContent() {
             mountedRef.current = false;
             controller.abort();
         };
-    }, [adults, availabilityRetryNonce, checkIn, checkOut, children, childrenAgesKey, preferredRoomTypeId, promoFromQuery, isInvalidAdults, isOverCapacity]);
+    }, [adults, availabilityRetryNonce, checkIn, checkOut, children, childrenAgesKey, pets, preferredRoomTypeId, promoFromQuery, isInvalidAdults, isOverCapacity]);
 
     useEffect(() => {
         if (!Array.isArray(availableRooms)) return;
@@ -866,7 +1033,10 @@ function ReservarContent() {
         }
 
         let nextRoom = room;
-        if (couponCode.trim()) {
+        if (couponCode.trim() && room.couponBlockedReason) {
+            // A oferta automática deste quarto não acumula com cupom (ou já é a melhor opção).
+            setCouponMessage(room.promoMessage || 'Cupom não acumula com a oferta ativa.');
+        } else if (couponCode.trim()) {
             const reservedCoupon = await applyCoupon(room);
             if (!reservedCoupon) {
                 nextRoom = {
@@ -913,12 +1083,12 @@ function ReservarContent() {
         const roomFromUrl = availableRooms.find((room) => room.id === preferredRoomTypeId);
         if (!roomFromUrl) return;
 
-        const autoSelectKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}|${promoFromQuery}|${preferredRoomTypeId}`;
+        const autoSelectKey = `${checkIn}|${checkOut}|${adults}|${children}|${childrenAgesKey}|${pets}|${promoFromQuery}|${preferredRoomTypeId}`;
         if (autoSelectedRoomKeyRef.current === autoSelectKey) return;
 
         autoSelectedRoomKeyRef.current = autoSelectKey;
         void autoSelectPreferredRoom(roomFromUrl);
-    }, [adults, availableRooms, checkIn, checkOut, children, childrenAgesKey, preferredRoomTypeId, promoFromQuery, selectedRoom]);
+    }, [adults, availableRooms, checkIn, checkOut, children, childrenAgesKey, pets, preferredRoomTypeId, promoFromQuery, selectedRoom]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -927,6 +1097,19 @@ function ReservarContent() {
 
         if (!selectedRoom) {
             setFormMessage('Por favor, selecione um quarto.');
+            return;
+        }
+
+        if (!payerIsGuest) {
+            const thirdPartyPayerError = validateThirdPartyPayerForm(thirdPartyPayer);
+            if (thirdPartyPayerError) {
+                setFormMessage(thirdPartyPayerError);
+                return;
+            }
+        }
+
+        if (!isValidCpf(payerCpf)) {
+            setFormMessage('Informe um CPF válido para continuar com o pagamento.');
             return;
         }
 
@@ -987,8 +1170,10 @@ function ReservarContent() {
                     adults: Number.parseInt(adults, 10) || 0,
                     children: Number.parseInt(children, 10) || 0,
                     childrenAges,
+                    pets,
                     totalPrice: bookingTotal,
                     guest,
+                    website,
                     coupon: couponPayload,
                 }),
             });
@@ -1058,6 +1243,16 @@ function ReservarContent() {
             setPaymentStatus('idle');
             setPaymentStatusMessage('');
 
+            if (requiresHostedMercadoPagoCheckout(parsedAmount) && !showPaymentTestHelper) {
+                await handleHostedMercadoPagoCheckout({
+                    bookingId: booking.id,
+                    paymentMode: nextPaymentMode,
+                    paymentAmount: nextPaymentMode === 'PARTIAL' && Number.isFinite(nextPaymentAmount)
+                        ? nextPaymentAmount
+                        : parsedAmount,
+                });
+            }
+
         } catch (err) {
             const message = normalizeReservationUiErrorMessage(
                 err instanceof Error ? err.message : 'Erro ao processar reserva. Tente novamente.'
@@ -1096,6 +1291,7 @@ function ReservarContent() {
 
     useEffect(() => {
         if (!paymentBookingId || paymentAmount === null || Number.isNaN(paymentAmount)) return;
+        if (useHostedMercadoPagoCheckout) return;
 
         paymentSubmitLockRef.current = false;
         const requestId = ++paymentBrickRequestRef.current;
@@ -1196,7 +1392,8 @@ function ReservarContent() {
                                 guestName: guest.name,
                                 guestEmail: guest.email,
                             });
-                            const finalPaymentAmount = isPixBrickPayment(formData)
+                            const pixDiscountEnabled = Boolean(partialPaymentEvaluation?.pixDiscountEnabled);
+                            const finalPaymentAmount = isPixBrickPayment(formData) && pixDiscountEnabled
                                 ? applyPixDiscount(paymentAmount)
                                 : paymentAmount;
                             const paymentType = isPixBrickPayment(formData)
@@ -1219,6 +1416,7 @@ function ReservarContent() {
                             let keepOverlayUntilRedirect = false;
 
                             try {
+                                const deviceId = await waitForMercadoPagoDeviceId();
                                 const res = await fetch('/api/mercadopago/payment', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -1229,6 +1427,7 @@ function ReservarContent() {
                                         description: `Reserva ${paymentBookingId}`,
                                         transaction_amount: finalPaymentAmount,
                                         paymentMode,
+                                        deviceId,
                                     }),
                                 });
                                 const data = await res.json().catch(() => ({}));
@@ -1241,12 +1440,13 @@ function ReservarContent() {
                                 }
 
                                 const status = data?.status;
+                                const statusDetail = String(data?.status_detail || '').trim().toLowerCase();
                                 const pix = data?.pix;
                                 if (pix) setPixData(pix);
                                 if (status === 'approved') {
                                     keepOverlayUntilRedirect = true;
                                     setPaymentStatus('approved');
-                                    setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
+                                    setPaymentStatusMessage('Pagamento identificado, confirmando sua reserva...');
                                     trackReservationFunnel({
                                         step: 'payment_result',
                                         status: 'success',
@@ -1254,26 +1454,72 @@ function ReservarContent() {
                                         value: finalPaymentAmount,
                                         message: 'approved',
                                     });
+                                    await waitForPaymentApprovalFeedback();
                                     router.push(`/reservar/confirmacao/${paymentBookingId}`);
                                     return;
                                 }
 
+                                if (
+                                    status === 'pending'
+                                    && statusDetail === 'pending_challenge'
+                                    && data?.id
+                                    && data?.three_ds_info?.external_resource_url
+                                    && data?.three_ds_info?.creq
+                                ) {
+                                    setPaymentStatus('pending');
+                                    setPaymentStatusMessage('Confirme a compra na tela segura do seu banco.');
+                                    const statusBrick = await mountLatestPaymentBrick({
+                                        requestId,
+                                        latestRequestRef: paymentBrickRequestRef,
+                                        activeBrickRef: paymentBrickRef,
+                                        create: () => bricksBuilder.create('statusScreen', paymentContainerId, {
+                                            initialization: {
+                                                paymentId: String(data.id),
+                                                additionalInfo: {
+                                                    externalResourceURL: data.three_ds_info.external_resource_url,
+                                                    creq: data.three_ds_info.creq,
+                                                },
+                                            },
+                                            callbacks: {
+                                                onReady: () => {},
+                                                onError: (challengeError: unknown) => {
+                                                    console.error('Mercado Pago 3DS Error:', challengeError);
+                                                    setPaymentError('Não foi possível abrir a confirmação do banco. Atualize a página e tente novamente.');
+                                                },
+                                            },
+                                        }),
+                                    });
+                                    if (statusBrick) mountedBrick = statusBrick;
+                                    trackReservationFunnel({
+                                        step: 'payment_result',
+                                        status: 'pending',
+                                        bookingId: paymentBookingId,
+                                        value: finalPaymentAmount,
+                                        message: '3ds_pending_challenge',
+                                    });
+                                    return;
+                                }
+
                                 if (status === 'rejected') {
+                                    const rejectionMessage = getPaymentRejectionMessage(statusDetail);
                                     setPaymentStatus('rejected');
-                                    setPaymentStatusMessage('Pagamento não aprovado. Você pode revisar os dados ou tentar outro método com segurança.');
+                                    setPaymentStatusMessage('');
+                                    setPaymentError(rejectionMessage);
                                     trackReservationFunnel({
                                         step: 'payment_result',
                                         status: 'error',
                                         bookingId: paymentBookingId,
                                         value: finalPaymentAmount,
-                                        message: 'rejected',
+                                        message: statusDetail || 'rejected',
                                     });
                                     return;
                                 }
 
                                 setPaymentStatus('pending');
                                 if (pix?.qr_code || pix?.qr_code_base64) {
-                                    setPaymentStatusMessage(`Pix gerado com sucesso com 5% de desconto (${formatCurrencyBRL(finalPaymentAmount)}). Use o QR Code ou copie o código abaixo para concluir sua reserva.`);
+                                    setPaymentStatusMessage(pixDiscountEnabled
+                                        ? `Pix gerado com sucesso com 5% de desconto (${formatCurrencyBRL(finalPaymentAmount)}). Use o QR Code ou copie o código abaixo para concluir sua reserva.`
+                                        : `Pix gerado com sucesso (${formatCurrencyBRL(finalPaymentAmount)}). Use o QR Code ou copie o código abaixo para concluir sua reserva.`);
                                 } else {
                                     setPaymentStatusMessage('Pagamento em análise. Assim que houver confirmação, sua reserva será atualizada automaticamente.');
                                 }
@@ -1407,7 +1653,7 @@ function ReservarContent() {
                 void safelyUnmountPaymentBrick(mountedBrick);
             }
         };
-    }, [guest.email, guest.name, notifyPaymentDifficulty, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router, selectedRoom]);
+    }, [guest.email, guest.name, notifyPaymentDifficulty, paymentAmount, paymentBookingId, paymentMode, paymentRetryNonce, router, selectedRoom, useHostedMercadoPagoCheckout]);
 
     useEffect(() => {
         if (!paymentBookingId) return;
@@ -1418,9 +1664,13 @@ function ReservarContent() {
                 const res = await fetch(`/api/bookings/${paymentBookingId}`);
                 if (!res.ok) return;
                 const data = await res.json();
-                if (data?.status === 'CONFIRMED') {
+                const polledStatus = getPolledBookingPaymentStatus({
+                    bookingStatus: data?.status,
+                    paymentStatus: data?.payment?.status,
+                });
+                if (polledStatus === 'APPROVED') {
                     setPaymentStatus('approved');
-                    setPaymentStatusMessage('Pagamento aprovado! Redirecionando...');
+                    setPaymentStatusMessage('Pagamento identificado, confirmando sua reserva...');
                     trackReservationFunnel({
                         step: 'payment_result',
                         status: 'success',
@@ -1429,18 +1679,23 @@ function ReservarContent() {
                         message: 'confirmed_polling',
                     });
                     if (pollRef.current) clearInterval(pollRef.current);
+                    pollRef.current = null;
+                    await waitForPaymentApprovalFeedback();
                     router.push(`/reservar/confirmacao/${paymentBookingId}`);
-                } else if (data?.status === 'CANCELLED') {
+                } else if (polledStatus === 'REJECTED' || polledStatus === 'CANCELLED') {
+                    const rejectionMessage = getPaymentRejectionMessage(data?.lastErrorMessage);
                     setPaymentStatus('rejected');
-                    setPaymentStatusMessage('Pagamento não aprovado. Revise os dados ou tente outro método.');
+                    setPaymentStatusMessage('');
+                    setPaymentError(rejectionMessage);
                     trackReservationFunnel({
                         step: 'payment_result',
                         status: 'error',
                         bookingId: paymentBookingId,
                         value: paymentAmount,
-                        message: 'cancelled_polling',
+                        message: polledStatus === 'REJECTED' ? 'rejected_polling' : 'cancelled_polling',
                     });
                     if (pollRef.current) clearInterval(pollRef.current);
+                    pollRef.current = null;
                 }
             } catch {
                 // ignora falhas de rede temporárias
@@ -1454,7 +1709,7 @@ function ReservarContent() {
                 pollRef.current = null;
             }
         };
-    }, [paymentAmount, paymentBookingId, router]);
+    }, [paymentAmount, paymentBookingId, paymentRetryNonce, router]);
 
     if (!checkIn || !checkOut) {
         return (
@@ -1520,7 +1775,7 @@ function ReservarContent() {
                 <div className="inline-flex max-w-md flex-col items-center gap-4 border border-amber-200 bg-amber-50 p-6 text-amber-900">
                     <AlertCircle className="w-12 h-12" />
                     <p className="text-lg font-medium">
-                        Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
+                        Nossas acomodações comportam até {MAX_BOOKING_GUESTS} pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
                     <p className="text-sm leading-6 text-amber-900/80">
                         Assim conseguimos sugerir a melhor combinação de acomodações para a sua viagem.
@@ -1530,30 +1785,6 @@ function ReservarContent() {
                             Falar com a pousada no WhatsApp
                         </a>
                     </Button>
-                </div>
-                </div>
-            </main>
-        );
-    }
-
-    if (error) {
-        return (
-            <main className="min-h-screen bg-[color:var(--brand-cream)] pt-32">
-                <div className="container text-center">
-                <div className="inline-flex max-w-md flex-col items-center gap-4 border border-destructive/20 bg-destructive/10 p-6 text-destructive">
-                    <AlertCircle className="w-12 h-12" />
-                    <p className="text-lg font-medium">{error}</p>
-                    <p className="text-sm leading-6 text-destructive/80">
-                        Atualize a busca ou tente novamente em instantes. Se preferir, fale com a pousada para confirmar a disponibilidade.
-                    </p>
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <Button onClick={retryAvailability} variant="destructive">Tentar novamente</Button>
-                        <Button variant="outline" asChild className="rounded-none">
-                            <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer">
-                                Falar com a pousada
-                            </a>
-                        </Button>
-                    </div>
                 </div>
                 </div>
             </main>
@@ -1609,7 +1840,23 @@ function ReservarContent() {
 
                 {!selectedRoom ? (
                     <div className="space-y-6">
-                        {loading || availableRooms === null ? (
+                        {error ? (
+                            <div role="alert" className="mx-auto flex max-w-xl flex-col items-center gap-4 border border-destructive/20 bg-destructive/10 p-6 text-center text-destructive">
+                                <AlertCircle className="h-10 w-10" />
+                                <p className="text-lg font-medium">{error}</p>
+                                <p className="text-sm leading-6 text-destructive/80">
+                                    Ajuste as datas ou os hóspedes na busca acima, ou tente novamente. Se preferir, fale com a pousada para confirmar a disponibilidade.
+                                </p>
+                                <div className="flex flex-col gap-3 sm:flex-row">
+                                    <Button onClick={retryAvailability} variant="destructive">Tentar novamente</Button>
+                                    <Button variant="outline" asChild className="rounded-none">
+                                        <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer">
+                                            Falar com a pousada
+                                        </a>
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : loading || availableRooms === null ? (
                             <div className="space-y-6">
                                 <div className="text-center">
                                     <p className="text-muted-foreground">Buscando as melhores opções para você</p>
@@ -1660,10 +1907,10 @@ function ReservarContent() {
                                             .map((amenity) => amenity.trim())
                                             .filter(Boolean);
                                         const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
-                                        const originalNightlyRate = room.promoApplied && Number(room.priceOriginal) > Number(room.totalPrice) && stayNights > 0
-                                            ? Number(room.priceOriginal) / stayNights
+                                        const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
+                                        const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
+                                            ? strikePrice / stayNights
                                             : null;
-                                        const hasSavings = room.promoApplied && Number(room.discountAmount || 0) > 0;
                                         const roomDescription = room.description?.trim()
                                             || 'Descrição detalhada não informada. Consulte a pousada antes de reservar.';
                                         return (
@@ -1723,11 +1970,15 @@ function ReservarContent() {
 
                                                 <div className="mt-auto grid items-end gap-4 border-t border-primary/10 pt-5 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.9fr)]">
                                                     <div>
+                                                        {room.promotion?.badgeLabel ? (
+                                                            <p className="mb-2 inline-block bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-secondary-foreground">{room.promotion.badgeLabel}</p>
+                                                        ) : null}
                                                         <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/58">Total da estadia</p>
                                                         {originalNightlyRate ? <p className="mt-1 text-sm text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
                                                         <p className="mt-1 text-[2rem] font-semibold leading-none tracking-[-0.03em] text-primary">{formatCurrencyBRL(room.totalPrice)}</p>
                                                         <p className="mt-2 text-xs text-foreground/68">{stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite</p>
-                                                        {hasSavings ? <p className="mt-1 text-xs font-medium text-emerald-700">Economia de {formatCurrencyBRL(Number(room.discountAmount))}</p> : null}
+                                                        {Number(room.promotion?.discountAmount || 0) > 0 ? <p className="mt-1 text-xs font-medium text-emerald-700">Economia de {formatCurrencyBRL(Number(room.promotion?.discountAmount))}</p> : null}
+                                                        {Number(room.minLos) >= 2 ? <p className="mt-1 text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
                                                     </div>
                                                     <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-[50px] w-full rounded-none bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-none hover:bg-primary/95">
                                                         Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
@@ -1827,13 +2078,15 @@ function ReservarContent() {
                                             <span className="text-sm text-muted-foreground">Valor no cartão</span>
                                             <strong className="text-lg font-bold text-primary">{formatCurrencyBRL(Number(paymentAmount || 0))}</strong>
                                         </div>
-                                        <div className="flex items-center justify-between gap-4 border-t border-primary/10 pt-3">
-                                            <span className="text-sm font-semibold text-emerald-700">Valor no Pix com 5% de desconto</span>
-                                            <strong className="text-lg font-bold text-emerald-700">{formatCurrencyBRL(applyPixDiscount(Number(paymentAmount || 0)))}</strong>
-                                        </div>
+                                        {partialPaymentEvaluation?.pixDiscountEnabled && !useHostedMercadoPagoCheckout ? (
+                                            <div className="flex items-center justify-between gap-4 border-t border-brand-brown-dark/10 pt-3">
+                                                <span className="text-sm font-semibold text-emerald-700">Valor no Pix com 5% de desconto</span>
+                                                <strong className="text-lg font-bold text-emerald-700">{formatCurrencyBRL(applyPixDiscount(Number(paymentAmount || 0)))}</strong>
+                                            </div>
+                                        ) : null}
                                     </div>
                                 ) : null}
-                                {Number(paymentAmount || 0) > 0 ? (
+                                {Number(paymentAmount || 0) > 0 && partialPaymentEvaluation?.pixDiscountEnabled && !useHostedMercadoPagoCheckout ? (
                                     <div className="mb-4 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                                         O desconto é aplicado automaticamente ao escolher Pix. Pagamentos por cartão permanecem no valor integral da reserva.
                                     </div>
@@ -1844,15 +2097,52 @@ function ReservarContent() {
                                 {paymentError ? (
                                     <div className="space-y-3 border border-destructive/20 bg-destructive/10 p-4 text-destructive">
                                         <p>{paymentError}</p>
+                                        {useHostedMercadoPagoCheckout && payerEditOpen ? (
+                                            <div className="space-y-4 border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-4 text-foreground">
+                                                <p className="text-sm font-medium">Corrija os dados do responsável pelo pagamento</p>
+                                                <PayerFields
+                                                    payerIsGuest={payerIsGuest}
+                                                    onPayerIsGuestChange={setPayerIsGuest}
+                                                    thirdPartyPayer={thirdPartyPayer}
+                                                    onThirdPartyPayerChange={setThirdPartyPayer}
+                                                    payerCpf={payerCpf}
+                                                    onPayerCpfChange={setPayerCpf}
+                                                    disabled={isSubmittingPayment}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    onClick={handleRetryWithPayerCorrection}
+                                                    disabled={isSubmittingPayment}
+                                                    className="h-11 rounded-none"
+                                                >
+                                                    Salvar e tentar novamente
+                                                </Button>
+                                            </div>
+                                        ) : null}
                                         <div className="flex flex-col gap-3 sm:flex-row">
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                onClick={() => void handleRetryPayment()}
+                                                onClick={() => useHostedMercadoPagoCheckout
+                                                    ? payerEditOpen
+                                                        ? handleRetryWithPayerCorrection()
+                                                        : void handleHostedMercadoPagoCheckout()
+                                                    : void handleRetryPayment()}
                                                 className="h-11 rounded-none border-destructive/30 bg-transparent text-destructive hover:bg-destructive/5"
                                             >
                                                 Tentar novamente
                                             </Button>
+                                            {useHostedMercadoPagoCheckout && !payerEditOpen
+                                                && !PAYER_CORRECTION_NOT_APPLICABLE_CODES.has(hostedCheckoutErrorCode) ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setPayerEditOpen(true)}
+                                                    className="h-11 rounded-none border-destructive/30 bg-transparent text-destructive hover:bg-destructive/5"
+                                                >
+                                                    Corrigir dados do pagador
+                                                </Button>
+                                            ) : null}
                                             <Button
                                                 variant="outline"
                                                 asChild
@@ -1949,7 +2239,7 @@ function ReservarContent() {
                                     </div>
                                 ) : null}
 
-                                <div className="mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                                <div className={useHostedMercadoPagoCheckout ? 'mt-8' : 'mt-8 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]'}>
                                     <div>
                                         <h3 className="text-xs font-semibold text-primary uppercase tracking-widest mb-3">
                                             Meios de pagamento
@@ -1957,8 +2247,34 @@ function ReservarContent() {
                                         <p className="text-xs text-muted-foreground mb-3">
                                             Parcelamento e opções disponíveis aparecem automaticamente conforme o método escolhido.
                                         </p>
-                                        <div className="relative border border-primary/10 bg-[color:var(--brand-white)] p-4">
-                                            {isSubmittingPayment ? (
+                                        {useHostedMercadoPagoCheckout ? (
+                                            <div className="border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-6">
+                                                <p className="text-lg font-semibold text-brand-brown-dark">
+                                                    Finalize com segurança pelo Mercado Pago
+                                                </p>
+                                                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                                                    Para concluir sua reserva, você será direcionado ao ambiente seguro do Mercado Pago. Se já tiver uma conta, entre para utilizar seus cartões e formas de pagamento disponíveis. Você também poderá escolher Pix.
+                                                </p>
+                                                {showPaymentTestHelper && !isSubmittingPayment ? (
+                                                    <Button
+                                                        type="button"
+                                                        onClick={() => void handleHostedMercadoPagoCheckout()}
+                                                        className="mt-5 h-11 rounded-none"
+                                                    >
+                                                        Continuar para o Mercado Pago
+                                                    </Button>
+                                                ) : (
+                                                    <div className="mt-5 flex items-center gap-3 text-sm text-brand-brown-dark">
+                                                        <LoaderCircle className="h-5 w-5 animate-spin" />
+                                                        {isWaitingForDeviceId
+                                                            ? 'Preparando pagamento seguro...'
+                                                            : 'Redirecionando para o Mercado Pago...'}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                        <div className="relative border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-4">
+                                            {isSubmittingPayment || paymentStatus === 'approved' ? (
                                                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-6">
                                                     <div className="w-full max-w-md border border-white/10 bg-zinc-900 p-6 shadow-2xl">
                                                         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/10">
@@ -1969,10 +2285,12 @@ function ReservarContent() {
                                                                 Mercado Pago
                                                             </p>
                                                             <p className="text-lg font-semibold text-white">
-                                                                Enviando seu pagamento
+                                                                {paymentStatus === 'approved' ? 'Pagamento identificado' : 'Enviando seu pagamento'}
                                                             </p>
                                                             <p className="text-sm leading-6 text-white/78">
-                                                                Isso pode levar alguns segundos. Nao feche esta pagina ate a confirmacao.
+                                                                {paymentStatus === 'approved'
+                                                                    ? 'Confirmando sua reserva. Você será redirecionado em instantes.'
+                                                                    : 'Isso pode levar alguns segundos. Nao feche esta pagina ate a confirmacao.'}
                                                             </p>
                                                         </div>
 
@@ -1997,9 +2315,11 @@ function ReservarContent() {
                                                 <div id={paymentContainerId} />
                                             </div>
                                         </div>
+                                        )}
                                     </div>
 
-                                    <div className="border border-primary/10 bg-[color:var(--brand-white)] p-4">
+                                    {!useHostedMercadoPagoCheckout ? (
+                                    <div className="border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-4">
                                         <div className="flex items-center justify-between mb-3">
                                             <h3 className="text-xs font-semibold text-primary uppercase tracking-widest">
                                                 Pix instantâneo
@@ -2061,6 +2381,7 @@ function ReservarContent() {
                                             </div>
                                         )}
                                     </div>
+                                    ) : null}
                                 </div>
                             </CardContent>
                         </Card>
@@ -2100,6 +2421,12 @@ function ReservarContent() {
                                             <span>Hóspedes</span>
                                             <span className="font-medium text-foreground">{adults} Adultos, {children} Crianças</span>
                                         </div>
+                                        {pets > 0 ? (
+                                            <div className="flex items-center justify-between">
+                                                <span>Pets</span>
+                                                <span className="font-medium text-foreground">{pets}</span>
+                                            </div>
+                                        ) : null}
                                         <div className="flex items-center justify-between">
                                             <span>Diárias</span>
                                             <span className="font-medium text-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
@@ -2132,6 +2459,12 @@ function ReservarContent() {
                                 </CardHeader>
                                 <CardContent className="px-4 pt-5 md:px-6 md:pt-6">
                                     <form onSubmit={handleSubmit} className="space-y-6">
+                                        <div className="hidden" aria-hidden="true">
+                                            <label htmlFor="booking-website">Não preencha este campo</label>
+                                            <input id="booking-website" name="website" type="text" tabIndex={-1}
+                                                autoComplete="off" value={website}
+                                                onChange={(event) => setWebsite(event.target.value)} />
+                                        </div>
                                         <div className="space-y-4">
                                             <div className="space-y-2">
                                                 <label htmlFor="name" className="text-sm font-medium flex items-center gap-2">
@@ -2188,6 +2521,15 @@ function ReservarContent() {
                                                     />
                                                 </div>
                                             </div>
+                                            <PayerFields
+                                                payerIsGuest={payerIsGuest}
+                                                onPayerIsGuestChange={setPayerIsGuest}
+                                                thirdPartyPayer={thirdPartyPayer}
+                                                onThirdPartyPayerChange={setThirdPartyPayer}
+                                                payerCpf={payerCpf}
+                                                onPayerCpfChange={setPayerCpf}
+                                                disabled={processing}
+                                            />
                                         </div>
 
                                         <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
@@ -2415,6 +2757,12 @@ function ReservarContent() {
                                             <span className="text-muted-foreground">Hóspedes</span>
                                             <span className="font-medium">{adults} Adultos, {children} Crianças</span>
                                         </div>
+                                        {pets > 0 ? (
+                                            <div className="flex justify-between items-center py-2 border-b border-border/50">
+                                                <span className="text-muted-foreground">Pets</span>
+                                                <span className="font-medium">{pets}</span>
+                                            </div>
+                                        ) : null}
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Diárias</span>
                                             <span className="font-medium">
@@ -2425,20 +2773,43 @@ function ReservarContent() {
 
                                     <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total da estadia</p>
+                                        {selectedRoom.promotion?.badgeLabel ? (
+                                            <div className="mt-2 flex flex-wrap gap-1">
+                                                <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</p>
+                                            </div>
+                                        ) : null}
                                         <div className="mt-2">
-                                            <span className="text-[2.2rem] font-bold leading-none text-primary">{formatCurrencyBRL(bookingTotal)}</span>
+                                            {selectedRoom.promotion && Number(selectedRoom.priceFull) > bookingTotal ? (
+                                                <p className="mb-1 text-lg leading-none text-muted-foreground line-through">{formatCurrencyBRL(Number(selectedRoom.priceFull))}</p>
+                                            ) : null}
+                                            <span className="block text-[2.2rem] font-bold leading-none text-primary">{formatCurrencyBRL(bookingTotal)}</span>
+                                            {selectedRoom.promotion && Number(selectedRoom.promotion.discountAmount) > 0 ? (
+                                                <p className="mt-1 text-sm font-semibold text-emerald-700">
+                                                    Você economiza {formatCurrencyBRL(Number(selectedRoom.promotion.discountAmount))} ({formatGuestPercent(selectedRoom.promotion.discountPercent)})
+                                                </p>
+                                            ) : null}
                                         </div>
                                         <div className="mt-2 flex items-center justify-between text-sm text-primary/82">
                                             <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
-                                            <span>{adults} Adultos, {children} Crianças</span>
+                                            <span>{adults} Adultos, {children} Crianças{pets > 0 ? `, ${pets} Pet${pets === 1 ? '' : 's'}` : ''}</span>
                                         </div>
-                                        <p className="mt-2 text-xs font-medium text-emerald-700">Sem taxas extras</p>
+                                        <p className="mt-2 text-xs font-medium text-emerald-700">
+                                            {pets > 0 ? 'Taxa de pets incluída no total' : 'Sem taxas extras'}
+                                        </p>
                                         {selectedRoom.priceBreakdown ? (
                                             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                                                 <div className="flex justify-between">
                                                     <span>Base ({stayNights} {stayNights === 1 ? 'diária' : 'diárias'})</span>
                                                     <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.baseTotal))}</span>
                                                 </div>
+                                                {selectedRoom.promotion
+                                                    ? (selectedRoom.promotion.items?.length ? selectedRoom.promotion.items : [selectedRoom.promotion]).map((item) => (
+                                                        <div key={item.id} className="flex justify-between text-emerald-600">
+                                                            <span>{item.name}</span>
+                                                            <span>- {formatCurrencyBRL(Number(item.discountAmount))}</span>
+                                                        </div>
+                                                    ))
+                                                    : null}
                                                 {appliedCoupon ? (
                                                     <>
                                                         <div className="flex justify-between text-emerald-600">
@@ -2461,6 +2832,12 @@ function ReservarContent() {
                                                     <div className="flex justify-between">
                                                         <span>Crianças 6–11</span>
                                                         <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.childTotal))}</span>
+                                                    </div>
+                                                ) : null}
+                                                {selectedRoom.priceBreakdown.petTotal > 0 ? (
+                                                    <div className="flex justify-between">
+                                                        <span>Pets ({formatCurrencyBRL(PET_FEE_PER_NIGHT)} por pet/diária)</span>
+                                                        <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.petTotal))}</span>
                                                     </div>
                                                 ) : null}
                                             </div>
@@ -2540,6 +2917,11 @@ function ReservarContent() {
             ) : null}
         </main>
     );
+}
+
+/** Percentual para o hóspede em português: 31,6% (uma casa quando não é inteiro). */
+function formatGuestPercent(value: number) {
+    return `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
 
 export default function ReservarPage() {

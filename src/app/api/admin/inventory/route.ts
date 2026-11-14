@@ -5,6 +5,8 @@ import { requireAdminAuth } from '@/lib/admin-auth';
 import { assertDayKey, compareDayKey, eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts, normalizeChildrenAgesInput, requiresFourGuestInventory } from '@/lib/guest-capacity';
 import { asNullableString } from '@/lib/requestValue';
+import { getAutomaticInventory, HOSPEDIN_SAFETY_BUFFER } from '@/lib/inventory-policy';
+import { occupyingBookingWhere } from '@/lib/booking-payment-window';
 
 export async function POST(request: Request) {
     try {
@@ -12,7 +14,10 @@ export async function POST(request: Request) {
         if (auth instanceof Response) return auth;
 
         const body = await request.json();
-        const { roomTypeId, startDate, endDate, updates, date, totalUnits, inventoryType, daysOfWeek } = body;
+        const {
+            roomTypeId, startDate, endDate, updates, date, totalUnits, inventoryType, daysOfWeek,
+            confirmAboveAutomatic, resetManualOverride,
+        } = body;
         const targetInventoryType = inventoryType === 'fourGuests' ? 'fourGuests' : 'standard';
         const coerceToYmd = (input: unknown, label: string): string => {
             const normalized = asNullableString(input);
@@ -37,7 +42,6 @@ export async function POST(request: Request) {
             let appliedLimit = false;
 
             for (const id of targetIds) {
-                const ttlHours = Math.max(1, parseInt(process.env.PENDING_BOOKING_EXPIRATION_HOURS || '24', 10) || 24);
                 const startStr = coerceToYmd(startDate, 'startDate');
                 const endStr = coerceToYmd(endDate, 'endDate');
                 const start = new Date(`${startStr}T12:00:00Z`);
@@ -50,16 +54,8 @@ export async function POST(request: Request) {
                 const activeBookings = await prisma.booking.findMany({
                     where: {
                         roomTypeId: id,
-                    status: { in: ['CONFIRMED', 'PAID'] },
-                        OR: [
-                            { status: { in: ['CONFIRMED', 'PAID'] } },
-                            {
-                                AND: [
-                                    { status: 'PENDING' },
-                                    { createdAt: { gte: new Date(Date.now() - ttlHours * 60 * 60 * 1000) } },
-                                ],
-                            },
-                        ],
+                        hospedinRegisteredAt: null,
+                        ...occupyingBookingWhere(),
                         checkIn: { lte: end },
                         checkOut: { gt: start },
                     },
@@ -70,6 +66,12 @@ export async function POST(request: Request) {
                         childrenAges: true,
                     },
                 });
+                const existingAdjustments = targetInventoryType === 'standard'
+                    ? await prisma.inventoryAdjustment.findMany({
+                        where: { roomTypeId: id, dateKey: { in: eachDayKeyInclusive(startStr, endStr) } },
+                    })
+                    : [];
+                const adjustmentByDay = new Map(existingAdjustments.map((row) => [row.dateKey, row]));
 
                 const bookingsCountByDay = new Map<string, number>();
                 const bookingsFor4GuestsByDay = new Map<string, number>();
@@ -123,6 +125,21 @@ export async function POST(request: Request) {
                         ? Math.max(0, fourGuestCapacity - bookingsFor4Guests)
                         : Math.max(0, capacityTotal - bookingsCount);
                     const safeAvailable = Math.max(0, Math.min(maxAvailable, requestedUnits));
+                    const existingAdjustment = adjustmentByDay.get(dKey);
+                    const automaticAvailable = existingAdjustment?.hospedinUnits === null || existingAdjustment?.hospedinUnits === undefined
+                        ? maxAvailable
+                        : Math.max(0, getAutomaticInventory(existingAdjustment.hospedinUnits, capacityTotal) - bookingsCount);
+                    if (targetInventoryType === 'standard' && safeAvailable > automaticAvailable && !confirmAboveAutomatic) {
+                        return NextResponse.json({
+                            error: 'CONFIRM_ABOVE_AUTOMATIC',
+                            message: 'O valor solicitado supera o inventário automático do Hospedin.',
+                            date: dKey,
+                            hospedinUnits: existingAdjustment?.hospedinUnits ?? null,
+                            automaticAvailable,
+                            requestedUnits: safeAvailable,
+                            safetyBuffer: HOSPEDIN_SAFETY_BUFFER,
+                        }, { status: 409 });
+                    }
                     const storedUnits = targetInventoryType === 'fourGuests'
                         ? Math.max(0, Math.min(fourGuestCapacity, safeAvailable + bookingsFor4Guests))
                         : Math.max(0, Math.min(capacityTotal, safeAvailable + bookingsCount));
@@ -142,12 +159,13 @@ export async function POST(request: Request) {
                             })
                             : prisma.inventoryAdjustment.upsert({
                                 where: { roomTypeId_dateKey: { roomTypeId: id, dateKey: dKey } },
-                                update: { totalUnits: storedUnits, date: new Date(current) },
+                                update: { totalUnits: storedUnits, manualOverrideUnits: storedUnits, date: new Date(current) },
                                 create: {
                                     roomTypeId: id,
                                     dateKey: dKey,
                                     date: new Date(current),
                                     totalUnits: storedUnits,
+                                    manualOverrideUnits: storedUnits,
                                 },
                             })
                     );
@@ -171,7 +189,8 @@ export async function POST(request: Request) {
                     roomTypeId,
                     checkIn: { lt: new Date(`${dKey}T23:59:59Z`) },
                     checkOut: { gt: new Date(`${dKey}T00:00:00Z`) },
-                    status: { in: ['CONFIRMED', 'PAID'] },
+                    hospedinRegisteredAt: null,
+                    ...occupyingBookingWhere(),
                 },
                 select: {
                     adults: true,
@@ -188,12 +207,50 @@ export async function POST(request: Request) {
                 )
             ).length;
 
+            const existingAdjustment = targetInventoryType === 'standard'
+                ? await prisma.inventoryAdjustment.findUnique({
+                    where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
+                })
+                : null;
+
+            if (targetInventoryType === 'standard' && resetManualOverride) {
+                const automaticUnits = existingAdjustment?.hospedinUnits === null || existingAdjustment?.hospedinUnits === undefined
+                    ? capacityTotal
+                    : getAutomaticInventory(existingAdjustment.hospedinUnits, capacityTotal);
+                const adjustment = await prisma.inventoryAdjustment.upsert({
+                    where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
+                    update: { totalUnits: automaticUnits, manualOverrideUnits: null, date: isoDate },
+                    create: {
+                        roomTypeId,
+                        dateKey: dKey,
+                        date: isoDate,
+                        totalUnits: automaticUnits,
+                        manualOverrideUnits: null,
+                    },
+                });
+                return NextResponse.json({ ...adjustment, automaticInventory: Math.max(0, automaticUnits - activeBookingsCount) });
+            }
+
             const requestedUnits = parseInt(totalUnits);
             const normalizedRequested = Number.isFinite(requestedUnits) ? requestedUnits : 0;
             const maxAvailable = targetInventoryType === 'fourGuests'
                 ? Math.max(0, fourGuestCapacity - activeFourGuestBookingsCount)
                 : Math.max(0, capacityTotal - activeBookingsCount);
             const safeAvailable = Math.max(0, Math.min(maxAvailable, normalizedRequested));
+            const automaticAvailable = existingAdjustment?.hospedinUnits === null || existingAdjustment?.hospedinUnits === undefined
+                ? maxAvailable
+                : Math.max(0, getAutomaticInventory(existingAdjustment.hospedinUnits, capacityTotal) - activeBookingsCount);
+            if (targetInventoryType === 'standard' && safeAvailable > automaticAvailable && !confirmAboveAutomatic) {
+                return NextResponse.json({
+                    error: 'CONFIRM_ABOVE_AUTOMATIC',
+                    message: 'O valor solicitado supera o inventário automático do Hospedin.',
+                    date: dKey,
+                    hospedinUnits: existingAdjustment?.hospedinUnits ?? null,
+                    automaticAvailable,
+                    requestedUnits: safeAvailable,
+                    safetyBuffer: HOSPEDIN_SAFETY_BUFFER,
+                }, { status: 409 });
+            }
             const storedUnits = targetInventoryType === 'fourGuests'
                 ? Math.max(0, Math.min(fourGuestCapacity, safeAvailable + activeFourGuestBookingsCount))
                 : Math.max(0, Math.min(capacityTotal, safeAvailable + activeBookingsCount));
@@ -211,12 +268,13 @@ export async function POST(request: Request) {
                 })
                 : await prisma.inventoryAdjustment.upsert({
                     where: { roomTypeId_dateKey: { roomTypeId, dateKey: dKey } },
-                    update: { totalUnits: storedUnits, date: isoDate },
+                    update: { totalUnits: storedUnits, manualOverrideUnits: storedUnits, date: isoDate },
                     create: {
                         roomTypeId,
                         dateKey: dKey,
                         date: isoDate,
                         totalUnits: storedUnits,
+                        manualOverrideUnits: storedUnits,
                     },
                 });
             return NextResponse.json({ ...adjustment, appliedLimit: safeAvailable !== normalizedRequested });

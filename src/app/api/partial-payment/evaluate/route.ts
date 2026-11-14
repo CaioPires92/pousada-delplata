@@ -5,6 +5,7 @@ import {
     evaluatePartialPaymentEligibility,
     normalizePartialPaymentSettings,
 } from '@/lib/partial-payment';
+import { isPixDiscountEnabled } from '@/lib/pix-discount';
 
 const SETTINGS_ID = 'default';
 
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
         });
 
         return NextResponse.json({
+            pixDiscountEnabled: isPixDiscountEnabled(),
             enabled: settings.enabled,
             eligible: evaluation.eligible,
             reasons: evaluation.reasons,

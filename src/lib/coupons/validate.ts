@@ -160,6 +160,7 @@ export async function validateCoupon(input: CouponValidationInput): Promise<Coup
         couponId: coupon.id,
         couponType,
         couponValue,
+        stackable: Boolean((coupon as { stackable?: boolean | null }).stackable),
         discountAmount: discount.amount,
         subtotal,
         total: discount.total,

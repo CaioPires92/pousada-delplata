@@ -3,14 +3,21 @@ import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
+import { hasRoomForBooking } from '@/lib/availability/room-check';
+import { getRoomHoldEnd } from '@/lib/booking-payment-window';
+import { PAYMENT_UNDER_REVIEW_STATUSES } from '@/lib/mercadopago/payment-under-review';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
+import {
+    mapMercadoPagoPaymentStatus,
+    validateApprovedPaymentAmount,
+} from '@/lib/mercadopago/payment-context';
 
 type MercadoPagoWebhookBody = {
     type?: string;
     data?: { id?: string | number };
 };
 
-function validateSignature(params: {
+export function validateMercadoPagoWebhookSignature(params: {
     signature: string | null;
     requestId: string | null;
     webhookSecret: string | undefined;
@@ -34,8 +41,20 @@ function validateSignature(params: {
 
     const manifest = `id:${paymentId};request-id:${requestId};ts:${ts};`;
     const hmac = crypto.createHmac('sha256', webhookSecret).update(manifest).digest('hex');
-    if (hmac !== hash) return { ok: false as const, reason: 'Invalid signature' };
+    const expected = Buffer.from(hmac, 'hex');
+    const received = Buffer.from(hash, 'hex');
+    if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
+        return { ok: false as const, reason: 'Invalid signature' };
+    }
     return { ok: true as const };
+}
+
+export function getMercadoPagoWebhookSignatureDataId(requestUrl: string) {
+    try {
+        return String(new URL(requestUrl).searchParams.get('data.id') || '').trim().toLowerCase();
+    } catch {
+        return '';
+    }
 }
 
 function normalizeInstallments(value: unknown) {
@@ -76,18 +95,61 @@ function normalizePaymentMethod(params: {
     return paymentMethodId ? paymentMethodId.toUpperCase() : null;
 }
 
-function mapPaymentStatus(mpStatus: string | null | undefined) {
-    const s = (mpStatus || '').toLowerCase();
-    if (s === 'approved') {
-        return { bookingStatus: 'CONFIRMED', paymentStatus: 'APPROVED' } as const;
+async function recordPaymentAttempt(params: {
+    bookingId: string;
+    paymentId: string;
+    paymentData: any;
+    method: string | null;
+    cardBrand: string | null;
+    installments: number | null;
+}) {
+    const amount = Number(params.paymentData?.transaction_amount);
+    try {
+        await prisma.paymentAttempt.upsert({
+            where: { providerPaymentId: params.paymentId },
+            update: {
+                status: String(params.paymentData?.status || 'unknown').toUpperCase(),
+                statusDetail: String(params.paymentData?.status_detail || '').trim() || null,
+                method: params.method,
+                cardBrand: params.cardBrand,
+                installments: params.installments,
+            },
+            create: {
+                bookingId: params.bookingId,
+                provider: 'MERCADOPAGO',
+                providerPaymentId: params.paymentId,
+                amount: Number.isFinite(amount) ? amount : null,
+                currency: String(params.paymentData?.currency_id || '').trim().toUpperCase() || null,
+                method: params.method,
+                cardBrand: params.cardBrand,
+                installments: params.installments,
+                status: String(params.paymentData?.status || 'unknown').toUpperCase(),
+                statusDetail: String(params.paymentData?.status_detail || '').trim() || null,
+            },
+        });
+    } catch (error) {
+        // Keeps webhook reconciliation compatible until the migration is applied.
+        opsLog('warn', 'MP_PAYMENT_ATTEMPT_HISTORY_FAILED', {
+            bookingId: params.bookingId,
+            bookingIdShort: params.bookingId.slice(0, 8),
+            paymentId: params.paymentId,
+            message: error instanceof Error ? error.message : String(error),
+        });
     }
-    if (s === 'rejected' || s === 'cancelled') {
-        return { bookingStatus: 'CANCELLED', paymentStatus: 'REJECTED' } as const;
+}
+
+// Status previously recorded for this exact MP payment id; null when unknown or when
+// the attempt history table is unavailable. Used only to avoid repeating alerts.
+async function getPreviousAttemptStatus(paymentId: string) {
+    try {
+        const attempt = await prisma.paymentAttempt.findUnique({
+            where: { providerPaymentId: paymentId },
+            select: { status: true },
+        });
+        return attempt?.status ? String(attempt.status).toUpperCase() : null;
+    } catch {
+        return null;
     }
-    if (s === 'refunded' || s === 'charged_back') {
-        return { bookingStatus: 'CANCELLED', paymentStatus: 'REFUNDED' } as const;
-    }
-    return { bookingStatus: 'PENDING', paymentStatus: 'PENDING' } as const;
 }
 
 function normalizeFinancialSnapshot(params: {
@@ -153,16 +215,30 @@ export async function handleMercadoPagoWebhook(request: Request) {
         const paymentId = String(paymentIdRaw);
         ctxPaymentId = paymentId;
 
+        const signaturePaymentId = getMercadoPagoWebhookSignatureDataId(request.url);
+        if (!signaturePaymentId || signaturePaymentId !== paymentId.toLowerCase()) {
+            opsLog('warn', 'MP_WEBHOOK_INVALID', {
+                reason: signaturePaymentId ? 'PAYMENT_ID_MISMATCH' : 'MISSING_SIGNED_PAYMENT_ID',
+                paymentId,
+            });
+            return NextResponse.json({ error: 'Identificador assinado inválido' }, { status: 400 });
+        }
+
         const signature = request.headers.get('x-signature');
         const requestId = request.headers.get('x-request-id');
-        const sigResult = validateSignature({
+        if (process.env.NODE_ENV === 'production' && !process.env.MP_WEBHOOK_SECRET) {
+            opsLog('error', 'MP_WEBHOOK_CONFIG_ERROR', { reason: 'MISSING_MP_WEBHOOK_SECRET', paymentId });
+            return NextResponse.json({ error: 'Webhook não configurado' }, { status: 500 });
+        }
+        const sigResult = validateMercadoPagoWebhookSignature({
             signature,
             requestId,
             webhookSecret: process.env.MP_WEBHOOK_SECRET,
-            paymentId,
+            paymentId: signaturePaymentId,
         });
         if (!sigResult.ok) {
             opsLog('warn', 'MP_WEBHOOK_INVALID', { reason: 'INVALID_SIGNATURE', paymentId });
+            Sentry.captureMessage('Mercado Pago webhook signature validation failed', { level: 'warning' });
             return NextResponse.json({ error: 'Assinatura inválida' }, { status: 401 });
         }
 
@@ -177,6 +253,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
         });
         if (!paymentResponse.ok) {
             opsLog('error', 'MP_WEBHOOK_MP_FETCH_FAILED', { paymentId, status: paymentResponse.status });
+            Sentry.captureMessage('Mercado Pago payment lookup failed', { level: 'error' });
             return NextResponse.json(
                 { error: 'Falha ao buscar pagamento', status: paymentResponse.status },
                 { status: 502 }
@@ -185,6 +262,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
         const paymentData = await paymentResponse.json();
         const mpStatus = paymentData?.status as string | undefined;
+        const paymentStatusDetail = String(paymentData?.status_detail || '').trim().toLowerCase();
         const paymentInstallments = normalizeInstallments(paymentData?.installments);
         const paymentCardBrand = normalizeCardBrand({
             paymentMethodId: paymentData?.payment_method_id,
@@ -203,8 +281,10 @@ export async function handleMercadoPagoWebhook(request: Request) {
             return NextResponse.json({ error: 'Referência de reserva ausente' }, { status: 400 });
         }
 
-        const mapped = mapPaymentStatus(mpStatus);
+        const mapped = mapMercadoPagoPaymentStatus(mpStatus);
         const normalizedMpStatus = String(mpStatus || '').toLowerCase();
+        const previousAttemptStatus = await getPreviousAttemptStatus(paymentId);
+        const isRedeliveryOfSameStatus = previousAttemptStatus === normalizedMpStatus.toUpperCase();
 
         const result = await prisma.$transaction(async (tx) => {
             const booking = await tx.booking.findUnique({
@@ -223,6 +303,47 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 },
             });
             if (!booking) return { kind: 'not_found' as const };
+
+            // Once a payment is approved for this booking, it is the primary payment. Events
+            // from any other MP payment (duplicates, old preferences) must never change the
+            // booking or overwrite the primary payment id.
+            const primaryPaymentId = booking.payment?.status === 'APPROVED'
+                ? booking.payment.providerId
+                : null;
+            if (primaryPaymentId && primaryPaymentId !== paymentId) {
+                return {
+                    kind: 'secondary_payment' as const,
+                    booking,
+                    primaryPaymentId,
+                    bookingStatus: booking.status,
+                    paymentStatus: booking.payment!.status,
+                };
+            }
+            const samePaymentAlreadyApproved =
+                booking.payment?.status === 'APPROVED' && booking.payment.providerId === paymentId;
+
+            const paymentValidation = validateApprovedPaymentAmount({
+                status: mpStatus,
+                transactionAmount: paymentData?.transaction_amount,
+                currencyId: paymentData?.currency_id,
+                expectedAmount: booking.payment?.amount ?? booking.totalPrice,
+            });
+            if (!paymentValidation.ok) {
+                await tx.booking.updateMany({
+                    where: { id: bookingId, status: 'PENDING' },
+                    data: {
+                        funnelStage: 'PAYMENT_VALIDATION_FAILED',
+                        funnelUpdatedAt: new Date(),
+                        lastErrorMessage: paymentValidation.reason,
+                    },
+                });
+                return {
+                    kind: 'invalid_payment' as const,
+                    booking,
+                    reason: paymentValidation.reason,
+                    expectedAmount: Number(booking.payment?.amount ?? booking.totalPrice),
+                };
+            }
 
             const currentBookingStatus = booking.status;
             const currentPaymentStatus = booking.payment?.status;
@@ -243,7 +364,39 @@ export async function handleMercadoPagoWebhook(request: Request) {
             let purchaseEventQueued = false;
             let bookingConfirmedNow = false;
 
-            if (mapped.bookingStatus === 'CONFIRMED') {
+            // Depois do bloqueio do quarto (prazo do link + folga) o quarto já não estava reservado
+            // para este hóspede. Só confirma se ainda houver quarto livre; senão NÃO confirma
+            // (evita overbooking): a reserva expira e a equipe é avisada para realocar ou estornar.
+            // Se o pagamento estava em análise, o quarto ficou bloqueado e a checagem não é necessária.
+            let paidWithoutRoom = false;
+            if (
+                mapped.bookingStatus === 'CONFIRMED'
+                && currentBookingStatus === 'PENDING'
+                && getRoomHoldEnd(booking).getTime() < Date.now()
+                && !PAYMENT_UNDER_REVIEW_STATUSES.includes(String(previousAttemptStatus || ''))
+                && !(await hasRoomForBooking(booking, tx))
+            ) {
+                const update = await tx.booking.updateMany({
+                    where: { id: bookingId, status: 'PENDING' },
+                    data: {
+                        status: 'EXPIRED',
+                        funnelStage: 'PAID_WITHOUT_AVAILABILITY',
+                        funnelUpdatedAt: new Date(),
+                        lastErrorMessage: 'paid_after_deadline_no_availability',
+                    },
+                });
+                if (update.count === 1) {
+                    paidWithoutRoom = true;
+                    bookingStatus = 'EXPIRED';
+                    const release = await tx.couponRedemption.updateMany({
+                        where: { bookingId, status: 'RESERVED' },
+                        data: { status: 'RELEASED', releasedAt: new Date() },
+                    });
+                    couponReleased = release.count > 0;
+                }
+            }
+
+            if (mapped.bookingStatus === 'CONFIRMED' && !paidWithoutRoom) {
                 if (currentBookingStatus === 'PENDING') {
                     const update = await tx.booking.updateMany({
                         where: { id: bookingId, status: 'PENDING' },
@@ -266,7 +419,10 @@ export async function handleMercadoPagoWebhook(request: Request) {
             }
 
             if (mapped.bookingStatus === 'CANCELLED') {
-                if (currentBookingStatus === 'PENDING') {
+                // A cancelled MP payment (e.g. an expired Pix) does not cancel a pending booking:
+                // the guest may still pay through another attempt, and stale pending bookings
+                // are expired by expireStalePendingBookings.
+                if (currentBookingStatus === 'PENDING' && normalizedMpStatus !== 'cancelled') {
                     const update = await tx.booking.updateMany({
                         where: { id: bookingId, status: 'PENDING' },
                         data: {
@@ -342,9 +498,9 @@ export async function handleMercadoPagoWebhook(request: Request) {
                                 installments: paymentInstallments ?? booking.payment?.installments ?? undefined,
                             },
                         });
-                    } else if (booking.payment.providerId !== paymentId) {
+                    } else if (!booking.payment.providerId) {
                         await tx.payment.updateMany({
-                            where: { id: booking.payment.id },
+                            where: { id: booking.payment.id, providerId: null },
                             data: {
                                 providerId: paymentId,
                                 method: paymentMethod || booking.payment?.method || undefined,
@@ -385,7 +541,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                         data: {
                             funnelStage: 'PAYMENT_REJECTED',
                             funnelUpdatedAt: new Date(),
-                            lastErrorMessage: normalizedMpStatus || 'rejected',
+                            lastErrorMessage: paymentStatusDetail || normalizedMpStatus || 'rejected',
                         },
                     });
                 } else if (mapped.paymentStatus === 'REFUNDED') {
@@ -463,7 +619,9 @@ export async function handleMercadoPagoWebhook(request: Request) {
                                 ? 'PAYMENT_REJECTED'
                                 : 'PAYMENT_PENDING',
                         funnelUpdatedAt: new Date(),
-                        lastErrorMessage: initialStatus === 'REJECTED' ? (normalizedMpStatus || 'rejected') : null,
+                        lastErrorMessage: initialStatus === 'REJECTED'
+                            ? (paymentStatusDetail || normalizedMpStatus || 'rejected')
+                            : null,
                     },
                 });
             }
@@ -529,6 +687,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 financialSnapshotUpdated,
                 purchaseEventQueued,
                 bookingConfirmedNow,
+                samePaymentAlreadyApproved,
+                paidWithoutRoom,
             };
         });
 
@@ -538,7 +698,142 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 bookingIdShort: bookingId.slice(0, 8),
                 paymentId,
             });
+            Sentry.captureMessage('Mercado Pago payment references an unknown booking', { level: 'error' });
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
+        }
+        await recordPaymentAttempt({
+            bookingId,
+            paymentId,
+            paymentData,
+            method: paymentMethod,
+            cardBrand: paymentCardBrand,
+            installments: paymentInstallments,
+        });
+        if (result.kind === 'invalid_payment') {
+            opsLog('error', 'MP_WEBHOOK_PAYMENT_VALIDATION_FAILED', {
+                bookingId,
+                bookingIdShort: bookingId.slice(0, 8),
+                paymentId,
+                reason: result.reason,
+                expectedAmount: result.expectedAmount,
+                transactionAmount: paymentData?.transaction_amount,
+                currencyId: paymentData?.currency_id,
+            });
+            Sentry.captureMessage('Mercado Pago approved payment failed amount validation', { level: 'error' });
+            const { sendDifficultyAlertEmail } = await import('@/lib/email');
+            await sendDifficultyAlertEmail({
+                guestName: result.booking.guest.name,
+                guestEmail: result.booking.guest.email,
+                guestPhone: result.booking.guest.phone,
+                bookingId: result.booking.id,
+                roomName: result.booking.roomType.name,
+                totalPrice: Number(result.booking.totalPrice),
+                step: 'Validação do pagamento aprovado',
+                reason: `Divergência entre o pagamento recebido e o valor esperado (${result.reason}).`,
+                paymentProviderId: paymentId,
+            });
+            return NextResponse.json({ ok: true, status: 'ignored', reason: result.reason });
+        }
+
+        if (result.kind === 'secondary_payment') {
+            const isDuplicateApproval = normalizedMpStatus === 'approved';
+            const isDuplicateChargeback = normalizedMpStatus === 'charged_back';
+            const shouldAlert = (isDuplicateApproval || isDuplicateChargeback) && !isRedeliveryOfSameStatus;
+
+            opsLog(isDuplicateApproval ? 'error' : 'warn', isDuplicateApproval
+                ? 'MP_WEBHOOK_DUPLICATE_APPROVED_PAYMENT'
+                : 'MP_WEBHOOK_SECONDARY_PAYMENT_EVENT', {
+                bookingIdShort: bookingId.slice(0, 8),
+                paymentId,
+                primaryPaymentId: result.primaryPaymentId,
+                mpStatus,
+                paymentStatusDetail,
+                alerted: shouldAlert,
+            });
+
+            if (shouldAlert) {
+                Sentry.captureMessage(isDuplicateApproval
+                    ? 'Mercado Pago duplicate approved payment for a paid booking'
+                    : 'Mercado Pago chargeback on a secondary payment', { level: 'error' });
+                const { sendDifficultyAlertEmail } = await import('@/lib/email');
+                await sendDifficultyAlertEmail({
+                    guestName: result.booking.guest.name,
+                    guestEmail: result.booking.guest.email,
+                    guestPhone: result.booking.guest.phone,
+                    bookingId: result.booking.id,
+                    roomName: result.booking.roomType.name,
+                    totalPrice: Number(result.booking.totalPrice),
+                    step: isDuplicateApproval ? 'Pagamento duplicado' : 'Contestação em pagamento duplicado',
+                    reason: isDuplicateApproval
+                        ? `Um segundo pagamento aprovado (${paymentId}) chegou para uma reserva já paga pelo pagamento ${result.primaryPaymentId}. A reserva não foi alterada; avalie o estorno do pagamento duplicado.`
+                        : `O pagamento ${paymentId}, que não é o pagamento principal (${result.primaryPaymentId}), recebeu uma contestação. A reserva não foi alterada.`,
+                    paymentStatusDetail,
+                    paymentProviderId: paymentId,
+                });
+            }
+
+            return NextResponse.json({
+                ok: true,
+                status: isDuplicateApproval ? 'duplicate_payment' : 'secondary_payment_ignored',
+                bookingId,
+                mpStatus,
+                primaryPaymentId: result.primaryPaymentId,
+                bookingStatus: result.bookingStatus,
+                paymentStatus: result.paymentStatus,
+            });
+        }
+
+        if (
+            normalizedMpStatus === 'approved'
+            && !['CONFIRMED', 'PAID'].includes(result.bookingStatus)
+            && !result.samePaymentAlreadyApproved
+            && !isRedeliveryOfSameStatus
+        ) {
+            Sentry.captureMessage('Mercado Pago payment approved without booking confirmation', { level: 'error' });
+            const { sendDifficultyAlertEmail } = await import('@/lib/email');
+            await sendDifficultyAlertEmail({
+                guestName: result.booking.guest.name,
+                guestEmail: result.booking.guest.email,
+                guestPhone: result.booking.guest.phone,
+                bookingId: result.booking.id,
+                roomName: result.booking.roomType.name,
+                totalPrice: Number(result.booking.totalPrice),
+                step: result.paidWithoutRoom
+                    ? 'Pagamento recebido sem quarto disponível'
+                    : 'Pagamento aprovado sem confirmação da reserva',
+                reason: result.paidWithoutRoom
+                    ? 'O pagamento chegou depois do prazo da reserva e o quarto já não está disponível. A reserva NÃO foi confirmada: fale com o hóspede para realocar ou estornar.'
+                    : `O Mercado Pago aprovou o pagamento, mas a reserva permaneceu com status ${result.bookingStatus}.`,
+                paymentProviderId: paymentId,
+            });
+        }
+
+        if (normalizedMpStatus === 'rejected') {
+            try {
+                const recentRejections = await prisma.paymentAttempt.count({
+                    where: { bookingId, status: 'REJECTED', createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
+                });
+                if (recentRejections === 3) {
+                    Sentry.captureMessage('Repeated Mercado Pago payment rejections', { level: 'warning' });
+                    const { sendDifficultyAlertEmail } = await import('@/lib/email');
+                    await sendDifficultyAlertEmail({
+                        guestName: result.booking.guest.name,
+                        guestEmail: result.booking.guest.email,
+                        guestPhone: result.booking.guest.phone,
+                        bookingId: result.booking.id,
+                        roomName: result.booking.roomType.name,
+                        totalPrice: Number(result.booking.totalPrice),
+                        step: 'Sequência de recusas no pagamento',
+                        reason: 'Três pagamentos foram recusados para esta reserva na última hora.',
+                        paymentStatusDetail,
+                        paymentProviderId: paymentId,
+                    });
+                }
+            } catch (alertError) {
+                opsLog('warn', 'MP_REJECTION_SEQUENCE_ALERT_FAILED', {
+                    bookingId, message: alertError instanceof Error ? alertError.message : String(alertError),
+                });
+            }
         }
         let emailSent = false;
         let emailErrorMessage: string | undefined;
@@ -549,7 +844,10 @@ export async function handleMercadoPagoWebhook(request: Request) {
         let gaPurchaseError: string | undefined;
         const { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail } = await import('@/lib/email');
 
-        if (result.emailQueued && mpStatus === 'approved') {
+        // Pagamento aprovado para reserva expirada/cancelada não confirma a estadia: o hóspede
+        // não recebe "reserva confirmada"; a equipe recebe o alerta acima e decide (reativar ou estornar).
+        const bookingIsConfirmed = ['CONFIRMED', 'PAID'].includes(result.bookingStatus);
+        if (result.emailQueued && mpStatus === 'approved' && bookingIsConfirmed) {
             const emailResult = await sendBookingConfirmationEmail({
                 guestName: result.booking.guest.name,
                 guestEmail: result.booking.guest.email,
@@ -569,6 +867,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
                 adults: result.booking.adults,
                 children: result.booking.children,
                 childrenAges: result.booking.childrenAges,
+                pets: result.booking.pets,
                 bookingStatus: result.bookingStatus,
                 paymentStatus: result.paymentStatus,
                 bookingCreatedAt: result.booking.createdAt,
@@ -600,7 +899,8 @@ export async function handleMercadoPagoWebhook(request: Request) {
 
         const shouldSendAdminAlert =
             (normalizedMpStatus === 'approved' && result.emailQueued) ||
-            ['rejected', 'refunded', 'cancelled', 'charged_back'].includes(normalizedMpStatus);
+            (['rejected', 'refunded', 'cancelled', 'charged_back'].includes(normalizedMpStatus)
+                && !isRedeliveryOfSameStatus);
 
         if (shouldSendAdminAlert) {
             const adminAlertResult = await sendBookingCreatedAlertEmail({
@@ -659,6 +959,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
             bookingIdShort: bookingId.slice(0, 8),
             paymentId,
             mpStatus,
+            paymentStatusDetail,
             bookingStatus: result.bookingStatus,
             paymentStatus: result.paymentStatus,
             emailQueued: result.emailQueued,

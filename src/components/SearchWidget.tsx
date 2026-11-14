@@ -2,19 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Calendar as CalendarIcon, Users, Search, ChevronDown, Loader2, Plus, Minus } from 'lucide-react';
+import { Calendar as CalendarIcon, Users, Search, ChevronDown, Loader2, PawPrint } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
-import { Calendar, type CalendarProps } from '@/components/ui/calendar';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { DateField } from '@/components/booking-search/DateField';
+import { GuestsPanel, type GuestsValue } from '@/components/booking-search/GuestsPanel';
+import { buildReservarParams, toDayKey, validateBookingSearch } from '@/lib/booking-search';
+import { type CalendarProps } from '@/components/ui/calendar';
 import {
     Popover,
     PopoverContent,
@@ -23,12 +19,23 @@ import {
 import { cn } from '@/lib/utils';
 import { trackBookingError, trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 import { appendCampaignAttribution } from '@/lib/campaign-attribution';
+import { MAX_BOOKING_GUESTS } from '@/lib/booking-capacity';
 
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
 const AVAILABILITY_TIMEOUT_MS = 12_000;
 
 function deferStateUpdate(callback: () => void) {
     queueMicrotask(callback);
+}
+
+/**
+ * Já em /reservar, o roteador do Next descarta `router.push/replace` que só mudam a query
+ * (a URL volta ao valor anterior e a página não recarrega). O history nativo é integrado ao
+ * `useSearchParams` do Next, então a página reage normalmente.
+ */
+function updateReservarUrl(url: string, mode: 'push' | 'replace') {
+    if (mode === 'push') window.history.pushState(null, '', url);
+    else window.history.replaceState(null, '', url);
 }
 
 type SearchFieldErrors = {
@@ -77,6 +84,7 @@ export default function SearchWidget({
     const [adults, setAdults] = useState('2');
     const [children, setChildren] = useState('0');
     const [childrenAges, setChildrenAges] = useState<(number | null)[]>([]);
+    const [pets, setPets] = useState(0);
     const [loading, setLoading] = useState(false);
     const [searchMessage, setSearchMessage] = useState('');
     const [searchCanEscalate, setSearchCanEscalate] = useState(false);
@@ -87,7 +95,7 @@ export default function SearchWidget({
     const [isHeroExpanded, setIsHeroExpanded] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<SearchFieldErrors>({});
 
-    const maxGuests = 4;
+    const maxGuests = MAX_BOOKING_GUESTS;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
     const totalGuests = numAdults + numChildren;
@@ -99,7 +107,6 @@ export default function SearchWidget({
     const [isCheckInOpen, setIsCheckInOpen] = useState(false);
     const [isCheckOutOpen, setIsCheckOutOpen] = useState(false);
     const [isGuestsOpen, setIsGuestsOpen] = useState(false);
-    const [checkOutViewMonth, setCheckOutViewMonth] = useState<Date>(checkOut || tomorrow);
 
     // Fechar popovers ao mudar de rota (previne estado travado após Back navigation)
     useEffect(() => {
@@ -134,14 +141,7 @@ export default function SearchWidget({
         if (date) {
             const nextCheckOut = addDays(date, 1);
             setCheckOut(nextCheckOut);
-            setCheckOutViewMonth(nextCheckOut);
-        }
-    };
-
-    const handleCheckOutOpenChange = (open: boolean) => {
-        setIsCheckOutOpen(open);
-        if (open) {
-            setCheckOutViewMonth(checkIn || checkOut || today);
+            refreshResults({ checkIn: date, checkOut: nextCheckOut });
         }
     };
 
@@ -151,6 +151,7 @@ export default function SearchWidget({
             setFieldErrors((prev) => ({ ...prev, dates: undefined }));
         }
         setIsCheckOutOpen(false);
+        if (date) refreshResults({ checkOut: date });
     };
 
     const handleWhatsAppClick = () => {
@@ -159,12 +160,56 @@ export default function SearchWidget({
 
         const message = `Olá! Gostaria de cotar hospedagem para *${adults} adultos* e *${children} crianças*.\n` +
             `Datas: ${checkInStr} a ${checkOutStr}.\n` +
-            `(Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.)`;
+            `(Nossas acomodações comportam até ${MAX_BOOKING_GUESTS} pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.)`;
 
-        const whatsappPhone = '5519999654866';
+        const whatsappPhone = String(process.env.NEXT_PUBLIC_HOTEL_WHATSAPP || '5519999654866').replace(/\D/g, '');
         const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;
         trackClickWhatsApp('search_widget_capacidade');
         window.open(url, '_blank');
+    };
+
+    const refreshResults = (overrides: {
+        checkIn?: Date;
+        checkOut?: Date;
+        adults?: number;
+        children?: number;
+        childrenAges?: Array<number | null>;
+        pets?: number;
+    }) => {
+        const nextCheckIn = overrides.checkIn ?? checkIn;
+        const nextCheckOut = overrides.checkOut ?? checkOut;
+        const nextAdults = overrides.adults ?? numAdults;
+        const nextChildren = overrides.children ?? numChildren;
+        const nextChildrenAges = overrides.childrenAges ?? childrenAges;
+        const nextPets = overrides.pets ?? pets;
+        if (!prefillFromQuery || pathname !== '/reservar' || !nextCheckIn || !nextCheckOut) return;
+
+        const params = buildReservarParams(
+            {
+                checkIn: toDayKey(nextCheckIn),
+                checkOut: toDayKey(nextCheckOut),
+                adults: nextAdults,
+                children: nextChildren,
+                childrenAges: nextChildrenAges,
+                pets: nextPets,
+            },
+            { roomTypeId: preferredRoomTypeId, promo: couponCode, promoLock: promoLocked },
+        );
+        appendCampaignAttribution(params, searchParams);
+
+        updateReservarUrl(`/reservar?${params.toString()}`, 'replace');
+    };
+
+    const handleGuestsChange = (next: GuestsValue) => {
+        setFieldErrors((prev) => ({ ...prev, guests: undefined, childrenAges: undefined }));
+        setAdults(String(next.adults));
+        setChildren(String(next.children));
+        setChildrenAges(next.childrenAges);
+        setPets(next.pets);
+        if (showCapacityFallback && next.adults + next.children <= maxGuests) {
+            setShowCapacityFallback(false);
+        }
+        refreshResults({ adults: next.adults, children: next.children, childrenAges: next.childrenAges, pets: next.pets });
     };
 
     const handleAdultsChange = (value: string) => {
@@ -186,6 +231,11 @@ export default function SearchWidget({
         if (showCapacityFallback && normalizedAdults + nextChildren <= maxGuests) {
             setShowCapacityFallback(false);
         }
+        refreshResults({
+            adults: normalizedAdults,
+            children: nextChildren,
+            childrenAges: childrenAges.slice(0, nextChildren),
+        });
     };
 
     const handleChildrenChange = (value: string) => {
@@ -194,14 +244,20 @@ export default function SearchWidget({
         const nextChildren = Number.isFinite(parsed) ? parsed : 0;
         const normalizedChildren = Math.min(Math.max(nextChildren, 0), maxChildren);
         setChildren(String(normalizedChildren));
-        setChildrenAges((prev) => {
-            const next = prev.slice(0, normalizedChildren);
-            while (next.length < normalizedChildren) next.push(0);
-            return next;
-        });
+        const nextAges = childrenAges.slice(0, normalizedChildren);
+        while (nextAges.length < normalizedChildren) nextAges.push(0);
+        setChildrenAges(nextAges);
         if (showCapacityFallback && numAdults + normalizedChildren <= maxGuests) {
             setShowCapacityFallback(false);
         }
+        refreshResults({ children: normalizedChildren, childrenAges: nextAges });
+    };
+
+    const handleChildAgeChange = (index: number, nextAge: number | null) => {
+        setFieldErrors((prev) => ({ ...prev, childrenAges: undefined }));
+        const nextAges = childrenAges.map((age, ageIndex) => (ageIndex === index ? nextAge : age));
+        setChildrenAges(nextAges);
+        refreshResults({ childrenAges: nextAges });
     };
 
     const handleSearch = async (e: React.FormEvent) => {
@@ -218,68 +274,25 @@ export default function SearchWidget({
             children,
         });
 
-        if (numAdults < 1) {
-            setFieldErrors({ guests: 'Selecione ao menos 1 adulto para continuar.' });
-            return;
-        }
-
-        if (numChildren > 0) {
-            if (childrenAges.length !== numChildren || childrenAges.some((age) => age === null)) {
-                setFieldErrors({ childrenAges: 'Informe a idade de todas as crianças para calcular a tarifa corretamente.' });
-                return;
-            }
-            if (childrenAges.some((age) => typeof age !== 'number' || !Number.isFinite(age) || age < 0 || age > 17)) {
-                setFieldErrors({ childrenAges: 'Revise as idades informadas. Aceitamos crianças de 0 a 17 anos.' });
-                return;
-            }
-        }
-
-        const normalizedChildrenAges = numChildren > 0
-            ? childrenAges.map((age) => Number.parseInt(String(age ?? ''), 10)).filter((age) => Number.isFinite(age))
-            : [];
-        const adultsFromChildren = normalizedChildrenAges.filter((age) => age >= 12).length;
-        const childrenUnder12 = normalizedChildrenAges.filter((age) => age < 12).length;
-        const effectiveAdults = numAdults + adultsFromChildren;
-        const effectiveTotalGuests = effectiveAdults + childrenUnder12;
-
-        if (effectiveTotalGuests > maxGuests) {
-            setFieldErrors({ guests: 'Cada acomodação recebe até 4 hóspedes. Se precisar de mais espaço, fale com a pousada para montar a melhor combinação.' });
-            setShowCapacityFallback(true);
-            return;
-        }
-
-        if (!checkIn || !checkOut) {
-            setFieldErrors({ dates: 'Selecione check-in e check-out para ver a disponibilidade.' });
-            return;
-        }
-
-        if (isSameDay(checkIn, checkOut) || isBefore(checkOut, checkIn)) {
-            setFieldErrors({ dates: 'A saída deve ser pelo menos 1 dia após o check-in.' });
+        const searchValues = {
+            checkIn: checkIn ? toDayKey(checkIn) : '',
+            checkOut: checkOut ? toDayKey(checkOut) : '',
+            adults: numAdults,
+            children: numChildren,
+            childrenAges,
+            pets,
+        };
+        const validation = validateBookingSearch(searchValues);
+        if (!validation.ok) {
+            setFieldErrors({ [validation.field]: validation.message });
+            if (validation.code === 'capacity') setShowCapacityFallback(true);
             return;
         }
 
         setShowCapacityFallback(false);
         setLoading(true);
 
-        const params = new URLSearchParams({
-            checkIn: format(checkIn, 'yyyy-MM-dd'),
-            checkOut: format(checkOut, 'yyyy-MM-dd'),
-            adults,
-            children
-        });
-        if (preferredRoomTypeId) {
-            params.set('roomTypeId', preferredRoomTypeId);
-        }
-        if (normalizedChildrenAges.length > 0) {
-            params.set('childrenAges', normalizedChildrenAges.map((a) => String(a)).join(','));
-        }
-        const normalizedCoupon = couponCode.trim().toUpperCase();
-        if (normalizedCoupon) {
-            params.set('promo', normalizedCoupon);
-            if (promoLocked) {
-                params.set('promoLock', '1');
-            }
-        }
+        const params = buildReservarParams(searchValues, { roomTypeId: preferredRoomTypeId, promo: couponCode, promoLock: promoLocked });
         appendCampaignAttribution(params, searchParams);
 
         try {
@@ -319,6 +332,7 @@ export default function SearchWidget({
                 return;
             }
 
+            const normalizedCoupon = couponCode.trim().toUpperCase();
             if (normalizedCoupon) {
                 if (responsePromoApplied) {
                     setCouponFeedback(`Cupom ${normalizedCoupon} válido e aplicado.`);
@@ -329,7 +343,9 @@ export default function SearchWidget({
                 }
             }
 
-            router.push(`/reservar?${params.toString()}`);
+            const resultsUrl = `/reservar?${params.toString()}`;
+            if (pathname === '/reservar') updateReservarUrl(resultsUrl, 'push');
+            else router.push(resultsUrl);
         } catch (error) {
             const timedOut = error instanceof DOMException && error.name === 'AbortError';
             const message = timedOut
@@ -366,8 +382,6 @@ export default function SearchWidget({
         day_disabled: 'text-[#c5b6a8] opacity-45',
         day_range_middle: 'aria-selected:bg-white/35 aria-selected:text-[#3f3428]',
     } satisfies CalendarProps['classNames'] : undefined;
-    const heroSelectContentClass = 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-2 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
-    const heroSelectItemClass = 'rounded-none py-3 pl-10 pr-4 font-accent text-sm font-medium uppercase tracking-[0.14em] text-[color:var(--brand-forest)] focus:bg-[color:var(--brand-white)] focus:text-[color:var(--brand-forest)]';
     const heroBarClass = isHeroHorizontal
         ? 'w-full overflow-hidden bg-white shadow-[0_18px_44px_rgba(12,18,10,0.18)]'
         : 'w-full';
@@ -388,7 +402,7 @@ export default function SearchWidget({
         ? 'flex h-auto min-h-7 w-full items-center rounded-none border-0 bg-transparent p-0 font-sans text-[1rem] font-semibold text-[color:var(--brand-forest)] shadow-none ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:text-[color:var(--brand-forest)] focus:ring-0 focus:ring-offset-0'
         : 'flex h-12 w-full items-center rounded-none border border-white/46 bg-white/90 px-4 font-sans text-[0.95rem] font-semibold text-[color:var(--brand-forest)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ring-0 ring-offset-0 placeholder:text-[color:var(--brand-forest)]/55 transition-colors duration-200 hover:border-[color:var(--brand-gold)] hover:bg-white focus:ring-0 focus:ring-offset-0';
     const heroButtonColumnClass = isHeroHorizontal ? 'flex h-full items-stretch bg-white p-3 pt-1 sm:pt-3' : 'flex h-full items-end';
-    const heroGuestsPanelClass = 'w-[340px] rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-[color:var(--brand-forest)] shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
+    const heroGuestsPanelClass = 'max-h-[80vh] w-[340px] overflow-y-auto rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-brand-brown-dark shadow-[0_16px_34px_rgba(36,28,22,0.12)]';
 
     const labelClass = isInlinePreset
         ? 'mb-2 flex items-center gap-2 text-sm font-medium text-foreground'
@@ -408,7 +422,7 @@ export default function SearchWidget({
             ? 'h-[52px] w-full appearance-none rounded-none border-0 bg-transparent px-0 font-sans text-[1rem] font-semibold text-[#2f261f] transition-colors duration-300 cursor-pointer'
             : 'w-full px-4 rounded-none border-2 border-muted-foreground/20 bg-background text-foreground font-medium transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px] appearance-none';
 
-    const adultOptions = [1, 2, 3, 4];
+    const adultOptions = Array.from({ length: MAX_BOOKING_GUESTS }, (_, index) => index + 1);
     const childOptions = [0, 1, 2, 3];
     const shouldShowCapacityFallback = showCapacityFallback || isOverCapacity;
     const agesMissing = numChildren > 0 && (childrenAges.length !== numChildren || childrenAges.some((age) => age === null));
@@ -450,6 +464,7 @@ export default function SearchWidget({
         const adultsParam = searchParams.get('adults');
         const childrenParam = searchParams.get('children');
         const childrenAgesParam = searchParams.get('childrenAges');
+        const petsParam = searchParams.get('pets');
 
         const parseYmd = (value: string | null) => {
             if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
@@ -461,11 +476,11 @@ export default function SearchWidget({
         const parsedCheckOut = parseYmd(checkOutParam);
         const parsedAdults = Number.parseInt(String(adultsParam || ''), 10);
         const parsedChildren = Number.parseInt(String(childrenParam || ''), 10);
+        const parsedPets = Number.parseInt(String(petsParam || ''), 10);
         deferStateUpdate(() => {
             if (parsedCheckIn) setCheckIn(parsedCheckIn);
             if (parsedCheckOut) {
                 setCheckOut(parsedCheckOut);
-                setCheckOutViewMonth(parsedCheckOut);
             }
 
             if (Number.isFinite(parsedAdults)) {
@@ -487,6 +502,7 @@ export default function SearchWidget({
                 while (nextAges.length < normalizedChildren) nextAges.push(null);
                 setChildrenAges(nextAges);
             }
+            if (Number.isFinite(parsedPets)) setPets(Math.min(Math.max(parsedPets, 0), 10));
         });
     }, [prefillFromQuery, searchParams, maxGuests]);
 
@@ -550,9 +566,19 @@ export default function SearchWidget({
                         <CalendarIcon className="w-4 h-4" />
                         Check-in
                     </label>
-                    <Popover open={isCheckInOpen} onOpenChange={setIsCheckInOpen}>
-                    <PopoverTrigger asChild>
-                        <div data-testid="checkin-trigger" className={cn(dateInputClass, !checkIn && (isHeroPreset ? "text-primary/65" : "text-muted-foreground"))}>
+                    <DateField
+                        value={checkIn}
+                        onSelect={handleCheckInSelect}
+                        open={isCheckInOpen}
+                        onOpenChange={setIsCheckInOpen}
+                        disabled={(date) => isBefore(date, new Date()) && !isSameDay(date, new Date())}
+                        contentClassName="w-auto max-h-[80vh] max-w-[90vw] overflow-auto rounded-none border border-[color:var(--line-dark)] p-0 shadow-[0_16px_34px_rgba(36,28,22,0.12)]"
+                        contentTestId="checkin-popover"
+                        collisionPadding={12}
+                        sideOffset={8}
+                        calendarClassName={cn(isHeroPreset && 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 shadow-[0_16px_34px_rgba(36,28,22,0.12)]')}
+                        calendarClassNames={heroCalendarClassNames}
+                        trigger={<button type="button" data-testid="checkin-trigger" className={cn(dateInputClass, !checkIn && (isHeroPreset ? "text-brand-brown-dark/65" : "text-muted-foreground"))}>
                             {checkIn ? (
                                 isHeroPreset
                                     ? format(checkIn, "dd MMM yyyy", { locale: ptBR })
@@ -561,27 +587,8 @@ export default function SearchWidget({
                                 <span>Selecione uma data</span>
                             )}
                             <CalendarIcon className={cn("ml-auto h-4 w-4 opacity-50", isHeroPreset && "text-[#8f8577]")} />
-                        </div>
-                    </PopoverTrigger>
-                        <PopoverContent
-                            data-testid="checkin-popover"
-                            className="w-auto max-h-[80vh] max-w-[90vw] overflow-auto rounded-none border border-[color:var(--line-dark)] p-0 shadow-[0_16px_34px_rgba(36,28,22,0.12)]"
-                            align="start"
-                            collisionPadding={12}
-                            sideOffset={8}
-                        >
-                            <Calendar
-                                mode="single"
-                                selected={checkIn}
-                                onSelect={handleCheckInSelect}
-                                disabled={(date) => isBefore(date, new Date()) && !isSameDay(date, new Date())}
-                                initialFocus
-                                locale={ptBR}
-                                className={cn(isHeroPreset && 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 shadow-[0_16px_34px_rgba(36,28,22,0.12)]')}
-                                classNames={heroCalendarClassNames}
-                            />
-                        </PopoverContent>
-                    </Popover>
+                        </button>}
+                    />
                     {fieldErrors.dates ? (
                         <p className={inlineErrorClass}>{fieldErrors.dates}</p>
                     ) : null}
@@ -595,9 +602,24 @@ export default function SearchWidget({
                         <CalendarIcon className="w-4 h-4" />
                         Check-out
                     </label>
-                    <Popover open={isCheckOutOpen} onOpenChange={handleCheckOutOpenChange}>
-                    <PopoverTrigger asChild>
-                        <div data-testid="checkout-trigger" className={cn(dateInputClass, !checkOut && (isHeroPreset ? "text-primary/65" : "text-muted-foreground"))}>
+                    <DateField
+                        value={checkOut}
+                        openMonth={checkIn ?? checkOut}
+                        onSelect={handleCheckOutSelect}
+                        open={isCheckOutOpen}
+                        onOpenChange={setIsCheckOutOpen}
+                        disabled={(date) =>
+                            checkIn
+                                ? isBefore(date, checkIn) || isSameDay(date, checkIn)
+                                : isBefore(date, new Date())
+                        }
+                        contentClassName="w-auto max-h-[80vh] max-w-[90vw] overflow-auto rounded-none border border-[color:var(--line-dark)] p-0 shadow-[0_16px_34px_rgba(36,28,22,0.12)]"
+                        contentTestId="checkout-popover"
+                        collisionPadding={12}
+                        sideOffset={8}
+                        calendarClassName={cn(isHeroPreset && 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 shadow-[0_16px_34px_rgba(36,28,22,0.12)]')}
+                        calendarClassNames={heroCalendarClassNames}
+                        trigger={<button type="button" data-testid="checkout-trigger" className={cn(dateInputClass, !checkOut && (isHeroPreset ? "text-brand-brown-dark/65" : "text-muted-foreground"))}>
                             {checkOut ? (
                                 isHeroPreset
                                     ? format(checkOut, "dd MMM yyyy", { locale: ptBR })
@@ -606,33 +628,8 @@ export default function SearchWidget({
                                 <span>Selecione uma data</span>
                             )}
                             <CalendarIcon className={cn("ml-auto h-4 w-4 opacity-50", isHeroPreset && "text-[#8f8577]")} />
-                        </div>
-                    </PopoverTrigger>
-                        <PopoverContent
-                            data-testid="checkout-popover"
-                            className="w-auto max-h-[80vh] max-w-[90vw] overflow-auto rounded-none border border-[color:var(--line-dark)] p-0 shadow-[0_16px_34px_rgba(36,28,22,0.12)]"
-                            align="start"
-                            collisionPadding={12}
-                            sideOffset={8}
-                        >
-                            <Calendar
-                                mode="single"
-                                selected={checkOut}
-                                month={checkOutViewMonth}
-                                onMonthChange={setCheckOutViewMonth}
-                                onSelect={handleCheckOutSelect}
-                                disabled={(date) =>
-                                    checkIn
-                                        ? isBefore(date, checkIn) || isSameDay(date, checkIn)
-                                        : isBefore(date, new Date())
-                                }
-                                initialFocus
-                                locale={ptBR}
-                                className={cn(isHeroPreset && 'rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 shadow-[0_16px_34px_rgba(36,28,22,0.12)]')}
-                                classNames={heroCalendarClassNames}
-                            />
-                        </PopoverContent>
-                    </Popover>
+                        </button>}
+                    />
                     </div>
                 </div>
 
@@ -659,115 +656,13 @@ export default function SearchWidget({
                                 collisionPadding={12}
                                 sideOffset={10}
                             >
-                                <div className="space-y-4">
-                                    <div className="space-y-1">
-                                        <p className="font-accent text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-forest)]/70">
-                                            Configurar ocupação
-                                        </p>
-                                        <p className="text-sm text-[color:var(--brand-forest)]/75">
-                                            Até 4 hóspedes por quarto. Crianças de 0 a 5 anos não pagam, mas contam na ocupação.
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center justify-between rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)]/70 px-4 py-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-[color:var(--brand-forest)]">Adultos</p>
-                                            <p className="text-xs text-[color:var(--brand-forest)]/70">A partir de 12 anos</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 w-9 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--brand-white)] p-0 hover:bg-[color:var(--brand-cream)]"
-                                                onClick={() => handleAdultsChange(String(Math.max(1, numAdults - 1)))}
-                                                disabled={numAdults <= 1}
-                                            >
-                                                <Minus className="h-4 w-4" />
-                                            </Button>
-                                            <span className="inline-flex min-w-8 items-center justify-center text-base font-semibold text-[color:var(--brand-forest)]">
-                                                {adults}
-                                            </span>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 w-9 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--brand-white)] p-0 hover:bg-[color:var(--brand-cream)]"
-                                                onClick={() => handleAdultsChange(String(Math.min(maxGuests, numAdults + 1)))}
-                                                disabled={numAdults >= maxGuests}
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)]/70 px-4 py-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-[color:var(--brand-forest)]">Crianças</p>
-                                            <p className="text-xs text-[color:var(--brand-forest)]/70">Até 11 anos</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 w-9 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--brand-white)] p-0 hover:bg-[color:var(--brand-cream)]"
-                                                onClick={() => handleChildrenChange(String(Math.max(0, numChildren - 1)))}
-                                                disabled={numChildren <= 0}
-                                            >
-                                                <Minus className="h-4 w-4" />
-                                            </Button>
-                                            <span className="inline-flex min-w-8 items-center justify-center text-base font-semibold text-[color:var(--brand-forest)]">
-                                                {children}
-                                            </span>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 w-9 rounded-none border-[color:var(--brand-gold)]/60 bg-[color:var(--brand-white)] p-0 hover:bg-[color:var(--brand-cream)]"
-                                                onClick={() => handleChildrenChange(String(Math.min(maxChildren, numChildren + 1)))}
-                                                disabled={numChildren >= maxChildren}
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {numChildren > 0 ? (
-                                        <div className="space-y-2 rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)]/70 p-4">
-                                            <p className="text-sm font-semibold text-[color:var(--brand-forest)]">Idade das crianças</p>
-                                            <p className="text-xs text-[color:var(--brand-forest)]/70">
-                                                0 a 5 anos: cortesia. 6 a 11 anos: tarifa de criança. A partir de 12 anos: conta como adulto.
-                                            </p>
-                                            <div className="grid gap-2 sm:grid-cols-2">
-                                                {childrenAges.map((age, idx) => (
-                                                    <Select
-                                                        key={idx}
-                                                        value={age === null ? "" : String(age)}
-                                                        onValueChange={(value) => {
-                                                            const nextAge = value === "" ? null : Number.parseInt(value, 10);
-                                                            setFieldErrors((prev) => ({ ...prev, childrenAges: undefined }));
-                                                            setChildrenAges((prev) => prev.map((v, i) => (i === idx ? nextAge : v)));
-                                                        }}
-                                                    >
-                                                        <SelectTrigger className="h-11 rounded-none border-[color:var(--brand-gold)]/55 bg-[color:var(--brand-white)] px-4 text-left text-sm font-medium text-[color:var(--brand-forest)]">
-                                                            <SelectValue aria-label={age === null ? `Idade da criança ${idx + 1}` : `${age} anos`}>
-                                                                {age === null ? `Criança ${idx + 1}` : `${age} anos`}
-                                                            </SelectValue>
-                                                        </SelectTrigger>
-                                                        <SelectContent className={heroSelectContentClass} position="popper" sideOffset={12}>
-                                                            {Array.from({ length: 18 }, (_, ageOpt) => (
-                                                                <SelectItem key={ageOpt} value={String(ageOpt)} className={heroSelectItemClass}>
-                                                                    {ageOpt} {ageOpt === 1 ? 'ano' : 'anos'}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
+                                <GuestsPanel
+                                    value={{ adults: numAdults, children: numChildren, childrenAges, pets }}
+                                    onChange={handleGuestsChange}
+                                    tone="light"
+                                    guestsError={fieldErrors.guests}
+                                    agesError={fieldErrors.childrenAges}
+                                />
                             </PopoverContent>
                         </Popover>
                     ) : (
@@ -800,6 +695,35 @@ export default function SearchWidget({
                                 </select>
                                 <ChevronDown className={cn("pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50")} />
                             </div>
+                            <label className="mt-4 flex items-center gap-2 text-xs font-medium opacity-80">
+                                <input
+                                    type="checkbox"
+                                    aria-label="Possui pets"
+                                    checked={pets > 0}
+                                    onChange={(event) => {
+                                        const nextPets = event.target.checked ? Math.max(1, pets) : 0;
+                                        setPets(nextPets);
+                                        refreshResults({ pets: nextPets });
+                                    }}
+                                />
+                                <PawPrint className="h-4 w-4 shrink-0" /> Possui pets
+                            </label>
+                            {pets > 0 ? (
+                                <select
+                                    aria-label="Quantidade de pets"
+                                    value={pets}
+                                    onChange={(event) => {
+                                        const nextPets = Number.parseInt(event.target.value, 10);
+                                        setPets(nextPets);
+                                        refreshResults({ pets: nextPets });
+                                    }}
+                                    className={cn(selectClass, 'mt-3')}
+                                >
+                                    {Array.from({ length: 10 }, (_, index) => index + 1).map((count) => (
+                                        <option key={count} value={count}>{count}</option>
+                                    ))}
+                                </select>
+                            ) : null}
                         </>
                     )}
                     {fieldErrors.guests ? (
@@ -927,8 +851,7 @@ export default function SearchWidget({
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 const nextAge = val === "" ? null : Number.parseInt(val, 10);
-                                                setFieldErrors((prev) => ({ ...prev, childrenAges: undefined }));
-                                                setChildrenAges((prev) => prev.map((v, i) => (i === idx ? nextAge : v)));
+                                                handleChildAgeChange(idx, nextAge);
                                             }}
                                         >
                                             <option value="" disabled>Idade</option>
@@ -991,7 +914,7 @@ export default function SearchWidget({
             {shouldShowCapacityFallback ? (
                 <div className="mt-4 rounded-none border border-amber-200 bg-amber-50 p-4 text-amber-900">
                         <p className="text-sm font-medium">
-                        Nossas acomodações comportam até 4 pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
+                        Nossas acomodações comportam até {MAX_BOOKING_GUESTS} pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
                     </p>
                     <div className="mt-3">
                         <Button type="button" onClick={handleWhatsAppClick}>

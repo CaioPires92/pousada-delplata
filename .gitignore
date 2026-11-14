@@ -58,6 +58,12 @@ deploy-hostinger-lean
 
 # raw photos (optimized versions in /public/fotos)
 /assets/FOTOS/
+/downloads/
+*:Zone.Identifier
+
+# local scripts / scratch
+/create_admin.js
+/seed_new_rooms.js
 
 # local sqlite artifacts
 *.db

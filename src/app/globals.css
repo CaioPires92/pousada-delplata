@@ -11,6 +11,9 @@
   --brand-white: #ffffff;
   --brand-black: #090909;
   --brand-whatsapp: #00e676;
+  /* Aliases para componentes compartilhados com os outros motores (mesma paleta do Delplata). */
+  --brand-brown-dark: var(--brand-forest);
+  --brand-beige: var(--brand-cream);
   --ink-soft: rgba(9, 9, 9, 0.82);
   --forest-soft: rgba(40, 50, 35, 0.72);
   --gold-soft: rgba(187, 184, 99, 0.18);

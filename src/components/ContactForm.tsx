@@ -12,7 +12,8 @@ export function ContactForm() {
         email: "",
         phone: "",
         subject: "",
-        message: ""
+        message: "",
+        website: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +28,7 @@ export function ContactForm() {
             setLoading(false);
             if (res.ok) {
                 setSuccess(true);
-                setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+                setFormData({ name: "", email: "", phone: "", subject: "", message: "", website: "" });
                 setTimeout(() => setSuccess(false), 5000);
             } else {
                 alert('Falha ao enviar. Tente novamente.');
@@ -40,6 +41,11 @@ export function ContactForm() {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6 border border-primary/10 bg-white p-6 md:p-8">
+            <div className="hidden" aria-hidden="true">
+                <label htmlFor="website">Não preencha este campo</label>
+                <input id="website" type="text" tabIndex={-1} autoComplete="off" value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })} />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <label htmlFor="name" className="font-sans text-sm font-medium text-primary">Nome Completo</label>

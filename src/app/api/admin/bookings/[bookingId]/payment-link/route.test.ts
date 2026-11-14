@@ -12,6 +12,9 @@ vi.mock('@/lib/prisma', () => ({
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        paymentAttempt: {
+            findFirst: vi.fn(),
+        },
     },
 }));
 
@@ -25,6 +28,9 @@ const booking = {
     checkIn: new Date('2026-12-29T00:00:00.000Z'),
     checkOut: new Date('2027-01-02T00:00:00.000Z'),
     totalPrice: 2519,
+    adults: 2,
+    children: 0,
+    pets: 0,
     guest: {
         name: 'Edvaldo Junior Silva',
         email: 'edvaldo@example.com',
@@ -42,6 +48,72 @@ describe('POST admin booking payment link', () => {
         vi.clearAllMocks();
         process.env.MP_ACCESS_TOKEN = '  APP_USR-test  ';
         process.env.NEXT_PUBLIC_BASE_URL = '  https://pousadadelplata.com.br/  ';
+        (prisma.paymentAttempt.findFirst as any).mockResolvedValue(null);
+    });
+
+    function mockPreferenceCreated() {
+        const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+            ok: true,
+            status: 201,
+            json: async () => ({
+                id: 'pref-123',
+                init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref-123',
+            }),
+        }));
+        vi.stubGlobal('fetch', fetchMock);
+        return fetchMock;
+    }
+
+    function callPost() {
+        return POST(
+            new Request('https://pousadadelplata.com.br/api/admin/bookings/booking-1/payment-link', { method: 'POST' }),
+            { params: Promise.resolve({ bookingId: 'booking-1' }) }
+        );
+    }
+
+    it('envia item completo e não mistura dados do hóspede como pagador', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue(booking);
+        (prisma.booking.update as any).mockResolvedValue(booking);
+        const fetchMock = mockPreferenceCreated();
+
+        expect((await callPost()).status).toBe(200);
+        const preference = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+        expect(preference).not.toHaveProperty('payer');
+        expect(preference.items[0]).toMatchObject({
+            category_id: 'travels',
+            unit_price: 2519,
+            event_date: '2026-12-29T00:00:00.000Z',
+        });
+        expect(preference.items[0].description).toContain('4 diária(s)');
+        expect(preference).toMatchObject({
+            external_reference: 'booking-1',
+            statement_descriptor: 'POUSADA DELPLATA',
+            payment_methods: { excluded_payment_types: [{ id: 'ticket' }] },
+        });
+    });
+
+    it('cobra o valor registrado do pagamento (parcial) que o webhook vai validar', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue({
+            ...booking,
+            payment: { status: 'PENDING', amount: 1259.5 },
+        });
+        (prisma.booking.update as any).mockResolvedValue(booking);
+        const fetchMock = mockPreferenceCreated();
+
+        await callPost();
+        const preference = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+        expect(preference.items[0].unit_price).toBe(1259.5);
+    });
+
+    it('bloqueia novo link quando há cartão em análise', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue(booking);
+        (prisma.paymentAttempt.findFirst as any).mockResolvedValue({ id: 'attempt-1' });
+        const fetchMock = mockPreferenceCreated();
+
+        const response = await callPost();
+        expect(response.status).toBe(409);
+        expect((await response.json()).error).toBe('PAYMENT_UNDER_REVIEW');
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('gera link, mensagem de WhatsApp e atualiza o funil', async () => {

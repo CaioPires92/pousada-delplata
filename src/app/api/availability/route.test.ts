@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from './route';
 import prisma from '@/lib/prisma';
+import { nextDayKey } from '@/lib/day-key';
+import { todayDayKey } from '@/lib/promotions/engine';
 
 // Mock Prisma module
 vi.mock('@/lib/prisma', () => ({
@@ -21,6 +23,9 @@ vi.mock('@/lib/prisma', () => ({
     fourGuestInventoryAdjustment: {
       findMany: vi.fn(),
     },
+    promotion: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -32,6 +37,7 @@ describe('Availability API - Pricing Logic', () => {
     (prisma.rate.findMany as any).mockResolvedValue([]);
     (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
     (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.promotion.findMany as any).mockResolvedValue([]);
   });
 
   it('should return 400 if dates are missing', async () => {
@@ -279,7 +285,7 @@ describe('Availability API - Pricing Logic', () => {
 
   // NEW TESTS FROM PLAN
 
-  it('should not charge for child under 6 years old', async () => {
+  it('should allow two children under 6 with two adults in a triple room without charging them', async () => {
     const checkIn = '2026-02-01';
     const checkOut = '2026-02-02';
     const req = new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=2&childrenAges=3,5`);
@@ -288,9 +294,9 @@ describe('Availability API - Pricing Logic', () => {
       id: 'room-1',
       name: 'Test Room',
       basePrice: 100,
-      capacity: 4,
-      maxGuests: 4,
-      inventoryFor4Guests: 5,
+      capacity: 3,
+      maxGuests: 3,
+      inventoryFor4Guests: 0,
       includedAdults: 2,
       extraAdultFee: 50,
       child6To11Fee: 30,
@@ -421,7 +427,7 @@ describe('Availability API - Pricing Logic', () => {
         checkIn: new Date('2026-02-01T00:00:00.000Z'),
         checkOut: new Date('2026-02-02T00:00:00.000Z'),
         adults: 2,
-        childrenAges: JSON.stringify([5, 8]),
+        childrenAges: JSON.stringify([6, 8]),
       }
     ]);
 
@@ -968,7 +974,7 @@ describe('Availability API - Pricing Logic', () => {
     expect(data[0].remainingUnits).toBe(2);
   });
 
-  it('should ignore PENDING bookings when calculating inventory', async () => {
+  it('should count PENDING bookings only inside the room hold', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-10T12:00:00.000Z'));
 
@@ -998,7 +1004,16 @@ describe('Availability API - Pricing Logic', () => {
       expect(data[0].remainingUnits).toBe(1);
       expect(prisma.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          status: { in: ['CONFIRMED', 'PAID'] },
+          OR: expect.arrayContaining([
+            { status: { in: ['CONFIRMED', 'PAID'] } },
+            expect.objectContaining({
+              status: 'PENDING',
+              OR: expect.arrayContaining([
+                { paymentDeadlineAt: { gt: new Date('2026-05-10T11:00:00.000Z') } },
+                { paymentDeadlineAt: null, createdAt: { gt: new Date('2026-05-10T10:00:00.000Z') } },
+              ]),
+            }),
+          ]),
         }),
       }));
     } finally {
@@ -1036,3 +1051,102 @@ describe('Availability API - Pricing Logic', () => {
   });
 });
 
+
+describe('Availability API - Promoções automáticas', () => {
+  const room = {
+    id: 'room-promo',
+    name: 'Chalé',
+    basePrice: 500,
+    capacity: 4,
+    totalUnits: 3,
+    amenities: '',
+    photos: [],
+    rates: [],
+  };
+
+  const lastMinute = {
+    id: 'promo-lm',
+    name: 'Última Hora',
+    badgeLabel: null,
+    type: 'LAST_MINUTE',
+    active: true,
+    discountPercent: 10,
+    maxDiscountAmount: null,
+    minDaysBeforeCheckIn: null,
+    maxDaysBeforeCheckIn: 2,
+    stayStart: null,
+    stayEnd: null,
+    bookableFrom: null,
+    bookableUntil: null,
+    minNights: null,
+    allowedRoomTypeIds: null,
+    stackWithCoupons: false,
+    exclusive: false,
+    priority: 0,
+  };
+
+  function query(daysAhead: number, nights = 2, extra = '') {
+    let checkIn = todayDayKey();
+    for (let i = 0; i < daysAhead; i++) checkIn = nextDayKey(checkIn);
+    let checkOut = checkIn;
+    for (let i = 0; i < nights; i++) checkOut = nextDayKey(checkOut);
+    return new Request(`http://localhost/api/availability?checkIn=${checkIn}&checkOut=${checkOut}&adults=2&children=0${extra}`);
+  }
+
+  beforeEach(() => {
+    (prisma.roomType.findMany as any).mockResolvedValue([room]);
+  });
+
+  it('aplica a promoção de última hora, mantém o preço cheio e devolve o badge', async () => {
+    (prisma.promotion.findMany as any).mockResolvedValue([lastMinute]);
+
+    const res = await GET(query(1));
+    const [data] = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.priceFull).toBe(1000);
+    expect(data.totalPrice).toBe(900);
+    expect(data.priceOriginal).toBe(900); // base do cupom = preço após a promoção
+    expect(data.promotion).toMatchObject({
+      id: 'promo-lm',
+      discountAmount: 100,
+      badgeLabel: '🔥 Oferta de Última Hora: 10% OFF',
+    });
+    expect(data.promoApplied).toBe(false); // flag de cupom, não de promoção
+  });
+
+  it('não dá desconto sobre a taxa de pet', async () => {
+    (prisma.promotion.findMany as any).mockResolvedValue([lastMinute]);
+
+    const res = await GET(query(1, 2, '&pets=1'));
+    const [data] = await res.json();
+
+    expect(data.priceFull).toBe(1040); // 1000 + 1 pet * R$ 20 * 2 noites
+    expect(data.promotion.discountAmount).toBe(100); // 10% só de 1000
+    expect(data.totalPrice).toBe(940);
+  });
+
+  it('não aplica promoção fora da regra de antecedência', async () => {
+    (prisma.promotion.findMany as any).mockResolvedValue([lastMinute]);
+
+    const res = await GET(query(10));
+    const [data] = await res.json();
+
+    expect(data.promotion).toBeNull();
+    expect(data.totalPrice).toBe(1000);
+    expect(data.priceFull).toBe(1000);
+  });
+
+  it('se o carregamento das promoções falhar, cota pelo preço cheio', async () => {
+    (prisma.promotion.findMany as any).mockRejectedValue(new Error('db down'));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const res = await GET(query(1));
+    const [data] = await res.json();
+    spy.mockRestore();
+
+    expect(res.status).toBe(200);
+    expect(data.promotion).toBeNull();
+    expect(data.totalPrice).toBe(1000);
+  });
+});

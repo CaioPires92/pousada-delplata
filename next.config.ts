@@ -15,9 +15,18 @@ const nextConfig: NextConfig = {
                 "img-src 'self' data: https: blob:",
                 "font-src 'self' https://fonts.gstatic.com",
                 "frame-src 'self' https://*.mercadopago.com https://*.mercadolibre.com https://*.google.com https://*.googleusercontent.com",
-                "connect-src 'self' https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://*.google-analytics.com https://*.google.com https://*.doubleclick.net https://*.clarity.ms https://*.sentry.io https://vercel.live"
+                "connect-src 'self' https://*.mercadopago.com https://*.mlstatic.com https://*.mercadolibre.com https://*.google-analytics.com https://*.google.com https://*.doubleclick.net https://*.clarity.ms https://*.sentry.io https://vercel.live",
+                "object-src 'none'",
+                "base-uri 'self'",
+                "form-action 'self' https://*.mercadopago.com https://*.mercadolibre.com",
+                "frame-ancestors 'self'",
+                "upgrade-insecure-requests"
             ].join('; ')
           },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       },
     ];
@@ -28,9 +37,6 @@ const nextConfig: NextConfig = {
 
   // Image optimization
   images: {
-    // Serve local assets directly. The hosted Next.js optimizer can reject
-    // uncached images, while these files are already web-ready.
-    unoptimized: true,
     qualities: [72, 74, 75, 76, 82, 84, 85, 88],
     remotePatterns: [
       {

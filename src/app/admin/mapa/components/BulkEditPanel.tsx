@@ -11,7 +11,6 @@ import {
     X, 
     Check, 
     ChevronRight,
-    Users,
     Activity,
     Info,
     Zap
@@ -60,7 +59,6 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
     const [price, setPrice] = useState<string>('');
     const [minLos, setMinLos] = useState<string>('');
     const [inventoryStd, setInventoryStd] = useState<string>('');
-    const [inventory4P, setInventory4P] = useState<string>('');
     const [stopSell, setStopSell] = useState<boolean | null>(null);
     const [cta, setCta] = useState<boolean | null>(null);
     const [ctd, setCtd] = useState<boolean | null>(null);
@@ -85,12 +83,11 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
     const hasChanges = useMemo(() => {
         return price !== '' || 
                minLos !== '' || 
-               inventoryStd !== '' || 
-               inventory4P !== '' || 
+               inventoryStd !== '' ||
                stopSell !== null || 
                cta !== null || 
                ctd !== null;
-    }, [price, minLos, inventoryStd, inventory4P, stopSell, cta, ctd]);
+    }, [price, minLos, inventoryStd, stopSell, cta, ctd]);
 
     const affectedDays = useMemo(() => {
         return countAffectedDays(startDate, endDate, weekdays);
@@ -107,7 +104,6 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
         if (price !== '') updates.price = parseFloat(price);
         if (minLos !== '') updates.minLos = parseInt(minLos);
         if (inventoryStd !== '') updates.inventory = parseInt(inventoryStd);
-        if (inventory4P !== '') updates.fourGuestInventory = parseInt(inventory4P);
         if (stopSell !== null) updates.stopSell = stopSell;
         if (cta !== null) updates.cta = cta;
         if (ctd !== null) updates.ctd = ctd;
@@ -120,15 +116,12 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                 endDate,
                 updates,
                 daysOfWeek: selectedWeekdays,
-                inventoryTarget: inventory4P !== '' ? 'fourGuests' : 'standard'
+                inventoryTarget: 'standard'
             });
         } finally {
             setIsSaving(false);
         }
     };
-
-    const selectedRoom = roomTypes.find(r => r.id === roomTypeId);
-    const has4P = roomTypeId === 'all' || (selectedRoom?.inventoryFor4Guests ?? 0) > 0;
 
     return (
         <div className="flex flex-col max-h-[95vh] bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 max-w-2xl w-full mx-auto animate-in fade-in zoom-in duration-300">
@@ -341,52 +334,6 @@ export const BulkEditPanel: React.FC<BulkEditPanelProps> = ({
                                         </div>
                                     </div>
 
-                                    {/* 4P */}
-                                    <div className={cn(
-                                        "flex items-center justify-between p-4 rounded-2xl border transition-all",
-                                        has4P ? "bg-slate-50 border-slate-100" : "bg-slate-50/50 border-dashed border-slate-200 opacity-60"
-                                    )}>
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-xs font-black text-slate-700">QUADRUPLO</span>
-                                                <Users className="h-3 w-3 text-slate-400" />
-                                            </div>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Acomodação 4P</span>
-                                        </div>
-                                        {has4P ? (
-                                            <div className="flex items-center gap-1">
-                                                <button 
-                                                    onClick={() => setInventory4P(prev => Math.max(0, (parseInt(prev) || 0) - 1).toString())}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors shadow-sm font-bold"
-                                                >-</button>
-                                                <input 
-                                                    aria-label="Alterar quantidade de quartos disponíveis (quadruplo)"
-                                                    type="number"
-                                                    placeholder="—"
-                                                    value={inventory4P}
-                                                    onChange={(e) => {
-                                                        const raw = e.target.value;
-                                                        if (raw === '') {
-                                                            setInventory4P('');
-                                                            return;
-                                                        }
-                                                        const val = parseInt(raw);
-                                                        if (!isNaN(val)) {
-                                                            setInventory4P(val.toString());
-                                                        }
-                                                    }}
-                                                    onFocus={(e) => e.target.select()}
-                                                    className="w-12 text-center bg-transparent border-none text-sm font-black text-slate-800 focus:ring-0"
-                                                />
-                                                <button 
-                                                    onClick={() => setInventory4P(prev => ((parseInt(prev) || 0) + 1).toString())}
-                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors shadow-sm font-bold"
-                                                >+</button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-[10px] font-black text-slate-300 pr-2">N/A</span>
-                                        )}
-                                    </div>
                                 </div>
                             </div>
                         </div>

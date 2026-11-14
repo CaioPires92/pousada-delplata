@@ -62,7 +62,7 @@ export async function POST(request: Request) {
                 capacity: Number.parseInt(asNullableString(capacity) ?? '', 10),
                 totalUnits: inventoryTotal,
                 inventoryFor4Guests: inventoryFor4,
-                maxGuests: inventoryFor4 > 0 ? 4 : 3,
+                maxGuests: Number.parseInt(asNullableString(capacity) ?? '', 10),
                 basePrice: Number(asNullableString(basePrice) ?? ''),
                 amenities: asNullableString(amenities) ?? '',
                 photos: Array.isArray(photos)
@@ -133,11 +133,10 @@ export async function PATCH(request: Request) {
                         data: {
                             ...(totalUnits !== undefined ? { totalUnits: nextTotalUnits } : {}),
                             ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
-                            ...(capacity !== undefined ? { capacity: Number(capacity) } : {}),
+                            ...(capacity !== undefined ? { capacity: Number(capacity), maxGuests: Number(capacity) } : {}),
                             ...(inventoryFor4Guests !== undefined || totalUnits !== undefined
                                 ? {
                                     inventoryFor4Guests: nextInventoryFor4Guests,
-                                    maxGuests: nextInventoryFor4Guests > 0 ? 4 : 3,
                                 }
                                 : {}),
                         }
@@ -182,11 +181,10 @@ export async function PATCH(request: Request) {
                 data: {
                     ...(totalUnits !== undefined ? { totalUnits: nextTotalUnits } : {}),
                     ...(basePrice !== undefined ? { basePrice: Number(basePrice) } : {}),
-                    ...(capacity !== undefined ? { capacity: Number(capacity) } : {}),
+                    ...(capacity !== undefined ? { capacity: Number(capacity), maxGuests: Number(capacity) } : {}),
                     ...(inventoryFor4Guests !== undefined || totalUnits !== undefined
                         ? {
                             inventoryFor4Guests: nextInventoryFor4Guests,
-                            maxGuests: nextInventoryFor4Guests > 0 ? 4 : 3,
                         }
                         : {}),
                 }

@@ -39,7 +39,9 @@ function toNumber(value: unknown, fallback = 0) {
 }
 
 function toInt(value: unknown, fallback = 0) {
-    const parsed = Number.parseInt(asNullableString(value) ?? '', 10);
+    const parsed = typeof value === 'number'
+        ? value
+        : Number.parseInt(asNullableString(value) ?? '', 10);
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
@@ -140,6 +142,7 @@ function normalizeBooking(booking: Row, guest?: Row, roomType?: Row, payment?: R
         adults: Math.max(0, toInt(booking.adults, 1)),
         children: Math.max(0, toInt(booking.children, 0)),
         childrenAges: asNullableString(booking.childrenAges),
+        pets: Math.max(0, toInt(booking.pets, 0)),
         checkIn: booking.checkIn ?? null,
         checkOut: booking.checkOut ?? null,
         totalPrice: toNumber(booking.totalPrice, 0),
@@ -148,6 +151,8 @@ function normalizeBooking(booking: Row, guest?: Row, roomType?: Row, payment?: R
         funnelUpdatedAt: booking.funnelUpdatedAt ?? null,
         lastErrorMessage: asNullableString(booking.lastErrorMessage),
         createdAt: booking.createdAt ?? null,
+        hospedinReservationId: asNullableString(booking.hospedinReservationId),
+        hospedinRegisteredAt: booking.hospedinRegisteredAt ?? null,
         guest: {
             name: asNullableString(guest?.name) ?? 'Não informado',
             email: asNullableString(guest?.email) ?? '-',
@@ -222,6 +227,7 @@ async function fetchBookingsViaPrisma(filters: BookingQueryFilters) {
                 adults: true,
                 children: true,
                 childrenAges: true,
+                pets: true,
                 checkIn: true,
                 checkOut: true,
                 totalPrice: true,
@@ -230,6 +236,8 @@ async function fetchBookingsViaPrisma(filters: BookingQueryFilters) {
                 funnelUpdatedAt: true,
                 lastErrorMessage: true,
                 createdAt: true,
+                hospedinReservationId: true,
+                hospedinRegisteredAt: true,
                 guest: {
                     select: {
                         name: true,
@@ -328,6 +336,7 @@ async function fetchBookingsViaRawSql(filters: BookingQueryFilters) {
         'adults',
         'children',
         'childrenAges',
+        'pets',
         'checkIn',
         'checkOut',
         'totalPrice',
@@ -336,6 +345,8 @@ async function fetchBookingsViaRawSql(filters: BookingQueryFilters) {
         'funnelUpdatedAt',
         'lastErrorMessage',
         'createdAt',
+        'hospedinReservationId',
+        'hospedinRegisteredAt',
     ];
     const selectedBookingColumns = pickColumns(wantedBookingColumns, bookingColumns);
     const orderBy = bookingColumns.has('createdAt') ? quoteIdentifier('createdAt') : 'rowid';

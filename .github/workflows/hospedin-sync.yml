@@ -1,0 +1,29 @@
+name: Sincronizar Hospedin
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: hospedin-sync
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  sync:
+    # Só roda quando a sincronização automática for ligada (Settings > Variables > HOSPEDIN_SYNC_ENABLED = true).
+    if: ${{ vars.HOSPEDIN_SYNC_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar sincronização
+        env:
+          SECRET: ${{ secrets.HOSPEDIN_CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://www.pousadadelplata.com.br' }}
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            --retry 2 --retry-delay 20 \
+            -H "Authorization: Bearer ${SECRET}" \
+            "${SITE_URL}/api/cron/hospedin-sync"

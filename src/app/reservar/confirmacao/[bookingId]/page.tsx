@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDateBR } from '@/lib/date';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { trackPurchase } from '@/lib/analytics';
+import { getPaymentRejectionMessage } from '@/lib/mercadopago/payment-context';
 
 declare global {
     interface Window {
@@ -34,7 +35,10 @@ declare global {
     }
 }
 
-type PaymentStatus = 'CONFIRMED' | 'CANCELLED' | 'PENDING';
+// REVIEW: pagamento aprovado, mas a reserva expirou/foi cancelada antes (sem quarto garantido).
+type PaymentStatus = 'CONFIRMED' | 'CANCELLED' | 'PENDING' | 'REVIEW';
+
+const INACTIVE_BOOKING_STATUSES = ['EXPIRED', 'CANCELLED'];
 
 interface BookingPhoto {
     url: string;
@@ -43,9 +47,11 @@ interface BookingPhoto {
 interface BookingData {
     id: string;
     status?: string | null;
+    lastErrorMessage?: string | null;
     checkIn: string;
     checkOut: string;
     totalPrice: number | string;
+    pets?: number | null;
     roomType?: {
         id?: string;
         name?: string | null;
@@ -76,7 +82,8 @@ function trackPurchaseOnce(booking: BookingData | null) {
 
     const bookingStatus = String(booking?.status || '').toUpperCase();
     const paymentStatus = String(booking?.payment?.status || '').toUpperCase();
-    const approved = bookingStatus === 'CONFIRMED' || paymentStatus === 'APPROVED';
+    const approved = bookingStatus === 'CONFIRMED'
+        || (paymentStatus === 'APPROVED' && !INACTIVE_BOOKING_STATUSES.includes(bookingStatus));
     if (!approved) return;
 
     const storageKey = `purchase_sent_${booking.id}`;
@@ -109,7 +116,10 @@ function getEffectiveStatus(booking: BookingData | null): PaymentStatus {
     const bookingStatus = String(booking?.status || '').toUpperCase();
     const paymentStatus = String(booking?.payment?.status || '').toUpperCase();
 
-    if (bookingStatus === 'CONFIRMED' || paymentStatus === 'APPROVED') return 'CONFIRMED';
+    if (bookingStatus === 'CONFIRMED') return 'CONFIRMED';
+    if (paymentStatus === 'APPROVED') {
+        return INACTIVE_BOOKING_STATUSES.includes(bookingStatus) ? 'REVIEW' : 'CONFIRMED';
+    }
     if (bookingStatus === 'CANCELLED' || PAYMENT_REJECTED_STATUSES.includes(paymentStatus)) return 'CANCELLED';
     return 'PENDING';
 }
@@ -181,6 +191,20 @@ function getStatusPresentation(status: PaymentStatus) {
         };
     }
 
+    if (status === 'REVIEW') {
+        return {
+            title: 'Pagamento recebido',
+            subtitle: 'O pagamento chegou depois do prazo da reserva e precisamos confirmar a disponibilidade.',
+            banner: 'Nossa equipe vai entrar em contato pelo WhatsApp ou e-mail para confirmar sua hospedagem ou devolver o valor.',
+            accent: 'text-primary',
+            border: 'border-brand-gold/25',
+            surface: 'bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,245,245,0.98))]',
+            iconWrap: 'border-brand-gold/30 bg-brand-gold/12 text-primary',
+            badgeClass: 'border-brand-gold/20 bg-brand-gold/85 text-brand-gold-foreground',
+            statusLabel: 'Em análise',
+        };
+    }
+
     if (status === 'CANCELLED') {
         return {
             title: 'Pagamento nao aprovado',
@@ -249,11 +273,18 @@ export default function ConfirmacaoPage() {
         if (!bookingId) return;
 
         try {
-            const response = await fetch(`/api/bookings/${bookingId}`);
+            const accessToken = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('access')
+                || new URLSearchParams(window.location.search).get('access');
+            const response = await fetch(`/api/bookings/${bookingId}`, {
+                headers: accessToken ? { 'x-booking-access-token': accessToken } : undefined,
+            });
             if (!response.ok) return;
 
             const data = (await response.json()) as BookingData;
             setBooking(data);
+            if (accessToken) {
+                window.history.replaceState({}, '', `/reservar/confirmacao/${bookingId}`);
+            }
 
             const effectiveStatus = getEffectiveStatus(data);
             const previousStatus = lastStatusRef.current;
@@ -269,10 +300,10 @@ export default function ConfirmacaoPage() {
                 return;
             }
 
-            if (effectiveStatus === 'CANCELLED') {
+            if (effectiveStatus === 'CANCELLED' || effectiveStatus === 'REVIEW') {
                 setPolling(false);
                 if (pollRef.current) clearInterval(pollRef.current);
-                if (previousStatus && previousStatus !== 'CANCELLED') {
+                if (effectiveStatus === 'CANCELLED' && previousStatus && previousStatus !== 'CANCELLED') {
                     setStatusToast('Pagamento recusado. Fale com a pousada para suporte.');
                     setTimeout(() => setStatusToast(''), 3000);
                 }
@@ -334,6 +365,9 @@ export default function ConfirmacaoPage() {
     const totalAmount = booking?.payment?.totalAmount ?? booking?.totalPrice;
     const paidAmount = booking?.payment?.amount;
     const remainingAmount = booking?.payment?.remainingAmount;
+    const rejectionMessage = String(booking?.payment?.status || '').toUpperCase() === 'REJECTED'
+        ? getPaymentRejectionMessage(booking?.lastErrorMessage)
+        : null;
 
     return (
         <main className="min-h-screen bg-background px-4 pb-14 pt-28 text-primary md:px-6 md:pt-32">
@@ -400,6 +434,18 @@ export default function ConfirmacaoPage() {
                                                 {booking?.roomType?.name || 'Acomodacao selecionada'}
                                             </span>
                                         </div>
+
+                                        {Number(booking?.pets || 0) > 0 ? (
+                                            <div className="flex items-center justify-between gap-4 border-b border-primary/10 pb-4">
+                                                <div className="flex items-center gap-3 text-primary/78">
+                                                    <Receipt className="h-4.5 w-4.5 shrink-0" />
+                                                    <span className="text-sm font-medium">Pets</span>
+                                                </div>
+                                                <span className="text-right text-sm font-semibold text-primary">
+                                                    {booking?.pets} pet{Number(booking?.pets) === 1 ? '' : 's'}
+                                                </span>
+                                            </div>
+                                        ) : null}
 
                                         <div className="flex items-center justify-between gap-4 border-b border-primary/10 pb-4">
                                             <div className="flex items-center gap-3 text-primary/78">
@@ -480,7 +526,7 @@ export default function ConfirmacaoPage() {
                                         <div className="flex items-center justify-between gap-4">
                                             <span className="text-sm text-primary/78">Status da reserva</span>
                                             <Badge className={`rounded-none px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em] ${statusView.badgeClass}`}>
-                                                {effectiveStatus === 'CONFIRMED' ? 'Confirmada' : effectiveStatus === 'CANCELLED' ? 'Cancelada' : 'Pendente'}
+                                                {effectiveStatus === 'CONFIRMED' ? 'Confirmada' : effectiveStatus === 'CANCELLED' ? 'Cancelada' : effectiveStatus === 'REVIEW' ? 'Em análise' : 'Pendente'}
                                             </Badge>
                                         </div>
 
@@ -518,10 +564,12 @@ export default function ConfirmacaoPage() {
                                                 ? 'Pagamento aprovado'
                                                 : effectiveStatus === 'CANCELLED'
                                                     ? 'Pagamento nao confirmado'
-                                                    : 'Atualizacao em andamento'}
+                                                    : effectiveStatus === 'REVIEW'
+                                                        ? 'Pagamento recebido, reserva em análise'
+                                                        : 'Atualizacao em andamento'}
                                         </h3>
                                         <p className="mt-2 text-sm leading-7 text-primary/78">
-                                            {statusView.banner}
+                                            {rejectionMessage || statusView.banner}
                                         </p>
                                         {polling && effectiveStatus === 'PENDING' ? (
                                             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary/60">

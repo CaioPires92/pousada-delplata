@@ -19,7 +19,8 @@ import {
     TestTube2,
     Tag,
     Link2,
-    MailCheck
+    MailCheck,
+    PawPrint,
 } from 'lucide-react';
 import type { Booking } from './types';
 import {
@@ -46,6 +47,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
+import { getPaymentRejectionMessage } from '@/lib/mercadopago/payment-context';
 import styles from './reservas.module.css';
 
 function buildBookingWhatsAppUrl(booking: Booking) {
@@ -93,6 +95,8 @@ export default function BookingRowCard(props: BookingRowCardProps) {
     const partialPayment = String(booking.payment?.paymentMode || '').toUpperCase() === 'PARTIAL'
         && Number(booking.payment?.remainingAmount || 0) > 0;
     const whatsappUrl = buildBookingWhatsAppUrl(booking);
+    const paymentRejected = String(booking.payment?.status || '').toUpperCase() === 'REJECTED'
+        || String(booking.funnelStage || '').toUpperCase() === 'PAYMENT_REJECTED';
 
     const triggerAction = (action: string) => {
         onActionSelect(booking, action);
@@ -208,6 +212,7 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                                 Marcar como Expirada
                             </DropdownMenuItem>
 
+
                             {testPaymentsEnabled && (
                                 <DropdownMenuItem
                                         onClick={() => triggerAction('test')}
@@ -257,6 +262,11 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                     {childrenAges.length > 0 ? (
                         <span className={styles.metaSub}>Idades: {childrenAges.join(', ')}</span>
                     ) : null}
+                    {Number(booking.pets || 0) > 0 ? (
+                        <span className={`${styles.metaSub} inline-flex items-center gap-1`}>
+                            <PawPrint className="h-3 w-3" /> {booking.pets} pet{Number(booking.pets) === 1 ? '' : 's'}
+                        </span>
+                    ) : null}
                 </div>
 
                 <div className={styles.metaItem}>
@@ -289,7 +299,9 @@ export default function BookingRowCard(props: BookingRowCardProps) {
                     <span className={styles.metaValue}>{formatFunnelStage(booking.funnelStage)}</span>
                     <span className={styles.metaSub}>
                         {booking.lastErrorMessage
-                            ? `Ocorrência: ${booking.lastErrorMessage}`
+                            ? paymentRejected
+                                ? `Ocorrência: ${getPaymentRejectionMessage(booking.lastErrorMessage)} (${booking.lastErrorMessage})`
+                                : `Ocorrência: ${booking.lastErrorMessage}`
                             : `Atualizado em ${formatDateSafe(booking.funnelUpdatedAt || booking.createdAt)}`}
                     </span>
                 </div>

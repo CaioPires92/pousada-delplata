@@ -277,7 +277,7 @@ export default function AdminReservasPage() {
             action: 'hotel-confirmation',
             endpoint: `/api/admin/bookings/${bookingId}/resend-hotel-confirmation`,
             method: 'POST',
-            successMessage: `Confirmação da reserva ${bookingId.slice(0, 8).toUpperCase()} reenviada ao hotel.`,
+            successMessage: `Voucher da reserva ${bookingId.slice(0, 8).toUpperCase()} reenviado ao hóspede e à pousada.`,
         });
     }, [runBookingAction]);
 
@@ -548,10 +548,9 @@ export default function AdminReservasPage() {
         });
     }, [periodMode, trackAdminEvent]);
 
-    const filteredBookings = useMemo(() => {
-        if (filter === 'ALL') return bookings;
-        return bookings.filter((booking) => String(booking.status || '').toUpperCase() === filter);
-    }, [bookings, filter]);
+    const filteredBookings = useMemo(() => bookings.filter((booking) => (
+        filter === 'ALL' || String(booking.status || '').toUpperCase() === filter
+    )), [bookings, filter]);
 
     const modalConfirmClass = useMemo(() => {
         if (!actionModal) return styles.modalConfirmButton;
@@ -613,6 +612,7 @@ export default function AdminReservasPage() {
 
                         {/* Divider */}
                         <div className="w-[1px] h-10 bg-slate-200/80 hidden md:block mx-1"></div>
+
 
                         {/* Date Filter Block */}
                         <div className="flex flex-col gap-1.5 flex-1 min-w-[340px]">
@@ -773,6 +773,7 @@ export default function AdminReservasPage() {
                         </div>
                         
                         <p className={styles.modalDescription}>{getActionDescription(actionModal.action, actionModal.booking)}</p>
+
 
                         {actionModal.action === 'discount' ? (
                             <div className="mb-6 space-y-4">

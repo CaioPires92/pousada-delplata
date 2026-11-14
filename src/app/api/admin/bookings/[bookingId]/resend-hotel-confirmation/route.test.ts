@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import prisma from '@/lib/prisma';
-import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
+import { sendBookingGuestConfirmationEmail, sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { POST } from './route';
 
 vi.mock('@/lib/admin-auth', () => ({
@@ -11,11 +11,13 @@ vi.mock('@/lib/prisma', () => ({
     default: {
         booking: {
             findUnique: vi.fn(),
+            updateMany: vi.fn(),
         },
     },
 }));
 
 vi.mock('@/lib/booking-status-alert', () => ({
+    sendBookingGuestConfirmationEmail: vi.fn(),
     sendBookingStatusAlertEmail: vi.fn(),
 }));
 
@@ -44,17 +46,21 @@ const confirmedBooking = {
     },
 };
 
-describe('POST resend hotel confirmation', () => {
+describe('POST resend booking confirmation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-    });
-
-    it('reenvia a confirmação de uma reserva confirmada', async () => {
-        (prisma.booking.findUnique as any).mockResolvedValue(confirmedBooking);
+        (sendBookingGuestConfirmationEmail as any).mockResolvedValue({
+            success: true,
+            messageId: 'guest-mail-123',
+        });
         (sendBookingStatusAlertEmail as any).mockResolvedValue({
             success: true,
-            messageId: 'mail-123',
+            messageId: 'hotel-mail-123',
         });
+    });
+
+    it('sends the voucher to the guest and confirmation to the hotel', async () => {
+        (prisma.booking.findUnique as any).mockResolvedValue(confirmedBooking);
 
         const response = await POST(
             new Request('https://example.com', { method: 'POST' }),
@@ -63,38 +69,40 @@ describe('POST resend hotel confirmation', () => {
         const data = await response.json();
 
         expect(response.status).toBe(200);
-        expect(data.messageId).toBe('mail-123');
-        expect(data.bookingId).toBe('booking-1');
+        expect(data).toMatchObject({ bookingId: 'booking-1', guestSent: true, hotelSent: true });
+        expect(sendBookingGuestConfirmationEmail).toHaveBeenCalledWith(
+            confirmedBooking,
+            { bookingStatus: 'CONFIRMED', paymentStatus: 'APPROVED' }
+        );
         expect(sendBookingStatusAlertEmail).toHaveBeenCalledWith(
             confirmedBooking,
             { bookingStatus: 'CONFIRMED', paymentStatus: 'APPROVED' }
         );
+        expect(prisma.booking.updateMany).toHaveBeenCalledWith({
+            where: { id: 'booking-1' },
+            data: { confirmationEmailSentAt: expect.any(Date) },
+        });
     });
 
-    it('normalizes whitespace around bookingId', async () => {
+    it('reports a partial failure without hiding the successful send', async () => {
         (prisma.booking.findUnique as any).mockResolvedValue(confirmedBooking);
-        (sendBookingStatusAlertEmail as any).mockResolvedValue({
-            success: true,
-            messageId: 'mail-123',
+        (sendBookingGuestConfirmationEmail as any).mockResolvedValue({
+            success: false,
+            error: new Error('guest failed'),
         });
 
         const response = await POST(
             new Request('https://example.com', { method: 'POST' }),
-            { params: Promise.resolve({ bookingId: ' booking-1 ' }) }
+            { params: Promise.resolve({ bookingId: 'booking-1' }) }
         );
+        const data = await response.json();
 
-        expect(response.status).toBe(200);
-        expect(prisma.booking.findUnique).toHaveBeenCalledWith({
-            where: { id: 'booking-1' },
-            include: {
-                guest: true,
-                roomType: true,
-                payment: true,
-            },
-        });
+        expect(response.status).toBe(502);
+        expect(data).toMatchObject({ guestSent: false, hotelSent: true });
+        expect(prisma.booking.updateMany).not.toHaveBeenCalled();
     });
 
-    it('bloqueia reserva ainda não confirmada', async () => {
+    it('blocks a booking that is not confirmed', async () => {
         (prisma.booking.findUnique as any).mockResolvedValue({
             ...confirmedBooking,
             status: 'PENDING',
@@ -106,6 +114,7 @@ describe('POST resend hotel confirmation', () => {
         );
 
         expect(response.status).toBe(409);
+        expect(sendBookingGuestConfirmationEmail).not.toHaveBeenCalled();
         expect(sendBookingStatusAlertEmail).not.toHaveBeenCalled();
     });
 });

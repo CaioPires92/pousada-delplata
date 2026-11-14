@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 
 import { calculateBookingPrice, type BookingPriceBreakdown } from "@/lib/booking-price";
+import { roomAcceptsPets } from "@/lib/pet-policy";
 import { compareDayKey, eachDayKeyInclusive, isDayKey, prevDayKey } from "@/lib/day-key";
 import { getEffectiveGuestCounts, requiresFourGuestInventory } from "@/lib/guest-capacity";
 import prisma from "@/lib/prisma";
+import { resolveBestPromotion, todayDayKey, type PromotionRule, type ResolvedPromotion } from "@/lib/promotions/engine";
+import { loadActivePromotionRules } from "@/lib/promotions/store";
+import { occupyingBookingWhere } from '@/lib/booking-payment-window';
 
 type PrismaClientLike = typeof prisma;
 
@@ -22,6 +26,8 @@ export type AvailabilityQuoteInput = {
   checkout: string;
   adults: number;
   childrenAges?: number[];
+  pets?: number;
+  isMobile?: boolean;
   includeRoomDetails?: boolean;
 };
 
@@ -31,8 +37,11 @@ export type AvailabilityQuoteOption = {
   maxGuests: number;
   remainingUnits: number;
   minLos: number;
+  /** Preço cheio (sem promoção e sem cupom). */
   totalPrice: number;
   priceBreakdown: BookingPriceBreakdown;
+  /** Melhor promoção automática elegível, já calculada sobre (total - taxa de pet). */
+  promotion: ResolvedPromotion | null;
   roomDetails?: Record<string, unknown>;
 };
 
@@ -122,7 +131,8 @@ export async function queryAvailabilityQuote(
         roomTypeId: { in: roomTypeIds },
         checkIn: { lt: dateFromDayKey(input.checkout) },
         checkOut: { gt: dateFromDayKey(input.checkin) },
-        status: { in: ["CONFIRMED", "PAID"] },
+        hospedinRegisteredAt: null,
+        ...occupyingBookingWhere(),
       },
       select: {
         roomTypeId: true,
@@ -170,11 +180,21 @@ export async function queryAvailabilityQuote(
     roomAdjustments.push(adjustment);
     fourGuestAdjustmentsByRoom.set(roomTypeId, roomAdjustments);
   }
+  let promotionRules: PromotionRule[] = [];
+  try {
+    promotionRules = await loadActivePromotionRules(client);
+  } catch (error) {
+    // Falha em promoções nunca deve impedir a cotação: segue com preço cheio.
+    console.error("[quote-service] failed to load promotions", error);
+  }
+  const bookingDayKey = todayDayKey(calculatedAtDate);
   const options: AvailabilityQuoteOption[] = [];
   let minRequiredAcrossRooms = Infinity;
   let eligibleMinLosCount = 0;
 
   for (const room of roomTypes) {
+    if ((input.pets ?? 0) > 0 && !roomAcceptsPets(room.name)) continue;
+
     const bookingsCountByDay = new Map<string, number>();
     const bookingsFor4GuestsByDay = new Map<string, number>();
     const firstNight = nightKeys[0];
@@ -245,10 +265,13 @@ export async function queryAvailabilityQuote(
     }
 
     let baseTotalForStay = 0;
+    const nightBaseAmounts: number[] = [];
     let requiredMinLos = 1;
     for (const dayKey of nightKeys) {
       const rate = findRateForDay(dayKey);
-      baseTotalForStay += rate ? rate.price : Number(room.basePrice);
+      const nightBaseAmount = rate ? rate.price : Number(room.basePrice);
+      nightBaseAmounts.push(nightBaseAmount);
+      baseTotalForStay += nightBaseAmount;
       requiredMinLos = Math.max(requiredMinLos, rate ? rate.minLos : 1);
     }
 
@@ -266,6 +289,22 @@ export async function queryAvailabilityQuote(
         maxGuests: Number(room.maxGuests),
         extraAdultFee: Number(room.extraAdultFee || 0),
         child6To11Fee: Number(room.child6To11Fee || 0),
+        pets: input.pets ?? 0,
+      });
+
+      const promotion = resolveBestPromotion({
+        promotions: promotionRules,
+        bookingDayKey,
+        checkIn: input.checkin,
+        checkOut: input.checkout,
+        roomTypeId: room.id,
+        isMobile: input.isMobile,
+        // Pet é taxa avulsa: fica fora da base do desconto.
+        eligibleAmount: priceBreakdown.total - priceBreakdown.petTotal,
+        nightAmounts: nightKeys.map((day, index) => ({
+          day,
+          amount: nightBaseAmounts[index] + priceBreakdown.extrasPerNight,
+        })),
       });
 
       options.push({
@@ -276,6 +315,7 @@ export async function queryAvailabilityQuote(
         minLos: requiredMinLos,
         totalPrice: priceBreakdown.total,
         priceBreakdown,
+        promotion,
         roomDetails: input.includeRoomDetails
           ? Object.fromEntries(Object.entries(room).filter(([key]) => key !== "rates"))
           : undefined,
@@ -300,6 +340,7 @@ export async function queryAvailabilityQuote(
       nights,
       adults: input.adults,
       childrenAges: input.childrenAges ?? [],
+      pets: input.pets ?? 0,
       options: sortedOptions.map(option => ({
         roomTypeId: option.roomTypeId,
         maxGuests: option.maxGuests,
@@ -307,6 +348,9 @@ export async function queryAvailabilityQuote(
         minLos: option.minLos,
         totalPrice: option.totalPrice,
         priceBreakdown: option.priceBreakdown,
+        promotion: option.promotion
+          ? { id: option.promotion.items.map((item) => item.id).join("+"), discountAmount: option.promotion.discountAmount }
+          : null,
       })),
     }))
     .digest("hex");

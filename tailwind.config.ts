@@ -18,6 +18,17 @@ const config: Config = {
     	},
     		extend: {
     			colors: {
+    				brand: {
+    					gold: {
+    						DEFAULT: 'var(--brand-gold)',
+    						foreground: 'var(--brand-brown-dark)'
+    					},
+    					beige: 'var(--brand-beige)',
+    					'brown-dark': {
+    						DEFAULT: 'var(--brand-brown-dark)',
+    						foreground: 'var(--brand-white)'
+    					}
+    				},
     				primary: {
     					DEFAULT: '#283223',
     					foreground: '#FFFFFF'

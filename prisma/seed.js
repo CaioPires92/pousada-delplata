@@ -1,155 +1,198 @@
-const { PrismaClient } = require('@prisma/client');
-const { PrismaLibSQL } = require('@prisma/adapter-libsql');
-const { createClient } = require('@libsql/client');
-const bcrypt = require('bcryptjs');
+// Seed DESTRUTIVO de desenvolvimento: apaga inventário, tarifas, fotos e tipos de quarto e recria tudo.
+//
+// Proteções (T1b):
+// - Nunca roda em banco remoto, ausente ou fora do projeto (sem override).
+// - Em banco local que já tem tipos de quarto, só roda com ALLOW_DESTRUCTIVE_SEED=YES (variável de
+//   ambiente, porque `prisma db seed` / `migrate reset` não repassam flags).
+// - Banco local recém-criado (vazio) continua sendo semeado normalmente (ex.: scripts/shared/setup-local.js).
+const {
+    GuardError,
+    parseFlagsStrict,
+    sanitizeErrorMessage,
+    assertSafeTarget,
+} = require('../scripts/shared/db-safety');
 
-let prisma;
+const ROOMS = [
+    {
+        name: 'Apartamento Térreo',
+        description: 'Apartamento na ala principal, próximo ao café da manhã, com Smart TV, frigobar, ventilador de teto e ar-condicionado.',
+        capacity: 3,
+        maxGuests: 4,
+        inventoryFor4Guests: 2,
+        includedAdults: 2,
+        extraAdultFee: 100,
+        child6To11Fee: 50,
+        totalUnits: 8,
+        basePrice: 599.00,
+        amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
+        photo: '/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0005-1200.webp',
+    },
 
-if (process.env.DATABASE_AUTH_TOKEN && process.env.DATABASE_URL?.startsWith('libsql:')) {
-    const libsql = createClient({
-        url: process.env.DATABASE_URL,
-        authToken: process.env.DATABASE_AUTH_TOKEN,
-    });
-    const adapter = new PrismaLibSQL(libsql);
-    prisma = new PrismaClient({ adapter });
-} else {
-    prisma = new PrismaClient();
-}
+    {
+        name: 'Apartamento Superior',
+        description: 'Apartamento na ala principal, próximo ao café da manhã, com Smart TV, frigobar, ventilador de teto e ar-condicionado.',
+        capacity: 3,
+        maxGuests: 4,
+        inventoryFor4Guests: 2,
+        includedAdults: 2,
+        extraAdultFee: 100,
+        child6To11Fee: 50,
+        totalUnits: 8,
+        basePrice: 699.00,
+        amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
+        photo: '/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp',
+    },
 
-
-async function seed() {
-    console.log('🌱 Seeding database with sample data...');
-
-    // 1. Limpeza de dados existentes (Ordem correta para evitar erros de Foreign Key)
-    console.log('Cleaning existing data...');
-    await prisma.payment.deleteMany();
-    await prisma.couponRedemption.deleteMany();
-    await prisma.couponAttemptLog.deleteMany();
-    await prisma.booking.deleteMany();
-    await prisma.rate.deleteMany();
-    await prisma.inventoryAdjustment.deleteMany();
-    await prisma.fourGuestInventoryAdjustment.deleteMany();
-    await prisma.photo.deleteMany();
-    await prisma.roomType.deleteMany();
-    await prisma.guest.deleteMany();
-    await prisma.coupon.deleteMany();
-
-    // 2. Criação dos Tipos de Quarto
-    console.log('Creating room types...');
-    const roomData = [
-
-        {
-            name: 'Apartamento Térreo',
-            description: 'Apartamento na ala principal, próximo ao café da manhã, com Smart TV, frigobar, ventilador de teto e ar-condicionado.',
-            capacity: 3,
-            maxGuests: 4,
-            inventoryFor4Guests: 2,
-            includedAdults: 2,
-            extraAdultFee: 100,
-            child6To11Fee: 50,
-            totalUnits: 8,
-            basePrice: 599.00,
-            amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
-        },
-
-        {
-            name: 'Apartamento Superior',
-            description: 'Apartamento na ala principal, próximo ao café da manhã, com Smart TV, frigobar, ventilador de teto e ar-condicionado.',
-            capacity: 3,
-            maxGuests: 4,
-            inventoryFor4Guests: 2,
-            includedAdults: 2,
-            extraAdultFee: 100,
-            child6To11Fee: 50,
-            totalUnits: 8,
-            basePrice: 699.00,
-            amenities: 'Ar-condicionado, Ventilador de teto, Smart TV, WiFi',
-        },
-
-        {
-            name: 'Chalé',
-            description: 'Chalé com varanda, Smart TV e café da manhã a 70 metros da ala principal. Não possui ar-condicionado.',
-            capacity: 3,
-            maxGuests: 4,
-            inventoryFor4Guests: 2,
-            includedAdults: 2,
-            extraAdultFee: 100,
-            child6To11Fee: 50,
-            totalUnits: 6,
-            basePrice: 499.00,
-            amenities: 'Varanda, Smart TV, WiFi, Ventilador de teto, Tomadas 110v',
-        },
-        {
-            name: 'Apartamento Anexo',
-            description: 'Apartamento anexo com Smart TV, mais privacidade e apoio de micro-ondas no bar. Não possui varanda nem copa.',
-            capacity: 3,
-            maxGuests: 3,
-            inventoryFor4Guests: 0,
-            includedAdults: 2,
-            extraAdultFee: 100,
-            child6To11Fee: 50,
-            totalUnits: 8,
-            basePrice: 399.00,
-            amenities: 'Smart TV, WiFi',
-        }
-    ];
-
-    for (const data of roomData) {
-        await prisma.roomType.create({ data });
+    {
+        name: 'Chalé',
+        description: 'Chalé com varanda, Smart TV e café da manhã a 70 metros da ala principal. Não possui ar-condicionado.',
+        capacity: 3,
+        maxGuests: 4,
+        inventoryFor4Guests: 2,
+        includedAdults: 2,
+        extraAdultFee: 100,
+        child6To11Fee: 50,
+        totalUnits: 6,
+        basePrice: 499.00,
+        amenities: 'Varanda, Smart TV, WiFi, Ventilador de teto, Tomadas 110v',
+        photo: '/fotos/ala-chales/chales/IMG_0109-1200.webp',
+    },
+    {
+        name: 'Apartamento Anexo',
+        description: 'Apartamento anexo com Smart TV, mais privacidade e apoio de micro-ondas no bar. Não possui varanda nem copa.',
+        capacity: 3,
+        maxGuests: 3,
+        inventoryFor4Guests: 0,
+        includedAdults: 2,
+        extraAdultFee: 100,
+        child6To11Fee: 50,
+        totalUnits: 8,
+        basePrice: 399.00,
+        amenities: 'Smart TV, WiFi',
+        photo: '/fotos/ala-chales/apartamentos-anexo/IMG_0029-1200.webp',
     }
+];
 
-    // 3. Gerar Tarifas (Crucial para a Disponibilidade)
-    console.log('Generating rates for 30 days...');
-    const rooms = await prisma.roomType.findMany();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+/**
+ * @param {string[]} argv
+ * @param {Record<string, string | undefined>} env
+ * @param {() => Promise<any>} loadPrisma carregado somente depois que todas as proteções passam
+ * @param {{ log: (l: string) => void, error: (l: string) => void }} io
+ * @returns {Promise<number>} código de saída
+ */
+async function run(argv, env, loadPrisma, io) {
+    let prisma;
+    try {
+        parseFlagsStrict(argv, { value: [], boolean: [] });
 
-    for (const room of rooms) {
-        for (let i = 0; i < 30; i++) {
-            const start = new Date(today);
-            start.setDate(today.getDate() + i);
-            const end = new Date(start);
-            end.setDate(start.getDate() + 1);
+        const target = assertSafeTarget(env.DATABASE_URL, {});
+        if (target.kind !== 'local') {
+            throw new GuardError('bloqueado: este seed destrutivo só roda em banco local.', 6);
+        }
 
-            await prisma.rate.create({
+        prisma = await loadPrisma();
+
+        const existing = await prisma.roomType.count();
+        if (existing > 0 && env.ALLOW_DESTRUCTIVE_SEED !== 'YES') {
+            throw new GuardError(
+                'bloqueado: o banco local já possui tipos de quarto. Este seed apaga tudo; defina ALLOW_DESTRUCTIVE_SEED=YES para confirmar.',
+                4
+            );
+        }
+
+        if (existing > 0) {
+            // As exclusões abaixo não são transacionais; reservas referenciam RoomType e fariam o último
+            // passo falhar depois de apagar inventário/tarifas. Aborta antes de apagar qualquer coisa.
+            if ((await prisma.booking.count()) > 0) {
+                throw new GuardError('bloqueado: o banco possui reservas; este seed apagaria tarifas e inventário sem poder concluir.', 4);
+            }
+            io.log('Deletando inventory, rates, photos e room types antigos...');
+            await prisma.inventoryAdjustment.deleteMany({});
+            await prisma.rate.deleteMany({});
+            await prisma.photo.deleteMany({});
+            await prisma.roomType.deleteMany({});
+        }
+
+        io.log('Inserindo novos quartos...');
+
+        for (const acc of ROOMS) {
+            const roomType = await prisma.roomType.create({
                 data: {
-                    roomTypeId: room.id,
-                    startDate: start,
-                    endDate: end,
-                    price: room.basePrice,
-                    stopSell: false,
-                    cta: false,
-                    ctd: false,
-                    minLos: 1,
-                }
+                    name: acc.name,
+                    description: acc.description,
+                    capacity: acc.capacity,
+                    maxGuests: acc.maxGuests,
+                    inventoryFor4Guests: acc.inventoryFor4Guests,
+                    includedAdults: acc.includedAdults,
+                    totalUnits: acc.totalUnits,
+                    basePrice: acc.basePrice,
+                    extraAdultFee: acc.extraAdultFee,
+                    child6To11Fee: acc.child6To11Fee,
+                    amenities: acc.amenities,
+                },
             });
+
+            // Add a photo
+            await prisma.photo.create({
+                data: {
+                    url: acc.photo,
+                    roomTypeId: roomType.id,
+                },
+            });
+
+            // Add inventory and rates for the next 30 days
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Start of day
+
+            for (let i = 0; i < 30; i++) {
+                const date = new Date(today);
+                date.setDate(date.getDate() + i);
+                const dateKey = date.toISOString().split('T')[0];
+
+                await prisma.inventoryAdjustment.create({
+                    data: {
+                        roomTypeId: roomType.id,
+                        date: date,
+                        dateKey: dateKey,
+                        totalUnits: acc.totalUnits,
+                        occupiedUnits: 0,
+                    },
+                });
+
+                const nextDay = new Date(date);
+                nextDay.setDate(nextDay.getDate() + 1);
+
+                await prisma.rate.create({
+                    data: {
+                        roomTypeId: roomType.id,
+                        startDate: date,
+                        endDate: nextDay,
+                        price: acc.basePrice,
+                    },
+                });
+            }
         }
+
+        io.log('Novos quartos criados com sucesso!');
+        return 0;
+    } catch (error) {
+        if (error instanceof GuardError) {
+            io.error(error.message);
+            return error.exitCode;
+        }
+        io.error(`erro: ${sanitizeErrorMessage(error)}`);
+        return 5;
+    } finally {
+        if (prisma) await prisma.$disconnect().catch(() => undefined);
     }
-
-    // 4. Criar Administrador
-    const seedEmail = 'admin@delplata.com.br';
-    const seedPasswordHash = await bcrypt.hash('admin123', 10);
-
-    await prisma.adminUser.upsert({
-        where: { email: seedEmail },
-        update: { passwordHash: seedPasswordHash, isActive: true },
-        create: {
-            email: seedEmail,
-            passwordHash: seedPasswordHash,
-            name: 'Administrador',
-            isActive: true,
-        },
-    });
-
-    console.log('✅ Admin: admin@delplata.com.br / admin123');
-    console.log('🎉 Seeding completed!');
 }
 
-seed()
-    .catch((e) => {
-        console.error('Error seeding database:', e);
-        process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
-    });
+module.exports = { run, ROOMS };
+
+if (require.main === module) {
+    const { PrismaClient } = require('@prisma/client');
+    run(process.argv.slice(2), process.env, async () => new PrismaClient(), {
+        log: (line) => console.log(line),
+        error: (line) => console.error(line),
+    }).then((code) => process.exit(code));
+}

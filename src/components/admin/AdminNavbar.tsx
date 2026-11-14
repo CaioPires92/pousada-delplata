@@ -10,6 +10,7 @@ import {
     Home,
     CalendarRange,
     Ticket,
+    Percent,
     Globe,
     LogOut,
     ChevronLeft,
@@ -61,6 +62,7 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
             items: [
                 { href: '/admin/settings/partial-payment', label: 'Pagamento Parcial', icon: CreditCard },
                 { href: '/admin/cupons', label: 'Cupons', icon: Ticket },
+                { href: '/admin/promocoes', label: 'Promoções', icon: Percent },
             ],
         },
     ];

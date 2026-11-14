@@ -29,7 +29,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
                 capacity: Number(data.capacity),
                 totalUnits: nextTotalUnits,
                 inventoryFor4Guests: nextInventoryFor4Guests,
-                maxGuests: nextInventoryFor4Guests > 0 ? 4 : 3,
+                maxGuests: Number(data.capacity),
                 basePrice: Number(data.basePrice),
                 amenities: data.amenities
             }

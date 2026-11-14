@@ -1,30 +1,6 @@
-import prisma from '../../../src/lib/prisma';
-
-async function run() {
-    console.log("Iniciando atualização no Turso...");
-    try {
-        // Atualizando Apartamento Superior
-        await prisma.roomType.updateMany({
-            where: { name: { contains: 'Superior' } },
-            data: {
-                description: "Apartamentos compostos por: Televisão LCD 39, Frigobar, Guarda-roupa, Ventilador de teto e Ar-condicionado. Tomadas 220v"
-            }
-        });
-
-        // Atualizando Apartamento Térreo
-        await prisma.roomType.updateMany({
-            where: { name: { contains: 'Térreo' } },
-            data: {
-                description: "Apartamentos compostos por: TV Smart 32, Frigobar, Guarda-roupa, Ventilador de teto e Ar-condicionado. IMPORTANTE: A maioria não possui janelas."
-            }
-        });
-
-        console.log("✅ Descrições atualizadas com sucesso!");
-    } catch (e) {
-        console.error("❌ Erro:", e);
-    } finally {
-        await prisma.$disconnect();
-    }
-}
-
-run();
+// SCRIPT DESATIVADO (T1b).
+// Atualizava descrições de RoomType com atualização direta em massa, sem dry-run, confirmação ou checagem de destino
+// (e com textos divergentes do canônico). Sem consumidores. Use: npm run db:update (manage-pousada, protegido).
+console.error('Script desativado: use "npm run db:update" (scripts/reservas/db/manage-pousada.ts).');
+process.exit(1);
+export {};

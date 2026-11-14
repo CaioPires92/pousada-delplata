@@ -57,15 +57,18 @@ model Rate {
 }
 
 model InventoryAdjustment {
-  id            String   @id @default(uuid())
-  roomTypeId    String
-  date          DateTime
-  dateKey       String
-  totalUnits    Int
-  occupiedUnits Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  roomType      RoomType @relation(fields: [roomTypeId], references: [id])
+  id                  String    @id @default(uuid())
+  roomTypeId          String
+  date                DateTime
+  dateKey             String
+  totalUnits          Int
+  occupiedUnits       Int       @default(0)
+  hospedinUnits       Int?
+  manualOverrideUnits Int?
+  hospedinSyncedAt    DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  roomType            RoomType  @relation(fields: [roomTypeId], references: [id])
 
   @@unique([roomTypeId, dateKey])
   @@index([dateKey])
@@ -102,20 +105,30 @@ model Booking {
   adults                  Int               @default(1)
   children                Int               @default(0)
   childrenAges            String?
+  pets                    Int               @default(0)
   checkIn                 DateTime
   checkOut                DateTime
   totalPrice              Decimal
   subtotalPrice           Decimal?
   discountAmount          Decimal?
   appliedCouponCode       String?
+  promotionId             String?
+  promotionName           String?
+  promotionDiscount       Decimal?
+  // JSON [{id,name,badgeLabel,discountPercent,discountAmount}] das promoções aplicadas (pode ser mais de uma).
+  promotionBreakdown      String?
   status                  String
   funnelStage             String?
   funnelUpdatedAt         DateTime?
   lastErrorMessage        String?
   pendingEmailSentAt      DateTime?
   expiredEmailSentAt      DateTime?
+  // Prazo para pagar (null = createdAt + PENDING_BOOKING_PAYMENT_WINDOW_MINUTES). O admin renova ao gerar link.
+  paymentDeadlineAt       DateTime?
   confirmationEmailSentAt DateTime?
   checkoutConfirmedAt     DateTime?
+  hospedinReservationId   String?
+  hospedinRegisteredAt    DateTime?
   createdAt               DateTime          @default(now())
   updatedAt               DateTime          @updatedAt
   roomType                RoomType          @relation(fields: [roomTypeId], references: [id])
@@ -123,8 +136,11 @@ model Booking {
   couponRedemption        CouponRedemption?
   issuedCoupons           Coupon[]          @relation("CouponOriginBooking")
   payment                 Payment?
+  paymentAttempts         PaymentAttempt[]
 
   @@index([checkoutConfirmedAt])
+  @@index([hospedinRegisteredAt])
+  @@index([status, paymentDeadlineAt])
 }
 
 model PartialPaymentSettings {
@@ -170,6 +186,26 @@ model Payment {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   booking         Booking   @relation(fields: [bookingId], references: [id])
+}
+
+model PaymentAttempt {
+  id                String   @id @default(uuid())
+  bookingId         String
+  provider          String
+  providerPaymentId String   @unique
+  amount            Decimal?
+  currency          String?
+  method            String?
+  cardBrand         String?
+  installments      Int?
+  status            String
+  statusDetail      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([status, createdAt])
 }
 
 model AdminUser {
@@ -251,4 +287,44 @@ model CouponAttemptLog {
 
   @@index([createdAt])
   @@index([codePrefix])
+}
+
+model Promotion {
+  id                   String    @id @default(uuid())
+  name                 String
+  badgeLabel           String?
+  type                 String
+  active               Boolean   @default(true)
+  discountPercent      Decimal
+  maxDiscountAmount    Decimal?
+  minDaysBeforeCheckIn Int?
+  maxDaysBeforeCheckIn Int?
+  stayStart            DateTime?
+  stayEnd              DateTime?
+  bookableFrom         DateTime?
+  bookableUntil        DateTime?
+  minNights            Int?
+  allowedRoomTypeIds   String?
+  stackWithCoupons     Boolean   @default(false)
+  // JSON com ids de cupons que acumulam; null = qualquer cupom compatível (quando stackWithCoupons).
+  allowedCouponIds     String?
+  stackWithPromotions  Boolean   @default(false)
+  // JSON com ids de promoções que acumulam; null = qualquer outra (quando stackWithPromotions).
+  allowedPromotionIds  String?
+  exclusive            Boolean   @default(false)
+  // Público da promoção: "all" (todos) ou "mobile" (só quem reserva pelo celular).
+  audience             String    @default("all")
+  // false = o desconto vale, mas a etiqueta/nome não aparece ao hóspede.
+  showBadge            Boolean   @default(true)
+  // JSON de intervalos de noites em que a promoção não vale.
+  excludedStayDates    String?
+  // JSON [0..6] (0 = domingo): dias da semana em que a promoção vale, noite a noite.
+  daysOfWeek           String?
+  // Sem uso na tela: o desempate é automático (maior desconto, depois mais recente).
+  priority             Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([active])
+  @@index([type])
 }

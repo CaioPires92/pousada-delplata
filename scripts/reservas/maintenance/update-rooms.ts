@@ -1,30 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
-async function main() {
-    const rooms = await prisma.roomType.findMany();
-    
-    for (const room of rooms) {
-        let maxGuests = 4;
-        const name = room.name.toLowerCase();
-        
-        if (name.includes('anexo')) {
-            maxGuests = 3;
-        } else if (name.includes('térreo') || name.includes('terreo')) {
-            maxGuests = 4;
-        } else if (name.includes('superior')) {
-            maxGuests = 4;
-        } else if (name.includes('chalé') || name.includes('chale')) {
-            maxGuests = 4;
-        }
-
-        await prisma.roomType.update({
-            where: { id: room.id },
-            data: { maxGuests }
-        });
-        console.log(`Updated ${room.name} to maxGuests = ${maxGuests}`);
-    }
-}
-
-main().catch(console.error).finally(() => prisma.$disconnect());
+// SCRIPT DESATIVADO (T1b).
+// Alterava maxGuests de todos os RoomType com update direto, sem dry-run, confirmação ou checagem de destino.
+// Sem consumidores. O código original está no histórico do Git; reative somente com o guard compartilhado
+// (scripts/shared/db-safety.js) e dry-run.
+console.error('Script desativado: alteração de maxGuests sem proteções. Veja o comentário no topo do arquivo.');
+process.exit(1);
+export {};

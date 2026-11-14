@@ -1,29 +1,24 @@
-const { createClient } = require('@libsql/client');
-require('dotenv').config({ path: '.env' });
+// Remove linhas duplicadas de Rate (mesmo roomTypeId/startDate/endDate e mesma configuração).
+//
+// Uso (sempre dry-run primeiro; o plano devolvido é exigido na execução real):
+//   node scripts/reservas/db/dedupe-rate-rows.js --dry-run
+//   node scripts/reservas/db/dedupe-rate-rows.js --confirm=YES --expect-plan=<plan do dry-run>
+// Banco remoto (inclusive o dry-run): acrescente --allow-remote --confirm-host=<hostname do banco>.
+const {
+  GuardError,
+  parseFlagsStrict,
+  sanitizeErrorMessage,
+  assertSafeTarget,
+  assertWriteConfirmation,
+  assertPlanFlagPresent,
+  assertPlanMatches,
+  planHash,
+  targetFingerprint,
+  COMMON_VALUE_FLAGS,
+  COMMON_BOOLEAN_FLAGS,
+} = require('../../shared/db-safety');
 
-const databaseUrl = process.env.DATABASE_URL || '';
-const authToken = process.env.DATABASE_AUTH_TOKEN || '';
-const isRemoteLibsql = databaseUrl.startsWith('libsql:') || databaseUrl.startsWith('wss:');
-const isDryRun = process.argv.includes('--dry-run');
-const isConfirmed = process.argv.includes('--confirm=YES');
-
-if (!databaseUrl || (isRemoteLibsql && !authToken)) {
-  console.error('Missing DATABASE_URL or DATABASE_AUTH_TOKEN');
-  process.exit(1);
-}
-
-if (!isDryRun && !isConfirmed) {
-  console.error('Refusing to delete duplicate Rate rows without --confirm=YES. Use --dry-run first.');
-  process.exit(1);
-}
-
-const client = createClient(
-  isRemoteLibsql
-    ? { url: databaseUrl.split('?')[0], authToken }
-    : { url: databaseUrl.split('?')[0] }
-);
-
-async function getDuplicateRows() {
+async function getDuplicateRows(client) {
   const result = await client.execute(`
     SELECT r.id,
            r.roomTypeId,
@@ -86,40 +81,83 @@ function chooseRowsToDelete(rows) {
   return { keep, remove, conflicts };
 }
 
-async function main() {
-  const database = databaseUrl.replace(/^libsql:\/\//, '').split('?')[0];
-  const rows = await getDuplicateRows();
-  const { keep, remove, conflicts } = chooseRowsToDelete(rows);
+/**
+ * @param {string[]} argv
+ * @param {Record<string, string | undefined>} env
+ * @param {(options: { url: string, authToken?: string }) => { execute: (q: unknown) => Promise<{ rows?: any[] }> }} createDbClient
+ * @param {{ log: (l: string) => void, error: (l: string) => void }} io
+ * @returns {Promise<number>} código de saída
+ */
+async function run(argv, env, createDbClient, io) {
+  try {
+    const flags = parseFlagsStrict(argv, { value: COMMON_VALUE_FLAGS, boolean: COMMON_BOOLEAN_FLAGS });
+    const dryRun = flags['dry-run'] === true;
 
-  console.log(JSON.stringify({
-    database,
-    duplicateGroups: keep.length + conflicts.length,
-    rowsToKeep: keep.length,
-    rowsToDelete: remove.length,
-    conflictGroups: conflicts.length,
-    sampleDeletes: remove.slice(0, 10),
-  }, null, 2));
+    assertWriteConfirmation(flags, dryRun);
+    const target = assertSafeTarget(env.DATABASE_URL, flags);
+    if (!dryRun) assertPlanFlagPresent(flags);
 
-  if (conflicts.length > 0) {
-    throw new Error('Duplicate Rate groups have conflicting values. Resolve manually before dedupe.');
+    const databaseUrl = String(env.DATABASE_URL || '');
+    const authToken = env.DATABASE_AUTH_TOKEN || '';
+    if (target.kind === 'remote' && !authToken) {
+      throw new GuardError('DATABASE_AUTH_TOKEN ausente para banco remoto.', 1);
+    }
+
+    const client = createDbClient(
+      target.kind === 'remote' ? { url: databaseUrl.split('?')[0], authToken } : { url: databaseUrl.split('?')[0] }
+    );
+
+    const rows = await getDuplicateRows(client);
+    const { keep, remove, conflicts } = chooseRowsToDelete(rows);
+    const plan = planHash({ target: target.label, db: targetFingerprint(env.DATABASE_URL), delete: remove.map((row) => String(row.id)).sort() });
+
+    io.log(JSON.stringify({
+      database: target.label,
+      duplicateGroups: keep.length + conflicts.length,
+      rowsToKeep: keep.length,
+      rowsToDelete: remove.length,
+      conflictGroups: conflicts.length,
+      sampleDeletes: remove.slice(0, 10),
+    }, null, 2));
+    io.log(`plan=${plan}`);
+
+    if (conflicts.length > 0) {
+      throw new GuardError('Duplicate Rate groups have conflicting values. Resolve manually before dedupe.', 5);
+    }
+
+    if (dryRun) {
+      io.log('Dry run complete. No rows deleted.');
+      return 0;
+    }
+
+    assertPlanMatches(flags, plan);
+
+    for (const row of remove) {
+      await client.execute({
+        sql: 'DELETE FROM Rate WHERE id = ?',
+        args: [row.id],
+      });
+    }
+
+    io.log(`Deleted ${remove.length} duplicate Rate rows.`);
+    return 0;
+  } catch (error) {
+    if (error instanceof GuardError) {
+      io.error(error.message);
+      return error.exitCode;
+    }
+    io.error(`erro: ${sanitizeErrorMessage(error)}`);
+    return 5;
   }
-
-  if (isDryRun) {
-    console.log('Dry run complete. No rows deleted.');
-    return;
-  }
-
-  for (const row of remove) {
-    await client.execute({
-      sql: 'DELETE FROM Rate WHERE id = ?',
-      args: [row.id],
-    });
-  }
-
-  console.log(`Deleted ${remove.length} duplicate Rate rows.`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = { run, chooseRowsToDelete };
+
+if (require.main === module) {
+  require('dotenv').config({ path: '.env' });
+  const { createClient } = require('@libsql/client');
+  run(process.argv.slice(2), process.env, (options) => createClient(options), {
+    log: (line) => console.log(line),
+    error: (line) => console.error(line),
+  }).then((code) => process.exit(code));
+}

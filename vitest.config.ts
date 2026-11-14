@@ -7,6 +7,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // Testes de tela pesados estouravam o limite padrão quando a suíte roda inteira em paralelo
+    // (como no build da Vercel), derrubando deploys por motivo nenhum. Só estende o teto: testes
+    // que passam rápido continuam rápidos.
+    testTimeout: 30000,
+    hookTimeout: 30000,
     setupFiles: ['./vitest.setup.tsx'],
     alias: {
       '@': path.resolve(__dirname, './src'),

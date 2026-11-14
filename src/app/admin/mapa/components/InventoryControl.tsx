@@ -47,6 +47,7 @@ export const InventoryControl: React.FC<InventoryControlProps> = ({
           onClick={onDecrement}
           disabled={disabled || value <= minValue}
           data-no-drag="true"
+          aria-label={`Diminuir ${label}`}
         >
           <Minus className="h-2.5 w-2.5" />
         </Button>
@@ -60,6 +61,7 @@ export const InventoryControl: React.FC<InventoryControlProps> = ({
           onClick={onIncrement}
           disabled={disabled}
           data-no-drag="true"
+          aria-label={`Aumentar ${label}`}
         >
           <Plus className="h-2.5 w-2.5" />
         </Button>

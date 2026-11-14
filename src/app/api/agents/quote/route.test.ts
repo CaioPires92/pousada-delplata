@@ -19,6 +19,9 @@ const priceBreakdown = {
   extrasPerNight: 0,
   extraAdultTotal: 0,
   childTotal: 0,
+  pets: 0,
+  petFeePerNight: 0,
+  petTotal: 0,
   total: 840,
 };
 
@@ -47,6 +50,7 @@ describe("/api/agents/quote", () => {
           minLos: 1,
           totalPrice: 840,
           priceBreakdown,
+          promotion: null,
         },
       ],
     });
@@ -67,11 +71,11 @@ describe("/api/agents/quote", () => {
       ok: true,
       available: true,
       nights: 2,
+      currency: "BRL",
       options: [
         {
           roomTypeName: "Apartamento terreo triplo",
           totalPrice: 840,
-          currency: "BRL",
           dailyAverage: 420,
         },
       ],
@@ -107,6 +111,7 @@ describe("/api/agents/quote", () => {
           minLos: 1,
           totalPrice: 700,
           priceBreakdown: { ...priceBreakdown, baseTotal: 700, total: 700 },
+          promotion: null,
         },
         {
           roomTypeId: "room-2",
@@ -116,6 +121,7 @@ describe("/api/agents/quote", () => {
           minLos: 1,
           totalPrice: 800,
           priceBreakdown: { ...priceBreakdown, baseTotal: 800, total: 800 },
+          promotion: null,
         },
       ],
     });
@@ -126,8 +132,8 @@ describe("/api/agents/quote", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.childrenAges).toEqual([6]);
     expect(data.options).toHaveLength(1);
+    expect(data.options[0].bookingUrl).toContain("childrenAges=6");
     expect(data.options[0].roomTypeName).toBe("Chale triplo");
   });
 

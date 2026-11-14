@@ -3,16 +3,16 @@
 import { Fragment, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    format, 
-    startOfMonth, 
-    endOfMonth, 
-    eachDayOfInterval, 
-    startOfWeek, 
-    endOfWeek, 
-    isSameMonth, 
-    isSameDay, 
-    addMonths, 
+import {
+    format,
+    startOfMonth,
+    endOfMonth,
+    eachDayOfInterval,
+    startOfWeek,
+    endOfWeek,
+    isSameMonth,
+    isSameDay,
+    addMonths,
     subMonths,
     addDays,
     parseISO,
@@ -28,14 +28,16 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { OCCUPANCY_BAND_LABEL, getOccupancyMetrics, type OccupancyBand } from './occupancy';
 import { RoomRow } from './components/RoomRow';
-import { 
-    Calendar, 
-    Filter, 
-    Zap, 
-    ChevronLeft, 
+import {
+    Calendar,
+    Filter,
+    Zap,
+    ChevronLeft,
     ChevronRight,
     Settings2,
-    RefreshCcw
+    RefreshCcw,
+    AlertTriangle,
+    ShieldCheck,
 } from 'lucide-react';
 import InventoryStepper from './inventory-stepper';
 import { BulkEditPanel } from './components/BulkEditPanel';
@@ -44,6 +46,7 @@ import {
     getInventoryMaxAllowed,
     type InventoryField,
 } from './inventory-grid';
+import { getRoomSortPriority, normalizeRoomName } from './room-order';
 
 interface RoomType {
     id: string;
@@ -71,6 +74,11 @@ interface RoomType {
         bookingsFor4GuestsCount?: number;
         isFourGuestAdjusted?: boolean;
         isAdjusted: boolean;
+        inventorySource?: 'manual' | 'hospedin' | 'capacity';
+        hospedinUnits?: number | null;
+        automaticInventory?: number;
+        safetyBuffer?: number;
+        hospedinSyncedAt?: string | null;
     }
 
     // ... (keep RoomType interface)
@@ -101,20 +109,26 @@ type InventorySelectionState = {
     anchorRect: { left: number; top: number; bottom: number };
 };
 
-const ALL_ROOMS_VALUE = 'all';
-const ROOM_ORDER_KEYWORDS = ['terreo', 'superior', 'chale', 'anexo'];
-
-const normalizeRoomName = (name: string) =>
-    name
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-
-const getRoomSortPriority = (name: string) => {
-    const normalized = normalizeRoomName(name);
-    const idx = ROOM_ORDER_KEYWORDS.findIndex(keyword => normalized.includes(keyword));
-    return idx >= 0 ? idx : ROOM_ORDER_KEYWORDS.length;
+type InventoryOverrideWarning = {
+    date: string;
+    roomTypeId: string;
+    requestedUnits: number;
+    hospedinUnits: number | null;
+    automaticAvailable: number;
+    safetyBuffer: number;
 };
+
+type HospedinSyncWarning = {
+    roomName: string;
+    date: string;
+    hospedinUnits: number;
+    automaticUnits: number;
+    manualUnits: number;
+};
+
+const ALL_ROOMS_VALUE = 'all';
+/** A sincronização automática roda a cada 30 min; passou disso por muito tempo, avisa que está velha. */
+const HOSPEDIN_STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 const isInventorySelectionField = (field: DragSelectionField): field is InventoryField =>
     field === 'inventory' || field === 'fourGuestInventory';
@@ -172,7 +186,7 @@ const EditableCell = ({ value, onSave, type = 'text', min }: EditableCellProps) 
     }, [value]);
 
     return (
-        <input 
+        <input
             type={type}
             min={min}
             className={styles.cellInput}
@@ -220,9 +234,10 @@ export default function MapaReservas() {
 
     const showToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
         setToast({ type, message });
-        window.setTimeout(() => setToast(null), 2800);
+        // Erros ficam mais tempo na tela para dar tempo de ler o motivo.
+        window.setTimeout(() => setToast(null), type === 'error' ? 9000 : 2800);
     }, []);
-    
+
     // Modal state (for Grid)
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -240,11 +255,29 @@ export default function MapaReservas() {
     const [inventorySelection, setInventorySelection] = useState<InventorySelectionState | null>(null);
     const [inventoryBatchValue, setInventoryBatchValue] = useState('');
     const [inventoryBatchSaving, setInventoryBatchSaving] = useState(false);
-    const [lastSync, setLastSync] = useState<{ 
-        timestamp: string; 
-        duration: string; 
+    const [lastSync, setLastSync] = useState<{
+        timestamp: string;
+        duration: string;
         range: string;
     } | null>(null);
+
+    // Hora real da última sincronização, lida do banco (vale também para as automáticas).
+    const [nowMs, setNowMs] = useState(() => Date.now());
+    useEffect(() => {
+        const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000);
+        return () => window.clearInterval(intervalId);
+    }, []);
+    const hospedinSyncedAtMs = useMemo(() => {
+        let latest = 0;
+        Object.values(calendarDataByRoom).forEach((days) => {
+            days.forEach((day) => {
+                const time = day.hospedinSyncedAt ? Date.parse(day.hospedinSyncedAt) : 0;
+                if (Number.isFinite(time) && time > latest) latest = time;
+            });
+        });
+        return latest || null;
+    }, [calendarDataByRoom]);
+    const hospedinIsStale = hospedinSyncedAtMs !== null && nowMs - hospedinSyncedAtMs > HOSPEDIN_STALE_AFTER_MS;
 
     useEffect(() => {
         const saved = localStorage.getItem('hospedin_last_sync');
@@ -445,21 +478,14 @@ export default function MapaReservas() {
 
     const [savingRate, setSavingRate] = useState<string | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [inventoryOverrideWarning, setInventoryOverrideWarning] = useState<InventoryOverrideWarning | null>(null);
+    const [hospedinSyncWarnings, setHospedinSyncWarnings] = useState<HospedinSyncWarning[]>([]);
 
     const handleHospedinSync = async () => {
         setIsSyncing(true);
         try {
-            // Determine range to sync
-            let syncStart = format(new Date(), 'yyyy-MM-dd');
-            let syncEnd = format(addDays(new Date(), 60), 'yyyy-MM-dd');
-
-            if (periodMode === 'month') {
-                syncStart = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-                syncEnd = format(endOfMonth(currentDate), 'yyyy-MM-dd');
-            } else if (periodMode === 'custom') {
-                syncStart = customStart;
-                syncEnd = customEnd;
-            }
+            const syncStart = format(listVisibleStart, 'yyyy-MM-dd');
+            const syncEnd = format(listQueryInterval.end, 'yyyy-MM-dd');
 
             const res = await fetch('/api/admin/hospedin-sync', {
                 method: 'POST',
@@ -472,21 +498,44 @@ export default function MapaReservas() {
             });
             const data = await res.json();
             if (res.ok) {
-                const syncData = {
-                    timestamp: format(new Date(), 'dd/MM HH:mm'),
-                    duration: data.duration,
-                    range: `${format(parseISO(syncStart), 'dd/MM')} a ${format(parseISO(syncEnd), 'dd/MM')}`
-                };
-                setLastSync(syncData);
-                localStorage.setItem('hospedin_last_sync', JSON.stringify(syncData));
+                const syncResults: any[] = Array.isArray(data.results) ? data.results : [];
+                // A rota responde 200 mesmo quando o Hospedin recusa um quarto: o erro vem dentro de results.
+                const failedRooms = syncResults.filter((result) => result?.error);
+                const allFailed = syncResults.length > 0 && failedRooms.length === syncResults.length;
+                const syncWarnings = syncResults.flatMap((result: any) =>
+                    Array.isArray(result.manualOverrides)
+                        ? result.manualOverrides.map((warning: any) => ({ ...warning, roomName: result.roomName }))
+                        : []
+                );
 
-                const roomName = selectedRoomId !== ALL_ROOMS_VALUE 
-                    ? roomTypes.find(r => r.id === selectedRoomId)?.name 
+                if (!allFailed) {
+                    const syncData = {
+                        timestamp: format(new Date(), 'dd/MM HH:mm'),
+                        duration: data.duration,
+                        range: `${format(parseISO(syncStart), 'dd/MM')} a ${format(parseISO(syncEnd), 'dd/MM')}`
+                    };
+                    setLastSync(syncData);
+                    localStorage.setItem('hospedin_last_sync', JSON.stringify(syncData));
+                }
+
+                const roomName = selectedRoomId !== ALL_ROOMS_VALUE
+                    ? roomTypes.find(r => r.id === selectedRoomId)?.name
                     : 'Todas as acomodações';
 
-                showToast('success', `Sincronização concluída: ${roomName} (${syncStart} até ${syncEnd})`);
+                if (failedRooms.length > 0) {
+                    const detail = failedRooms.map((result) => `${result.roomName}: ${result.error}`).join(' | ');
+                    showToast(
+                        'error',
+                        allFailed
+                            ? `O Hospedin recusou a sincronização. ${detail}`
+                            : `Sincronização parcial. Falhou em: ${detail}`
+                    );
+                } else {
+                    showToast('success', `Sincronização concluída: ${roomName} (${syncStart} até ${syncEnd})`);
+                }
                 // Refresh data
                 await fetchRates();
+                setHospedinSyncWarnings(syncWarnings);
             } else {
                 showToast('error', data.error || 'Erro na sincronização');
             }
@@ -545,9 +594,14 @@ export default function MapaReservas() {
     const [updatingInventory, setUpdatingInventory] = useState<string | null>(null);
     const [updatingFourGuestInventory, setUpdatingFourGuestInventory] = useState<string | null>(null);
 
-    const persistInventory = async (dateStr: string, newTotal: number, roomTypeId?: string) => {
+    const persistInventory = async (
+        dateStr: string,
+        newTotal: number,
+        roomTypeId?: string,
+        confirmAboveAutomatic = false,
+    ): Promise<boolean> => {
         const effectiveRoomId = roomTypeId || selectedRoomId;
-        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return;
+        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return false;
         setUpdatingInventory(`${effectiveRoomId}:${dateStr}`);
         try {
             const res = await fetch('/api/admin/inventory', {
@@ -556,14 +610,67 @@ export default function MapaReservas() {
                 body: JSON.stringify({
                     roomTypeId: effectiveRoomId,
                     date: dateStr,
-                    totalUnits: newTotal
+                    totalUnits: newTotal,
+                    confirmAboveAutomatic,
                 })
             });
+            if (res.status === 409) {
+                const warning = await res.json();
+                setInventoryOverrideWarning({
+                    date: dateStr,
+                    roomTypeId: effectiveRoomId,
+                    requestedUnits: warning.requestedUnits,
+                    hospedinUnits: warning.hospedinUnits,
+                    automaticAvailable: warning.automaticAvailable,
+                    safetyBuffer: warning.safetyBuffer,
+                });
+                return false;
+            }
             if (!res.ok) throw new Error('Falha ao atualizar inventário');
             const data = await res.json().catch(() => null);
             if (data && typeof data === 'object' && (data as any).appliedLimit) {
                 showToast('info', `Ajuste limitado por reservas em ${dateStr}.`);
             }
+            return true;
+        } finally {
+            setUpdatingInventory(null);
+        }
+    };
+
+    const cancelInventoryOverride = async () => {
+        setInventoryOverrideWarning(null);
+        await fetchRates();
+    };
+
+    const confirmInventoryOverride = async () => {
+        if (!inventoryOverrideWarning) return;
+        const warning = inventoryOverrideWarning;
+        setInventoryOverrideWarning(null);
+        const saved = await persistInventory(
+            warning.date,
+            warning.requestedUnits,
+            warning.roomTypeId,
+            true,
+        );
+        if (saved) {
+            await fetchRates();
+            showToast('success', 'Abertura manual mantida até você voltar ao inventário automático.');
+        }
+    };
+
+    const resetInventoryToAutomatic = async (dateStr: string, roomTypeId?: string) => {
+        const effectiveRoomId = roomTypeId || selectedRoomId;
+        if (!effectiveRoomId || effectiveRoomId === ALL_ROOMS_VALUE) return;
+        setUpdatingInventory(`${effectiveRoomId}:${dateStr}`);
+        try {
+            const res = await fetch('/api/admin/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomTypeId: effectiveRoomId, date: dateStr, totalUnits: 0, resetManualOverride: true }),
+            });
+            if (!res.ok) throw new Error('Falha ao voltar ao inventário automático');
+            await fetchRates();
+            showToast('success', 'Ajuste manual removido. Inventário automático restaurado.');
         } finally {
             setUpdatingInventory(null);
         }
@@ -600,7 +707,7 @@ export default function MapaReservas() {
         const data = getDataForDay(day);
         const rate = getRateForDay(day);
         setSelectedDate(day);
-        
+
         if (data) {
             setEditPrice(data.price);
             setEditMinLos(data.minLos);
@@ -619,7 +726,7 @@ export default function MapaReservas() {
             setEditInventory(1);
             setExistingRateId(null);
         }
-        
+
         setModalOpen(true);
     };
 
@@ -660,36 +767,36 @@ export default function MapaReservas() {
     };
     const handleDelete = async () => {
         if (!existingRateId || !selectedDate) return;
-        
+
         if (!confirm('Tem certeza que deseja remover esta tarifa personalizada? O preço voltará ao valor base.')) return;
 
         // To "delete" a customization for a specific day that might be part of a range,
         // we essentially want to reset it to base price (or delete the record if it's 1-day).
         // However, "delete" in this context usually means "remove overrides".
-        // The bulk endpoint logic merges with defaults if not provided. 
+        // The bulk endpoint logic merges with defaults if not provided.
         // But we want to explicitly remove the rate record for this day.
-        
-        // Strategy: We can use the bulk endpoint to "reset" the day. 
+
+        // Strategy: We can use the bulk endpoint to "reset" the day.
         // But wait, if we want to DELETE the rate record so it falls back to RoomType default,
         // we need a way to say "clear rate".
-        // Current bulk logic creates rates. 
-        
+        // Current bulk logic creates rates.
+
         // Alternative: If the user wants to DELETE, we should find the rate covering this day.
         // If it covers ONLY this day, delete it.
         // If it covers multiple days, we need to SPLIT it and remove the middle.
-        
+
         // Let's implement a specific logic here or improve bulk to handle "delete" action?
         // Simpler: Just use the existing DELETE endpoint if it's a 1-day rate?
         // No, that doesn't solve the "part of range" issue.
-        
+
         // Let's manually implement the split-and-delete logic here or via a new endpoint?
         // Actually, let's keep it simple: If they click delete, we try to delete the rate.
         // If it affects other days, we should warn? Or just split?
-        // "Delete" usually implies "Reset to Default". 
+        // "Delete" usually implies "Reset to Default".
         // If I have a rate for Jan 1-10 of $500.
         // And I delete Jan 5.
         // I expect Jan 1-4 and Jan 6-10 to stay $500, and Jan 5 to become Base Price (no rate record).
-        
+
         try {
             // We can reuse the bulk endpoint logic concept but we need a "delete" mode.
             // For now, let's just stick to the old DELETE method but warn the user if it spans multiple days?
@@ -697,13 +804,13 @@ export default function MapaReservas() {
             // We can't easily "delete" a hole in a rate range with current API.
             // Let's just fallback to "Set to Base Price" using saveSingleDayRate?
             // But that creates a rate record with the base price, which is visually similar but technically different (it overrides future base price changes).
-            
+
             // Correct approach: Split the rate on backend and delete the target segment.
-            // Since we don't have that endpoint ready, let's stick to the simple DELETE for now, 
+            // Since we don't have that endpoint ready, let's stick to the simple DELETE for now,
             // but beware it deletes the whole range.
             // To fix "it edits in batch" for DELETE, we would need backend changes.
             // But the user specifically asked about "editing".
-            
+
             await fetch(`/api/rates/${existingRateId}`, {
                 method: 'DELETE'
             });
@@ -766,7 +873,7 @@ export default function MapaReservas() {
             const rateUpdates = { ...updates };
             delete rateUpdates.inventory;
             delete rateUpdates.fourGuestInventory;
-            
+
             const requests: Promise<Response>[] = [];
 
             if (Object.keys(rateUpdates).length > 0) {
@@ -834,7 +941,7 @@ export default function MapaReservas() {
             // setBulkModalOpen(false);
             await fetchRates();
             showToast('success', 'Atualização em lote concluída!');
-            
+
         } catch (error) {
             console.error('Error bulk updating:', error);
             showToast('error', error instanceof Error ? error.message : 'Erro ao atualizar em lote.');
@@ -859,7 +966,7 @@ export default function MapaReservas() {
 
     const handleRateUpdate = useCallback(async (roomId: string, date: string, field: string, value: any) => {
         const dateObj = parseISO(date);
-        
+
         // Update local state immediately for snappy feel (Optimistic UI)
         setCalendarDataByRoom(prev => {
             const roomData = prev[roomId] || [];
@@ -900,7 +1007,7 @@ export default function MapaReservas() {
                 if (apiField === 'stopSell') {
                     apiValue = (typeof value === 'boolean') ? value : (value === 'FECHADO');
                 }
-                
+
                 await saveSingleDayRate(dateObj, { [apiField]: apiValue }, false, roomId);
             }
         } catch (error) {
@@ -1274,14 +1381,14 @@ export default function MapaReservas() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <Button 
+                    <Button
                         onClick={() => setBulkModalOpen(true)}
                         className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-6 rounded-2xl shadow-lg shadow-slate-200 transition-all gap-2"
                     >
                         <Zap className="h-5 w-5 text-yellow-400 fill-yellow-400" />
                         Edição em Lote
                     </Button>
-                    <Button 
+                    <Button
                         variant="outline"
                         className="border-slate-200 hover:bg-slate-50 text-slate-600 font-bold px-6 py-6 rounded-2xl transition-all gap-2"
                     >
@@ -1390,8 +1497,19 @@ export default function MapaReservas() {
                             )}
                         >
                             <RefreshCcw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-                            {isSyncing ? 'Sincronizando...' : 'Sincronizar Hospedin'}
+                            {isSyncing
+                                ? 'Sincronizando...'
+                                : `Sincronizar ${format(listVisibleStart, 'dd/MM')} a ${format(listQueryInterval.end, 'dd/MM')}`}
                         </Button>
+                        {hospedinSyncedAtMs !== null && (
+                            <div className="flex flex-col px-1" data-testid="hospedin-freshness">
+                                <span className="text-[9px] text-slate-400 font-bold uppercase leading-tight">Hospedin atualizado</span>
+                                <span className={cn('text-[10px] font-medium', hospedinIsStale ? 'text-amber-600 font-bold' : 'text-slate-500')}>
+                                    {format(new Date(hospedinSyncedAtMs), 'dd/MM HH:mm')}
+                                    {hospedinIsStale ? ' • desatualizado' : ''}
+                                </span>
+                            </div>
+                        )}
                         {lastSync && !isSyncing && (
                             <div className="flex flex-col px-1">
                                 <span className="text-[9px] text-slate-400 font-bold uppercase leading-tight">Última Sincronização</span>
@@ -1421,8 +1539,8 @@ export default function MapaReservas() {
                     {toast && (
                         <div className={cn(
                             "px-6 py-4 border rounded-2xl font-bold transition-all shadow-sm",
-                            toast.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-700" : 
-                            toast.type === 'error' ? "bg-red-50 border-red-100 text-red-700" : 
+                            toast.type === 'success' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                            toast.type === 'error' ? "bg-red-50 border-red-100 text-red-700" :
                             "bg-blue-50 border-blue-100 text-blue-700"
                         )}>
                             {toast.message}
@@ -1446,7 +1564,7 @@ export default function MapaReservas() {
                                 roomType={{
                                     id: room.id,
                                     name: room.name,
-                                    capacity: room.capacity || 4, 
+                                    capacity: room.capacity || 4,
                                 }}
                                 dates={monthDayKeys}
                                 calendarData={roomDataMap[room.id] || {}}
@@ -1455,7 +1573,7 @@ export default function MapaReservas() {
                                 onDragEnter={extendInventoryDrag}
                                 inventoryDragState={inventoryDragState}
                                 inventorySelection={inventorySelection}
-                                is4PNA={normalizeRoomName(room.name).includes('anexo') || (room.inventoryFor4Guests === 0)}
+                                show4P={false}
                             />
                         ))}
                     </div>
@@ -1463,30 +1581,127 @@ export default function MapaReservas() {
             </div>
       </div>
 
+            {inventoryOverrideWarning && (
+                <div className={styles.modalOverlay} data-testid="inventory-override-modal">
+                    <div
+                        className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="inventory-override-title"
+                    >
+                        <div className="flex items-start gap-4 border-b border-amber-100 bg-amber-50 p-6">
+                            <div className="rounded-full bg-amber-100 p-3 text-amber-700">
+                                <AlertTriangle className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h2 id="inventory-override-title" className="text-lg font-black text-slate-800">
+                                    Confirmar abertura manual
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-600">
+                                    Esta quantidade supera o inventário automático protegido.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="space-y-4 p-6">
+                            <div className="grid grid-cols-3 gap-3 text-center">
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                    <span className="block text-[10px] font-black uppercase text-slate-400">Hospedin</span>
+                                    <strong className="text-xl text-slate-800">{inventoryOverrideWarning.hospedinUnits ?? '—'}</strong>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3">
+                                    <span className="block text-[10px] font-black uppercase text-slate-400">Automático</span>
+                                    <strong className="text-xl text-slate-800">{inventoryOverrideWarning.automaticAvailable}</strong>
+                                </div>
+                                <div className="rounded-xl bg-blue-50 p-3">
+                                    <span className="block text-[10px] font-black uppercase text-blue-500">Solicitado</span>
+                                    <strong className="text-xl text-blue-700">{inventoryOverrideWarning.requestedUnits}</strong>
+                                </div>
+                            </div>
+                            <p className="text-sm leading-6 text-slate-600">
+                                A margem de segurança é {inventoryOverrideWarning.safetyBuffer}. Se confirmar, essa abertura
+                                permanecerá manual mesmo após novas sincronizações com o Hospedin.
+                            </p>
+                        </div>
+                        <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 p-5">
+                            <Button type="button" variant="outline" onClick={cancelInventoryOverride}>Cancelar</Button>
+                            <Button type="button" onClick={confirmInventoryOverride} className="bg-blue-700 hover:bg-blue-800">
+                                Manter aberto manualmente
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {hospedinSyncWarnings.length > 0 && (
+                <div className={styles.modalOverlay} data-testid="hospedin-sync-warning-modal">
+                    <div
+                        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="hospedin-sync-warning-title"
+                    >
+                        <div className="flex items-start gap-4 border-b border-blue-100 bg-blue-50 p-6">
+                            <div className="rounded-full bg-blue-100 p-3 text-blue-700">
+                                <ShieldCheck className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h2 id="hospedin-sync-warning-title" className="text-lg font-black text-slate-800">
+                                    Sincronização concluída com ajustes manuais
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-600">
+                                    O Hospedin foi atualizado, mas estas vagas permaneceram como você definiu manualmente.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="max-h-80 space-y-3 overflow-y-auto p-6">
+                            {hospedinSyncWarnings.map((warning) => (
+                                <div key={`${warning.roomName}-${warning.date}`} className="rounded-xl border border-slate-200 p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <strong className="block text-sm text-slate-800">{warning.roomName}</strong>
+                                            <span className="text-xs text-slate-500">{format(parseISO(warning.date), 'dd/MM/yyyy')}</span>
+                                        </div>
+                                        <div className="text-right text-xs text-slate-500">
+                                            Hospedin: <strong>{warning.hospedinUnits}</strong> · Automático: <strong>{warning.automaticUnits}</strong>
+                                            <span className="ml-2 rounded-full bg-blue-100 px-2 py-1 font-black text-blue-700">
+                                                Manual: {warning.manualUnits}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="flex justify-end border-t border-slate-100 bg-slate-50 p-5">
+                            <Button type="button" onClick={() => setHospedinSyncWarnings([])}>Entendi</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {modalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setModalOpen(false)}>
-                    <div 
-                        className={styles.modal} 
-                        onClick={e => e.stopPropagation()} 
-                        style={{ 
-                            width: '480px', 
-                            padding: '0', 
-                            borderRadius: '16px', 
+                    <div
+                        className={styles.modal}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            width: '480px',
+                            padding: '0',
+                            borderRadius: '16px',
                             overflow: 'hidden',
                             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                         }}
                     >
                         {/* Header */}
-                        <div style={{ 
-                            padding: '1.5rem', 
+                        <div style={{
+                            padding: '1.5rem',
                             borderBottom: '1px solid #e2e8f0',
                             background: '#f8fafc'
                         }}>
-                            <h2 style={{ 
-                                fontSize: '1.25rem', 
-                                fontWeight: 600, 
+                            <h2 style={{
+                                fontSize: '1.25rem',
+                                fontWeight: 600,
                                 color: '#1e293b',
-                                margin: 0 
+                                margin: 0
                             }}>
                                 Editar Tarifa
                             </h2>
@@ -1494,7 +1709,7 @@ export default function MapaReservas() {
                                 {selectedDate && format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                             </p>
                         </div>
-                        
+
                         <div style={{ padding: '1.5rem' }}>
                             {/* Price & MinLos Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -1549,6 +1764,25 @@ export default function MapaReservas() {
                                     <span>Capacidade: <strong>{selectedDayData?.capacityTotal ?? '-'}</strong></span>
                                     <span>Ocupação: <strong>{selectedDayOccupancy.occupancyPct === null ? '—' : `${Math.round(selectedDayOccupancy.occupancyPct)}%`}</strong></span>
                                 </div>
+                                {selectedDayData?.hospedinUnits !== null && selectedDayData?.hospedinUnits !== undefined && (
+                                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                            <span>Hospedin: <strong>{selectedDayData.hospedinUnits}</strong></span>
+                                            <span>Margem: <strong>-{selectedDayData.safetyBuffer ?? 1}</strong></span>
+                                            <span>Automático: <strong>{selectedDayData.automaticInventory ?? 0}</strong></span>
+                                            <span>Origem: <strong>{selectedDayData.inventorySource === 'manual' ? 'Manual' : 'Hospedin'}</strong></span>
+                                        </div>
+                                        {selectedDayData.inventorySource === 'manual' && selectedDateKey && (
+                                            <button
+                                                type="button"
+                                                className="mt-2 font-bold text-blue-700 hover:underline"
+                                                onClick={() => resetInventoryToAutomatic(selectedDateKey)}
+                                            >
+                                                Voltar ao automático
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Restrictions Cards */}
@@ -1624,9 +1858,9 @@ export default function MapaReservas() {
                             </div>
                         </div>
                         {/* Footer Actions */}
-                        <div style={{ 
-                            padding: '1.5rem', 
-                            background: '#f8fafc', 
+                        <div style={{
+                            padding: '1.5rem',
+                            background: '#f8fafc',
                             borderTop: '1px solid #e2e8f0',
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -1634,12 +1868,12 @@ export default function MapaReservas() {
                         }}>
                             <div>
                                 {existingRateId && (
-                                    <button 
+                                    <button
                                         onClick={handleDelete}
                                         className={styles.button}
-                                        style={{ 
-                                            background: 'transparent', 
-                                            color: '#ef4444', 
+                                        style={{
+                                            background: 'transparent',
+                                            color: '#ef4444',
                                             border: '1px solid #fee2e2',
                                             padding: '0.5rem 1rem',
                                             fontSize: '0.875rem'
@@ -1650,16 +1884,16 @@ export default function MapaReservas() {
                                     </button>
                                 )}
                             </div>
-                            
+
                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <button 
+                                <button
                                     onClick={() => setModalOpen(false)}
                                     className={styles.buttonSecondary}
                                     style={{ background: 'white', border: '1px solid #e2e8f0' }}
                                 >
                                     Cancelar
                                 </button>
-                                <button 
+                                <button
                                     onClick={handleSave}
                                     className={styles.buttonPrimary}
                                     style={{ padding: '0.6rem 1.5rem' }}
@@ -1675,11 +1909,11 @@ export default function MapaReservas() {
 
             {bulkModalOpen && (
                 <div className={styles.modalOverlay} data-testid="bulk-modal" onClick={() => setBulkModalOpen(false)}>
-                    <div 
+                    <div
                         className="w-full max-w-2xl mx-auto flex items-center justify-center min-h-screen p-4"
-                        onClick={e => e.stopPropagation()} 
+                        onClick={e => e.stopPropagation()}
                     >
-                        <BulkEditPanel 
+                        <BulkEditPanel
                             roomTypes={roomTypes}
                             initialStartDate={format(listVisibleStart, 'yyyy-MM-dd')}
                             initialEndDate={format(listQueryInterval.end, 'yyyy-MM-dd')}

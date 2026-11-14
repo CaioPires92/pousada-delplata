@@ -1,16 +1,26 @@
 import { NextResponse } from 'next/server';
+import { isIP } from 'node:net';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
-import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
+import {
+    buildMercadoPagoPaymentContext,
+    isRetryablePaymentRejection,
+} from '@/lib/mercadopago/payment-context';
+import {
+    buildMercadoPagoDeviceRequestOptions,
+    buildSafePaymentSecurityTelemetry,
+} from '@/lib/mercadopago/device-id';
 import {
     DEFAULT_PARTIAL_PAYMENT_SETTINGS,
     calculatePaymentPlan,
     normalizePartialPaymentSettings,
     type PaymentMode,
 } from '@/lib/partial-payment';
+import { applyPixDiscount, isPixDiscountEnabled } from '@/lib/pix-discount';
+import { formatMercadoPagoDate, getBookingPaymentWindow, getPixExpiration, PAYMENT_WINDOW_MESSAGES } from '@/lib/booking-payment-window';
 
 type MercadoPagoCause = {
     code?: number | string;
@@ -18,7 +28,6 @@ type MercadoPagoCause = {
     data?: string;
 };
 
-const PIX_DISCOUNT_RATE = 0.05;
 const PARTIAL_PAYMENT_SETTINGS_ID = 'default';
 
 function normalizeInstallments(value: unknown) {
@@ -113,10 +122,6 @@ function detectInvalidTransactionAmount(error: any) {
     return status === 400 && (message.includes('transaction_amount') || causeMentionsAmount);
 }
 
-function applyPixDiscount(amount: number) {
-    return Number((amount * (1 - PIX_DISCOUNT_RATE)).toFixed(2));
-}
-
 function normalizePaymentMode(value: unknown): PaymentMode {
     return String(value || '').trim().toUpperCase() === 'PARTIAL' ? 'PARTIAL' : 'FULL';
 }
@@ -156,7 +161,11 @@ function getMercadoPagoErrorMessage(error: any) {
 }
 
 function isMercadoPagoTestMode(accessToken: string) {
-    return accessToken.startsWith('TEST-');
+    const localTestPaymentsEnabled =
+        process.env.NODE_ENV !== 'production' &&
+        String(process.env.ENABLE_TEST_PAYMENTS || '').trim().toLowerCase() === 'true';
+
+    return accessToken.startsWith('TEST-') || localTestPaymentsEnabled;
 }
 
 function isLocalCardSandboxEnabled(params: {
@@ -309,7 +318,15 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { bookingId, transaction_amount, description, skipGuestEmail, paymentMode: rawPaymentMode, ...formData } = body || {};
+        const {
+            bookingId,
+            transaction_amount,
+            description,
+            deviceId,
+            skipGuestEmail,
+            paymentMode: rawPaymentMode,
+            ...formData
+        } = body || {};
 
         ctxBookingId = typeof bookingId === 'string' ? bookingId : undefined;
 
@@ -342,6 +359,17 @@ export async function POST(request: Request) {
             payerEmail: typeof payerEmail === 'string' ? payerEmail : '',
         });
         ctxPayerEmail = resolvedPayerEmail || (typeof payerEmail === 'string' ? payerEmail : undefined);
+        opsLog('info', 'MP_PAYMENT_SECURITY_CONTEXT', {
+            bookingId,
+            ...buildSafePaymentSecurityTelemetry({
+                deviceId,
+                token: formData?.token,
+                identification: formData?.payer?.identification,
+                paymentMethodId,
+                paymentTypeId,
+                installments: normalizedInstallments,
+            }),
+        });
         if (!paymentMethodId || typeof paymentMethodId !== 'string') {
             return NextResponse.json({ error: 'payment_method_id ausente' }, { status: 400 });
         }
@@ -366,6 +394,13 @@ export async function POST(request: Request) {
                 payerEmail: resolvedPayerEmail,
             });
             return NextResponse.json({ error: 'Reserva não encontrada' }, { status: 404 });
+        }
+
+        // Pagamento só dentro do prazo da reserva (ver booking-payment-window).
+        const paymentWindow = getBookingPaymentWindow(booking);
+        if (!paymentWindow.open) {
+            opsLog('warn', 'MP_PAYMENT_WINDOW_CLOSED', { bookingId, reason: paymentWindow.reason });
+            return NextResponse.json({ error: paymentWindow.reason, message: PAYMENT_WINDOW_MESSAGES[paymentWindow.reason] }, { status: 409 });
         }
 
         await updateBookingFunnelStatus({
@@ -400,6 +435,7 @@ export async function POST(request: Request) {
             paymentMethodId: String(paymentMethodId || ''),
             paymentTypeId,
         });
+        const cardPayment = normalizedPaymentMethod === 'CREDIT_CARD' || normalizedPaymentMethod === 'DEBIT_CARD';
         const settingsRow = await prisma.partialPaymentSettings.findUnique({
             where: { id: PARTIAL_PAYMENT_SETTINGS_ID },
         });
@@ -429,7 +465,8 @@ export async function POST(request: Request) {
 
         const amountDueNow = paymentPlan.amountDueNow;
         const remainingAmount = paymentPlan.remainingAmount;
-        const expectedAmount = pixPayment ? applyPixDiscount(amountDueNow) : amountDueNow;
+        const pixDiscountEnabled = pixPayment && isPixDiscountEnabled();
+        const expectedAmount = pixDiscountEnabled ? applyPixDiscount(amountDueNow) : amountDueNow;
         const minTransactionAmount = getMinTransactionAmount(pixPayment);
 
         ctxRequestedAmount = requestedAmount;
@@ -520,6 +557,21 @@ export async function POST(request: Request) {
             accessToken,
             pixPayment,
         });
+        const forwardedIpCandidate = String(request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim();
+        const forwardedIp = isIP(forwardedIpCandidate) ? forwardedIpCandidate : '';
+        const paymentContext = buildMercadoPagoPaymentContext({
+            bookingId: booking.id,
+            roomTypeId: booking.roomType.id,
+            roomName: booking.roomType.name,
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            adults: booking.adults,
+            children: booking.children,
+            amount: requestedAmount,
+            guestName: booking.guest.name,
+            guestPhone: booking.guest.phone,
+            ipAddress: forwardedIp || null,
+        });
         const result: any = localCardSandbox
             ? {
                   id: `LOCAL_SANDBOX_${bookingId}_${Date.now()}`,
@@ -539,10 +591,19 @@ export async function POST(request: Request) {
                       payer: {
                           ...(formData?.payer || {}),
                           email: resolvedPayerEmail,
+                          ...(paymentContext.payerPhone ? { phone: paymentContext.payerPhone } : {}),
                       },
                       transaction_amount: requestedAmount,
                       description: description || `Reserva ${bookingId}`,
                       external_reference: bookingId,
+                      additional_info: paymentContext.additionalInfo,
+                      statement_descriptor: 'POUSADA DELPLATA',
+                      // Pix vence no prazo da reserva + 30 min (mínimo do MP), dentro do bloqueio do quarto.
+                      ...(pixPayment ? { date_of_expiration: formatMercadoPagoDate(getPixExpiration(paymentWindow.deadline)) } : {}),
+                      ...(cardPayment ? { three_d_secure_mode: 'optional', binary_mode: false } : {}),
+                  },
+                  requestOptions: {
+                      ...buildMercadoPagoDeviceRequestOptions(deviceId),
                   },
               });
 
@@ -603,7 +664,7 @@ export async function POST(request: Request) {
                     ? 'PAYMENT_REJECTED'
                     : 'PAYMENT_PENDING',
             message: ['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)
-                ? normalizedStatus.toLowerCase()
+                ? String(result.status_detail || normalizedStatus).toLowerCase()
                 : null,
         });
 
@@ -696,39 +757,22 @@ export async function POST(request: Request) {
                 });
             }
         } else if (['REJECTED', 'CANCELLED', 'REFUNDED', 'CHARGED_BACK'].includes(normalizedStatus)) {
+            const rejectionDetail = String(result.status_detail || normalizedStatus).toLowerCase();
+            const retryableRejection = isRetryablePaymentRejection(normalizedStatus);
             await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
                 data: {
-                    status: 'CANCELLED',
+                    status: retryableRejection ? 'PENDING' : 'CANCELLED',
                     funnelStage: 'PAYMENT_REJECTED',
                     funnelUpdatedAt: new Date(),
-                    lastErrorMessage: normalizedStatus.toLowerCase(),
+                    lastErrorMessage: rejectionDetail,
                 },
             });
-            await sendBookingStatusAlertEmail(
-                {
-                    ...booking,
-                    payment: {
-                        method: normalizedPaymentMethod,
-                        installments: normalizedInstallments,
-                        status: normalizedStatus,
-                        paymentMode: paymentPlan.paymentMode,
-                        amount: requestedAmount,
-                        remainingAmount,
-                        balanceDueAt: paymentPlan.balanceDueAt,
-                        balanceDueDate: paymentPlan.balanceDueDate,
-                    },
-                },
-                {
-                    bookingStatus: 'CANCELLED',
-                    paymentStatus: normalizedStatus,
-                }
-            );
             await sendPaymentDifficultyAlert({
                 bookingId,
                 step: 'Retorno do Mercado Pago',
                 reason: 'Pagamento recusado pelo Mercado Pago',
-                error: String(result.status_detail || normalizedStatus).toLowerCase(),
+                error: rejectionDetail,
                 funnelStage: 'PAYMENT_REJECTED',
                 cardBrand: normalizedCardBrand,
                 paymentStatusDetail: result.status_detail || null,
