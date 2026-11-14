@@ -1,3 +1,4 @@
+import { isValidEmail } from '@/lib/email-validation';
 import { isValidCpf, normalizeCpf } from '@/lib/cpf';
 import { normalizeBrazilianPhone, splitGuestName } from '@/lib/mercadopago/payment-context';
 
@@ -30,7 +31,6 @@ export type CheckoutPayerResolution =
 
 const MAX_PAYER_NAME_LENGTH = 120;
 const MAX_PAYER_EMAIL_LENGTH = 254;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Letras (inclui acentos e marcas combinantes), espaço, apóstrofo, hífen e ponto. Sem dígitos ou símbolos.
 const PAYER_NAME_PATTERN = /^\p{L}[\p{L}\p{M}' .-]*$/u;
 
@@ -68,7 +68,7 @@ export function isValidThirdPartyPayerName(value: unknown) {
 export function isValidOptionalPayerEmail(value: unknown) {
     const email = String(value ?? '').trim();
     if (!email) return true;
-    return email.length <= MAX_PAYER_EMAIL_LENGTH && EMAIL_PATTERN.test(email);
+    return email.length <= MAX_PAYER_EMAIL_LENGTH && isValidEmail(email);
 }
 
 export function isValidOptionalPayerPhone(value: unknown) {

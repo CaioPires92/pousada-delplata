@@ -1,5 +1,6 @@
 'use client';
 
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/lib/email-validation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -157,6 +158,11 @@ export default function ReservaManualPage() {
             return;
         }
         
+        if (!isValidEmail(formData.guestEmail)) {
+            setError(INVALID_EMAIL_MESSAGE);
+            return;
+        }
+
         // Basic number validation
         const price = Number(formData.totalPrice);
         if (isNaN(price) || price <= 0) {

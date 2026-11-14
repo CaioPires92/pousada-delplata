@@ -61,6 +61,7 @@ import {
 import { requiresHostedMercadoPagoCheckout } from '@/lib/mercadopago/high-value-checkout';
 import { isValidCpf, normalizeCpf } from '@/lib/cpf';
 import { buildCheckoutPayerRequest, validateThirdPartyPayerForm } from '@/lib/mercadopago/checkout-payer';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/lib/email-validation';
 import {
     mountLatestPaymentBrick,
     safelyUnmountPaymentBrick,
@@ -1097,6 +1098,11 @@ function ReservarContent() {
 
         if (!selectedRoom) {
             setFormMessage('Por favor, selecione um quarto.');
+            return;
+        }
+
+        if (!isValidEmail(guest.email)) {
+            setFormMessage(INVALID_EMAIL_MESSAGE);
             return;
         }
 

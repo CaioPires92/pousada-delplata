@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/lib/email-validation';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +27,10 @@ export async function POST(request: Request) {
         // Validação básica
         if (!guestName || !guestEmail || !checkIn || !checkOut || !roomTypeId || !totalPrice) {
             return NextResponse.json({ error: 'Campos obrigatórios ausentes' }, { status: 400 });
+        }
+
+        if (!isValidEmail(guestEmail)) {
+            return NextResponse.json({ error: INVALID_EMAIL_MESSAGE }, { status: 400 });
         }
 
         const numericTotalPrice = Number(totalPrice);
