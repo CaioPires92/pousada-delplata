@@ -30,4 +30,8 @@ Como manter:
 ### 4. Limite de pets por reserva
 - Taxa definida em 2026-11-13: R$ 20 por pet por diária. O limite continua 10 (herdado do Villa); confirmar com o usuário.
 
+### 5. Checagem "CRM" do CI sempre falha
+- `.github/workflows/quality-gates.yml` ainda roda `npm run test:crm`, mas o CRM antigo foi removido em 2026-09-21 (`901d48b`) e o script não existe mais. Ela falha desde 2026-10-28, inclusive na `main`.
+- Decisão do usuário: remover o job `crm` do workflow (recomendado) ou recriar o script.
+
 ## Concluídas
