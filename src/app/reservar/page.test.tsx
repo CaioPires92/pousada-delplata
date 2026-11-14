@@ -726,6 +726,17 @@ describe('ReservarPage', () => {
     expect(mockFetch.mock.calls.filter((call) => call[0] === '/api/bookings')).toHaveLength(0);
   }, PAYER_UI_TEST_TIMEOUT_MS);
 
+  it('bloqueia o envio com e-mail sem domínio completo', async () => {
+    await fillGuestFormUntilPayer();
+    fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'pepeke@pepeke' } });
+    fireEvent.change(screen.getByLabelText(/CPF do pagador/i), { target: { value: '529.982.247-25' } });
+    fireEvent.click(screen.getByLabelText(/Declaro que li e aceito/i));
+    fireEvent.submit(screen.getByRole('button', { name: /Continuar para o pagamento/i }).closest('form')!);
+
+    expect(await screen.findByText(/Informe um e-mail válido/i)).toBeInTheDocument();
+    expect(mockFetch.mock.calls.filter((call) => call[0] === '/api/bookings')).toHaveLength(0);
+  }, PAYER_UI_TEST_TIMEOUT_MS);
+
   it('bloqueia o envio com CPF inválido do pagador', async () => {
     await fillGuestFormUntilPayer();
     fireEvent.change(screen.getByLabelText(/CPF do pagador/i), { target: { value: '111.111.111-11' } });
