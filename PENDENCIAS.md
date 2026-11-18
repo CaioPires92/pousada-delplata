@@ -25,14 +25,12 @@ Como manter:
 - Depois do merge, esperar uns 120 dias para remover o código do Mercado Pago.
 
 ### 4. Limite de pets por reserva
-- Taxa definida em 2026-11-13: R$ 20 por pet por diária. O limite continua 10 (herdado do Villa); confirmar com o usuário.
-
-### 5. Checagem "CRM" do CI sempre falha
-- `.github/workflows/quality-gates.yml` ainda roda `npm run test:crm`, mas o CRM antigo foi removido em 2026-09-21 (`901d48b`) e o script não existe mais. Ela falha desde 2026-10-28, inclusive na `main`.
-- Decisão do usuário: remover o job `crm` do workflow (recomendado) ou recriar o script.
+- Taxa: R$ 20 por pet por diária (2026-11-13). Limite: até 10 pets por reserva (herdado do Villa), mantido por decisão do usuário em 2026-11-18.
+- Rever depois: com "pequeno porte", talvez faça sentido 1 ou 2 por reserva (`src/app/api/bookings/route.ts`, `src/lib/booking-price.ts`).
 
 ## Concluídas
 
+- 2026-11-18: job `crm` removido do CI (PR #9, `cd7d441`).
 - 2026-11-18: cron de expiração funcionando com o `CRON_SECRET`; as reservas PENDING de 07/11, 10/11 e 13/11 expiraram (`payment_deadline_passed`).
 - 2026-11-18: validação de e-mail do hóspede em produção (PR #7, `485c632`); a API recusa `pepeke@pepeke`.
 - 2026-11-14: colunas e tabelas do espelhamento criadas no Turso de produção (`ensure-sync-2026-11-schema.js`, conferido com novo dry-run sem pendências).
