@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { calculateBookingPrice } from '@/lib/booking-price';
 import { roomAcceptsPets } from '@/lib/pet-policy';
+import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/lib/email-validation';
 import { parseLocalDate } from '@/lib/date-utils';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/coupons/hash';
 import { compareDayKey } from '@/lib/day-key';
@@ -43,8 +44,8 @@ export async function POST(request: Request) {
         }
 
         const normalizedGuestEmail = normalizeGuestEmail(guest.email);
-        if (!normalizedGuestEmail) {
-            return NextResponse.json({ error: 'guest_email_invalid' }, { status: 400 });
+        if (!normalizedGuestEmail || !isValidEmail(normalizedGuestEmail)) {
+            return NextResponse.json({ error: 'guest_email_invalid', message: INVALID_EMAIL_MESSAGE }, { status: 400 });
         }
 
         const rateLimit = consumeRequestLimit({
