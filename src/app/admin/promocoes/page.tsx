@@ -96,7 +96,8 @@ const emptyForm = (): FormState => ({
     exclusive: false,
     audience: 'all',
     showBadge: true,
-    allCoupons: false,
+    // Padrão: promoção nova já nasce aceitando acumular com cupom (decisão de 2026-11-18).
+    allCoupons: true,
     couponIds: [],
     allPromotions: false,
     promotionIds: [],

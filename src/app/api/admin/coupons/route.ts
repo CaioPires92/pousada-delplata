@@ -139,7 +139,9 @@ export async function POST(request: Request) {
                 allowedRoomTypeIds: JSON.stringify(parseStringArray(body?.allowedRoomTypeIds)),
                 allowedSources: JSON.stringify(parseStringArray(body?.allowedSources)),
                 singleUse: Boolean(body?.singleUse),
-                stackable: Boolean(body?.stackable),
+                // Padrão: cupom novo acumula com promoção (decisão de 2026-11-18).
+                // Só não acumula quando o admin mandar stackable=false explicitamente.
+                stackable: body?.stackable === undefined ? true : Boolean(body?.stackable),
             },
         });
 

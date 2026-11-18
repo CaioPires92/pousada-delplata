@@ -508,6 +508,16 @@ function ReservarContent() {
     const bookingTotal = appliedCoupon
         ? Number(appliedCoupon.total || Math.max(0, bookingSubtotal - bookingDiscount))
         : (selectedRoom ? Number(selectedRoom.totalPrice) : 0);
+    // Etiqueta do cupom, no mesmo formato da etiqueta de promoção. O percentual é
+    // calculado sobre o subtotal em que o cupom realmente incidiu (já com a promoção,
+    // quando os dois acumulam), para o hóspede ver o desconto que de fato recebeu.
+    const couponBadgeLabel = (() => {
+        if (!appliedCoupon) return '';
+        const discount = Number(appliedCoupon.discountAmount || 0);
+        const base = Number(appliedCoupon.subtotal || 0);
+        if (!(discount > 0) || !(base > 0)) return '';
+        return `🎟️ Cupom ${appliedCoupon.code}: ${formatGuestPercent((discount / base) * 100)} OFF`;
+    })();
     const useHostedMercadoPagoCheckout = requiresHostedMercadoPagoCheckout(bookingTotal);
     const handleRetryPayment = () => {
         setPaymentError('');
@@ -2566,10 +2576,10 @@ function ReservarContent() {
                                                 </div>
                                             ) : null}
 
-                                            {couponMessage && !appliedCoupon ? (
+                                            {couponMessage ? (
                                                 <p
                                                     role="status"
-                                                    className="mt-2 text-xs text-red-600"
+                                                    className={`mt-2 text-xs ${appliedCoupon ? 'font-medium text-emerald-700' : 'text-red-600'}`}
                                                 >
                                                     {couponMessage}
                                                 </p>
@@ -2579,12 +2589,16 @@ function ReservarContent() {
                                         {appliedCoupon ? (
                                             <div className="space-y-2 border border-emerald-200 bg-emerald-50/60 p-4">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-sm font-medium text-emerald-800">Cupom aplicado</span>
+                                                    <span className="text-sm font-medium text-emerald-800">Cupom ativo nesta reserva</span>
                                                     <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
                                                         {appliedCoupon.code}
                                                     </Badge>
                                                 </div>
-                                                <p className="text-xs text-emerald-700">Desconto confirmado no resumo da reserva.</p>
+                                                <p className="text-xs text-emerald-700">
+                                                    {Number(appliedCoupon.discountAmount) > 0
+                                                        ? `Você economiza ${formatCurrencyBRL(Number(appliedCoupon.discountAmount))} com este cupom.`
+                                                        : 'Desconto confirmado no resumo da reserva.'}
+                                                </p>
                                             </div>
                                         ) : null}
 
@@ -2758,9 +2772,14 @@ function ReservarContent() {
 
                                     <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total da estadia</p>
-                                        {selectedRoom.promotion?.badgeLabel ? (
+                                        {selectedRoom.promotion?.badgeLabel || couponBadgeLabel ? (
                                             <div className="mt-2 flex flex-wrap gap-1">
-                                                <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</p>
+                                                {selectedRoom.promotion?.badgeLabel ? (
+                                                    <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</p>
+                                                ) : null}
+                                                {couponBadgeLabel ? (
+                                                    <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</p>
+                                                ) : null}
                                             </div>
                                         ) : null}
                                         <div className="mt-2">
