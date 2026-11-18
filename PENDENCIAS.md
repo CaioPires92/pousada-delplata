@@ -28,8 +28,13 @@ Como manter:
 - Taxa: R$ 20 por pet por diária (2026-11-13). Limite: até 10 pets por reserva (herdado do Villa), mantido por decisão do usuário em 2026-11-18.
 - Rever depois: com "pequeno porte", talvez faça sentido 1 ou 2 por reserva (`src/app/api/bookings/route.ts`, `src/lib/booking-price.ts`).
 
+### 5. (Opcional) Upstash para o limite de login do admin
+- Hoje o login bloqueia após 5 senhas erradas em 15 min, mas a contagem fica na memória de cada servidor da Vercel (zera ao reiniciar e não é compartilhada). Com Upstash, o limite vale de verdade.
+- Não é urgente se a senha do admin for forte e única. Para ativar: conta gratuita no Upstash e `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` na Vercel (Production). O código já usa se existirem (`src/app/api/admin/login/route.ts`).
+
 ## Concluídas
 
+- 2026-11-18: validação de e-mail também no Villa (PR #10, `d02f592`) e no Refúgio (PR #12, `503af51`); conferido nos sites no ar.
 - 2026-11-18: job `crm` removido do CI (PR #9, `cd7d441`).
 - 2026-11-18: cron de expiração funcionando com o `CRON_SECRET`; as reservas PENDING de 07/11, 10/11 e 13/11 expiraram (`payment_deadline_passed`).
 - 2026-11-18: validação de e-mail do hóspede em produção (PR #7, `485c632`); a API recusa `pepeke@pepeke`.
