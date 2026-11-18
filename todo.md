@@ -2,6 +2,8 @@
 
 ## 1. Desconto de 5% no PIX
 
+> **Removido em 2026-11-18** (decisão do Caio): o Pix custa o mesmo que o cartão, como no Refúgio e no Villa, que pagam pelo checkout do Asaas, sem esse desconto. O histórico abaixo fica só como registro.
+
 - [x] Adicionar desconto de 5% para pagamentos via PIX.
 - [x] Exibir aviso claro sobre o desconto no checkout.
 - [x] Aplicar o desconto somente quando o método selecionado for PIX.

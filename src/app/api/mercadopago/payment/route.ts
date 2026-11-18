@@ -19,7 +19,6 @@ import {
     normalizePartialPaymentSettings,
     type PaymentMode,
 } from '@/lib/partial-payment';
-import { applyPixDiscount, isPixDiscountEnabled } from '@/lib/pix-discount';
 import { formatMercadoPagoDate, getBookingPaymentWindow, getPixExpiration, PAYMENT_WINDOW_MESSAGES } from '@/lib/booking-payment-window';
 
 type MercadoPagoCause = {
@@ -465,8 +464,7 @@ export async function POST(request: Request) {
 
         const amountDueNow = paymentPlan.amountDueNow;
         const remainingAmount = paymentPlan.remainingAmount;
-        const pixDiscountEnabled = pixPayment && isPixDiscountEnabled();
-        const expectedAmount = pixDiscountEnabled ? applyPixDiscount(amountDueNow) : amountDueNow;
+        const expectedAmount = amountDueNow;
         const minTransactionAmount = getMinTransactionAmount(pixPayment);
 
         ctxRequestedAmount = requestedAmount;
