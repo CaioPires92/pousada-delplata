@@ -1,3 +1,8 @@
+---
+name: karpathy
+description: Coding guidelines inspired by Andrej Karpathy for thoughtful, simple, surgical, verified changes.
+---
+
 # Andrej Karpathy Coding Guidelines
 
 When assisting the user with coding tasks, follow these principles:
