@@ -159,10 +159,8 @@ export default function SearchWidget({
         const checkOutStr = checkOut ? format(checkOut, 'dd/MM/yyyy') : 'DATA INDEFINIDA';
 
         const message = `Olá! Gostaria de cotar hospedagem para *${adults} adultos* e *${children} crianças*.\n` +
-            `Datas: ${checkInStr} a ${checkOutStr}.` +
-            (shouldShowCapacityFallback
-                ? `\nSomos um grupo maior que a lotação de um quarto (3 adultos + 1 criança de 0 a 5 anos). Podem me ajudar?`
-                : `\nNão encontrei disponibilidade no site para essas datas.`);
+            `Datas: ${checkInStr} a ${checkOutStr}.\n` +
+            `Não encontrei opção na busca do site. Podem me ajudar?`;
 
         const whatsappPhone = String(process.env.NEXT_PUBLIC_HOTEL_WHATSAPP || '5519999654866').replace(/\D/g, '');
         const url = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`;

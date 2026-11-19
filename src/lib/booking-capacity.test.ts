@@ -14,7 +14,7 @@ describe('booking capacity', () => {
         expect(exceedsRoomCapacity({ adults: 2, children: 2, childrenAges: [2, 4] })).toBe(false);
     });
 
-    it('recusa 4 adultos ou mais', () => {
+    it('recusa 4 pagantes ou mais (adultos e crianças de 6 a 11 anos)', () => {
         expect(exceedsRoomCapacity({ adults: 4 })).toBe(true);
         expect(exceedsRoomCapacity({ adults: 3, children: 1, childrenAges: [6] })).toBe(true);
         expect(exceedsRoomCapacity({ adults: 3, children: 1, childrenAges: [14] })).toBe(true);
