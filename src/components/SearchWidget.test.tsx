@@ -90,20 +90,32 @@ describe('SearchWidget', () => {
     await waitFor(() => expect(screen.getByTestId('checkout-popover')).toBeInTheDocument());
   }, 15000);
 
-  it('permite pesquisar para quatro hóspedes (lotação máxima)', async () => {
+  it('permite pesquisar para três adultos (lotação máxima de adultos)', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => [{ id: 'room-4-guests' }],
+      json: async () => [{ id: 'room-3-adults' }],
       headers: { get: vi.fn(() => null) },
     });
     render(<SearchWidget />);
 
-    fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '4' } });
+    fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
 
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('adults=4&children=0'));
+      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('adults=3&children=0'));
     });
+  });
+
+  it('com 4 adultos manda falar com a pousada no WhatsApp e não busca', () => {
+    global.fetch = vi.fn();
+    render(<SearchWidget />);
+
+    fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '4' } });
+
+    expect(screen.getByText(/Para 4 adultos ou mais, fale com a gente no WhatsApp/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Falar com a pousada no WhatsApp/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Buscar/i })).toBeDisabled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('atualiza os resultados automaticamente ao alterar adultos depois da busca inicial', async () => {

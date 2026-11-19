@@ -72,6 +72,9 @@ describe('validateBookingSearch', () => {
 
     it('recusa acima da lotação e sem adultos', () => {
         expect(validateBookingSearch({ ...base, adults: 3, children: 2, childrenAges: [3, 4] }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
+        expect(validateBookingSearch({ ...base, adults: 4 }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
+        expect(validateBookingSearch({ ...base, adults: 3, children: 1, childrenAges: [9] }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
+        expect(validateBookingSearch({ ...base, adults: 3, children: 1, childrenAges: [4] }, TODAY)).toEqual({ ok: true });
         expect(validateBookingSearch({ ...base, adults: 0 }, TODAY)).toMatchObject({ ok: false, code: 'adults' });
     });
 });

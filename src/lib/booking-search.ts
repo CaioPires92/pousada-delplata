@@ -1,6 +1,6 @@
 import { addDays, format } from 'date-fns';
 
-import { MAX_BOOKING_GUESTS } from '@/lib/booking-capacity';
+import { MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
 import { compareDayKey, isDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts } from '@/lib/guest-capacity';
 
@@ -36,7 +36,7 @@ export const SEARCH_MESSAGES = {
     adults: 'Selecione ao menos 1 adulto para continuar.',
     agesMissing: 'Informe a idade de todas as crianças para calcular a tarifa corretamente.',
     agesRange: 'Revise as idades informadas. Aceitamos crianças de 0 a 17 anos.',
-    capacity: `Cada acomodação recebe até ${MAX_BOOKING_GUESTS} hóspedes. Se precisar de mais espaço, fale com a pousada para montar a melhor combinação.`,
+    capacity: ROOM_CAPACITY_MESSAGE,
 } as const;
 
 /* ---------- datas ---------- */
@@ -118,7 +118,7 @@ export function validateBookingSearch(values: BookingSearchValues, todayKey: str
         }
     }
 
-    if (totalGuestsOf(values) > MAX_BOOKING_GUESTS) {
+    if (exceedsRoomCapacity(values)) {
         return { ok: false, field: 'guests', code: 'capacity', message: SEARCH_MESSAGES.capacity };
     }
 

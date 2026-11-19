@@ -48,7 +48,7 @@ import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
 import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
-import { MAX_BOOKING_GUESTS } from '@/lib/booking-capacity';
+import { ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
 import {
     getPaymentRejectionMessage,
     getPolledBookingPaymentStatus,
@@ -372,11 +372,9 @@ function ReservarContent() {
     const hasLoadedOnce = useRef(false); // Track if we've completed at least one fetch
     const selectedRoomRef = useRef<Room | null>(null);
     const autoSelectedRoomKeyRef = useRef<string>('');
-    const maxGuests = MAX_BOOKING_GUESTS;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
-    const totalGuests = numAdults + numChildren;
-    const isOverCapacity = totalGuests > maxGuests;
+    const isOverCapacity = exceedsRoomCapacity({ adults: numAdults, children: numChildren, childrenAges });
     const isInvalidAdults = numAdults < 1;
 
     const isPlaceholderUrl = (url: string) => {
@@ -1781,7 +1779,7 @@ function ReservarContent() {
                 <div className="inline-flex max-w-md flex-col items-center gap-4 border border-amber-200 bg-amber-50 p-6 text-amber-900">
                     <AlertCircle className="w-12 h-12" />
                     <p className="text-lg font-medium">
-                        Nossas acomodações comportam até {MAX_BOOKING_GUESTS} pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
+                        {ROOM_CAPACITY_MESSAGE}
                     </p>
                     <p className="text-sm leading-6 text-amber-900/80">
                         Assim conseguimos sugerir a melhor combinação de acomodações para a sua viagem.

@@ -19,7 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { trackBookingError, trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 import { appendCampaignAttribution } from '@/lib/campaign-attribution';
-import { MAX_BOOKING_GUESTS } from '@/lib/booking-capacity';
+import { MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
 
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
 const AVAILABILITY_TIMEOUT_MS = 12_000;
@@ -100,7 +100,7 @@ export default function SearchWidget({
     const numChildren = Number.parseInt(children, 10) || 0;
     const totalGuests = numAdults + numChildren;
     const maxChildren = Math.max(0, maxGuests - numAdults);
-    const isOverCapacity = totalGuests > maxGuests;
+    const isOverCapacity = exceedsRoomCapacity({ adults: numAdults, children: numChildren, childrenAges });
     const [showCapacityFallback, setShowCapacityFallback] = useState(false);
 
     // Controlar abertura dos popovers
@@ -161,7 +161,7 @@ export default function SearchWidget({
         const message = `Olá! Gostaria de cotar hospedagem para *${adults} adultos* e *${children} crianças*.\n` +
             `Datas: ${checkInStr} a ${checkOutStr}.` +
             (shouldShowCapacityFallback
-                ? `\n(Somos um grupo maior que ${MAX_BOOKING_GUESTS} pessoas e precisamos de mais de um quarto.)`
+                ? `\nSomos um grupo maior que a lotação de um quarto (3 adultos + 1 criança de 0 a 5 anos). Podem me ajudar?`
                 : `\nNão encontrei disponibilidade no site para essas datas.`);
 
         const whatsappPhone = String(process.env.NEXT_PUBLIC_HOTEL_WHATSAPP || '5519999654866').replace(/\D/g, '');
@@ -208,7 +208,7 @@ export default function SearchWidget({
         setChildren(String(next.children));
         setChildrenAges(next.childrenAges);
         setPets(next.pets);
-        if (showCapacityFallback && next.adults + next.children <= maxGuests) {
+        if (showCapacityFallback && !exceedsRoomCapacity({ adults: next.adults, children: next.children, childrenAges: next.childrenAges })) {
             setShowCapacityFallback(false);
         }
         refreshResults({ adults: next.adults, children: next.children, childrenAges: next.childrenAges, pets: next.pets });
@@ -230,7 +230,7 @@ export default function SearchWidget({
             while (next.length < nextChildren) next.push(0);
             return next;
         });
-        if (showCapacityFallback && normalizedAdults + nextChildren <= maxGuests) {
+        if (showCapacityFallback && !exceedsRoomCapacity({ adults: normalizedAdults, children: nextChildren, childrenAges: childrenAges.slice(0, nextChildren) })) {
             setShowCapacityFallback(false);
         }
         refreshResults({
@@ -249,7 +249,7 @@ export default function SearchWidget({
         const nextAges = childrenAges.slice(0, normalizedChildren);
         while (nextAges.length < normalizedChildren) nextAges.push(0);
         setChildrenAges(nextAges);
-        if (showCapacityFallback && numAdults + normalizedChildren <= maxGuests) {
+        if (showCapacityFallback && !exceedsRoomCapacity({ adults: numAdults, children: normalizedChildren, childrenAges: nextAges })) {
             setShowCapacityFallback(false);
         }
         refreshResults({ children: normalizedChildren, childrenAges: nextAges });
@@ -259,6 +259,9 @@ export default function SearchWidget({
         setFieldErrors((prev) => ({ ...prev, childrenAges: undefined }));
         const nextAges = childrenAges.map((age, ageIndex) => (ageIndex === index ? nextAge : age));
         setChildrenAges(nextAges);
+        if (showCapacityFallback && !exceedsRoomCapacity({ adults: numAdults, children: numChildren, childrenAges: nextAges })) {
+            setShowCapacityFallback(false);
+        }
         refreshResults({ childrenAges: nextAges });
     };
 
@@ -916,7 +919,7 @@ export default function SearchWidget({
             {shouldShowCapacityFallback ? (
                 <div className="mt-4 rounded-none border border-amber-200 bg-amber-50 p-4 text-amber-900">
                         <p className="text-sm font-medium">
-                        Nossas acomodações comportam até {MAX_BOOKING_GUESTS} pessoas por quarto, conforme disponibilidade. Para grupos maiores, fale com a gente no WhatsApp.
+                        {ROOM_CAPACITY_MESSAGE}
                     </p>
                     <div className="mt-3">
                         <Button type="button" onClick={handleWhatsAppClick}>
