@@ -112,7 +112,7 @@ describe('SearchWidget', () => {
 
     fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '4' } });
 
-    expect(screen.getByText(/Fale com a gente no WhatsApp que a gente ajuda/i)).toBeInTheDocument();
+    expect(screen.getByText(/Não encontrou na busca a acomodação que procura\? Fale com a gente no WhatsApp/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Falar com a pousada no WhatsApp/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Buscar/i })).toBeDisabled();
     expect(global.fetch).not.toHaveBeenCalled();

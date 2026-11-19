@@ -6,7 +6,7 @@ export const MAX_BOOKING_ADULTS = 3;
 export const MAX_BOOKING_GUESTS = 4;
 
 export const ROOM_CAPACITY_MESSAGE =
-    'Não encontrou na busca a acomodação que procura? Fale com a gente no WhatsApp que a gente ajuda.';
+    'Não encontrou na busca a acomodação que procura? Fale com a gente no WhatsApp.';
 
 /** true quando a ocupação não cabe em um quarto. Crianças sem idade informada contam só no total. */
 export function exceedsRoomCapacity(input: { adults: number; children?: number; childrenAges?: ReadonlyArray<number | null> }): boolean {
