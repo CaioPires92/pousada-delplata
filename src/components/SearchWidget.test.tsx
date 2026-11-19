@@ -90,19 +90,19 @@ describe('SearchWidget', () => {
     await waitFor(() => expect(screen.getByTestId('checkout-popover')).toBeInTheDocument());
   }, 15000);
 
-  it('permite pesquisar para cinco hóspedes', async () => {
+  it('permite pesquisar para quatro hóspedes (lotação máxima)', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => [{ id: 'room-5-guests' }],
+      json: async () => [{ id: 'room-4-guests' }],
       headers: { get: vi.fn(() => null) },
     });
     render(<SearchWidget />);
 
-    fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '4' } });
     fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
 
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('adults=5&children=0'));
+      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('adults=4&children=0'));
     });
   });
 
