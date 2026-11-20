@@ -35,7 +35,7 @@ Como manter:
 ### 6. Estoque de 4 hóspedes antes de mesclar o PR de 4 pagantes
 - Branch `fix/idade-e-4-hospedes` (2026-11-20): a busca passa a aceitar até 4 pagantes (adultos e crianças de 6 a 11) e a reserva usa o estoque de 4 hóspedes do quarto, que é um pedaço do estoque do STD (reserva de 4 baixa os dois; STD lotado fecha a de 4).
 - 2026-11-20: estoque de 4 zerado em produção em todos os quartos (antes 2 no Térreo, no Chalé e no Superior), conferido na API pública. O usuário abre dia a dia no mapa.
-- Mesmo PR: 1 criança de 0 a 5 anos pode ficar além dos 4 pagantes (máx. 5 pessoas), com o aviso "Criança de 0 a 5 anos é cortesia e não tem cama extra: dorme com os responsáveis." Texto aprovado pelo usuário em 2026-11-20.
+- 1 criança de 0 a 5 anos pode ficar além da capacidade do quarto usado (STD = 3 até 3 pagantes; quarto de 4 com 4 pagantes). O aviso "Criança de até 5 anos é cortesia, sem cama extra." só aparece nesse caso (ajuste pedido pelo usuário em 2026-11-20).
 - Limite: o Hospedin manda só a quantidade livre por tipo, sem o número do quarto. O motor não sabe se o quarto livre é um dos que cabem 4; o estoque de 4 serve de teto e precisa ser ajustado na mão quando os quartos de 4 forem ocupados por fora do site.
 
 ## Concluídas
