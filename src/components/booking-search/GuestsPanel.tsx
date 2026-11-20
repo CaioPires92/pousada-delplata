@@ -2,7 +2,7 @@
 
 import { Minus, PawPrint, Plus } from 'lucide-react';
 
-import { FREE_CHILD_NOTICE, MAX_BOOKING_ADULTS, hasFreeChild } from '@/lib/booking-capacity';
+import { EXTRA_CHILD_NOTICE, MAX_BOOKING_ADULTS, needsExtraChildNotice } from '@/lib/booking-capacity';
 import { maxChildrenFor, type ChildAge } from '@/lib/booking-search';
 import { cn } from '@/lib/utils';
 import { PET_POLICY_NOTICE } from '@/lib/pet-policy';
@@ -173,8 +173,8 @@ export function GuestsPanel({ value, onChange, tone = 'light', className, newChi
                             </select>
                         ))}
                     </div>
-                    {hasFreeChild(value.childrenAges.slice(0, value.children)) ? (
-                        <p className={cn('text-xs font-medium', t.title)}>{FREE_CHILD_NOTICE}</p>
+                    {needsExtraChildNotice({ adults: value.adults, childrenAges: value.childrenAges.slice(0, value.children) }) ? (
+                        <p className={cn('text-xs', t.muted)}>{EXTRA_CHILD_NOTICE}</p>
                     ) : null}
                     {agesError ? <p role="alert" className="text-xs font-medium text-destructive">{agesError}</p> : null}
                 </div>

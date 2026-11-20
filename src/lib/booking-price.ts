@@ -5,6 +5,8 @@ export type BookingPriceInput = {
     childrenAges: number[];
     includedAdults?: number;
     maxGuests?: number;
+    /** Capacidade do quarto STD; acima dela a ocupação usa o quarto de maxGuests. */
+    standardCapacity?: number;
     extraAdultFee: number;
     child6To11Fee: number;
     pets?: number;
@@ -86,7 +88,9 @@ export function calculateBookingPrice(input: BookingPriceInput): BookingPriceBre
     const children6To11Count = childrenUnder12Ages.filter((age) => age >= 6 && age <= 11).length;
     const payingGuests = effectiveAdults + children6To11Count;
     const totalGuests = effectiveAdults + childrenUnder12;
-    if (payingGuests > maxGuests || totalGuests > maxGuests + 1) {
+    const standardCapacity = Math.trunc(toFiniteNumber(input.standardCapacity ?? maxGuests) ?? maxGuests);
+    const unitCapacity = payingGuests > standardCapacity ? Math.max(standardCapacity, maxGuests) : standardCapacity;
+    if (payingGuests > maxGuests || totalGuests > unitCapacity + 1) {
         throw new BookingPriceError('capacity_exceeded', 'Capacity exceeded');
     }
 

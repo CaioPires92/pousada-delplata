@@ -371,4 +371,11 @@ describe('calculateBookingPrice', () => {
         expect(breakdown.children6To11).toBe(1);
         expect(breakdown.total).toBe(580);
     });
+
+    it('STD de capacidade 3 aceita 3 pagantes + 1 criança de 0 a 5, mas não + 2', () => {
+        const base = { nights: 1, baseTotalForStay: 400, includedAdults: 2, maxGuests: 4, standardCapacity: 3, extraAdultFee: 100, child6To11Fee: 80 };
+        expect(calculateBookingPrice({ ...base, adults: 3, childrenAges: [2] }).total).toBe(500);
+        expect(() => calculateBookingPrice({ ...base, adults: 3, childrenAges: [1, 2] })).toThrow(BookingPriceError);
+        expect(calculateBookingPrice({ ...base, adults: 4, childrenAges: [2] }).total).toBe(600);
+    });
 });
