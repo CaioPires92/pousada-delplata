@@ -86,7 +86,7 @@ function Stepper({
 }
 
 /** Painel de ocupação único (adultos, crianças, idades) usado por todos os formulários de busca. */
-export function GuestsPanel({ value, onChange, tone = 'light', className, newChildAge = 0, guestsError, agesError }: GuestsPanelProps) {
+export function GuestsPanel({ value, onChange, tone = 'light', className, newChildAge = null, guestsError, agesError }: GuestsPanelProps) {
     const t = TONES[tone];
     const maxChildren = maxChildrenFor(value.adults);
 
@@ -114,7 +114,7 @@ export function GuestsPanel({ value, onChange, tone = 'light', className, newChi
             <div className="space-y-1">
                 <p className={cn('font-accent text-[0.62rem] font-semibold uppercase tracking-[0.16em]', t.muted)}>Configurar ocupação</p>
                 <p className={cn('text-sm', t.muted)}>
-                    Até 3 adultos e mais 1 criança de 0 a 5 anos por quarto. Para grupos maiores, fale com a gente no WhatsApp.
+                    Até 4 pessoas por quarto. Para grupos maiores, fale com a gente no WhatsApp.
                 </p>
             </div>
 

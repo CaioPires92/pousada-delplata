@@ -39,7 +39,7 @@ describe('datas', () => {
 describe('normalizeGuests / totalGuestsOf', () => {
     it('limita adultos e crianças à lotação e ajusta o vetor de idades', () => {
         expect(normalizeGuests({ adults: 9, children: 3, childrenAges: [] })).toEqual({ adults: 4, children: 0, childrenAges: [] });
-        expect(normalizeGuests({ adults: 2, children: 2, childrenAges: [5] })).toEqual({ adults: 2, children: 2, childrenAges: [5, 0] });
+        expect(normalizeGuests({ adults: 2, children: 2, childrenAges: [5] })).toEqual({ adults: 2, children: 2, childrenAges: [5, null] });
         expect(normalizeGuests({ adults: 2, children: 1, childrenAges: [] }, null).childrenAges).toEqual([null]);
     });
 
@@ -72,8 +72,10 @@ describe('validateBookingSearch', () => {
 
     it('recusa acima da lotação e sem adultos', () => {
         expect(validateBookingSearch({ ...base, adults: 3, children: 2, childrenAges: [3, 4] }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
-        expect(validateBookingSearch({ ...base, adults: 4 }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
-        expect(validateBookingSearch({ ...base, adults: 3, children: 1, childrenAges: [9] }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
+        expect(validateBookingSearch({ ...base, adults: 5 }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
+        expect(validateBookingSearch({ ...base, adults: 4, children: 1, childrenAges: [2] }, TODAY)).toMatchObject({ ok: false, code: 'capacity' });
+        expect(validateBookingSearch({ ...base, adults: 4 }, TODAY)).toEqual({ ok: true });
+        expect(validateBookingSearch({ ...base, adults: 3, children: 1, childrenAges: [9] }, TODAY)).toEqual({ ok: true });
         expect(validateBookingSearch({ ...base, adults: 3, children: 1, childrenAges: [4] }, TODAY)).toEqual({ ok: true });
         expect(validateBookingSearch({ ...base, adults: 0 }, TODAY)).toMatchObject({ ok: false, code: 'adults' });
     });

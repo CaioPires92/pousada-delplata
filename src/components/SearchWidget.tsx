@@ -183,6 +183,10 @@ export default function SearchWidget({
         const nextChildrenAges = overrides.childrenAges ?? childrenAges;
         const nextPets = overrides.pets ?? pets;
         if (!prefillFromQuery || pathname !== '/reservar' || !nextCheckIn || !nextCheckOut) return;
+        // Sem a idade de todas as crianças não dá para cotar: espera o hóspede escolher.
+        const agesPending = nextChildren > 0
+            && (nextChildrenAges.length < nextChildren || nextChildrenAges.slice(0, nextChildren).some((age) => age === null));
+        if (agesPending) return;
 
         const params = buildReservarParams(
             {
@@ -225,7 +229,7 @@ export default function SearchWidget({
         }
         setChildrenAges((prev) => {
             const next = prev.slice(0, nextChildren);
-            while (next.length < nextChildren) next.push(0);
+            while (next.length < nextChildren) next.push(null);
             return next;
         });
         if (showCapacityFallback && !exceedsRoomCapacity({ adults: normalizedAdults, children: nextChildren, childrenAges: childrenAges.slice(0, nextChildren) })) {
@@ -245,7 +249,7 @@ export default function SearchWidget({
         const normalizedChildren = Math.min(Math.max(nextChildren, 0), maxChildren);
         setChildren(String(normalizedChildren));
         const nextAges = childrenAges.slice(0, normalizedChildren);
-        while (nextAges.length < normalizedChildren) nextAges.push(0);
+        while (nextAges.length < normalizedChildren) nextAges.push(null);
         setChildrenAges(nextAges);
         if (showCapacityFallback && !exceedsRoomCapacity({ adults: numAdults, children: normalizedChildren, childrenAges: nextAges })) {
             setShowCapacityFallback(false);

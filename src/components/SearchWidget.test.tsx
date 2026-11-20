@@ -46,15 +46,18 @@ describe('SearchWidget', () => {
     pushStateSpy.mockRestore();
   });
 
-  it('seleciona 0 anos por padrão ao adicionar uma criança', async () => {
+  it('criança entra sem idade e a busca só libera depois de escolher a idade', async () => {
     render(<SearchWidget />);
     const adults = screen.getByLabelText('Hóspedes') as HTMLSelectElement;
     const children = document.getElementById('children') as HTMLSelectElement;
     fireEvent.change(adults, { target: { value: '2' } });
     fireEvent.change(children, { target: { value: '1' } });
     const button = screen.getByRole('button', { name: /Buscar/i });
+    const age = screen.getByLabelText('Idade da criança 1');
+    expect(age).toHaveValue('');
+    expect(button).toBeDisabled();
+    fireEvent.change(age, { target: { value: '11' } });
     await waitFor(() => expect(button).not.toBeDisabled());
-    expect(screen.getByLabelText('Idade da criança 1')).toHaveValue('0');
   });
 
   it('habilita Buscar quando entradas são válidas', async () => {
@@ -106,16 +109,14 @@ describe('SearchWidget', () => {
     });
   });
 
-  it('com 4 adultos manda falar com a pousada no WhatsApp e não busca', () => {
+  it('com 4 adultos busca normalmente (estoque de 4 hóspedes)', async () => {
     global.fetch = vi.fn();
     render(<SearchWidget />);
 
     fireEvent.change(screen.getByLabelText('Hóspedes'), { target: { value: '4' } });
 
-    expect(screen.getByText(/Não encontrou na busca a acomodação que procura\? Fale com a gente no WhatsApp/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Falar com a pousada no WhatsApp/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Buscar/i })).toBeDisabled();
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Não encontrou na busca a acomodação que procura\? Fale com a gente no WhatsApp/i)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Buscar/i })).not.toBeDisabled());
   });
 
   it('atualiza os resultados automaticamente ao alterar adultos depois da busca inicial', async () => {
@@ -138,12 +139,15 @@ describe('SearchWidget', () => {
     render(<SearchWidget prefillFromQuery />);
 
     fireEvent.change(screen.getByLabelText('Crianças'), { target: { value: '1' } });
+    // Sem idade escolhida não recota.
+    expect(replaceStateSpy).not.toHaveBeenCalledWith(null, '', expect.stringContaining('children=1'));
+    fireEvent.change(screen.getByLabelText('Idade da criança 1'), { target: { value: '11' } });
 
     await waitFor(() => {
       expect(replaceStateSpy).toHaveBeenCalledWith(
         null,
         '',
-        expect.stringContaining('adults=2&children=1&childrenAges=0'),
+        expect.stringContaining('adults=2&children=1&childrenAges=11'),
       );
     });
 
@@ -250,7 +254,7 @@ describe('SearchWidget', () => {
     expect(screen.getByRole('button', { name: /Falar com a pousada no WhatsApp/i })).toBeInTheDocument();
   });
 
-  it('envia childrenAges=0 quando a criança permanece com idade padrão', async () => {
+  it('envia a idade escolhida da criança na busca', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => [{ id: 'room-1' }],
@@ -260,10 +264,11 @@ describe('SearchWidget', () => {
     const children = screen.getByLabelText('Crianças') as HTMLSelectElement;
 
     fireEvent.change(children, { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Idade da criança 1'), { target: { value: '11' } });
     fireEvent.click(screen.getByRole('button', { name: /Buscar/i }));
 
     await waitFor(() => {
-      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('childrenAges=0'));
+      expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('childrenAges=11'));
     });
   });
 

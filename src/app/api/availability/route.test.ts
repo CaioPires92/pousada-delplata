@@ -482,6 +482,68 @@ describe('Availability API - Pricing Logic', () => {
   });
 
 
+  it('reserva de 4 hóspedes também baixa o estoque do STD', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-02-01&checkOut=2026-02-02&adults=2&children=0');
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-1', name: 'Apartamento Térreo', basePrice: 100, capacity: 3, maxGuests: 4,
+      inventoryFor4Guests: 1, includedAdults: 2, extraAdultFee: 100, child6To11Fee: 80,
+      totalUnits: 2, amenities: '', photos: [], inventory: [], rates: [],
+    }]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      { checkIn: new Date('2026-02-01T00:00:00.000Z'), checkOut: new Date('2026-02-02T00:00:00.000Z'), adults: 4, childrenAges: null },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].remainingUnits).toBe(1);
+  });
+
+  it('STD lotado fecha também a opção de 4 hóspedes', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-02-01&checkOut=2026-02-02&adults=2&children=2&childrenAges=8,9');
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-1', name: 'Apartamento Térreo', basePrice: 100, capacity: 3, maxGuests: 4,
+      inventoryFor4Guests: 1, includedAdults: 2, extraAdultFee: 100, child6To11Fee: 80,
+      totalUnits: 2, amenities: '', photos: [], inventory: [], rates: [],
+    }]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.booking.findMany as any).mockResolvedValue([
+      { checkIn: new Date('2026-02-01T00:00:00.000Z'), checkOut: new Date('2026-02-02T00:00:00.000Z'), adults: 2, childrenAges: null },
+      { checkIn: new Date('2026-02-01T00:00:00.000Z'), checkOut: new Date('2026-02-02T00:00:00.000Z'), adults: 2, childrenAges: null },
+    ]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual([]);
+  });
+
+  it('2 adultos + 2 crianças de 6 a 11 usam o estoque de 4 e pagam as duas crianças', async () => {
+    const req = new Request('http://localhost/api/availability?checkIn=2026-02-01&checkOut=2026-02-02&adults=2&children=2&childrenAges=8,9');
+    (prisma.roomType.findMany as any).mockResolvedValue([{
+      id: 'room-1', name: 'Apartamento Térreo', basePrice: 100, capacity: 3, maxGuests: 4,
+      inventoryFor4Guests: 1, includedAdults: 2, extraAdultFee: 100, child6To11Fee: 80,
+      totalUnits: 2, amenities: '', photos: [], inventory: [], rates: [],
+    }]);
+    (prisma.inventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.fourGuestInventoryAdjustment.findMany as any).mockResolvedValue([]);
+    (prisma.booking.findMany as any).mockResolvedValue([]);
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toHaveLength(1);
+    expect(data[0].priceBreakdown.children6To11).toBe(2);
+    expect(data[0].totalPrice).toBe(260);
+  });
+
   it('should exclude room when stopSell is true for the check-in night', async () => {
     const checkIn = '2026-02-11';
     const checkOut = '2026-02-12';

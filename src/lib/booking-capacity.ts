@@ -1,8 +1,9 @@
 import { getEffectiveGuestCounts } from '@/lib/guest-capacity';
 
-// Lotação de um quarto da Delplata: até 3 pagantes (adultos a partir de 12 anos e
-// crianças de 6 a 11) e mais 1 criança de 0 a 5 anos, no total de 4 pessoas.
-export const MAX_BOOKING_ADULTS = 3;
+// Lotação de um quarto da Delplata: até 4 pessoas. Pagantes são adultos (a partir de 12 anos)
+// e crianças de 6 a 11. Com 4 pagantes a reserva usa o estoque de 4 hóspedes do quarto
+// (subinventário do STD, ver requiresFourGuestInventory); quartos sem esse estoque não aparecem.
+export const MAX_BOOKING_ADULTS = 4;
 export const MAX_BOOKING_GUESTS = 4;
 
 export const ROOM_CAPACITY_MESSAGE =

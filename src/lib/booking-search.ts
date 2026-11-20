@@ -82,7 +82,7 @@ export function checkOutAfterCheckIn(checkIn: string): string {
 /** Mantém adultos/crianças dentro da lotação e o vetor de idades com o tamanho certo. */
 export function normalizeGuests(
     input: { adults: number; children: number; childrenAges: ChildAge[] },
-    padAge: ChildAge = 0,
+    padAge: ChildAge = null,
 ): Pick<BookingSearchValues, 'adults' | 'children' | 'childrenAges'> {
     const adults = Math.min(Math.max(Math.trunc(input.adults) || 1, 1), MAX_BOOKING_GUESTS);
     const children = Math.min(Math.max(Math.trunc(input.children) || 0, 0), Math.max(0, MAX_BOOKING_GUESTS - adults));
