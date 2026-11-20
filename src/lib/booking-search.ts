@@ -1,6 +1,6 @@
 import { addDays, format } from 'date-fns';
 
-import { MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
+import { MAX_BOOKING_ADULTS, MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
 import { compareDayKey, isDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts } from '@/lib/guest-capacity';
 
@@ -82,9 +82,9 @@ export function checkOutAfterCheckIn(checkIn: string): string {
 /** Mantém adultos/crianças dentro da lotação e o vetor de idades com o tamanho certo. */
 export function normalizeGuests(
     input: { adults: number; children: number; childrenAges: ChildAge[] },
-    padAge: ChildAge = 0,
+    padAge: ChildAge = null,
 ): Pick<BookingSearchValues, 'adults' | 'children' | 'childrenAges'> {
-    const adults = Math.min(Math.max(Math.trunc(input.adults) || 1, 1), MAX_BOOKING_GUESTS);
+    const adults = Math.min(Math.max(Math.trunc(input.adults) || 1, 1), MAX_BOOKING_ADULTS);
     const children = Math.min(Math.max(Math.trunc(input.children) || 0, 0), Math.max(0, MAX_BOOKING_GUESTS - adults));
     const childrenAges = input.childrenAges.slice(0, children);
     while (childrenAges.length < children) childrenAges.push(padAge);
@@ -186,7 +186,7 @@ export function parseReservarParams(source: { get(key: string): string | null })
     const adults = Number.parseInt(String(source.get('adults') ?? ''), 10);
     const children = Number.parseInt(String(source.get('children') ?? ''), 10);
     const pets = Number.parseInt(String(source.get('pets') ?? ''), 10);
-    if (Number.isFinite(adults)) out.adults = Math.min(Math.max(adults, 1), MAX_BOOKING_GUESTS);
+    if (Number.isFinite(adults)) out.adults = Math.min(Math.max(adults, 1), MAX_BOOKING_ADULTS);
     if (Number.isFinite(children)) {
         const normalizedChildren = Math.min(Math.max(children, 0), 10);
         out.children = normalizedChildren;

@@ -1,9 +1,18 @@
 import { getEffectiveGuestCounts } from '@/lib/guest-capacity';
 
-// Lotação de um quarto da Delplata: até 3 pagantes (adultos a partir de 12 anos e
-// crianças de 6 a 11) e mais 1 criança de 0 a 5 anos, no total de 4 pessoas.
-export const MAX_BOOKING_ADULTS = 3;
-export const MAX_BOOKING_GUESTS = 4;
+// Lotação de um quarto da Delplata: até 4 pagantes (adultos a partir de 12 anos e crianças
+// de 6 a 11) e, além deles, 1 criança de 0 a 5 anos (cortesia, sem cama extra): no máximo
+// 5 pessoas. Com 4 pagantes a reserva usa o estoque de 4 hóspedes do quarto (subinventário
+// do STD, ver requiresFourGuestInventory); quartos sem esse estoque não aparecem.
+export const MAX_BOOKING_ADULTS = 4;
+export const MAX_BOOKING_GUESTS = 5;
+
+/** Aviso exibido quando há criança de 0 a 5 anos na ocupação. */
+export const FREE_CHILD_NOTICE = 'Criança de 0 a 5 anos é cortesia e não tem cama extra: dorme com os responsáveis.';
+
+export function hasFreeChild(childrenAges: ReadonlyArray<number | null> | undefined): boolean {
+    return (childrenAges ?? []).some((age) => typeof age === 'number' && age >= 0 && age <= 5);
+}
 
 export const ROOM_CAPACITY_MESSAGE =
     'Não encontrou na busca a acomodação que procura? Fale com a gente no WhatsApp.';

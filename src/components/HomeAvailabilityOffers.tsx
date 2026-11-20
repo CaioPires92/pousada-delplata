@@ -11,7 +11,7 @@ import { DateField } from "@/components/booking-search/DateField";
 import { GuestsPanel } from "@/components/booking-search/GuestsPanel";
 import { Button } from "@/components/ui/button";
 import { getLocalRoomPhotos } from "@/lib/room-photos";
-import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch } from "@/lib/booking-search";
+import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch, type ChildAge } from "@/lib/booking-search";
 
 type HomeOffer = {
   id: string;
@@ -94,7 +94,7 @@ function calculateNights(checkIn: string, checkOut: string) {
   return Math.max(1, diff);
 }
 
-function makeOfferSearchKey(search: OfferSearch) {
+function makeOfferSearchKey(search: Omit<OfferSearch, "childrenAges"> & { childrenAges: ChildAge[] }) {
   return [
     search.checkIn,
     search.checkOut,
@@ -151,10 +151,13 @@ async function requestOffers(search: OfferSearch, signal: AbortSignal) {
   return { response, data };
 }
 
+// No modal a idade começa vazia: a criança só entra na cotação depois que o hóspede escolhe a idade.
+type DraftSearch = Omit<OfferSearch, "childrenAges"> & { childrenAges: ChildAge[] };
+
 export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvailabilityOffersProps) {
   const initialSearch = useMemo(() => makeSearch(1), []);
   const [offerSearch, setOfferSearch] = useState(initialSearch);
-  const [draftSearch, setDraftSearch] = useState(initialSearch);
+  const [draftSearch, setDraftSearch] = useState<DraftSearch>(initialSearch);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [offers, setOffers] = useState<HomeOffer[] | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -323,7 +326,9 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
       setOfferSearch({
         ...draftSearch,
         nights: calculateNights(draftSearch.checkIn, draftSearch.checkOut),
-        childrenAges: draftSearch.childrenAges.slice(0, draftSearch.children),
+        childrenAges: draftSearch.childrenAges
+          .slice(0, draftSearch.children)
+          .filter((age): age is number => typeof age === "number"),
       });
     }, 400);
     return () => window.clearTimeout(timeoutId);
@@ -431,7 +436,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                     ...current,
                     adults: next.adults,
                     children: next.children,
-                    childrenAges: next.childrenAges.map((age) => age ?? 0),
+                    childrenAges: next.childrenAges,
                     pets: next.pets,
                   }))
                 }
