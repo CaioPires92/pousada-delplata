@@ -131,7 +131,6 @@ export async function queryAvailabilityQuote(
         roomTypeId: { in: roomTypeIds },
         checkIn: { lt: dateFromDayKey(input.checkout) },
         checkOut: { gt: dateFromDayKey(input.checkin) },
-        hospedinRegisteredAt: null,
         ...occupyingBookingWhere(),
       },
       select: {
@@ -140,6 +139,7 @@ export async function queryAvailabilityQuote(
         checkOut: true,
         adults: true,
         childrenAges: true,
+        hospedinRegisteredAt: true,
       },
     }),
     client.inventoryAdjustment.findMany({
@@ -212,8 +212,11 @@ export async function queryAvailabilityQuote(
 
       if (compareDayKey(rangeStart, rangeEnd) > 0) continue;
 
+      // Já lançada no Hospedin: o estoque vindo de lá já a desconta. O estoque de 4 hóspedes só
+      // existe no site, então nele ela continua contando.
+      const countedByHospedin = Boolean(booking.hospedinRegisteredAt);
       for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
-        bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
+        if (!countedByHospedin) bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
         if (requiresFourGuestInventory(bookingGuestCounts.effectiveGuests)) {
           bookingsFor4GuestsByDay.set(dayKey, (bookingsFor4GuestsByDay.get(dayKey) || 0) + 1);
         }

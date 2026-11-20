@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
+import { queueHospedinPush } from '@/lib/hospedin-push';
 import { hasRoomForBooking } from '@/lib/availability/room-check';
 import { getRoomHoldEnd } from '@/lib/booking-payment-window';
 import { PAYMENT_UNDER_REVIEW_STATUSES } from '@/lib/mercadopago/payment-under-review';
@@ -847,6 +848,7 @@ export async function handleMercadoPagoWebhook(request: Request) {
         // Pagamento aprovado para reserva expirada/cancelada não confirma a estadia: o hóspede
         // não recebe "reserva confirmada"; a equipe recebe o alerta acima e decide (reativar ou estornar).
         const bookingIsConfirmed = ['CONFIRMED', 'PAID'].includes(result.bookingStatus);
+        if (result.bookingConfirmedNow) queueHospedinPush(bookingId);
         if (result.emailQueued && mpStatus === 'approved' && bookingIsConfirmed) {
             const emailResult = await sendBookingConfirmationEmail({
                 guestName: result.booking.guest.name,

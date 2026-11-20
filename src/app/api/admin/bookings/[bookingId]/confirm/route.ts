@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdminAuth } from '@/lib/admin-auth';
 import { opsLog } from '@/lib/ops-log';
+import { queueHospedinPush } from '@/lib/hospedin-push';
 import { sendBookingStatusAlertEmail } from '@/lib/booking-status-alert';
 import { asNullableString } from '@/lib/requestValue';
 
@@ -66,6 +67,8 @@ export async function POST(
                 },
             }),
         ]);
+
+        queueHospedinPush(normalizedBookingId);
 
         opsLog('info', 'ADMIN_BOOKING_CONFIRMED', {
             bookingId: normalizedBookingId,

@@ -3,6 +3,7 @@ import { isIP } from 'node:net';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import prisma from '@/lib/prisma';
 import { opsLog } from '@/lib/ops-log';
+import { queueHospedinPush } from '@/lib/hospedin-push';
 import { sendBookingConfirmationEmail, sendBookingCreatedAlertEmail, sendDifficultyAlertEmail } from '@/lib/email';
 import { sendGa4PurchaseServerEvent } from '@/lib/ga4-measurement';
 import {
@@ -667,7 +668,7 @@ export async function POST(request: Request) {
         });
 
         if (normalizedStatus === 'APPROVED') {
-            await prisma.booking.updateMany({
+            const confirmed = await prisma.booking.updateMany({
                 where: { id: bookingId, status: 'PENDING' },
                 data: {
                     status: 'CONFIRMED',
@@ -676,6 +677,7 @@ export async function POST(request: Request) {
                     lastErrorMessage: null,
                 },
             });
+            if (confirmed.count === 1) queueHospedinPush(bookingId);
 
             const approvedEmailPayload = {
                 guestName: booking.guest.name,
