@@ -45,7 +45,7 @@ Como manter:
 - [x] 2026-11-20: reserva de teste SI:020780 criada pela v3 (Chalé 28, 15→16/06/2027, canal Site, R$ 1,00), conferida no painel pelo usuário e cancelada pela API; o quarto voltou a ficar livre. O hóspede de teste não pode ser apagado (tem histórico) e foi desativado. O lançamento de pagamento ainda não foi testado de verdade.
 - [x] 2026-11-20: quartos que recebem 4: Térreo 6 e 8, Superior 9 e 16 (casal + beliche) e Chalés 23 e 24 (casal + solteiro, recebem 4 segundo o usuário) → `HOSPEDIN_FOUR_GUEST_PLACE_IDS=20181,20183,20184,20191,20201,20202`. Teto do estoque de 4 no site: Térreo 2, Superior 2, Chalé 2, Anexo 0 (pendência 6).
 - [x] 2026-11-20: PR #21 aberto; na Vercel (Production) já estão `HOSPEDIN_CLIENT_ID`, `HOSPEDIN_CLIENT_SECRET`, `HOSPEDIN_SITE_SALE_CHANNEL_ID=222289`, `HOSPEDIN_FOUR_GUEST_PLACE_IDS` e `HOSPEDIN_PUSH_ENABLED=false`.
-- [ ] Mesclar o PR #21 e fazer o deploy (com o envio desligado nada muda para o hóspede).
+- [x] 2026-11-20: PR #21 mesclado (`e2f74e6`) e deploy de produção Ready; o site e a cotação respondem, envio ao Hospedin no ar mas desligado.
 - [ ] Combinar com a equipe a data e hora de corte, pôr `HOSPEDIN_PUSH_SINCE` e `HOSPEDIN_PUSH_ENABLED=true` na Vercel e fazer um redeploy.
 - Depois: migrar a sincronização de estoque da v2 (e-mail e senha) para a v3 e avaliar gravar preços/restrições pela v3 (`PUT /prices`, `/restrictions`, `/closures`).
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
