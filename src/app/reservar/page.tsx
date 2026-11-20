@@ -2846,26 +2846,6 @@ function ReservarContent() {
                                                     <span>Base ({stayNights} {stayNights === 1 ? 'diária' : 'diárias'})</span>
                                                     <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.baseTotal))}</span>
                                                 </div>
-                                                {selectedRoom.promotion
-                                                    ? (selectedRoom.promotion.items?.length ? selectedRoom.promotion.items : [selectedRoom.promotion]).map((item) => (
-                                                        <div key={item.id} className="flex justify-between text-emerald-600">
-                                                            <span>{item.name}</span>
-                                                            <span>- {formatCurrencyBRL(Number(item.discountAmount))}</span>
-                                                        </div>
-                                                    ))
-                                                    : null}
-                                                {appliedCoupon ? (
-                                                    <>
-                                                        <div className="flex justify-between text-emerald-600">
-                                                            <span>Desconto ({appliedCoupon.code})</span>
-                                                            <span>- {formatCurrencyBRL(bookingDiscount)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between font-semibold text-foreground">
-                                                            <span>Subtotal</span>
-                                                            <span>{formatCurrencyBRL(bookingSubtotal)}</span>
-                                                        </div>
-                                                    </>
-                                                ) : null}
                                                 {selectedRoom.priceBreakdown.extraAdultTotal > 0 ? (
                                                     <div className="flex justify-between">
                                                         <span>Hóspedes adicionais</span>
@@ -2883,6 +2863,30 @@ function ReservarContent() {
                                                         <span>Pets ({formatCurrencyBRL(PET_FEE_PER_NIGHT)} por pet/diária)</span>
                                                         <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.petTotal))}</span>
                                                     </div>
+                                                ) : null}
+                                                {selectedRoom.promotion
+                                                    ? (selectedRoom.promotion.items?.length ? selectedRoom.promotion.items : [selectedRoom.promotion]).map((item) => (
+                                                        <div key={item.id} className="flex justify-between text-emerald-600">
+                                                            <span>{item.name}</span>
+                                                            <span>- {formatCurrencyBRL(Number(item.discountAmount))}</span>
+                                                        </div>
+                                                    ))
+                                                    : null}
+                                                {appliedCoupon ? (
+                                                    <>
+                                                        <div className="flex justify-between border-t border-border/60 pt-2 font-semibold text-foreground">
+                                                            <span>Subtotal</span>
+                                                            <span>{formatCurrencyBRL(bookingSubtotal)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-emerald-600">
+                                                            <span>Cupom {appliedCoupon.code}</span>
+                                                            <span>- {formatCurrencyBRL(bookingDiscount)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between font-semibold text-foreground">
+                                                            <span>Total</span>
+                                                            <span>{formatCurrencyBRL(bookingTotal)}</span>
+                                                        </div>
+                                                    </>
                                                 ) : null}
                                             </div>
                                         ) : (
