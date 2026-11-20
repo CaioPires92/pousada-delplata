@@ -19,7 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { trackBookingError, trackClickWhatsApp, trackSearch } from '@/lib/analytics';
 import { appendCampaignAttribution } from '@/lib/campaign-attribution';
-import { MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
+import { MAX_BOOKING_ADULTS, MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
 
 const RESERVA_INTERACTION_EVENT = 'reservar-cta-interaction';
 const AVAILABILITY_TIMEOUT_MS = 12_000;
@@ -95,11 +95,11 @@ export default function SearchWidget({
     const [isHeroExpanded, setIsHeroExpanded] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<SearchFieldErrors>({});
 
-    const maxGuests = MAX_BOOKING_GUESTS;
+    const maxGuests = MAX_BOOKING_ADULTS;
     const numAdults = Number.parseInt(adults, 10) || 0;
     const numChildren = Number.parseInt(children, 10) || 0;
     const totalGuests = numAdults + numChildren;
-    const maxChildren = Math.max(0, maxGuests - numAdults);
+    const maxChildren = Math.max(0, MAX_BOOKING_GUESTS - numAdults);
     const isOverCapacity = exceedsRoomCapacity({ adults: numAdults, children: numChildren, childrenAges });
     const [showCapacityFallback, setShowCapacityFallback] = useState(false);
 
@@ -429,8 +429,8 @@ export default function SearchWidget({
             ? 'h-[52px] w-full appearance-none rounded-none border-0 bg-transparent px-0 font-sans text-[1rem] font-semibold text-[#2f261f] transition-colors duration-300 cursor-pointer'
             : 'w-full px-4 rounded-none border-2 border-muted-foreground/20 bg-background text-foreground font-medium transition-all duration-300 text-base shadow-sm hover:shadow-md cursor-pointer h-[56px] appearance-none';
 
-    const adultOptions = Array.from({ length: MAX_BOOKING_GUESTS }, (_, index) => index + 1);
-    const childOptions = [0, 1, 2, 3];
+    const adultOptions = Array.from({ length: MAX_BOOKING_ADULTS }, (_, index) => index + 1);
+    const childOptions = [0, 1, 2, 3, 4];
     const shouldShowCapacityFallback = showCapacityFallback || isOverCapacity;
     const agesMissing = numChildren > 0 && (childrenAges.length !== numChildren || childrenAges.some((age) => age === null));
     const searchDisabled = shouldShowCapacityFallback || numAdults < 1 || (numChildren > 0 && agesMissing) || !checkIn || !checkOut || loading;

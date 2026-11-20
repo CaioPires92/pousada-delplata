@@ -48,7 +48,7 @@ import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
 import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
-import { ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
+import { FREE_CHILD_NOTICE, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity, hasFreeChild } from '@/lib/booking-capacity';
 import {
     getPaymentRejectionMessage,
     getPolledBookingPaymentStatus,
@@ -2798,6 +2798,9 @@ function ReservarContent() {
                                         <p className="mt-2 text-xs font-medium text-emerald-700">
                                             {pets > 0 ? 'Taxa de pets incluída no total' : 'Sem taxas extras'}
                                         </p>
+                                        {hasFreeChild(childrenAges) ? (
+                                            <p className="mt-1 text-xs text-primary/82">{FREE_CHILD_NOTICE}</p>
+                                        ) : null}
                                         {selectedRoom.priceBreakdown ? (
                                             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                                                 <div className="flex justify-between">
