@@ -290,6 +290,7 @@ export async function queryAvailabilityQuote(
         childrenAges: input.childrenAges ?? [],
         includedAdults: Number(room.includedAdults ?? 2),
         maxGuests: Number(room.maxGuests),
+        standardCapacity: Number(room.capacity || room.maxGuests),
         extraAdultFee: Number(room.extraAdultFee || 0),
         child6To11Fee: Number(room.child6To11Fee || 0),
         pets: input.pets ?? 0,

@@ -217,6 +217,7 @@ export async function POST(request: Request) {
                 childrenAges: agesArrayInput,
                 includedAdults: Number(roomType.includedAdults),
                 maxGuests: Number(roomType.maxGuests),
+                standardCapacity: Number(roomType.capacity || roomType.maxGuests),
                 extraAdultFee: Number(roomType.extraAdultFee),
                 child6To11Fee: Number(roomType.child6To11Fee),
                 pets: petsCount,

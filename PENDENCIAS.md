@@ -32,18 +32,29 @@ Como manter:
 - Hoje o login bloqueia após 5 senhas erradas em 15 min, mas a contagem fica na memória de cada servidor da Vercel (zera ao reiniciar e não é compartilhada). Com Upstash, o limite vale de verdade.
 - Não é urgente se a senha do admin for forte e única. Para ativar: conta gratuita no Upstash e `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` na Vercel (Production). O código já usa se existirem (`src/app/api/admin/login/route.ts`).
 
+### 6. Estoque de 4 hóspedes antes de mesclar o PR de 4 pagantes
+- Branch `fix/idade-e-4-hospedes` (2026-11-20): a busca passa a aceitar até 4 pagantes (adultos e crianças de 6 a 11) e a reserva usa o estoque de 4 hóspedes do quarto, que é um pedaço do estoque do STD (reserva de 4 baixa os dois; STD lotado fecha a de 4).
+- 2026-11-20: estoque de 4 zerado em produção em todos os quartos (antes 2 no Térreo, no Chalé e no Superior), conferido na API pública. O usuário abre dia a dia no mapa.
+- 1 criança de 0 a 5 anos pode ficar além da capacidade do quarto usado (STD = 3 até 3 pagantes; quarto de 4 com 4 pagantes). O aviso "Criança de até 5 anos é cortesia, sem cama extra." só aparece nesse caso (ajuste pedido pelo usuário em 2026-11-20).
+- Limite: o Hospedin manda só a quantidade livre por tipo, sem o número do quarto. O motor não sabe se o quarto livre é um dos que cabem 4; o estoque de 4 serve de teto e precisa ser ajustado na mão quando os quartos de 4 forem ocupados por fora do site.
+
 ### 7. Reserva do site → Hospedin (código pronto, desligado)
-- Branch `feat/hospedin-reserva` (2026-11-20), usando a API v3 do Hospedin (Client ID + Secret; doc em `https://pms.hospedin.com/api-docs/v3/swagger.yaml`). Reserva confirmada no site → o site escolhe um quarto livre do tipo (a v3 exige o quarto), acha ou cria o hóspede pelo e-mail, cria a reserva no canal "Site" (222289) com o total das diárias e lança o valor pago (conta "Caixa Diário", categoria "Reserva"). Observação leva pagamento, saldo, idades, pets e cupom. Cancelada/expirada/estornada no site → `POST /bookings/{id}/cancel`. Envio na hora da confirmação e, para o que escapar, a cada 30 min no cron do Hospedin (`src/lib/hospedin-push.ts`).
+- Branch `feat/hospedin-reserva` (2026-11-20), usando a API v3 do Hospedin (Client ID + Secret; doc em `https://pms.hospedin.com/api-docs/v3/swagger.yaml`). Reserva confirmada no site → o site escolhe um quarto livre do tipo (a v3 exige o quarto), cria o hóspede como "SITE - Nome", cria a reserva no canal "Site" (222289) com o total das diárias e lança o valor pago (conta "Caixa Diário", categoria "Reserva"). Observação leva todos os detalhes (contato, idades, pets, promoção, cupom, total, pagamento, saldo e prazo). Nunca troca o tipo de quarto reservado. Cancelada/expirada/estornada no site → `POST /bookings/{id}/cancel`. Envio na hora da confirmação e, para o que escapar, a cada 30 min no cron do Hospedin (`src/lib/hospedin-push.ts`).
 - Desligado até `HOSPEDIN_PUSH_ENABLED=true` + `HOSPEDIN_PUSH_SINCE` + `HOSPEDIN_SITE_SALE_CHANNEL_ID` + `HOSPEDIN_CLIENT_ID`/`HOSPEDIN_CLIENT_SECRET` na Vercel. A data de corte existe porque a equipe já lança as reservas do site à mão: depois de ligar, ela para de lançar as novas.
 - [x] 2026-11-20: login na v3 e leitura conferidos (conta 906, 10 canais, 5 tipos e 33 quartos, disponibilidade por quarto).
 - [x] 2026-11-20: reserva de teste SI:020780 criada pela v3 (Chalé 28, 15→16/06/2027, canal Site, R$ 1,00), conferida no painel pelo usuário e cancelada pela API; o quarto voltou a ficar livre. O hóspede de teste não pode ser apagado (tem histórico) e foi desativado. O lançamento de pagamento ainda não foi testado de verdade.
 - [x] 2026-11-20: quartos que recebem 4: Térreo 6 e 8, Superior 9 e 16 (casal + beliche) e Chalés 23 e 24 (casal + solteiro, recebem 4 segundo o usuário) → `HOSPEDIN_FOUR_GUEST_PLACE_IDS=20181,20183,20184,20191,20201,20202`. Teto do estoque de 4 no site: Térreo 2, Superior 2, Chalé 2, Anexo 0 (pendência 6).
+- [x] 2026-11-20: PR #21 aberto; na Vercel (Production) já estão `HOSPEDIN_CLIENT_ID`, `HOSPEDIN_CLIENT_SECRET`, `HOSPEDIN_SITE_SALE_CHANNEL_ID=222289`, `HOSPEDIN_FOUR_GUEST_PLACE_IDS` e `HOSPEDIN_PUSH_ENABLED=false`.
+- [ ] Mesclar o PR #21 e fazer o deploy (com o envio desligado nada muda para o hóspede).
+- [ ] Combinar com a equipe a data e hora de corte, pôr `HOSPEDIN_PUSH_SINCE` e `HOSPEDIN_PUSH_ENABLED=true` na Vercel e fazer um redeploy.
 - Depois: migrar a sincronização de estoque da v2 (e-mail e senha) para a v3 e avaliar gravar preços/restrições pela v3 (`PUT /prices`, `/restrictions`, `/closures`).
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
 - Estoque: reserva enviada deixa de contar no estoque geral do site (o Hospedin já desconta), mas continua contando no estoque de 4 hóspedes, que só existe no site.
 
 ## Concluídas
 
+- 2026-11-20: `CRON_SECRET` gerado de novo (o dono gravou o mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET` no GitHub) + redeploy. Disparo manual ok: 61 dias × 4 quartos; Superior mudou 2 dias; Térreo 20–21/11 tinha ajuste manual 1 (Hospedin 1 livre); a pedido do dono voltou ao automático (site 0).
+- 2026-11-20: sincronização de disponibilidade passa a olhar 120 dias à frente (`?days=120` no workflow), porque o site vende Carnaval/março e, sem dado do Hospedin, considera o quarto todo livre. `CRON_SECRET` gerado de novo (mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET`) + redeploy.
 - 2026-11-19: sincronização de disponibilidade com o Hospedin LIGADA. `HOSPEDIN_SYNC_ENABLED=true` na Vercel e no GitHub, `CRON_SECRET` trocado (o mesmo valor em `HOSPEDIN_CRON_SECRET` no GitHub), `HOSPEDIN_PASSWORD` atualizada, deploy feito. Primeira rodada ok (61 dias × 4 quartos) e GitHub Action a cada 30 min com sucesso. O site agora mostra livres do Hospedin − 1 (ex.: Superior 05/12 e 24/12 = 0; antes 2 fixos).
 
 - 2026-11-18: validação de e-mail também no Villa (PR #10, `d02f592`) e no Refúgio (PR #12, `503af51`); conferido nos sites no ar.

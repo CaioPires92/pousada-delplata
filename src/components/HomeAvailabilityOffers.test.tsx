@@ -162,11 +162,14 @@ describe("HomeAvailabilityOffers", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /Aumentar adultos/i }));
       fireEvent.click(screen.getByRole("button", { name: /Aumentar crianças/i }));
+      // Sem idade escolhida a criança não entra na cotação.
+      expect(screen.getByLabelText("Idade da criança 1")).toHaveValue("");
+      fireEvent.change(screen.getByLabelText("Idade da criança 1"), { target: { value: "4" } });
 
       await waitFor(() => expect(screen.getByText("R$ 750,00")).toBeInTheDocument());
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(fetchMock).toHaveBeenLastCalledWith(
-        expect.stringContaining("checkIn=2026-08-10&checkOut=2026-08-12&adults=3&children=1&childrenAges=0"),
+        expect.stringContaining("checkIn=2026-08-10&checkOut=2026-08-12&adults=3&children=1&childrenAges=4"),
         expect.objectContaining({ cache: "no-store" }),
       );
       expect(screen.getByRole("link", { name: /Escolher esta acomodação/i })).toHaveAttribute("href", expect.stringContaining("adults=3"));

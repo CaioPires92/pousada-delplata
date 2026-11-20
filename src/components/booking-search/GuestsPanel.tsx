@@ -2,7 +2,7 @@
 
 import { Minus, PawPrint, Plus } from 'lucide-react';
 
-import { MAX_BOOKING_GUESTS } from '@/lib/booking-capacity';
+import { EXTRA_CHILD_NOTICE, MAX_BOOKING_ADULTS, needsExtraChildNotice } from '@/lib/booking-capacity';
 import { maxChildrenFor, type ChildAge } from '@/lib/booking-search';
 import { cn } from '@/lib/utils';
 import { PET_POLICY_NOTICE } from '@/lib/pet-policy';
@@ -86,12 +86,12 @@ function Stepper({
 }
 
 /** Painel de ocupação único (adultos, crianças, idades) usado por todos os formulários de busca. */
-export function GuestsPanel({ value, onChange, tone = 'light', className, newChildAge = 0, guestsError, agesError }: GuestsPanelProps) {
+export function GuestsPanel({ value, onChange, tone = 'light', className, newChildAge = null, guestsError, agesError }: GuestsPanelProps) {
     const t = TONES[tone];
     const maxChildren = maxChildrenFor(value.adults);
 
     const setAdults = (adults: number) => {
-        const nextAdults = Math.min(Math.max(adults, 1), MAX_BOOKING_GUESTS);
+        const nextAdults = Math.min(Math.max(adults, 1), MAX_BOOKING_ADULTS);
         const nextChildren = Math.min(value.children, maxChildrenFor(nextAdults));
         onChange({ ...value, adults: nextAdults, children: nextChildren, childrenAges: value.childrenAges.slice(0, nextChildren) });
     };
@@ -114,7 +114,7 @@ export function GuestsPanel({ value, onChange, tone = 'light', className, newChi
             <div className="space-y-1">
                 <p className={cn('font-accent text-[0.62rem] font-semibold uppercase tracking-[0.16em]', t.muted)}>Configurar ocupação</p>
                 <p className={cn('text-sm', t.muted)}>
-                    Até 3 adultos e mais 1 criança de 0 a 5 anos por quarto. Para grupos maiores, fale com a gente no WhatsApp.
+                    Até 4 pessoas por quarto, mais 1 criança de 0 a 5 anos. Para grupos maiores, fale com a gente no WhatsApp.
                 </p>
             </div>
 
@@ -125,7 +125,7 @@ export function GuestsPanel({ value, onChange, tone = 'light', className, newChi
                 onMinus={() => setAdults(value.adults - 1)}
                 onPlus={() => setAdults(value.adults + 1)}
                 minusDisabled={value.adults <= 1}
-                plusDisabled={value.adults >= MAX_BOOKING_GUESTS}
+                plusDisabled={value.adults >= MAX_BOOKING_ADULTS}
                 tone={tone}
             />
 
@@ -173,6 +173,9 @@ export function GuestsPanel({ value, onChange, tone = 'light', className, newChi
                             </select>
                         ))}
                     </div>
+                    {needsExtraChildNotice({ adults: value.adults, childrenAges: value.childrenAges.slice(0, value.children) }) ? (
+                        <p className={cn('text-xs', t.muted)}>{EXTRA_CHILD_NOTICE}</p>
+                    ) : null}
                     {agesError ? <p role="alert" className="text-xs font-medium text-destructive">{agesError}</p> : null}
                 </div>
             ) : null}

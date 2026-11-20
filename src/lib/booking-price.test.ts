@@ -351,6 +351,31 @@ describe('calculateBookingPrice', () => {
         expect(breakdown.extraAdultTotal).toBe(200); // 100 per night * 2 nights
         expect(breakdown.total).toBe(800); // 600 base + 200 extras
     });
+
+    it('cobra 2 adultos + criança de 11 (R$ 80) e deixa a de 5 anos como cortesia', () => {
+        const breakdown = calculateBookingPrice({
+            nights: 2, baseTotalForStay: 900, adults: 2, childrenAges: [11, 5],
+            includedAdults: 2, maxGuests: 4, extraAdultFee: 100, child6To11Fee: 80,
+        });
+        expect(breakdown.children6To11).toBe(1);
+        expect(breakdown.childTotal).toBe(160);
+        expect(breakdown.total).toBe(1060);
+    });
+
+    it('aceita 4 pagantes em quarto de 4 e cobra cada extra', () => {
+        const breakdown = calculateBookingPrice({
+            nights: 1, baseTotalForStay: 400, adults: 3, childrenAges: [8],
+            includedAdults: 2, maxGuests: 4, extraAdultFee: 100, child6To11Fee: 80,
+        });
+        expect(breakdown.extraAdults).toBe(1);
+        expect(breakdown.children6To11).toBe(1);
+        expect(breakdown.total).toBe(580);
+    });
+
+    it('STD de capacidade 3 aceita 3 pagantes + 1 criança de 0 a 5, mas não + 2', () => {
+        const base = { nights: 1, baseTotalForStay: 400, includedAdults: 2, maxGuests: 4, standardCapacity: 3, extraAdultFee: 100, child6To11Fee: 80 };
+        expect(calculateBookingPrice({ ...base, adults: 3, childrenAges: [2] }).total).toBe(500);
+        expect(() => calculateBookingPrice({ ...base, adults: 3, childrenAges: [1, 2] })).toThrow(BookingPriceError);
+        expect(calculateBookingPrice({ ...base, adults: 4, childrenAges: [2] }).total).toBe(600);
+    });
 });
-
-

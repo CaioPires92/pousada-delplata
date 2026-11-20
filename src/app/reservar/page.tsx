@@ -48,7 +48,7 @@ import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
 import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
-import { ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
+import { EXTRA_CHILD_NOTICE, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity, needsExtraChildNotice } from '@/lib/booking-capacity';
 import {
     getPaymentRejectionMessage,
     getPolledBookingPaymentStatus,
@@ -516,6 +516,13 @@ function ReservarContent() {
         if (!(discount > 0) || !(base > 0)) return '';
         return `🎟️ Cupom ${appliedCoupon.code}: ${formatGuestPercent((discount / base) * 100)} OFF`;
     })();
+    // Preço cheio (antes de promoção e cupom) e economia total, para riscar o preço
+    // e mostrar ao hóspede tudo o que ele está deixando de pagar.
+    const stayFullPrice = selectedRoom
+        ? Number(selectedRoom.priceFull ?? selectedRoom.priceOriginal ?? selectedRoom.totalPrice)
+        : 0;
+    const staySavings = Math.max(0, stayFullPrice - bookingTotal);
+    const staySavingsPercent = stayFullPrice > 0 ? (staySavings / stayFullPrice) * 100 : 0;
     const useHostedMercadoPagoCheckout = requiresHostedMercadoPagoCheckout(bookingTotal);
     const handleRetryPayment = () => {
         setPaymentError('');
@@ -2396,13 +2403,32 @@ function ReservarContent() {
                                         <p className="text-xs text-muted-foreground">{formatDateBR(checkIn!)} - {formatDateBR(checkOut!)}</p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-sm font-bold text-primary">{formatCurrencyBRL(bookingTotal)}</span>
+                                        <span className="flex flex-col items-end leading-tight">
+                                            {staySavings > 0 ? (
+                                                <span className="text-[11px] text-muted-foreground line-through">{formatCurrencyBRL(stayFullPrice)}</span>
+                                            ) : null}
+                                            <span className="text-sm font-bold text-primary">{formatCurrencyBRL(bookingTotal)}</span>
+                                        </span>
                                         <span className="text-xs font-medium text-primary">
                                             {mobileSummaryExpanded ? 'Ocultar resumo' : 'Ver resumo'}
                                         </span>
                                         {mobileSummaryExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                                     </div>
                                 </button>
+
+                                {selectedRoom.promotion?.badgeLabel || couponBadgeLabel ? (
+                                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                                        {selectedRoom.promotion?.badgeLabel ? (
+                                            <span className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</span>
+                                        ) : null}
+                                        {couponBadgeLabel ? (
+                                            <span className="inline-block rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</span>
+                                        ) : null}
+                                        {staySavings > 0 ? (
+                                            <span className="text-[11px] font-semibold text-emerald-700">Economia de {formatCurrencyBRL(staySavings)}</span>
+                                        ) : null}
+                                    </div>
+                                ) : null}
 
                                 {mobileSummaryExpanded ? (
                                     <div id="mobile-reservation-summary" className="mt-3 space-y-2 border-t border-border/60 pt-3 text-xs text-muted-foreground">
@@ -2424,8 +2450,22 @@ function ReservarContent() {
                                             <span>Diárias</span>
                                             <span className="font-medium text-foreground">{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
                                         </div>
+                                        {selectedRoom.promotion
+                                            ? (selectedRoom.promotion.items?.length ? selectedRoom.promotion.items : [selectedRoom.promotion]).map((item) => (
+                                                <div key={item.id} className="flex items-center justify-between text-emerald-700">
+                                                    <span>{item.name}</span>
+                                                    <span>- {formatCurrencyBRL(Number(item.discountAmount))}</span>
+                                                </div>
+                                            ))
+                                            : null}
+                                        {appliedCoupon && bookingDiscount > 0 ? (
+                                            <div className="flex items-center justify-between text-emerald-700">
+                                                <span>Cupom {appliedCoupon.code}</span>
+                                                <span>- {formatCurrencyBRL(bookingDiscount)}</span>
+                                            </div>
+                                        ) : null}
                                         <div className="flex items-center justify-between text-sm">
-                                            <span>{bookingDiscount > 0 ? 'Total com desconto' : 'Total'}</span>
+                                            <span>{staySavings > 0 ? 'Total com desconto' : 'Total'}</span>
                                             <span className="font-bold text-primary">{formatCurrencyBRL(bookingTotal)}</span>
                                         </div>
                                     </div>
@@ -2776,18 +2816,18 @@ function ReservarContent() {
                                                     <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</p>
                                                 ) : null}
                                                 {couponBadgeLabel ? (
-                                                    <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</p>
+                                                    <p data-testid="coupon-badge" className="inline-block rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</p>
                                                 ) : null}
                                             </div>
                                         ) : null}
                                         <div className="mt-2">
-                                            {selectedRoom.promotion && Number(selectedRoom.priceFull) > bookingTotal ? (
-                                                <p className="mb-1 text-lg leading-none text-muted-foreground line-through">{formatCurrencyBRL(Number(selectedRoom.priceFull))}</p>
+                                            {staySavings > 0 ? (
+                                                <p className="mb-1 text-lg leading-none text-muted-foreground line-through">{formatCurrencyBRL(stayFullPrice)}</p>
                                             ) : null}
                                             <span className="block text-[2.2rem] font-bold leading-none text-primary">{formatCurrencyBRL(bookingTotal)}</span>
-                                            {selectedRoom.promotion && Number(selectedRoom.promotion.discountAmount) > 0 ? (
+                                            {staySavings > 0 ? (
                                                 <p className="mt-1 text-sm font-semibold text-emerald-700">
-                                                    Você economiza {formatCurrencyBRL(Number(selectedRoom.promotion.discountAmount))} ({formatGuestPercent(selectedRoom.promotion.discountPercent)})
+                                                    Você economiza {formatCurrencyBRL(staySavings)} ({formatGuestPercent(staySavingsPercent)})
                                                 </p>
                                             ) : null}
                                         </div>
@@ -2798,32 +2838,15 @@ function ReservarContent() {
                                         <p className="mt-2 text-xs font-medium text-emerald-700">
                                             {pets > 0 ? 'Taxa de pets incluída no total' : 'Sem taxas extras'}
                                         </p>
+                                        {needsExtraChildNotice({ adults: numAdults, childrenAges }, selectedRoom) ? (
+                                            <p className="mt-1 text-xs text-muted-foreground">{EXTRA_CHILD_NOTICE}</p>
+                                        ) : null}
                                         {selectedRoom.priceBreakdown ? (
                                             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
                                                 <div className="flex justify-between">
                                                     <span>Base ({stayNights} {stayNights === 1 ? 'diária' : 'diárias'})</span>
                                                     <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.baseTotal))}</span>
                                                 </div>
-                                                {selectedRoom.promotion
-                                                    ? (selectedRoom.promotion.items?.length ? selectedRoom.promotion.items : [selectedRoom.promotion]).map((item) => (
-                                                        <div key={item.id} className="flex justify-between text-emerald-600">
-                                                            <span>{item.name}</span>
-                                                            <span>- {formatCurrencyBRL(Number(item.discountAmount))}</span>
-                                                        </div>
-                                                    ))
-                                                    : null}
-                                                {appliedCoupon ? (
-                                                    <>
-                                                        <div className="flex justify-between text-emerald-600">
-                                                            <span>Desconto ({appliedCoupon.code})</span>
-                                                            <span>- {formatCurrencyBRL(bookingDiscount)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between font-semibold text-foreground">
-                                                            <span>Subtotal</span>
-                                                            <span>{formatCurrencyBRL(bookingSubtotal)}</span>
-                                                        </div>
-                                                    </>
-                                                ) : null}
                                                 {selectedRoom.priceBreakdown.extraAdultTotal > 0 ? (
                                                     <div className="flex justify-between">
                                                         <span>Hóspedes adicionais</span>
@@ -2841,6 +2864,30 @@ function ReservarContent() {
                                                         <span>Pets ({formatCurrencyBRL(PET_FEE_PER_NIGHT)} por pet/diária)</span>
                                                         <span>{formatCurrencyBRL(Number(selectedRoom.priceBreakdown.petTotal))}</span>
                                                     </div>
+                                                ) : null}
+                                                {selectedRoom.promotion
+                                                    ? (selectedRoom.promotion.items?.length ? selectedRoom.promotion.items : [selectedRoom.promotion]).map((item) => (
+                                                        <div key={item.id} className="flex justify-between text-emerald-600">
+                                                            <span>{item.name}</span>
+                                                            <span>- {formatCurrencyBRL(Number(item.discountAmount))}</span>
+                                                        </div>
+                                                    ))
+                                                    : null}
+                                                {appliedCoupon ? (
+                                                    <>
+                                                        <div className="flex justify-between border-t border-border/60 pt-2 font-semibold text-foreground">
+                                                            <span>Subtotal</span>
+                                                            <span>{formatCurrencyBRL(bookingSubtotal)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-emerald-600">
+                                                            <span>Cupom {appliedCoupon.code}</span>
+                                                            <span>- {formatCurrencyBRL(bookingDiscount)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between font-semibold text-foreground">
+                                                            <span>Total</span>
+                                                            <span>{formatCurrencyBRL(bookingTotal)}</span>
+                                                        </div>
+                                                    </>
                                                 ) : null}
                                             </div>
                                         ) : (
