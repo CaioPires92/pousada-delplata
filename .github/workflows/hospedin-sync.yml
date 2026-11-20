@@ -26,4 +26,4 @@ jobs:
           curl --fail-with-body --silent --show-error --max-time 90 \
             --retry 2 --retry-delay 20 \
             -H "Authorization: Bearer ${SECRET}" \
-            "${SITE_URL}/api/cron/hospedin-sync"
+            "${SITE_URL}/api/cron/hospedin-sync?days=120"
