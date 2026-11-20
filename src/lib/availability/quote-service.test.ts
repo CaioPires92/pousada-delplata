@@ -233,8 +233,31 @@ describe("queryAvailabilityQuote", () => {
     expect(client.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
         roomTypeId: { in: ["room-1", "room-2", "room-3"] },
-        hospedinRegisteredAt: null,
       }),
     }));
+  });
+
+  it("booking already in Hospedin frees the general stock but still uses the 4-guest stock", async () => {
+    const registered = {
+      roomTypeId: "room-1",
+      checkIn: new Date("2026-06-15T00:00:00Z"),
+      checkOut: new Date("2026-06-17T00:00:00Z"),
+      adults: 4,
+      childrenAges: "[]",
+      hospedinRegisteredAt: new Date("2026-06-01T00:00:00Z"),
+    };
+    const query = (adults: number) => {
+      const client = fakeClient();
+      client.roomType.findMany.mockResolvedValue([room({ totalUnits: 1, inventoryFor4Guests: 1 })]);
+      client.booking.findMany.mockResolvedValue([registered]);
+      return queryAvailabilityQuote({ checkin: "2026-06-15", checkout: "2026-06-17", adults, childrenAges: [] }, client);
+    };
+
+    // Estoque geral: o Hospedin já descontou, então o site não conta de novo.
+    const couple = await query(2);
+    expect(couple.ok && couple.options.map(option => option.remainingUnits)).toEqual([1]);
+    // Estoque de 4 (só do site): continua ocupado.
+    const family = await query(4);
+    expect(family.ok && family.options).toEqual([]);
   });
 });

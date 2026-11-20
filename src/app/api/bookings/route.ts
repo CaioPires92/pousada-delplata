@@ -98,7 +98,6 @@ export async function POST(request: Request) {
                     roomTypeId,
                     checkIn: { lt: new Date(`${checkOut}T00:00:00Z`) },
                     checkOut: { gt: new Date(`${checkIn}T00:00:00Z`) },
-                    hospedinRegisteredAt: null,
                     // O próprio hóspede refazendo a reserva não pode ser barrado pela pendente dele.
                     AND: [
                         occupyingBookingWhere(),
@@ -110,6 +109,7 @@ export async function POST(request: Request) {
                     checkOut: true,
                     adults: true,
                     childrenAges: true,
+                    hospedinRegisteredAt: true,
                 },
             });
             const adjustments = await tx.inventoryAdjustment.findMany({
@@ -158,8 +158,11 @@ export async function POST(request: Request) {
                 const rangeEnd = compareDayKey(bookingEndInclusive, lastNight) > 0 ? lastNight : bookingEndInclusive;
                 if (compareDayKey(rangeStart, rangeEnd) > 0) continue;
 
+                // Já lançada no Hospedin: o estoque vindo de lá já a desconta; no estoque de 4
+                // hóspedes (só do site) continua contando.
+                const countedByHospedin = Boolean(booking.hospedinRegisteredAt);
                 for (const dayKey of eachDayKeyInclusive(rangeStart, rangeEnd)) {
-                    bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
+                    if (!countedByHospedin) bookingsCountByDay.set(dayKey, (bookingsCountByDay.get(dayKey) || 0) + 1);
                     if (usesFourGuestInventory) {
                         bookingsFor4GuestsByDay.set(dayKey, (bookingsFor4GuestsByDay.get(dayKey) || 0) + 1);
                     }

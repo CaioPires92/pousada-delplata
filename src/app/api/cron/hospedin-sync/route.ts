@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 
+import { reconcileBookingsWithHospedin } from '@/lib/hospedin-push';
 import { getDefaultHospedinPeriod, syncHospedinAvailability } from '@/lib/hospedin-sync';
 import { opsLog } from '@/lib/ops-log';
 import { addDays, format } from 'date-fns';
@@ -42,6 +43,16 @@ export async function GET(request: Request) {
         ? { beginDate: format(new Date(), 'yyyy-MM-dd'), endDate: format(addDays(new Date(), daysParam), 'yyyy-MM-dd') }
         : getDefaultHospedinPeriod();
 
+    // Reservas do site → Hospedin antes de ler o estoque, para a leitura já vir com elas.
+    // Falha aqui não derruba a sincronização: o próximo ciclo tenta de novo.
+    let hospedinPush: Awaited<ReturnType<typeof reconcileBookingsWithHospedin>> | { error: string } | undefined;
+    try {
+        hospedinPush = await reconcileBookingsWithHospedin();
+    } catch (error) {
+        hospedinPush = { error: error instanceof Error ? error.message : String(error) };
+        opsLog('error', 'HOSPEDIN_PUSH_RECONCILE_FAILED', { message: hospedinPush.error });
+    }
+
     try {
         const sync = await syncHospedinAvailability(period);
         const failed = sync.results.filter((result) => 'error' in result);
@@ -50,10 +61,10 @@ export async function GET(request: Request) {
                 ...period,
                 failed: failed.map((result) => ({ roomName: result.roomName, error: 'error' in result ? result.error : undefined })),
             });
-            return NextResponse.json({ ok: false, error: 'HOSPEDIN_SYNC_FAILED', ...period, results: sync.results }, { status: 502 });
+            return NextResponse.json({ ok: false, error: 'HOSPEDIN_SYNC_FAILED', ...period, results: sync.results, hospedinPush }, { status: 502 });
         }
         opsLog('info', 'HOSPEDIN_CRON_SYNC_DONE', { ...period, results: sync.results.length });
-        return NextResponse.json({ ok: true, ...period, results: sync.results });
+        return NextResponse.json({ ok: true, ...period, results: sync.results, hospedinPush });
     } catch (error) {
         opsLog('error', 'HOSPEDIN_CRON_SYNC_FAILED', { message: error instanceof Error ? error.message : String(error) });
         return NextResponse.json({ error: 'HOSPEDIN_SYNC_FAILED', message: error instanceof Error ? error.message : 'Erro' }, { status: 502 });
