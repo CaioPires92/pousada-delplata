@@ -53,6 +53,7 @@ Como manter:
 
 ## Concluídas
 
+- 2026-11-22: fontes Inter e Bodoni Moda carregadas de verdade com `next/font` (`src/app/fonts.ts`), em vez de cair na fonte do sistema; barra de reserva inferior com datas e hóspedes igual à do Villa (`MobileBookingBar`), no lugar do lembrete simples. Build, tipos e testes ok; falta conferir no site depois do deploy.
 - 2026-11-20: `CRON_SECRET` gerado de novo (o dono gravou o mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET` no GitHub) + redeploy. Disparo manual ok: 61 dias × 4 quartos; Superior mudou 2 dias; Térreo 20–21/11 tinha ajuste manual 1 (Hospedin 1 livre); a pedido do dono voltou ao automático (site 0).
 - 2026-11-20: sincronização de disponibilidade passa a olhar 120 dias à frente (`?days=120` no workflow), porque o site vende Carnaval/março e, sem dado do Hospedin, considera o quarto todo livre. `CRON_SECRET` gerado de novo (mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET`) + redeploy.
 - 2026-11-19: sincronização de disponibilidade com o Hospedin LIGADA. `HOSPEDIN_SYNC_ENABLED=true` na Vercel e no GitHub, `CRON_SECRET` trocado (o mesmo valor em `HOSPEDIN_CRON_SECRET` no GitHub), `HOSPEDIN_PASSWORD` atualizada, deploy feito. Primeira rodada ok (61 dias × 4 quartos) e GitHub Action a cada 30 min com sucesso. O site agora mostra livres do Hospedin − 1 (ex.: Superior 05/12 e 24/12 = 0; antes 2 fixos).

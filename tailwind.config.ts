@@ -81,19 +81,19 @@ const config: Config = {
     			},
     			fontFamily: {
     				sans: [
-    					'var(--font-inter)',
+    					'var(--font-inter)', 'Segoe UI', 'Helvetica', 'Arial',
     					'sans-serif'
     				],
     				heading: [
-    					'var(--font-inter)',
+    					'var(--font-inter)', 'Segoe UI', 'Helvetica', 'Arial',
     					'sans-serif'
     				],
     			display: [
-    				'var(--font-inter)',
+    				'var(--font-inter)', 'Segoe UI', 'Helvetica', 'Arial',
     				'sans-serif'
     			],
     				accent: [
-    					'var(--font-inter)',
+    					'var(--font-inter)', 'Segoe UI', 'Helvetica', 'Arial',
     					'sans-serif'
     				]
     			},

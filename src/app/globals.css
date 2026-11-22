@@ -3,8 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --font-inter: "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-playfair-display: "Bodoni Moda", "Times New Roman", Georgia, serif;
+  /* --font-inter e --font-playfair-display vêm do next/font (src/app/fonts.ts), aplicadas no <html>. */
   --brand-forest: #283223;
   --brand-gold: #bbb863;
   --brand-cream: #f5f5f5;
@@ -68,13 +67,13 @@
 }
 
 body {
-  font-family: var(--font-inter);
+  font-family: var(--font-inter), "Segoe UI", Helvetica, Arial, sans-serif;
   color: hsl(var(--foreground));
   background: hsl(var(--background));
 }
 @layer utilities {
   .font-hero-display {
-    font-family: var(--font-playfair-display), sans-serif;
+    font-family: var(--font-playfair-display), "Times New Roman", Georgia, serif;
   }
 
   .section-space-sm {
