@@ -1,6 +1,7 @@
 import { addDays, format } from 'date-fns';
 
 import { MAX_BOOKING_ADULTS, MAX_BOOKING_GUESTS, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity } from '@/lib/booking-capacity';
+import { MAX_PETS_PER_BOOKING } from '@/lib/pet-policy';
 import { compareDayKey, isDayKey } from '@/lib/day-key';
 import { getEffectiveGuestCounts } from '@/lib/guest-capacity';
 
@@ -157,7 +158,7 @@ export function buildReservarParams(values: BookingSearchValues, extras: Reserva
     if (values.children > 0 && ages.length === values.children) {
         params.set('childrenAges', ages.map(String).join(','));
     }
-    const pets = Math.min(Math.max(Math.trunc(values.pets ?? 0), 0), 10);
+    const pets = Math.min(Math.max(Math.trunc(values.pets ?? 0), 0), MAX_PETS_PER_BOOKING);
     if (pets > 0) params.set('pets', String(pets));
 
     const promo = String(extras.promo ?? '').trim().toUpperCase();
@@ -199,7 +200,7 @@ export function parseReservarParams(source: { get(key: string): string | null })
         while (ages.length < normalizedChildren) ages.push(null);
         out.childrenAges = ages;
     }
-    if (Number.isFinite(pets)) out.pets = Math.min(Math.max(pets, 0), 10);
+    if (Number.isFinite(pets)) out.pets = Math.min(Math.max(pets, 0), MAX_PETS_PER_BOOKING);
 
     return out;
 }

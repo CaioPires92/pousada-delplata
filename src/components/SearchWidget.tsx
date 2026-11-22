@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { MAX_PETS_PER_BOOKING } from '@/lib/pet-policy';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Calendar as CalendarIcon, Users, Search, ChevronDown, Loader2, PawPrint } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
@@ -726,7 +727,7 @@ export default function SearchWidget({
                                     }}
                                     className={cn(selectClass, 'mt-3')}
                                 >
-                                    {Array.from({ length: 10 }, (_, index) => index + 1).map((count) => (
+                                    {Array.from({ length: MAX_PETS_PER_BOOKING }, (_, index) => index + 1).map((count) => (
                                         <option key={count} value={count}>{count}</option>
                                     ))}
                                 </select>

@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PET_FEE_PER_NIGHT } from '@/lib/booking-price';
+import { MAX_PETS_PER_BOOKING } from '@/lib/pet-policy';
 import { useCallback, useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -306,7 +307,7 @@ function ReservarContent() {
     const adults = searchParams.get('adults') || '2';
     const children = searchParams.get('children') || '0';
     const childrenAgesParam = searchParams.get('childrenAges') || '';
-    const pets = Math.max(0, Number.parseInt(searchParams.get('pets') || '0', 10) || 0);
+    const pets = Math.min(MAX_PETS_PER_BOOKING, Math.max(0, Number.parseInt(searchParams.get('pets') || '0', 10) || 0));
     const promoFromQuery = String(searchParams.get('promo') || searchParams.get('coupon') || '').trim().toUpperCase();
     const preferredRoomTypeId = String(searchParams.get('roomTypeId') || '').trim();
 

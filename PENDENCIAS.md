@@ -24,9 +24,9 @@ Como manter:
 - Só mesclar quando o usuário disser "aplique". Antes disso: conta Asaas aprovada, webhook configurado e `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` e `ASAAS_ENVIRONMENT=production` na Vercel.
 - Depois do merge, esperar uns 120 dias para remover o código do Mercado Pago.
 
-### 4. Limite de pets por reserva
-- Taxa: R$ 20 por pet por diária (2026-11-13). Limite: até 10 pets por reserva (herdado do Villa), mantido por decisão do usuário em 2026-11-18.
-- Rever depois: com "pequeno porte", talvez faça sentido 1 ou 2 por reserva (`src/app/api/bookings/route.ts`, `src/lib/booking-price.ts`).
+### 4. Limite de pets por reserva — resolvido, mover para Concluídas na próxima edição
+- 2026-11-22: limite de 2 pets por reserva (decisão do usuário; antes 10, herdado do Villa). Valor central em `MAX_PETS_PER_BOOKING` (`src/lib/pet-policy.ts`), aplicado na busca, no seletor, na API de reservas (`invalid_pet_count`), na cotação e no preço. Taxa continua R$ 20 por pet por diária. Falta conferir em produção após o deploy.
+- O Villa segue com 10 pets e R$ 40 por pet por diária; não foi alterado.
 
 ### 5. (Opcional) Upstash para o limite de login do admin
 - Hoje o login bloqueia após 5 senhas erradas em 15 min, mas a contagem fica na memória de cada servidor da Vercel (zera ao reiniciar e não é compartilhada). Com Upstash, o limite vale de verdade.

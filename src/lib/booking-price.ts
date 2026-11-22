@@ -1,3 +1,4 @@
+import { MAX_PETS_PER_BOOKING } from '@/lib/pet-policy';
 export type BookingPriceInput = {
     nights: number;
     baseTotalForStay: number;
@@ -71,7 +72,7 @@ export function calculateBookingPrice(input: BookingPriceInput): BookingPriceBre
     if (includedAdults < 1) throw new BookingPriceError('invalid_input', 'Invalid includedAdults');
     if (maxGuests < 1) throw new BookingPriceError('invalid_input', 'Invalid maxGuests');
     if (adults < 0) throw new BookingPriceError('invalid_guests', 'Invalid adults');
-    if (pets < 0 || pets > 10) throw new BookingPriceError('invalid_input', 'Invalid pets');
+    if (pets < 0 || pets > MAX_PETS_PER_BOOKING) throw new BookingPriceError('invalid_input', 'Invalid pets');
 
     const normalizedAges = childrenAges.map((a) => Math.trunc(toFiniteNumber(a) ?? -1));
     if (normalizedAges.some((a) => a < 0 || a > 17)) {

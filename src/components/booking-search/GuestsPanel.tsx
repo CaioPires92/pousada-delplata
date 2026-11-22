@@ -5,7 +5,7 @@ import { Minus, PawPrint, Plus } from 'lucide-react';
 import { EXTRA_CHILD_NOTICE, MAX_BOOKING_ADULTS, needsExtraChildNotice } from '@/lib/booking-capacity';
 import { maxChildrenFor, type ChildAge } from '@/lib/booking-search';
 import { cn } from '@/lib/utils';
-import { PET_POLICY_NOTICE } from '@/lib/pet-policy';
+import { MAX_PETS_PER_BOOKING, PET_POLICY_NOTICE } from '@/lib/pet-policy';
 
 export type GuestsValue = { adults: number; children: number; childrenAges: ChildAge[]; pets: number };
 
@@ -145,9 +145,9 @@ export function GuestsPanel({ value, onChange, tone = 'light', className, newChi
                 hint="Aceitos mediante taxa por diária"
                 count={value.pets}
                 onMinus={() => onChange({ ...value, pets: Math.max(0, value.pets - 1) })}
-                onPlus={() => onChange({ ...value, pets: Math.min(10, value.pets + 1) })}
+                onPlus={() => onChange({ ...value, pets: Math.min(MAX_PETS_PER_BOOKING, value.pets + 1) })}
                 minusDisabled={value.pets <= 0}
-                plusDisabled={value.pets >= 10}
+                plusDisabled={value.pets >= MAX_PETS_PER_BOOKING}
                 tone={tone}
             />
 
