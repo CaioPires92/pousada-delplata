@@ -36,11 +36,6 @@ export const metadata: Metadata = {
     ],
   }),
   metadataBase: new URL(getSiteUrl()),
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
-  },
   robots: {
     index: true,
     follow: true,
