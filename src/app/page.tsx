@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 
-import HomeContent from "@/components/HomeContent";
+import HomeNovo from "@/components/home-novo/HomeNovo";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -18,9 +17,5 @@ export const metadata: Metadata = buildPageMetadata({
 });
 
 export default function HomePage() {
-    return (
-        <Suspense fallback={<main className="min-h-screen bg-[color:var(--brand-cream)]" />}>
-            <HomeContent />
-        </Suspense>
-    );
+    return <HomeNovo />;
 }

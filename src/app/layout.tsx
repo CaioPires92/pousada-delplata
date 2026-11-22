@@ -16,7 +16,7 @@ import {
   getSiteUrl,
 } from "@/lib/seo";
 
-import { bodoniModa, inter } from "./fonts";
+import { bodoniModa, bricolage, instrumentSerif, inter } from "./fonts";
 import "./globals.css";
 
 const structuredData = [buildWebSiteSchema(), buildLodgingBusinessSchema()];
@@ -51,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${bodoniModa.variable}`} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${inter.variable} ${bodoniModa.variable} ${bricolage.variable} ${instrumentSerif.variable}`} suppressHydrationWarning>
       <head>
         <Script id="microsoft-clarity" strategy="lazyOnload">
           {`
