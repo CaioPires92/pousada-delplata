@@ -4,59 +4,97 @@ import MobileBookingBar from './MobileBookingBar';
 
 const mocks = vi.hoisted(() => ({
     pathname: '/',
-    push: vi.fn(),
-}));
-
-vi.mock('@/lib/analytics', () => ({
     trackClickReservar: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
     usePathname: () => mocks.pathname,
-    useRouter: () => ({ push: mocks.push }),
+}));
+
+vi.mock('@/lib/analytics', () => ({
+    trackClickReservar: mocks.trackClickReservar,
 }));
 
 describe('MobileBookingBar', () => {
     beforeEach(() => {
         mocks.pathname = '/acomodacoes';
-        mocks.push.mockClear();
+        mocks.trackClickReservar.mockClear();
+        sessionStorage.clear();
     });
 
-    it('abre a busca com datas e ocupação selecionadas', async () => {
+    it('links to the booking search and tracks the desktop click', async () => {
         render(<MobileBookingBar />);
 
-        const link = await screen.findByRole('link', { name: /simular reserva/i });
+        const link = await screen.findByRole('link', { name: /ver disponibilidade/i });
         expect(link).toHaveAttribute('href', '/reservar');
 
         fireEvent.click(link);
-        const destination = String(mocks.push.mock.calls[0]?.[0]);
-        const params = new URL(destination, 'https://example.com').searchParams;
-        const checkIn = new Date(`${params.get('checkIn')}T12:00:00`);
-        const checkOut = new Date(`${params.get('checkOut')}T12:00:00`);
-
-        expect(params.get('adults')).toBe('2');
-        expect(params.get('children')).toBe('0');
-        expect(checkOut.getTime() - checkIn.getTime()).toBe(24 * 60 * 60 * 1000);
+        expect(mocks.trackClickReservar).toHaveBeenCalledWith('booking_assistant_desktop');
     });
 
-    it('inclui a quantidade de pets na busca', async () => {
+    it('waits until the visitor leaves the hero before showing on the home page', () => {
+        mocks.pathname = '/';
+        const hero = document.createElement('section');
+        hero.setAttribute('data-home-hero', '');
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: 640,
+        }) as DOMRect);
+        document.body.appendChild(hero);
+
         render(<MobileBookingBar />);
 
-        fireEvent.click(screen.getByRole('button', { name: /Hóspedes/i }));
-        fireEvent.click(await screen.findByRole('button', { name: /Aumentar pets/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Aumentar pets/i }));
-        fireEvent.click(screen.getByRole('link', { name: /simular reserva/i }));
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
 
-        expect(mocks.push).toHaveBeenCalledWith(expect.stringContaining('pets=2'));
+        fireEvent(window, new Event('reservar-cta-interaction'));
+        fireEvent.scroll(window);
+
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: -1,
+        }) as DOMRect);
+        fireEvent.scroll(window);
+
+        expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: 640,
+        }) as DOMRect);
+        fireEvent.scroll(window);
+
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+        hero.remove();
     });
 
-    it('exibe as datas bloqueadas com aparência mais escura', () => {
+    it('waits until the visitor leaves an internal page hero', () => {
+        const hero = document.createElement('section');
+        hero.setAttribute('data-page-hero', '');
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: 320,
+        }) as DOMRect);
+        document.body.appendChild(hero);
+
         render(<MobileBookingBar />);
 
-        fireEvent.click(screen.getByText('Check-in').parentElement!.parentElement!);
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
 
-        const disabledDay = document.querySelector('[data-disabled="true"]');
-        expect(disabledDay).toHaveClass('!text-white/35', '!opacity-100');
+        hero.getBoundingClientRect = vi.fn(() => ({
+            bottom: -1,
+        }) as DOMRect);
+        fireEvent.scroll(window);
+
+        expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+        hero.remove();
+    });
+
+    it('can be dismissed for the current session', async () => {
+        render(<MobileBookingBar />);
+
+        const closeButtons = await screen.findAllByRole('button', { name: /fechar lembrete de reserva/i });
+        fireEvent.click(closeButtons[0]);
+
+        expect(sessionStorage.getItem('delplata-booking-assistant-dismissed')).toBe('1');
+        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
     });
 
     it.each(['/reservar', '/reservar/confirmacao', '/admin', '/admin/reservas'])(
