@@ -18,6 +18,7 @@ Como manter:
 - 2026-11-18: desde o deploy (2026-11-14) houve 1 reserva (2026-11-16, R$ 309). Ela abriu o Checkout Pro, mas não houve nenhuma tentativa no MP e a reserva expirou. Ainda não há confirmações desde 2026-10-27.
 - Entre 2026-11-02 e 2026-11-13 foram 9 reservas criadas e nenhuma tentativa de pagamento no Mercado Pago (consultado por `external_reference`). O último pagamento é de 2026-10-27.
 - O PR #6 troca o Brick pelo Checkout Pro. Depois do merge, ver se as tentativas voltam a aparecer.
+- 2026-11-22: varredura da API pública (2 adultos, 2 noites, próximos 90 dias): 21 de 90 datas sem nenhum quarto e 6 com mínimo de 3 a 4 noites; para 4 adultos, **90 de 90 sem quarto** (estoque de 4 zerado). Pode ser parte do motivo das poucas reservas (famílias de 4 não conseguem reservar).
 
 ### 3. Migração do pagamento para o Asaas (branch parada)
 - Branch: `feat/migracao-asaas`, criada em 2026-11-13 a partir da branch do espelhamento. Checklist em `docs/ativacao-asaas.md`.
@@ -50,6 +51,12 @@ Como manter:
 - Depois: migrar a sincronização de estoque da v2 (e-mail e senha) para a v3 e avaliar gravar preços/restrições pela v3 (`PUT /prices`, `/restrictions`, `/closures`).
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
 - Estoque: reserva enviada deixa de contar no estoque geral do site (o Hospedin já desconta), mas continua contando no estoque de 4 hóspedes, que só existe no site.
+
+### 8. Novo layout da home (modelo para aprovação)
+- Branch `feat/novo-layout-paraiso` (2026-11-22), **não mesclada**: modelo da home inspirado na Pousada Paraíso e em 11 sites de pousadas de serra pesquisados. Home quase toda renderizada no servidor (HTML de 6 KB para ~120 KB), fontes Bricolage Grotesque + Instrument Serif, faixa de promessas, faixas de fotos, bento, FAQ com schema e animações GSAP.
+- [ ] Usuário olhar o modelo (preview da Vercel da branch) e dizer o que mantém, muda ou descarta.
+- [ ] Ainda fora do modelo: selo de reserva direta com benefício real, preço "a partir de" por acomodação, botão fixo de reservar, WhatsApp com datas, página de feriados/pacotes com preço, depoimentos reais, vídeo/tour 360, h1 do hero no HTML (hoje está dentro do Suspense do `SearchWidget`).
+- Hospedagem, pagamento e `/reservar` não foram tocados.
 
 ## Concluídas
 
