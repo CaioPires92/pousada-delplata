@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { reconcileBookingsWithHospedin } from '@/lib/hospedin-push';
 import { getDefaultHospedinPeriod, syncHospedinAvailability } from '@/lib/hospedin-sync';
+import { isFourGuestSyncEnabled, syncFourGuestInventory } from '@/lib/hospedin-four-guest-sync';
 import { opsLog } from '@/lib/ops-log';
 import { addDays, format } from 'date-fns';
 
@@ -63,8 +64,20 @@ export async function GET(request: Request) {
             });
             return NextResponse.json({ ok: false, error: 'HOSPEDIN_SYNC_FAILED', ...period, results: sync.results, hospedinPush }, { status: 502 });
         }
+        // Estoque de 4 hóspedes pelas UHs do Hospedin (API v3). Só grava com a variável ligada;
+        // `?fourGuest=dry` só calcula e mostra. Falha aqui não derruba a sincronização geral.
+        const wantsDryRun = new URL(request.url).searchParams.get('fourGuest') === 'dry';
+        let fourGuest: Awaited<ReturnType<typeof syncFourGuestInventory>> | { error: string } | undefined;
+        if (isFourGuestSyncEnabled() || wantsDryRun) {
+            try {
+                fourGuest = await syncFourGuestInventory({ ...period, dryRun: !isFourGuestSyncEnabled() || wantsDryRun });
+            } catch (error) {
+                fourGuest = { error: error instanceof Error ? error.message : String(error) };
+                opsLog('error', 'HOSPEDIN_FOUR_GUEST_SYNC_FAILED', { message: fourGuest.error });
+            }
+        }
         opsLog('info', 'HOSPEDIN_CRON_SYNC_DONE', { ...period, results: sync.results.length });
-        return NextResponse.json({ ok: true, ...period, results: sync.results, hospedinPush });
+        return NextResponse.json({ ok: true, ...period, results: sync.results, hospedinPush, fourGuest });
     } catch (error) {
         opsLog('error', 'HOSPEDIN_CRON_SYNC_FAILED', { message: error instanceof Error ? error.message : String(error) });
         return NextResponse.json({ error: 'HOSPEDIN_SYNC_FAILED', message: error instanceof Error ? error.message : 'Erro' }, { status: 502 });

@@ -234,6 +234,29 @@ class HospedinV3Client {
     return ids;
   }
 
+  /** Todas as UHs (quartos) ativas e a categoria de cada uma. */
+  async listRooms() {
+    const rooms: Array<{ id: number; placeTypeId: number }> = [];
+    let path: string | null = 'rooms?page[size]=100';
+    while (path) {
+      const page: JsonApiCollection<{ place_type_id: number; status: boolean }> = await this.request('GET', path);
+      for (const room of page.data) {
+        if (room.attributes.status !== false) rooms.push({ id: Number(room.id), placeTypeId: Number(room.attributes.place_type_id) });
+      }
+      path = page.links?.next ? page.links.next.replace(/^.*\/api\/v3\//, '') : null;
+    }
+    return rooms;
+  }
+
+  /** Disponibilidade noite a noite de UMA UH em [checkIn, checkOut). */
+  async getRoomAvailability(placeId: number, checkIn: string, checkOut: string) {
+    const res = await this.request<JsonApiCollection<{ date: string; availability: number }>>(
+      'GET',
+      `availabilities?check_in=${checkIn}&check_out=${checkOut}&place_id=${placeId}`,
+    );
+    return res.data.map((night) => ({ date: night.attributes.date, availability: Number(night.attributes.availability) }));
+  }
+
   /** A UH está livre em todas as noites de [checkIn, checkOut)? */
   async isRoomFree(placeId: number, checkIn: string, checkOut: string) {
     const res = await this.request<JsonApiCollection<{ date: string; availability: number }>>(

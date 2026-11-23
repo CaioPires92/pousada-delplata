@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 
-const mocks = vi.hoisted(() => ({ sync: vi.fn() }));
+const mocks = vi.hoisted(() => ({ sync: vi.fn(), fourGuest: vi.fn() }));
 
 vi.mock('@/lib/hospedin-sync', () => ({
     syncHospedinAvailability: mocks.sync,
     getDefaultHospedinPeriod: () => ({ beginDate: '2026-11-11', endDate: '2027-01-10' }),
+}));
+vi.mock('@/lib/hospedin-four-guest-sync', () => ({
+    syncFourGuestInventory: mocks.fourGuest,
+    isFourGuestSyncEnabled: () => process.env.HOSPEDIN_FOUR_GUEST_SYNC_ENABLED === 'true',
 }));
 vi.mock('@/lib/ops-log', () => ({ opsLog: vi.fn() }));
 
@@ -17,6 +21,7 @@ describe('GET /api/cron/hospedin-sync', () => {
         vi.clearAllMocks();
         process.env.CRON_SECRET = 'segredo-de-teste';
         process.env.HOSPEDIN_SYNC_ENABLED = 'true';
+        delete process.env.HOSPEDIN_FOUR_GUEST_SYNC_ENABLED;
     });
 
     it('sem o segredo configurado, recusa (503); com token errado ou ausente, 401', async () => {
@@ -75,5 +80,30 @@ describe('GET /api/cron/hospedin-sync', () => {
         const res = await GET(req('segredo-de-teste'));
         expect(res.status).toBe(502);
         expect((await res.json()).message).toContain('Forbidden');
+    });
+
+    it('estoque de 4 hóspedes: desligado por padrão, não roda', async () => {
+        mocks.sync.mockResolvedValue({ results: [] });
+        const res = await GET(req('segredo-de-teste'));
+        expect(res.status).toBe(200);
+        expect(mocks.fourGuest).not.toHaveBeenCalled();
+    });
+
+    it('estoque de 4 hóspedes: ?fourGuest=dry só simula (mesmo com a variável desligada)', async () => {
+        mocks.sync.mockResolvedValue({ results: [] });
+        mocks.fourGuest.mockResolvedValue({ dryRun: true, results: [], warnings: [] });
+        const res = await GET(req('segredo-de-teste', '?fourGuest=dry'));
+        expect(mocks.fourGuest).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
+        expect((await res.json()).fourGuest).toEqual({ dryRun: true, results: [], warnings: [] });
+    });
+
+    it('estoque de 4 hóspedes: com a variável ligada grava; falha dele não derruba a sincronização geral', async () => {
+        process.env.HOSPEDIN_FOUR_GUEST_SYNC_ENABLED = 'true';
+        mocks.sync.mockResolvedValue({ results: [] });
+        mocks.fourGuest.mockRejectedValue(new Error('v3 fora do ar'));
+        const res = await GET(req('segredo-de-teste'));
+        expect(mocks.fourGuest).toHaveBeenCalledWith(expect.objectContaining({ dryRun: false }));
+        expect(res.status).toBe(200);
+        expect((await res.json()).fourGuest).toEqual({ error: 'v3 fora do ar' });
     });
 });
