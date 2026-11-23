@@ -2518,26 +2518,25 @@ function ReservarContent() {
                                             />
                                         </div>
 
-                                        <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
-                                            <label htmlFor="has-coupon" className="flex cursor-pointer items-center gap-3 text-sm font-medium">
-                                                <input
-                                                    id="has-coupon"
-                                                    type="checkbox"
-                                                    checked={couponEnabled}
-                                                    onChange={(event) => {
-                                                        const enabled = event.target.checked;
-                                                        setCouponEnabled(enabled);
-                                                        setCouponMessage('');
-                                                        if (!enabled) {
-                                                            clearCouponState(true);
-                                                            setCouponCode('');
-                                                        }
-                                                    }}
-                                                    disabled={processing}
-                                                    className="h-4 w-4 accent-primary"
-                                                />
+                                        <div>
+                                            <button
+                                                type="button"
+                                                id="has-coupon"
+                                                aria-expanded={couponEnabled}
+                                                disabled={processing}
+                                                onClick={() => {
+                                                    const enabled = !couponEnabled;
+                                                    setCouponEnabled(enabled);
+                                                    setCouponMessage('');
+                                                    if (!enabled) {
+                                                        clearCouponState(true);
+                                                        setCouponCode('');
+                                                    }
+                                                }}
+                                                className="text-sm font-medium text-primary underline underline-offset-4 hover:no-underline"
+                                            >
                                                 Tenho um cupom de desconto
-                                            </label>
+                                            </button>
 
                                             {couponEnabled ? (
                                                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -2593,20 +2592,6 @@ function ReservarContent() {
                                             </div>
                                         ) : null}
 
-                                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-3 text-xs text-muted-foreground">
-                                            <span className="font-medium text-foreground">Cancelamento:</span>{' '}
-                                            Consulte prazos e condições antes de concluir a reserva.{' '}
-                                            <Link
-                                                href="/politica-de-cancelamento"
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-primary font-medium hover:underline"
-                                            >
-                                                Ver política completa
-                                            </Link>
-                                            .
-                                        </div>
-
                                         <div className="border border-primary/10 bg-[color:var(--brand-white)] p-4">
                                             <div className="flex items-start gap-3">
                                                 <input
@@ -2626,6 +2611,9 @@ function ReservarContent() {
                                                     da Pousada Delplata.
                                                 </label>
                                             </div>
+                                            <p className="mt-2 pl-7 text-xs text-muted-foreground">
+                                                Confira os prazos de cancelamento antes de concluir a reserva.
+                                            </p>
                                         </div>
 
                                         {formMessage ? (

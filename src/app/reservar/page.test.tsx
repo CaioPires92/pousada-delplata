@@ -407,7 +407,7 @@ describe('ReservarPage', () => {
     });
 
     expect(screen.queryByPlaceholderText(/Digite o código do cupom/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('checkbox', { name: /Tenho um cupom de desconto/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Tenho um cupom de desconto/i }));
     expect(screen.getByPlaceholderText(/Digite o código do cupom/i)).toBeInTheDocument();
   });
 
