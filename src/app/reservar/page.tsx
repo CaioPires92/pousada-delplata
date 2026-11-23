@@ -44,7 +44,7 @@ import {
     LoaderCircle,
     PlugZap,
 } from 'lucide-react';
-import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { getLocalRoomPhotos, ROOM_PHOTO_MAPPING } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
@@ -1805,7 +1805,7 @@ function ReservarContent() {
     }
 
     return (
-        <main className="min-h-screen bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
+        <main className="min-h-screen overflow-x-clip bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
             <div className="container mx-auto box-border w-full max-w-[1440px] px-4">
                 <AvailabilityBar
                     checkIn={checkIn!}
@@ -1910,105 +1910,142 @@ function ReservarContent() {
                                         <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Pix ou cartão</span>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 gap-5">
-                                    {availableRooms.map((room) => {
-                                        const roomPhotos = getRoomDisplayPhotos(room);
-                                        const roomPrimaryImage = roomPhotos[0] ?? null;
-                                        const canOpenGallery = roomPhotos.length > 0;
-                                        const roomAmenities = room.amenities
-                                            .split(',')
-                                            .map((amenity) => amenity.trim())
-                                            .filter(Boolean);
-                                        const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
-                                        const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
-                                        const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
-                                            ? strikePrice / stayNights
-                                            : null;
-                                        const roomDescription = room.description?.trim()
-                                            || 'Descrição detalhada não informada. Consulte a pousada antes de reservar.';
-                                        return (
-                                        <Card
-                                            key={room.id}
-                                            className="group grid overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-all duration-300 hover:border-primary/25 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"
-                                        >
-                                            <div
-                                                className={`relative aspect-[16/10] overflow-hidden bg-[color:var(--brand-cream)] md:aspect-auto md:min-h-[300px] ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
-                                                role={canOpenGallery ? 'button' : undefined}
-                                                tabIndex={canOpenGallery ? 0 : undefined}
-                                                onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
-                                                onKeyDown={canOpenGallery ? (event) => {
-                                                    if (event.key === 'Enter' || event.key === ' ') {
-                                                        event.preventDefault();
-                                                        openRoomGallery(room);
-                                                    }
-                                                } : undefined}
-                                                aria-label={canOpenGallery ? `Ver fotos (${roomPhotos.length}): ${room.name}` : undefined}
-                                            >
-                                                {roomPrimaryImage ? (
-                                                    <Image
-                                                        src={roomPrimaryImage}
-                                                        alt={room.name}
-                                                        fill
-                                                        sizes="(max-width: 767px) 100vw, 40vw"
-                                                        quality={85}
-                                                        className="object-cover transition-transform duration-700 group-hover:scale-[1.035]"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                                                        <span className="text-muted-foreground">Sem foto</span>
-                                                    </div>
-                                                )}
-                                                {canOpenGallery ? (
-                                                    <div className="absolute left-3 top-3 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold text-white">
-                                                        <Camera className="h-3.5 w-3.5" />
-                                                        <span>Ver fotos ({roomPhotos.length})</span>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                            <div className="flex flex-col p-5 md:p-6">
-                                                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-                                                    <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.5rem,2.4vw,2.1rem)] text-primary`}>
-                                                        {room.name}
-                                                    </h3>
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/70">
-                                                        Até {room.maxGuests || room.capacity} hóspedes · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
-                                                    </p>
-                                                </div>
-                                                <p className="mt-3 line-clamp-2 text-sm leading-6 text-foreground/75">{roomDescription}</p>
+                                {(() => {
+                                    // Cada ala vira uma "tela" (100vw × 100vh no desktop), com os quartos dela.
+                                    type WingKey = 'principal' | 'chales' | 'outros';
+                                    const wingOf = (roomName: string): WingKey => {
+                                        const base = ROOM_PHOTO_MAPPING[roomName] || '';
+                                        if (base.includes('/ala-principal')) return 'principal';
+                                        if (base.includes('/ala-chales')) return 'chales';
+                                        return 'outros';
+                                    };
+                                    const WINGS: Array<{ key: WingKey; title: string; emphasis: string; text: string }> = [
+                                        { key: 'principal', title: 'Ala', emphasis: 'principal', text: 'Apartamentos térreos e superiores, na ala principal da pousada.' },
+                                        { key: 'chales', title: 'Chalés', emphasis: 'e anexos', text: 'Na ala anexa, a 70 metros da ala principal.' },
+                                        { key: 'outros', title: 'Outras', emphasis: 'acomodações', text: 'Mais opções disponíveis para estas datas.' },
+                                    ];
+                                    const groups = WINGS
+                                        .map((wing) => ({ wing, rooms: availableRooms.filter((room) => wingOf(room.name) === wing.key) }))
+                                        .filter((group) => group.rooms.length > 0);
 
-                                                <div className="mt-4 flex flex-wrap gap-2">
-                                                    {roomAmenities.slice(0, 4).map((amenity, i) => {
-                                                        const AmenityIcon = getAmenityIcon(amenity);
+                                    return groups.map(({ wing, rooms }, groupIndex) => (
+                                        <section
+                                            key={wing.key}
+                                            aria-label={`${wing.title} ${wing.emphasis}`}
+                                            className={`relative left-1/2 flex w-screen -translate-x-1/2 flex-col py-10 md:h-[100svh] md:max-h-[100svh] md:overflow-hidden md:pb-8 md:pt-[104px] ${groupIndex % 2 === 0 ? 'bg-[color:var(--brand-cream)]' : 'bg-[color:var(--brand-white)]'}`}
+                                        >
+                                            <div className="container mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col gap-5 px-4">
+                                                <div className="flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                                                    <div>
+                                                        <p className={`${homeStyles.eyebrow} text-primary`}>Ala {groupIndex + 1} de {groups.length}</p>
+                                                        <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-3 text-[clamp(1.9rem,min(4.6vw,7vh),3.8rem)] text-primary`}>
+                                                            {wing.title} <em>{wing.emphasis}</em>
+                                                        </h2>
+                                                    </div>
+                                                    <p className="max-w-[44ch] text-sm leading-6 text-foreground/75 md:text-base">{wing.text}</p>
+                                                </div>
+
+                                                <div className={`grid min-h-0 grid-cols-1 gap-5 md:flex-1 ${rooms.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:w-1/2 md:grid-cols-1'}`}>
+                                                    {rooms.map((room) => {
+                                                        const roomPhotos = getRoomDisplayPhotos(room);
+                                                        const roomPrimaryImage = roomPhotos[0] ?? null;
+                                                        const canOpenGallery = roomPhotos.length > 0;
+                                                        const roomAmenities = room.amenities
+                                                            .split(',')
+                                                            .map((amenity) => amenity.trim())
+                                                            .filter(Boolean);
+                                                        const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
+                                                        const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
+                                                        const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
+                                                            ? strikePrice / stayNights
+                                                            : null;
                                                         return (
-                                                            <span key={i} className="inline-flex items-center gap-1.5 border border-primary/15 px-2.5 py-1.5 text-xs font-medium text-primary">
-                                                                <AmenityIcon className="h-3.5 w-3.5 text-primary/78" /> {amenity}
-                                                            </span>
+                                                            <Card
+                                                                key={room.id}
+                                                                className="group flex min-h-0 flex-col overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-all duration-300 hover:border-primary/25"
+                                                            >
+                                                                <div
+                                                                    className={`relative aspect-[16/10] overflow-hidden bg-[color:var(--brand-cream)] md:aspect-auto md:min-h-0 md:flex-1 ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
+                                                                    role={canOpenGallery ? 'button' : undefined}
+                                                                    tabIndex={canOpenGallery ? 0 : undefined}
+                                                                    onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
+                                                                    onKeyDown={canOpenGallery ? (event) => {
+                                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                                            event.preventDefault();
+                                                                            openRoomGallery(room);
+                                                                        }
+                                                                    } : undefined}
+                                                                    aria-label={canOpenGallery ? `Ver fotos (${roomPhotos.length}): ${room.name}` : undefined}
+                                                                >
+                                                                    {roomPrimaryImage ? (
+                                                                        <Image
+                                                                            src={roomPrimaryImage}
+                                                                            alt={room.name}
+                                                                            fill
+                                                                            sizes="(max-width: 767px) 100vw, 50vw"
+                                                                            quality={85}
+                                                                            className="object-cover transition-transform duration-700 group-hover:scale-[1.035]"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="flex h-full w-full items-center justify-center bg-muted">
+                                                                            <span className="text-muted-foreground">Sem foto</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {canOpenGallery ? (
+                                                                        <div className="absolute left-3 top-3 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold text-white">
+                                                                            <Camera className="h-3.5 w-3.5" />
+                                                                            <span>Ver fotos ({roomPhotos.length})</span>
+                                                                        </div>
+                                                                    ) : null}
+                                                                    {room.promotion?.badgeLabel ? (
+                                                                        <p className="absolute bottom-3 left-3 max-w-[85%] bg-secondary px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-secondary-foreground">{room.promotion.badgeLabel.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim()}</p>
+                                                                    ) : null}
+                                                                </div>
+                                                                <div className="flex shrink-0 flex-col gap-3 p-4 md:p-5">
+                                                                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                                                                        <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.3rem,2vw,1.9rem)] text-primary`}>
+                                                                            {room.name}
+                                                                        </h3>
+                                                                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-primary/70">
+                                                                            Até {room.maxGuests || room.capacity} hóspedes · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {roomAmenities.slice(0, 4).map((amenity, i) => {
+                                                                            const AmenityIcon = getAmenityIcon(amenity);
+                                                                            return (
+                                                                                <span key={i} className="inline-flex items-center gap-1.5 border border-primary/15 px-2 py-1 text-xs font-medium text-primary">
+                                                                                    <AmenityIcon className="h-3.5 w-3.5 text-primary/78" /> {amenity}
+                                                                                </span>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                    <div className="grid items-end gap-3 border-t border-primary/10 pt-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                                                                        <div>
+                                                                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">Total da estadia</p>
+                                                                            <div className="flex flex-wrap items-baseline gap-x-3">
+                                                                                <p className={`${homeStyles.display} text-[1.9rem] text-primary`}>{formatCurrencyBRL(room.totalPrice)}</p>
+                                                                                {originalNightlyRate ? <p className="text-sm text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
+                                                                            </div>
+                                                                            <p className="mt-1 text-xs text-foreground/70">
+                                                                                {stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite
+                                                                                {Number(room.promotion?.discountAmount || 0) > 0 ? <span className="ml-2 font-medium text-emerald-700">Economia de {formatCurrencyBRL(Number(room.promotion?.discountAmount))}</span> : null}
+                                                                            </p>
+                                                                            {Number(room.minLos) >= 2 ? <p className="mt-1 text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
+                                                                        </div>
+                                                                        <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-[50px] w-full rounded-none bg-[color:var(--brand-gold)] px-5 text-[0.8rem] font-bold uppercase tracking-[0.06em] text-[color:var(--brand-forest)] shadow-none hover:opacity-90 sm:w-[230px]">
+                                                                            Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </Card>
                                                         );
                                                     })}
                                                 </div>
-
-                                                <div className="mt-auto grid items-end gap-4 border-t border-primary/10 pt-5 md:grid-cols-[minmax(0,1fr)_auto]">
-                                                    <div>
-                                                        {room.promotion?.badgeLabel ? (
-                                                            <p className="mb-2 inline-block bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-secondary-foreground">{room.promotion.badgeLabel.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim()}</p>
-                                                        ) : null}
-                                                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">Total da estadia</p>
-                                                        <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                                                            <p className={`${homeStyles.display} text-[2.2rem] text-primary`}>{formatCurrencyBRL(room.totalPrice)}</p>
-                                                            {originalNightlyRate ? <p className="text-sm text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
-                                                        </div>
-                                                        <p className="mt-2 text-xs text-foreground/70">{stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite</p>
-                                                        {Number(room.promotion?.discountAmount || 0) > 0 ? <p className="mt-1 text-xs font-medium text-emerald-700">Economia de {formatCurrencyBRL(Number(room.promotion?.discountAmount))}</p> : null}
-                                                        {Number(room.minLos) >= 2 ? <p className="mt-1 text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
-                                                    </div>
-                                                    <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-[52px] w-full rounded-none bg-[color:var(--brand-gold)] px-6 text-[0.8rem] font-bold uppercase tracking-[0.06em] text-[color:var(--brand-forest)] shadow-none hover:opacity-90 md:w-[270px]">
-                                                        Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </div>
                                             </div>
-                                    </Card>
-                                    )})}
-                                </div>
+                                        </section>
+                                    ));
+                                })()}
 
                                 <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 shadow-none md:px-5">
                                     <div className="grid gap-4 md:grid-cols-3 md:gap-0">
