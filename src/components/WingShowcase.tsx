@@ -28,12 +28,12 @@ type WingShowcaseProps = {
   rooms: ShowcaseRoom[];
   tone: "cream" | "white";
   id: string;
-  shorten?: boolean;
+  next?: { id: string; label: string };
 };
 
 // Uma ala = uma tela (desktop). Os quartos viram painéis que abrem ao passar o mouse ou focar;
 // no celular cada quarto aparece completo, em lista.
-export default function WingShowcase({ index, total, title, emphasis, text, rooms, tone, id, shorten }: WingShowcaseProps) {
+export default function WingShowcase({ index, total, title, emphasis, text, rooms, tone, id, next }: WingShowcaseProps) {
   const [active, setActive] = useState(0);
   const [touched, setTouched] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -76,7 +76,7 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
       ref={sectionRef}
       id={id}
       aria-label={`${title} ${emphasis}`}
-      className={`${homeStyles.fit} ${shorten ? "md:!h-[calc(100svh-120px)] md:!max-h-[calc(100svh-120px)]" : ""} py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px] ${tone === "cream" ? "bg-[color:var(--brand-cream)]" : "bg-white"}`}
+      className={`${homeStyles.fit} py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px] ${tone === "cream" ? "bg-[color:var(--brand-cream)]" : "bg-white"}`}
     >
       <div className="container flex min-h-0 flex-col gap-5 md:h-full">
         <div className="flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -193,6 +193,25 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
             );
           })}
         </div>
+
+        {next ? (
+          <a
+            href={`#${next.id}`}
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="group flex shrink-0 items-center justify-center gap-3 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-[color:var(--brand-forest)] hover:text-[#7a7720]"
+          >
+            Veja também: {next.label}
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--brand-forest)] text-base leading-none text-[color:var(--brand-gold)] transition-transform group-hover:scale-110"
+            >
+              <span className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite]">↓</span>
+            </span>
+          </a>
+        ) : null}
       </div>
     </section>
   );
@@ -200,54 +219,12 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
 
 type WingData = { title: string; emphasis: string; text: string; rooms: ShowcaseRoom[] };
 
-// Primeira ala aberta; as demais ficam numa barra grande no pé da tela e abrem ao clicar (ocupando a tela).
+// Todas as alas abertas; no pé de cada ala (menos a última) uma seta leva à próxima.
 export function WingShowcaseList({ wings }: { wings: WingData[] }) {
-  const [opened, setOpened] = useState<number[]>([0]);
-
-  const open = (index: number) => {
-    setOpened((current) => (current.includes(index) ? current : [...current, index]));
-    window.setTimeout(() => document.getElementById(`ala-${index + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-  };
-
   return (
     <>
       {wings.map((wing, index) => {
-        const isOpen = opened.includes(index);
-        const nextClosed = index + 1 < wings.length && !opened.includes(index + 1);
-
-        if (!isOpen) {
-          return (
-            <button
-              key={wing.emphasis}
-              type="button"
-              aria-expanded="false"
-              aria-controls={`ala-${index + 1}`}
-              onClick={() => open(index)}
-              className="group block h-[120px] w-full bg-[color:var(--brand-gold)] text-left text-[color:var(--brand-forest)] transition-colors hover:bg-[#c9c675]"
-            >
-              <span className="container flex h-full items-center justify-between gap-6">
-                <span>
-                  <span className={`${homeStyles.eyebrow} block text-[color:var(--brand-forest)]`}>
-                    Ala {index + 1} de {wings.length} · {wing.rooms.length} {wing.rooms.length === 1 ? "acomodação" : "acomodações"}
-                  </span>
-                  <span className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 block text-[clamp(1.6rem,3.2vw,2.6rem)]`}>
-                    {wing.title} <em>{wing.emphasis}</em>
-                  </span>
-                </span>
-                <span className="flex items-center gap-4">
-                  <span className="hidden text-sm font-medium text-[color:var(--brand-forest)] md:block">{wing.text}</span>
-                  <span
-                    aria-hidden="true"
-                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[color:var(--brand-forest)] text-2xl text-[color:var(--brand-gold)] transition-transform group-hover:scale-110"
-                  >
-                    <span className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite]">↓</span>
-                  </span>
-                </span>
-              </span>
-            </button>
-          );
-        }
-
+        const nextWing = wings[index + 1];
         return (
           <WingShowcase
             key={wing.emphasis}
@@ -259,7 +236,7 @@ export function WingShowcaseList({ wings }: { wings: WingData[] }) {
             rooms={wing.rooms}
             tone={index % 2 === 0 ? "cream" : "white"}
             id={`ala-${index + 1}`}
-            shorten={nextClosed}
+            next={nextWing ? { id: `ala-${index + 2}`, label: `${nextWing.title} ${nextWing.emphasis}` } : undefined}
           />
         );
       })}

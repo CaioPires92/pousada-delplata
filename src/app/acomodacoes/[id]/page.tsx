@@ -4,7 +4,7 @@ import Image from "next/image";
 import { cache } from "react";
 
 import prisma from "@/lib/prisma";
-import { serializePrismaEntity } from "@/lib/serialize-prisma";
+import { serializePrismaArray, serializePrismaEntity } from "@/lib/serialize-prisma";
 import { notFound } from "next/navigation";
 import homeStyles from "@/components/home-novo/home-novo.module.css";
 import RoomGallery from "@/components/RoomGallery";
@@ -12,10 +12,15 @@ import { formatBrl, getDisplayPhotoUrls } from "@/lib/room-display";
 import { getRoomFromPrices } from "@/lib/room-from-price";
 import { roomAcceptsPets } from "@/lib/pet-policy";
 import { buildPageMetadata, stripHtml } from "@/lib/seo";
-import { getRoomAmenitiesList, isMainWingRoom } from "@/lib/rooms";
+import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+
+const getAllRooms = cache(async () => {
+    const rooms = await prisma.roomType.findMany({ include: { photos: true }, orderBy: { basePrice: 'asc' } });
+    return serializePrismaArray(rooms) as any[];
+});
 
 const getRoom = cache(async (id: string) => {
     const room = await prisma.roomType.findUnique({
@@ -85,6 +90,15 @@ export default async function RoomDetailsPage({
     const guests = maxGuests > capacity ? `${capacity} hóspedes · até ${maxGuests} em quartos selecionados` : `${capacity} hóspedes`;
     const pets = roomAcceptsPets(room.name);
 
+    // Navegação entre quartos: ala principal primeiro, depois chalés e anexos.
+    const allRooms = await getAllRooms();
+    const ordered = [
+        ...allRooms.filter((item) => isMainWingRoom(item.name)),
+        ...allRooms.filter((item) => isAnnexWingRoom(item.name) && !isMainWingRoom(item.name)),
+    ];
+    const otherRooms = ordered.filter((item) => item.id !== room.id);
+    const otherPrices = await getRoomFromPrices(otherRooms.map((item) => ({ id: item.id, basePrice: Number(item.basePrice) })));
+
     return (
         <main className="min-h-screen bg-background">
             <section data-page-hero className="relative flex min-h-[52svh] items-end overflow-hidden bg-[color:var(--brand-black)]">
@@ -105,6 +119,34 @@ export default async function RoomDetailsPage({
                     </p>
                 </div>
             </section>
+
+            <nav
+                aria-label="Navegar entre as acomodações"
+                className="sticky top-[97px] z-30 border-b border-[color:var(--line-dark)] bg-[color:var(--brand-cream)]"
+            >
+                <div className="container flex items-center gap-1 overflow-x-auto whitespace-nowrap py-2 text-sm">
+                    <Link
+                        href="/acomodacoes"
+                        className="mr-3 inline-flex h-10 shrink-0 items-center border-r border-[color:var(--line-dark)] pr-4 text-xs font-bold uppercase tracking-[0.14em] text-primary hover:text-[#7a7720]"
+                    >
+                        &larr; Acomodações
+                    </Link>
+                    {ordered.map((item) => (
+                        <Link
+                            key={item.id}
+                            href={`/acomodacoes/${item.id}`}
+                            aria-current={item.id === room.id ? "page" : undefined}
+                            className={`inline-flex h-10 shrink-0 items-center px-3 font-medium transition-colors ${
+                                item.id === room.id
+                                    ? "border-b-2 border-[color:var(--brand-gold)] font-bold text-primary"
+                                    : "text-primary/70 hover:text-primary"
+                            }`}
+                        >
+                            {item.name}
+                        </Link>
+                    ))}
+                </div>
+            </nav>
 
             <section className="container grid gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:py-14">
                 <div className="min-w-0 space-y-10">
@@ -156,6 +198,53 @@ export default async function RoomDetailsPage({
                     </div>
                 </aside>
             </section>
+
+            {otherRooms.length > 0 ? (
+                <section className="border-t border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] py-12">
+                    <div className="container">
+                        <p className={`${homeStyles.eyebrow} text-primary`}>Continue explorando</p>
+                        <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-3 text-[clamp(1.7rem,3.4vw,2.6rem)] text-primary`}>
+                            Outras <em>acomodações</em>
+                        </h2>
+                        <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {otherRooms.map((item) => {
+                                const photo = getDisplayPhotoUrls(item)[0];
+                                const price = otherPrices.get(item.id) ?? Number(item.basePrice);
+                                return (
+                                    <li key={item.id}>
+                                        <Link href={`/acomodacoes/${item.id}`} className="group block overflow-hidden border border-primary/10 bg-white">
+                                            <div className="relative aspect-[16/10] bg-[color:var(--brand-black)]">
+                                                {photo ? (
+                                                    <Image
+                                                        src={photo}
+                                                        alt={`Foto do ${item.name}`}
+                                                        fill
+                                                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                                        quality={75}
+                                                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                                    />
+                                                ) : null}
+                                            </div>
+                                            <div className="flex items-end justify-between gap-4 p-4">
+                                                <div>
+                                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-foreground/60">
+                                                        {isMainWingRoom(item.name) ? "Ala principal" : "Chalés e anexos"}
+                                                    </p>
+                                                    <p className="mt-1 text-lg font-semibold text-primary">{item.name}</p>
+                                                </div>
+                                                <p className="shrink-0 text-right text-xs text-foreground/70">
+                                                    a partir de
+                                                    <span className="block text-base font-bold text-primary">{formatBrl(price)}</span>
+                                                </p>
+                                            </div>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                </section>
+            ) : null}
         </main>
     );
 }
