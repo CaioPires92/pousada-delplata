@@ -98,6 +98,10 @@ const config: Config = {
     				]
     			},
     		keyframes: {
+    			'wing-nudge': {
+    				'0%, 100%': { transform: 'translateX(0)' },
+    				'50%': { transform: 'translateX(8px)' }
+    			},
     			'accordion-down': {
     				from: {
     					height: '0'

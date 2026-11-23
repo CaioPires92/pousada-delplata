@@ -17,7 +17,6 @@ import ReservationPageFallback from './components/ReservationPageFallback';
 import ReservationFaq from './components/ReservationFaq';
 
 import {
-    Check,
     AlertCircle,
     ArrowLeft,
     ArrowRight,
@@ -2666,31 +2665,6 @@ function ReservarContent() {
                                             <span className="w-2 h-2 bg-green-500 rounded-full"></span> Pagamento processado pelo Mercado Pago
                                         </p>
 
-                                        <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4 sm:grid-cols-3">
-                                            <div className="flex items-center gap-2 text-sm text-primary">
-                                                <Check className="h-4 w-4" />
-                                                <span>Café da manhã diário</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm text-primary">
-                                                <Check className="h-4 w-4" />
-                                                <span>Sem taxas extras</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm text-primary">
-                                                <Check className="h-4 w-4" />
-                                                <span>Atendimento direto da pousada</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 md:grid-cols-2">
-                                            <div>
-                                                <p className="text-sm font-semibold text-primary">4,8/5 no Google</p>
-                                                <p className="mt-1 text-xs text-foreground/72">Mais de 500 hóspedes avaliando</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-primary">Reserva direta e segura</p>
-                                                <p className="mt-1 text-xs text-foreground/72">Pagamento processado com proteção via Mercado Pago.</p>
-                                            </div>
-                                        </div>
                                     </form>
                                 </CardContent>
                             </Card>
@@ -2700,7 +2674,6 @@ function ReservarContent() {
                             <Card className="sticky top-28 overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
                                 <div className="bg-primary p-4 text-center text-white">
                                     <h3 className="font-bold text-lg">Sua reserva está quase confirmada</h3>
-                                    <p className="mt-1 text-xs text-white/80">Revise seus dados para finalizar a reserva</p>
                                 </div>
                                 <div className="aspect-video relative">
                                     {getRoomPrimaryImageSrc(selectedRoom) && (
@@ -2717,24 +2690,6 @@ function ReservarContent() {
                                     </div>
                                 </div>
                                 <CardContent className="space-y-4 pt-6">
-                                    <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3 sm:grid-cols-2">
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Café da manhã diário</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Valor total exibido</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Pagamento via Pix ou cartão</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Atendimento direto da pousada</span>
-                                        </div>
-                                    </div>
                                     <div className="space-y-3 text-sm">
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Check-in</span>
@@ -2754,12 +2709,6 @@ function ReservarContent() {
                                                 <span className="font-medium">{pets}</span>
                                             </div>
                                         ) : null}
-                                        <div className="flex justify-between items-center py-2 border-b border-border/50">
-                                            <span className="text-muted-foreground">Diárias</span>
-                                            <span className="font-medium">
-                                                {Math.ceil((new Date(checkOut!).getTime() - new Date(checkIn!).getTime()) / (1000 * 60 * 60 * 24))} noites
-                                            </span>
-                                        </div>
                                     </div>
 
                                     <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
@@ -2784,10 +2733,6 @@ function ReservarContent() {
                                                     Você economiza {formatCurrencyBRL(staySavings)} ({formatGuestPercent(staySavingsPercent)})
                                                 </p>
                                             ) : null}
-                                        </div>
-                                        <div className="mt-2 flex items-center justify-between text-sm text-primary/82">
-                                            <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
-                                            <span>{adults} Adultos, {children} Crianças{pets > 0 ? `, ${pets} Pet${pets === 1 ? '' : 's'}` : ''}</span>
                                         </div>
                                         <p className="mt-2 text-xs font-medium text-emerald-700">
                                             {pets > 0 ? 'Taxa de pets incluída no total' : 'Sem taxas extras'}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -33,9 +33,45 @@ type WingShowcaseProps = {
 // no celular cada quarto aparece completo, em lista.
 export default function WingShowcase({ index, total, title, emphasis, text, rooms, tone }: WingShowcaseProps) {
   const [active, setActive] = useState(0);
+  const [touched, setTouched] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const touchedRef = useRef(false);
+
+  const choose = (roomIndex: number) => {
+    touchedRef.current = true;
+    setTouched(true);
+    setActive(roomIndex);
+  };
+
+  // Dica de movimento: ao entrar na tela, o painel ao lado "espia" abrir e volta (uma vez),
+  // mostrando que dá para passar o mouse. Não roda com movimento reduzido nem depois de uma interação.
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || rooms.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!window.matchMedia("(min-width: 768px)").matches) return;
+    const timers: number[] = [];
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        io.disconnect();
+        timers.push(
+          window.setTimeout(() => !touchedRef.current && setActive(1), 900),
+          window.setTimeout(() => !touchedRef.current && setActive(0), 2300),
+        );
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [rooms.length]);
 
   return (
     <section
+      ref={sectionRef}
       aria-label={`${title} ${emphasis}`}
       className={`${homeStyles.fit} py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px] ${tone === "cream" ? "bg-[color:var(--brand-cream)]" : "bg-white"}`}
     >
@@ -49,7 +85,18 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
               {title} <em>{emphasis}</em>
             </h2>
           </div>
-          <p className="max-w-[44ch] text-sm leading-6 text-[color:var(--brand-forest)]/75 md:text-base">{text}</p>
+          <div className="flex flex-col gap-3 md:items-end">
+            <p className="max-w-[44ch] text-sm leading-6 text-[color:var(--brand-forest)]/75 md:text-base">{text}</p>
+            {rooms.length > 1 ? (
+              <p
+                aria-hidden="true"
+                className={`hidden items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)] transition-opacity duration-500 md:inline-flex ${touched ? "opacity-0" : "opacity-100"}`}
+              >
+                Passe o mouse pelos quartos
+                <span className="inline-block animate-[wing-nudge_1.6s_ease-in-out_infinite]">→</span>
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-col gap-3 md:flex-1 md:flex-row md:gap-2">
@@ -67,8 +114,8 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
                 role="group"
                 aria-label={`${room.name}: ${guests}`}
                 tabIndex={0}
-                onMouseEnter={() => setActive(roomIndex)}
-                onFocus={() => setActive(roomIndex)}
+                onMouseEnter={() => choose(roomIndex)}
+                onFocus={() => choose(roomIndex)}
                 style={{ "--grow": isActive ? 6 : 1 } as React.CSSProperties}
                 className="group relative min-h-[300px] overflow-hidden outline-none transition-[flex] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-[color:var(--brand-gold)] md:min-h-0 md:[flex:var(--grow)_1_0%]"
               >
@@ -91,6 +138,7 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
                 >
                   <span className="text-sm font-bold text-[color:var(--brand-gold)]">{String(roomIndex + 1).padStart(2, "0")}</span>
                   <span className={`${homeStyles.display} rotate-180 text-xl [writing-mode:vertical-rl]`}>{room.name}</span>
+                  <span className="absolute right-4 top-5 text-lg text-[color:var(--brand-gold)] animate-[wing-nudge_1.6s_ease-in-out_infinite]">›</span>
                 </div>
 
                 {/* Painel aberto (desktop) / sempre visível (celular) */}
