@@ -54,6 +54,7 @@ Como manter:
 
 ### 8. Novo layout da home (modelo para aprovação)
 - Branch `feat/novo-layout-paraiso` (2026-11-22), **não mesclada**: modelo da home inspirado na Pousada Paraíso e em 11 sites de pousadas de serra pesquisados. Home quase toda renderizada no servidor (HTML de 6 KB para ~120 KB), fontes Bricolage Grotesque + Instrument Serif, faixa de promessas, faixas de fotos, bento, FAQ com schema e animações GSAP.
+- 2026-11-23: segunda versão do modelo: mosaico de fotos, trilha horizontal fixa, zoom na piscina, fatos (notas), faixa de reserva direta, grão. Referências em `docs/referencias-pousadas.md`. Medição local (celular simulado, CPU 4x, 1,6 Mbps): LCP ~2,3 s, TBT ~230 ms, CLS 0; produção atual no mesmo teste: LCP ~3,9 s, TBT ~690 ms, CLS 0,05 (ambientes diferentes, só indicativo).
 - [ ] Usuário olhar o modelo (preview da Vercel da branch) e dizer o que mantém, muda ou descarta.
 - [ ] Ainda fora do modelo: selo de reserva direta com benefício real, preço "a partir de" por acomodação, botão fixo de reservar, WhatsApp com datas, página de feriados/pacotes com preço, depoimentos reais, vídeo/tour 360, h1 do hero no HTML (hoje está dentro do Suspense do `SearchWidget`).
 - Hospedagem, pagamento e `/reservar` não foram tocados.

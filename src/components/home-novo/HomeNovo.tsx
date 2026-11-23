@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { HOTEL_EXPERIENCE_LABEL, SOCIAL_PROOF_RATINGS } from "@/constants/socialProof";
 import { PET_FEE_PER_NIGHT } from "@/lib/booking-price";
 import { MAX_PETS_PER_BOOKING } from "@/lib/pet-policy";
 import HomeTop from "./HomeTop";
@@ -39,6 +40,30 @@ const STRIP_B = [
   "/fotos/piscina-chale/DJI_0918.jpg",
   "/fotos/jardim-aptos/DJI_0896.jpg",
 ];
+
+const MOSAIC = [
+  { src: "/fotos/piscina-aptos/DJI_0864.jpg", alt: "Piscina vista de cima", className: "md:mt-0" },
+  { src: "/fotos/jardim-aptos/DJI_0889.jpg", alt: "Área externa do hotel", className: "md:mt-16" },
+  { src: "/fotos/piscina-chale/DJI_0917.jpg", alt: "Piscina da área dos chalés", className: "md:mt-6" },
+  { src: "/fotos/jardim-aptos/DJI_0903.jpg", alt: "Jardins da pousada", className: "md:mt-20" },
+  { src: "/fotos/piscina-aptos/DJI_0868.jpg", alt: "Piscina e apartamentos", className: "md:mt-10" },
+] as const;
+
+const HSCROLL = [
+  { title: "Piscina dos chalés", src: "/fotos/piscina-chale/DSC_0370.jpg", alt: "Detalhe da piscina dos chalés" },
+  { title: "Churrasqueira", src: "/fotos/churrasqueira-aptos/DSC_0269.jpg", alt: "Área de churrasqueira dos apartamentos" },
+  { title: "Jardins", src: "/fotos/jardim-aptos/DSC_0258.jpg", alt: "Jardins e área externa" },
+  { title: "Sala de jogos", src: "/fotos/Sala de jogos/DSC_0333.jpg", alt: "Mesa e ambiente da sala de jogos" },
+  { title: "Barzinho", src: "/fotos/bar-principal/DSC_0256.jpg", alt: "Ambiente do barzinho" },
+  { title: "Café da manhã", src: "/fotos/restaurante/IMG_0025.webp", alt: "Mesa de café da manhã da pousada" },
+] as const;
+
+const FACTS = [
+  { value: String(SOCIAL_PROOF_RATINGS.google.score).replace(".", ","), label: "nota no Google" },
+  { value: String(SOCIAL_PROOF_RATINGS.booking.score).replace(".", ","), label: "nota no Booking" },
+  { value: String(SOCIAL_PROOF_RATINGS.tripadvisor.score).replace(".", ","), label: "nota no Tripadvisor" },
+  { value: HOTEL_EXPERIENCE_LABEL.replace("+", "").replace(" anos de história", "+"), label: "anos de história" },
+] as const;
 
 const BENTO = [
   {
@@ -144,6 +169,32 @@ export default function HomeNovo() {
         </div>
       </div>
 
+      {/* Reserva direta: botão logo abaixo do topo (referência: sites de pousada de serra repetem o link do motor) */}
+      <section className="bg-[color:var(--brand-forest)] py-8 text-white">
+        <div className="container flex flex-col items-center justify-between gap-5 md:flex-row">
+          <p className="text-center text-lg font-semibold md:text-left">
+            Reserva direta pelo site oficial: veja datas e valores na hora.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <TrackedLink
+              href="/reservar"
+              track="reservar_final"
+              className="inline-flex h-12 items-center bg-[color:var(--brand-gold)] px-7 text-sm font-bold uppercase tracking-[0.08em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+            >
+              Ver disponibilidade
+            </TrackedLink>
+            <TrackedLink
+              href={WHATSAPP_URL}
+              track="whatsapp_final"
+              external
+              className="inline-flex h-12 items-center border border-white/50 px-7 text-sm font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-white/10"
+            >
+              Falar no WhatsApp
+            </TrackedLink>
+          </div>
+        </div>
+      </section>
+
       {/* Conheça a pousada */}
       <section id="sobre" className="overflow-hidden bg-[color:var(--brand-cream)] py-20 text-[color:var(--brand-forest)] md:py-28">
         <div className="container">
@@ -158,18 +209,96 @@ export default function HomeNovo() {
             </p>
           </div>
         </div>
+        <div className="container mt-14" data-mosaic>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-5">
+            {MOSAIC.map((tile) => (
+              <figure key={tile.src} data-tile className={`relative aspect-[3/4] overflow-hidden ${tile.className}`}>
+                <Image src={tile.src} alt={tile.alt} fill sizes="(max-width: 768px) 50vw, 20vw" className="object-cover" />
+              </figure>
+            ))}
+          </div>
+        </div>
         <div className="mt-14 space-y-4">
           <Strip images={STRIP_A} />
           <Strip images={STRIP_B} reverse />
         </div>
       </section>
 
+      {/* Trilha horizontal de fotos (rolagem vertical vira horizontal no desktop) */}
+      <section className={`${styles.grain} relative overflow-hidden bg-[color:var(--brand-forest)] text-white`}>
+        <div className="container pt-20 md:pt-28">
+          <div className="max-w-3xl" data-reveal>
+            <p className={`${styles.eyebrow} text-[color:var(--brand-gold)]`}>Cada cantinho</p>
+            <h2 className={`${styles.display} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
+              Conheça a <em>pousada</em> por dentro
+            </h2>
+          </div>
+        </div>
+        <div data-hscroll className="mt-10 overflow-x-auto pb-16 md:flex md:min-h-[100svh] md:items-center md:pb-0">
+          <div data-hscroll-track className="flex w-max items-stretch gap-5 px-5 md:gap-8 md:px-[8vw]">
+            {HSCROLL.map((card, index) => (
+              <article key={card.title} className="relative h-[62svh] w-[78vw] flex-none overflow-hidden md:h-[68svh] md:w-[34vw]">
+                <Image src={card.src} alt={card.alt} fill sizes="(max-width: 768px) 78vw, 34vw" className="object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <p className="absolute inset-x-0 bottom-0 p-5 text-lg font-semibold">
+                  <span className="mr-3 text-sm font-bold text-[color:var(--brand-gold)]">{String(index + 1).padStart(2, "0")}</span>
+                  {card.title}
+                </p>
+              </article>
+            ))}
+            <article className="flex h-[62svh] w-[78vw] flex-none flex-col items-start justify-center gap-6 border border-white/20 p-8 md:h-[68svh] md:w-[34vw]">
+              <p className={`${styles.display} text-[clamp(2rem,4vw,3.4rem)]`}>
+                Sua vez <em>de vir.</em>
+              </p>
+              <TrackedLink
+                href="/reservar"
+                track="reservar_final"
+                className="inline-flex h-12 items-center bg-[color:var(--brand-gold)] px-7 text-sm font-bold uppercase tracking-[0.08em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+              >
+                Reservar agora
+              </TrackedLink>
+            </article>
+          </div>
+        </div>
+        <ul className="container grid grid-cols-2 gap-y-8 border-t border-white/15 py-12 md:grid-cols-4">
+          {FACTS.map((fact) => (
+            <li key={fact.label} data-reveal>
+              <strong className={`${styles.display} block text-[clamp(2rem,4vw,3.4rem)] text-[color:var(--brand-gold)]`}>{fact.value}</strong>
+              <span className="mt-1 block text-sm uppercase tracking-[0.12em] text-white/75">{fact.label}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Zoom na piscina: a moldura abre conforme a rolagem */}
+      <section data-zoom className="relative h-[130svh] bg-[color:var(--brand-black)]">
+        <div className="sticky top-0 flex h-[100svh] items-center justify-center overflow-hidden">
+          <div data-zoom-frame className="absolute inset-0">
+            <Image
+              src="/fotos/piscina-aptos/DJI_0866.jpg"
+              alt="Piscina da pousada vista de cima, com guarda-sóis"
+              fill
+              sizes="100vw"
+              quality={80}
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(20,28,18,0.7)_0%,rgba(20,28,18,0.2)_70%)]" />
+          </div>
+          <div className="container relative z-10">
+            <p className={`${styles.eyebrow} text-[#efe3a0]`}>Lazer</p>
+            <h2 className={`${styles.display} ${styles.onPhoto} mt-5 max-w-3xl text-[clamp(2.4rem,6.5vw,5.6rem)] text-white`}>
+              Mergulhe <em>sem pressa</em>
+            </h2>
+          </div>
+        </div>
+      </section>
+
       {/* Estrutura */}
-      <section className="bg-[color:var(--brand-forest)] py-20 text-white md:py-28">
+      <section className="bg-[color:var(--brand-cream)] py-20 text-[color:var(--brand-forest)] md:py-28">
         <div className="container">
           <div className="mb-12 max-w-3xl" data-reveal>
-            <p className={`${styles.eyebrow} text-[color:var(--brand-gold)]`}>Para a família toda</p>
-            <h2 className={`${styles.display} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
+            <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Para a família toda</p>
+            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
               Muito para <em>aproveitar</em>
             </h2>
           </div>
@@ -195,7 +324,7 @@ export default function HomeNovo() {
       </section>
 
       {/* Onde ficar */}
-      <section className="bg-[color:var(--brand-cream)] py-20 text-[color:var(--brand-forest)] md:py-28">
+      <section className="bg-white py-20 text-[color:var(--brand-forest)] md:py-28">
         <div className="container">
           <div className="mb-12 max-w-3xl" data-reveal>
             <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Acomodações</p>
@@ -246,31 +375,6 @@ export default function HomeNovo() {
       </section>
 
       <SpecialDatesIsland />
-
-      {/* Panorama */}
-      <section className="relative h-[70vh] min-h-[420px] overflow-hidden bg-[color:var(--brand-black)]">
-        <div className="absolute inset-0">
-          <div className={`absolute -inset-y-[10%] inset-x-0 ${styles.panoImg}`} data-parallax>
-            <Image
-              src="/fotos/piscina-chale/DJI_0916.jpg"
-              alt="Vista aérea da piscina e dos chalés da pousada"
-              fill
-              sizes="100vw"
-              quality={80}
-              className="object-cover"
-            />
-          </div>
-        </div>
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(20,28,18,0.78)_0%,rgba(20,28,18,0.35)_60%,rgba(20,28,18,0.1)_100%)]" />
-        <div className="container relative z-10 flex h-full items-center">
-          <div data-reveal>
-            <p className={`${styles.eyebrow} text-[color:var(--brand-gold)]`}>Vista do alto</p>
-            <h2 className={`${styles.display} ${styles.onPhoto} mt-5 text-[clamp(2.4rem,6.5vw,5.6rem)] text-white`}>
-              A pousada <em>vista do alto</em>
-            </h2>
-          </div>
-        </div>
-      </section>
 
       {/* Perguntas frequentes */}
       <section className="bg-[color:var(--brand-cream)] py-20 text-[color:var(--brand-forest)] md:py-28">
