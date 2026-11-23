@@ -69,7 +69,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
     return (
         <section className="section-space-sm border-b border-primary/10 bg-background">
             <div className="container">
-                <div className="mx-auto max-w-[1180px]">
+                <div>
                     <div className="mb-8 flex justify-center md:mb-10">
                         <div className="inline-flex items-center gap-3 rounded-none border border-primary/10 bg-[color:var(--brand-white)] px-5 py-2 font-sans text-[0.75rem] font-medium uppercase tracking-[0.14em] text-primary/90">
                             <CalendarDays className="h-4 w-4 text-secondary" strokeWidth={1.8} />
@@ -77,18 +77,18 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                         </div>
                     </div>
 
-                    <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.7fr)] lg:items-center lg:gap-12">
-                        <div className="max-w-[20rem] space-y-5 xl:max-w-[21rem]">
-                            <h2 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(2.1rem,4vw,3.4rem)] text-[color:var(--brand-forest)]`}>
+                    <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] lg:items-center lg:gap-16">
+                        <div className="space-y-6">
+                            <h2 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(2.4rem,4.6vw,4.2rem)] text-[color:var(--brand-forest)]`}>
                                 Próximos <em>feriados</em>
                             </h2>
                             <div className="h-px w-20 bg-secondary/70" />
-                            <p className="max-w-[19rem] font-sans text-[1rem] leading-7 text-foreground/72">
+                            <p className="max-w-[40ch] font-sans text-[1.1rem] leading-8 text-foreground/75">
                                 Consulte datas de feriados e veja as acomodações disponíveis no motor de reservas.
                             </p>
                         </div>
 
-                        <div className="relative overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-cream)] lg:max-w-[56rem]">
+                        <div className="relative overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-cream)]">
                             {activeDate.image ? (
                                 <div className="relative aspect-[1.3/1] min-h-[320px] w-full lg:aspect-[1.38/1]">
                                     <Image
@@ -110,7 +110,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                     </div>
 
                     <div className="mt-10 overflow-hidden rounded-none border border-primary/10 bg-white">
-                        <div className="grid md:grid-cols-3">
+                        <div className="grid md:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))]" style={{ "--cols": Math.min(3, Math.max(1, enabledDates.length)) } as React.CSSProperties}>
                             {enabledDates.map((specialDate, index) => {
                                 const isActive = specialDate.id === activeDate.id;
 

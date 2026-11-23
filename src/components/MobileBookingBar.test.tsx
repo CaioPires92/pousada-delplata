@@ -22,14 +22,14 @@ describe('MobileBookingBar', () => {
         sessionStorage.clear();
     });
 
-    it('links to the booking search and tracks the desktop click', async () => {
+    it('links to the booking search and tracks the click', async () => {
         render(<MobileBookingBar />);
 
-        const link = await screen.findByRole('link', { name: /ver disponibilidade/i });
+        const link = await screen.findByRole('link', { name: /ver preços e disponibilidade/i });
         expect(link).toHaveAttribute('href', '/reservar');
 
         fireEvent.click(link);
-        expect(mocks.trackClickReservar).toHaveBeenCalledWith('booking_assistant_desktop');
+        expect(mocks.trackClickReservar).toHaveBeenCalledWith('booking_assistant_mobile');
     });
 
     it('waits until the visitor leaves the hero before showing on the home page', () => {
@@ -43,26 +43,26 @@ describe('MobileBookingBar', () => {
 
         render(<MobileBookingBar />);
 
-        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /ver preços e disponibilidade/i })).not.toBeInTheDocument();
 
         fireEvent(window, new Event('reservar-cta-interaction'));
         fireEvent.scroll(window);
 
-        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /ver preços e disponibilidade/i })).not.toBeInTheDocument();
 
         hero.getBoundingClientRect = vi.fn(() => ({
             bottom: -1,
         }) as DOMRect);
         fireEvent.scroll(window);
 
-        expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /ver preços e disponibilidade/i })).toBeInTheDocument();
 
         hero.getBoundingClientRect = vi.fn(() => ({
             bottom: 640,
         }) as DOMRect);
         fireEvent.scroll(window);
 
-        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /ver preços e disponibilidade/i })).not.toBeInTheDocument();
         hero.remove();
     });
 
@@ -76,14 +76,14 @@ describe('MobileBookingBar', () => {
 
         render(<MobileBookingBar />);
 
-        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /ver preços e disponibilidade/i })).not.toBeInTheDocument();
 
         hero.getBoundingClientRect = vi.fn(() => ({
             bottom: -1,
         }) as DOMRect);
         fireEvent.scroll(window);
 
-        expect(screen.getByRole('link', { name: /ver disponibilidade/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /ver preços e disponibilidade/i })).toBeInTheDocument();
         hero.remove();
     });
 
@@ -94,7 +94,7 @@ describe('MobileBookingBar', () => {
         fireEvent.click(closeButtons[0]);
 
         expect(sessionStorage.getItem('delplata-booking-assistant-dismissed')).toBe('1');
-        expect(screen.queryByRole('link', { name: /ver disponibilidade/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /ver preços e disponibilidade/i })).not.toBeInTheDocument();
     });
 
     it.each(['/reservar', '/reservar/confirmacao', '/admin', '/admin/reservas'])(
