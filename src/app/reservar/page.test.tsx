@@ -230,6 +230,9 @@ describe('ReservarPage', () => {
 
     expect(screen.getAllByText('Acomodação escolhida').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Escolher acomodação/i })).not.toBeInTheDocument();
+    // A busca começa recolhida (só a linha com datas e hóspedes); "Alterar busca" abre o formulário.
+    expect(screen.queryByRole('button', { name: /Ver disponibilidade/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Alterar busca/i }));
     expect(screen.getByRole('button', { name: /Fechar busca/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ver disponibilidade/i })).toBeInTheDocument();
   });

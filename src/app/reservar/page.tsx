@@ -15,7 +15,6 @@ import AvailabilityBar from './components/AvailabilityBar';
 import PayerFields from './components/PayerFields';
 import ReservationPageFallback from './components/ReservationPageFallback';
 import ReservationFaq from './components/ReservationFaq';
-import { SiGoogle } from 'react-icons/si';
 
 import {
     Check,
@@ -30,26 +29,18 @@ import {
     ChevronUp,
     Coffee,
     CreditCard,
-    History,
     Mail,
     Phone,
     ShieldCheck,
-    Snowflake,
-    Tv,
     User,
-    Wifi,
-    Wind,
     X,
-    Flame,
     LoaderCircle,
-    PlugZap,
 } from 'lucide-react';
 import { getLocalRoomPhotos, ROOM_PHOTO_MAPPING } from '@/lib/room-photos';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
-import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
 import { EXTRA_CHILD_NOTICE, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity, needsExtraChildNotice } from '@/lib/booking-capacity';
 import {
     getPaymentRejectionMessage,
@@ -197,27 +188,6 @@ function RoomListSkeleton() {
     );
 }
 
-const PAGE_TRUST_ITEMS = [
-    {
-        value: 'Direto',
-        label: 'Atendimento da pousada',
-        description: 'Fale conosco pelo WhatsApp',
-        icon: Phone,
-    },
-    {
-        value: `${SOCIAL_PROOF_RATINGS.google.score.toFixed(1).replace('.', ',')}/5`,
-        label: 'Google',
-        description: `${SOCIAL_PROOF_RATINGS.google.reviews} avaliações`,
-        icon: SiGoogle,
-    },
-    {
-        value: '15+ anos',
-        label: 'Recebendo hóspedes',
-        description: 'Tradição e hospitalidade',
-        icon: History,
-    },
-];
-
 const MP_TEST_CARDS = [
     { label: 'Mastercard credito', number: '5031 4332 1540 6351', securityCode: '123', expiry: '11/30' },
     { label: 'Visa credito', number: '4235 6477 2802 5682', securityCode: '123', expiry: '11/30' },
@@ -253,18 +223,6 @@ function waitForPaymentApprovalFeedback() {
     return new Promise<void>((resolve) => {
         window.setTimeout(resolve, PAYMENT_APPROVAL_FEEDBACK_MS);
     });
-}
-
-function getAmenityIcon(amenity: string) {
-    const normalized = String(amenity || '').toLowerCase();
-
-    if (normalized.includes('wifi')) return Wifi;
-    if (normalized.includes('ar-condicionado') || normalized.includes('ar condicionado')) return Snowflake;
-    if (normalized.includes('smart tv') || normalized.includes('tv')) return Tv;
-    if (normalized.includes('ventilador')) return Wind;
-    if (normalized.includes('churrasqueira')) return Flame;
-    if (normalized.includes('tomadas')) return PlugZap;
-    return Check;
 }
 
 function normalizePaymentUiErrorMessage(message: unknown) {
@@ -360,7 +318,7 @@ function ReservarContent() {
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
-    const [searchEditorOpen, setSearchEditorOpen] = useState(true);
+    const [searchEditorOpen, setSearchEditorOpen] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const bookingSubmitLockRef = useRef(false);
     const paymentSubmitLockRef = useRef(false);
@@ -1812,11 +1770,13 @@ function ReservarContent() {
                     checkOut={checkOut!}
                     adults={numAdults}
                     childrenCount={numChildren}
+                    summaryExtra={!selectedRoom && availableRooms && availableRooms.length > 0 ? `${availableRooms.length} acomodaç${availableRooms.length === 1 ? 'ão' : 'ões'} disponíve${availableRooms.length === 1 ? 'l' : 'is'}` : undefined}
                     alterControl={
                         <Button
                             type="button"
                             size="sm"
-                            className="h-9 rounded-none font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                            variant="outline"
+                            className="h-9 rounded-none border-primary/30 font-semibold text-primary"
                             onClick={() => setSearchEditorOpen((prev) => !prev)}
                         >
                             {searchEditorOpen ? 'Fechar busca' : 'Alterar busca'}
@@ -1836,19 +1796,15 @@ function ReservarContent() {
                     </div>
                 ) : null}
 
-                <div className="mb-4 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 md:mb-6">
-                    <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm font-medium text-foreground">Passo {currentStep} de {totalSteps}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}
-                        </p>
-                    </div>
-                    <div className="mt-2 h-2 w-full bg-[color:var(--brand-cream)]">
+                <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground md:mb-5">
+                    <span className="font-semibold text-foreground">Passo {currentStep} de {totalSteps}</span>
+                    <div className="h-1 flex-1 bg-[color:var(--brand-cream)]">
                         <div
                             className="h-full bg-primary transition-all"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
+                    <span>{currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}</span>
                 </div>
 
                 {!selectedRoom ? (
@@ -1897,18 +1853,11 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <h2 className="font-sans text-[2rem] font-semibold tracking-[-0.02em] text-foreground md:text-[2.35rem]">
-                                        Escolha sua Acomodação
-                                    </h2>
-                                    <p className="text-lg text-foreground/82">
-                                        {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
-                                    </p>
-                                    <div className="flex flex-wrap gap-x-5 gap-y-2 pt-2 text-sm text-primary/80">
-                                        <span className="inline-flex items-center gap-2"><Coffee className="h-4 w-4" /> Café da manhã diário</span>
-                                        <span className="inline-flex items-center gap-2"><BadgeCheck className="h-4 w-4" /> Valor total exibido</span>
-                                        <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Pix ou cartão</span>
-                                    </div>
+                                <h2 className="sr-only">Escolha sua Acomodação</h2>
+                                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-foreground/70">
+                                    <span className="inline-flex items-center gap-1.5"><Coffee className="h-3.5 w-3.5" /> Café da manhã diário</span>
+                                    <span className="inline-flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5" /> Valor total exibido</span>
+                                    <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Pix ou cartão</span>
                                 </div>
                                 {(() => {
                                     // Cada ala vira uma "tela" (100vw × 100vh no desktop), com os quartos dela.
@@ -1932,7 +1881,7 @@ function ReservarContent() {
                                         <section
                                             key={wing.key}
                                             aria-label={`${wing.title} ${wing.emphasis}`}
-                                            className={`relative left-1/2 flex w-screen -translate-x-1/2 flex-col py-10 md:h-[100svh] md:max-h-[100svh] md:overflow-hidden md:pb-8 md:pt-[104px] ${groupIndex % 2 === 0 ? 'bg-[color:var(--brand-cream)]' : 'bg-[color:var(--brand-white)]'}`}
+                                            className={`relative left-1/2 flex w-screen -translate-x-1/2 flex-col py-10 md:overflow-hidden md:pb-8 ${groupIndex === 0 ? 'md:h-[calc(100svh-96px)] md:pt-4' : 'md:h-[100svh] md:max-h-[100svh] md:pt-[104px]'} ${groupIndex % 2 === 0 ? 'bg-[color:var(--brand-cream)]' : 'bg-[color:var(--brand-white)]'}`}
                                         >
                                             <div className="container mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col gap-5 px-4">
                                                 <div className="flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -2010,16 +1959,7 @@ function ReservarContent() {
                                                                             Até {room.maxGuests || room.capacity} hóspedes · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
                                                                         </p>
                                                                     </div>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        {roomAmenities.slice(0, 4).map((amenity, i) => {
-                                                                            const AmenityIcon = getAmenityIcon(amenity);
-                                                                            return (
-                                                                                <span key={i} className="inline-flex items-center gap-1.5 border border-primary/15 px-2 py-1 text-xs font-medium text-primary">
-                                                                                    <AmenityIcon className="h-3.5 w-3.5 text-primary/78" /> {amenity}
-                                                                                </span>
-                                                                            );
-                                                                        })}
-                                                                    </div>
+                                                                    <p className="text-sm text-foreground/75">{roomAmenities.slice(0, 4).join(' · ')}</p>
                                                                     <div className="grid items-end gap-3 border-t border-primary/10 pt-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                                                                         <div>
                                                                             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">Total da estadia</p>
@@ -2029,7 +1969,6 @@ function ReservarContent() {
                                                                             </div>
                                                                             <p className="mt-1 text-xs text-foreground/70">
                                                                                 {stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite
-                                                                                {Number(room.promotion?.discountAmount || 0) > 0 ? <span className="ml-2 font-medium text-emerald-700">Economia de {formatCurrencyBRL(Number(room.promotion?.discountAmount))}</span> : null}
                                                                             </p>
                                                                             {Number(room.minLos) >= 2 ? <p className="mt-1 text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
                                                                         </div>
@@ -2047,33 +1986,6 @@ function ReservarContent() {
                                     ));
                                 })()}
 
-                                <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 shadow-none md:px-5">
-                                    <div className="grid gap-4 md:grid-cols-3 md:gap-0">
-                                        {PAGE_TRUST_ITEMS.map((item, index) => (
-                                            <div
-                                                key={`${item.label}-${item.value}`}
-                                                className={`flex items-center gap-3 py-1 ${index === 0 ? '' : 'md:border-l md:border-primary/10 md:pl-5'} ${index < PAGE_TRUST_ITEMS.length - 1 ? 'md:pr-5' : ''}`}
-                                            >
-                                                <div className="flex shrink-0 items-center justify-center text-primary/78">
-                                                    <item.icon className="h-7 w-7" aria-hidden />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-lg font-semibold leading-none text-primary">
-                                                        {item.value}
-                                                    </p>
-                                                    <p className="mt-1 text-sm font-semibold leading-5 text-foreground">
-                                                        {item.label}
-                                                    </p>
-                                                    {item.description ? (
-                                                        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                                                            {item.description}
-                                                        </p>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             </div>
                         )}
                     </div>
@@ -2956,7 +2868,19 @@ function ReservarContent() {
                     </div>
                 )}
             </div>
-            <ReservationFaq />
+            <div className="container mx-auto w-full max-w-[1440px] px-4 pb-10">
+                <details className="group border border-primary/10 bg-[color:var(--brand-white)]">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-primary">
+                        Dúvidas antes de reservar? Veja as perguntas frequentes
+                        <span aria-hidden="true" className="text-xl leading-none transition-transform group-open:rotate-45">+</span>
+                    </summary>
+                    <ReservationFaq />
+                </details>
+                <p className="mt-3 text-sm text-foreground/75">
+                    Ou fale com a pousada pelo{' '}
+                    <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">WhatsApp</a>.
+                </p>
+            </div>
             {roomGallery ? (
                 <div
                     className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm p-4 flex items-center justify-center"
