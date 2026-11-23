@@ -7,11 +7,13 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { trackClickReservar } from "@/lib/analytics";
+import { RoomsNavDesktop, RoomsNavMobile, useNavRooms } from "@/components/RoomsNavMenu";
 
 export default function Header() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
+    const { wings: navWings, load: loadNavRooms } = useNavRooms();
 
     const isTransparentPath = pathname === "/";
 
@@ -75,20 +77,26 @@ export default function Header() {
 
                     {/* Desktop Navigation */}
                     <nav aria-label="Navegação principal" className={`hidden md:flex items-center ${isHomeHero ? "gap-5 lg:gap-9" : "gap-8"}`}>
-                        {navLinks.map((link) => (
-                            <Link
-                                key={`${link.href}-${link.label}`}
-                                href={link.href}
-                                className={`transition-colors duration-300 hover:text-secondary ${isHomeHero
+                        {navLinks.map((link) => {
+                            const linkClass = `transition-colors duration-300 hover:text-secondary ${isHomeHero
                                     ? "font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--brand-white)] [text-shadow:0_2px_12px_rgba(0,0,0,0.62)]"
                                     : !isTransparent
                                         ? "font-sans font-medium text-primary/90"
                                         : "font-sans font-medium text-white"
-                                    }`}
+                                    }`;
+                            if (link.href === "/acomodacoes") {
+                                return <RoomsNavDesktop key={link.href} linkClassName={linkClass} wings={navWings} load={loadNavRooms} />;
+                            }
+                            return (
+                            <Link
+                                key={`${link.href}-${link.label}`}
+                                href={link.href}
+                                className={linkClass}
                             >
                                 {link.label}
                             </Link>
-                        ))}
+                            );
+                        })}
                         <Button
                             asChild
                             variant={!isTransparent ? "default" : "secondary"}
@@ -118,16 +126,20 @@ export default function Header() {
                 {/* Mobile Navigation */}
                 {isMobileMenuOpen && (
                     <nav id="mobile-navigation" aria-label="Navegação mobile" className="md:hidden space-y-4 border-t border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-4 pb-6 pt-5">
-                        {navLinks.map((link) => (
-                            <Link
-                                key={`${link.href}-${link.label}`}
-                                href={link.href}
-                                className="block text-primary/90 font-medium hover:text-secondary transition-colors"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
+                        {navLinks.map((link) =>
+                            link.href === "/acomodacoes" ? (
+                                <RoomsNavMobile key={link.href} wings={navWings} load={loadNavRooms} onNavigate={() => setIsMobileMenuOpen(false)} />
+                            ) : (
+                                <Link
+                                    key={`${link.href}-${link.label}`}
+                                    href={link.href}
+                                    className="block text-primary/90 font-medium hover:text-secondary transition-colors"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    {link.label}
+                                </Link>
+                            ),
+                        )}
                         <Button asChild className="w-full rounded-none shadow-none">
                             <Link href="/reservar" onClick={() => { trackClickReservar('header_mobile'); setIsMobileMenuOpen(false); }}>
                                 Reservar agora
