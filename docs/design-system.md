@@ -1,5 +1,7 @@
 # Hotel Pousada Delplata Design System
 
+> **Atualização 2026-11-23:** para o novo layout da home, as regras de tipografia (seção 4), formas (6), espaçamento (7) e "poucos cartões" (3.4) deste documento foram substituídas pela direção mais expressiva descrita em `docs/design-system-delplata.md`. Promessa de marca, posicionamento e o que a marca não é continuam valendo.
+
 Design system estratégico para um site de hotelaria premium com foco em reserva direta.
 
 Posicionamento:

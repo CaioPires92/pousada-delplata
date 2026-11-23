@@ -12,15 +12,15 @@ O documento estratégico define: "refúgio familiar + hotel boutique + luxo edit
 
 | Tema | `docs/design-system.md` | Modelo do novo layout | Decisão |
 |---|---|---|---|
-| Fonte dos títulos | Inter 600 nas seções; Bodoni Moda 700 **só** no título do hero | Bricolage Grotesque caixa alta + Instrument Serif itálico em **todos** os títulos | ? |
-| Cantos | só 8 / 16 / 24 px | cantos retos (0 px) | ? |
-| Espaço entre seções | 120 / 160 / 220 px, "respirar como editorial" | seções de até 100vh, 32–104 px de respiro (pedido do dono em 2026-11-23) | ? |
-| Cartões | "fewer cards", evitar estética de dashboard | painéis de foto, grade de fotos, cartões de oferta | ? |
+| Fonte dos títulos | Inter 600 nas seções; Bodoni Moda 700 **só** no título do hero | Bricolage Grotesque caixa alta + Instrument Serif itálico em **todos** os títulos | expressivo (modelo) |
+| Cantos | só 8 / 16 / 24 px | cantos retos (0 px) | expressivo (modelo) |
+| Espaço entre seções | 120 / 160 / 220 px, "respirar como editorial" | seções de até 100vh, 32–104 px de respiro (pedido do dono em 2026-11-23) | expressivo (modelo) |
+| Cartões | "fewer cards", evitar estética de dashboard | painéis de foto, grade de fotos, cartões de oferta | expressivo (modelo) |
 | Botão dourado | ouro "sempre contido" | ouro como botão primário (6,5:1 com forest) | manter |
 | Hero | 100vh × 100vw, sem widget grande comprimindo | 100vh, busca em barra na base | manter |
 | Ordem da home | Hero → prova social → motor → sobre → acomodações → experiências → galeria → reviews → datas | Hero → prova social → ofertas → faixa → reserva direta → galeria → trilha → zoom → acomodações → feriados → FAQ → chamada | conferir |
 
-Até a decisão, trate `docs/design-system.md` como a direção de marca e este arquivo como a descrição do que o modelo implementa.
+**Decisão do dono (2026-11-23): direção mais expressiva.** Vale o que este documento descreve (Bricolage + Instrument Serif nos títulos, cantos retos, seções de até 100vh, painéis de foto). No documento estratégico `docs/design-system.md`, continuam valendo a promessa de marca, o posicionamento familiar e a lista do que a marca **não** é (não é resort, não é portal de reservas); as regras de tipografia, formas, espaçamento e "poucos cartões" ficam **substituídas** por este arquivo para o novo layout.
 
 ## 1. Princípios
 1. **Reserva primeiro.** Toda tela tem um caminho claro para `/reservar` (botão dourado) e para o WhatsApp.
