@@ -24,9 +24,9 @@ Como manter:
 - Só mesclar quando o usuário disser "aplique". Antes disso: conta Asaas aprovada, webhook configurado e `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` e `ASAAS_ENVIRONMENT=production` na Vercel.
 - Depois do merge, esperar uns 120 dias para remover o código do Mercado Pago.
 
-### 4. Limite de pets por reserva
-- Taxa: R$ 20 por pet por diária (2026-11-13). Limite: até 10 pets por reserva (herdado do Villa), mantido por decisão do usuário em 2026-11-18.
-- Rever depois: com "pequeno porte", talvez faça sentido 1 ou 2 por reserva (`src/app/api/bookings/route.ts`, `src/lib/booking-price.ts`).
+### 4. Limite de pets por reserva — resolvido, mover para Concluídas na próxima edição
+- 2026-11-22: limite de 2 pets por reserva (decisão do usuário; antes 10, herdado do Villa). Valor central em `MAX_PETS_PER_BOOKING` (`src/lib/pet-policy.ts`), aplicado na busca, no seletor, na API de reservas (`invalid_pet_count`), na cotação e no preço. Taxa continua R$ 20 por pet por diária. Falta conferir em produção após o deploy.
+- O Villa segue com 10 pets e R$ 40 por pet por diária; não foi alterado.
 
 ### 5. (Opcional) Upstash para o limite de login do admin
 - Hoje o login bloqueia após 5 senhas erradas em 15 min, mas a contagem fica na memória de cada servidor da Vercel (zera ao reiniciar e não é compartilhada). Com Upstash, o limite vale de verdade.
@@ -53,6 +53,8 @@ Como manter:
 
 ## Concluídas
 
+- 2026-11-22: favicon novo (o "D" prata do próprio logo sobre verde, com moldura dourada): o `src/app/favicon.ico` antigo estava corrompido (cabeçalho inválido), por isso nenhum navegador mostrava ícone. Agora `favicon.ico` (16/32/48), `icon.png` e `apple-icon.png` em `src/app`, pela convenção do Next. Falta conferir na aba do navegador depois do deploy (pode demorar por causa do cache).
+- 2026-11-22: fontes Inter e Bodoni Moda carregadas de verdade com `next/font` (`src/app/fonts.ts`), em vez de cair na fonte do sistema. Build, tipos e testes ok; falta conferir no site depois do deploy.
 - 2026-11-20: `CRON_SECRET` gerado de novo (o dono gravou o mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET` no GitHub) + redeploy. Disparo manual ok: 61 dias × 4 quartos; Superior mudou 2 dias; Térreo 20–21/11 tinha ajuste manual 1 (Hospedin 1 livre); a pedido do dono voltou ao automático (site 0).
 - 2026-11-20: sincronização de disponibilidade passa a olhar 120 dias à frente (`?days=120` no workflow), porque o site vende Carnaval/março e, sem dado do Hospedin, considera o quarto todo livre. `CRON_SECRET` gerado de novo (mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET`) + redeploy.
 - 2026-11-19: sincronização de disponibilidade com o Hospedin LIGADA. `HOSPEDIN_SYNC_ENABLED=true` na Vercel e no GitHub, `CRON_SECRET` trocado (o mesmo valor em `HOSPEDIN_CRON_SECRET` no GitHub), `HOSPEDIN_PASSWORD` atualizada, deploy feito. Primeira rodada ok (61 dias × 4 quartos) e GitHub Action a cada 30 min com sucesso. O site agora mostra livres do Hospedin − 1 (ex.: Superior 05/12 e 24/12 = 0; antes 2 fixos).

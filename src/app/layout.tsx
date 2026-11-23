@@ -16,6 +16,7 @@ import {
   getSiteUrl,
 } from "@/lib/seo";
 
+import { bodoniModa, inter } from "./fonts";
 import "./globals.css";
 
 const structuredData = [buildWebSiteSchema(), buildLodgingBusinessSchema()];
@@ -35,11 +36,6 @@ export const metadata: Metadata = {
     ],
   }),
   metadataBase: new URL(getSiteUrl()),
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
-  },
   robots: {
     index: true,
     follow: true,
@@ -55,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html lang="pt-BR" className={`${inter.variable} ${bodoniModa.variable}`} suppressHydrationWarning>
       <head>
         <Script id="microsoft-clarity" strategy="lazyOnload">
           {`

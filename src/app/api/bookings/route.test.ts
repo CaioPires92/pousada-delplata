@@ -25,3 +25,23 @@ describe('POST /api/bookings — e-mail do hóspede', () => {
         expect(await response.json()).toMatchObject({ error: 'guest_email_invalid' });
     });
 });
+
+describe('POST /api/bookings — limite de pets', () => {
+    it('recusa mais de 2 pets antes de tocar no banco', async () => {
+        const request = new Request('https://www.pousadadelplata.com.br/api/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                roomTypeId: 'room-1',
+                checkIn: '2026-12-10',
+                checkOut: '2026-12-12',
+                adults: 2,
+                pets: 3,
+                guest: { name: 'Maria Silva', email: 'maria@example.com', phone: '11999990000' },
+            }),
+        });
+        const response = await POST(request as any);
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({ error: 'invalid_pet_count' });
+    });
+});

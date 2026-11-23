@@ -2,7 +2,7 @@ import { after, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { eachDayKeyInclusive, prevDayKey } from '@/lib/day-key';
 import { calculateBookingPrice } from '@/lib/booking-price';
-import { roomAcceptsPets } from '@/lib/pet-policy';
+import { MAX_PETS_PER_BOOKING, roomAcceptsPets } from '@/lib/pet-policy';
 import { INVALID_EMAIL_MESSAGE, isValidEmail } from '@/lib/email-validation';
 import { parseLocalDate } from '@/lib/date-utils';
 import { hashCouponCode, normalizeCouponCode, normalizeGuestEmail } from '@/lib/coupons/hash';
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         const childrenCount = Math.max(0, Number.parseInt(String(body?.children ?? 0), 10) || 0);
         const petsCount = Number.parseInt(String(body?.pets ?? 0), 10);
 
-        if (!Number.isInteger(petsCount) || petsCount < 0 || petsCount > 10) {
+        if (!Number.isInteger(petsCount) || petsCount < 0 || petsCount > MAX_PETS_PER_BOOKING) {
             return NextResponse.json({ error: 'invalid_pet_count' }, { status: 400 });
         }
 

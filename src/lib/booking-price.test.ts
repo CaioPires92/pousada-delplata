@@ -17,6 +17,11 @@ describe('calculateBookingPrice', () => {
         expect(breakdown.petTotal).toBe(120);
         expect(breakdown.total).toBe(720);
     });
+    it('recusa mais de 2 pets por reserva', () => {
+        const input = { nights: 1, baseTotalForStay: 200, adults: 2, childrenAges: [], maxGuests: 3, extraAdultFee: 0, child6To11Fee: 0 };
+        expect(calculateBookingPrice({ ...input, pets: 2 }).petTotal).toBe(40);
+        expect(() => calculateBookingPrice({ ...input, pets: 3 })).toThrow(BookingPriceError);
+    });
     it('keeps base total for 2 adults included', () => {
         const breakdown = calculateBookingPrice({
             nights: 2,

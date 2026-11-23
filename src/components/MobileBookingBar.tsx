@@ -20,6 +20,12 @@ function hasLeftPageHero(hero: HTMLElement) {
 export default function MobileBookingBar() {
     const pathname = usePathname();
     const [isVisible, setIsVisible] = useState(false);
+    const [lastPathname, setLastPathname] = useState(pathname);
+    // Ao trocar de página a barra volta a ficar oculta até o hero sair da tela.
+    if (lastPathname !== pathname) {
+        setLastPathname(pathname);
+        setIsVisible(false);
+    }
     const [isDismissed, setIsDismissed] = useState(() => (
         typeof window !== 'undefined' && sessionStorage.getItem(DISMISSED_KEY) === '1'
     ));
@@ -30,7 +36,6 @@ export default function MobileBookingBar() {
             return;
         }
 
-        setIsVisible(false);
         const updateVisibility = () => {
             const hero = getPageHero();
             setIsVisible(hero ? hasLeftPageHero(hero) : true);
