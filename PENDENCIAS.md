@@ -51,6 +51,12 @@ Como manter:
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
 - Estoque: reserva enviada deixa de contar no estoque geral do site (o Hospedin já desconta), mas continua contando no estoque de 4 hóspedes, que só existe no site.
 
+### 8. Check-in online por WhatsApp (admin) — falta conferir com dados reais
+- Branch `claude/stoic-ramanujan-g3xotf` (2026-11-23). Página `/admin/checkin-online` (item "Check-in online" no menu): lista as UHs com check-in no período (padrão hoje + 7 dias) lidas do Hospedin pela API v3 (somente leitura) e, para cada uma, abre o WhatsApp (`wa.me`) com a mensagem e o `check_in_online_url` prontos. Independente do motor e da pendência 7: lê todas as reservas da conta, inclusive as lançadas à mão. Código em `src/lib/hospedin-checkin.ts`, `src/lib/checkin-whatsapp.ts` e `src/app/api/admin/checkin-online/route.ts`.
+- Não houve teste de leitura contra o Hospedin real: o ambiente de desenvolvimento não tem `HOSPEDIN_CLIENT_ID`/`HOSPEDIN_CLIENT_SECRET`. Só testes com respostas simuladas (851 testes, tipos e lint ok).
+- [ ] Depois do deploy, abrir a página logado no admin e conferir: (a) o telefone do hóspede vem em `contact.phone`; (b) `check_in_online_url` vem preenchido (se não vier, o plano pode não ter o módulo Jornada do Hóspede; a página avisa); (c) o filtro `filter[check_in][gte/lte]` e `filter[status]` da listagem retornam as reservas esperadas.
+- "Enviado" fica só no navegador de quem clicou (localStorage); duas pessoas usando podem mandar duas vezes. Se isso incomodar, guardar no banco (exige coluna/tabela nova no Turso).
+
 ## Concluídas
 
 - 2026-11-22: favicon novo (o "D" prata do próprio logo sobre verde, com moldura dourada): o `src/app/favicon.ico` antigo estava corrompido (cabeçalho inválido), por isso nenhum navegador mostrava ícone. Agora `favicon.ico` (16/32/48), `icon.png` e `apple-icon.png` em `src/app`, pela convenção do Next. Falta conferir na aba do navegador depois do deploy (pode demorar por causa do cache).
