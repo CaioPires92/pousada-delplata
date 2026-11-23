@@ -1,5 +1,6 @@
 "use client";
 
+import homeStyles from "@/components/home-novo/home-novo.module.css";
 import { addDays, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowRight, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Users, X } from "lucide-react";
@@ -350,16 +351,16 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
 
   return (
     <section className="bg-[color:var(--brand-cream)] py-16 md:py-20" aria-labelledby="home-offers-title">
-      <div className="container mx-auto max-w-[1440px] px-4">
+      <div className="container">
         <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
-            <p className="font-accent text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+            <p className={`${homeStyles.eyebrow} text-[color:var(--brand-forest)]`}>
               Disponibilidade real
             </p>
-            <h2 id="home-offers-title" className="mt-3 font-hero-display text-[2.25rem] leading-[1.05] text-[#1d1b19] md:text-[3.1rem]">
-              Escolha sua acomodação
+            <h2 id="home-offers-title" className={`${homeStyles.display} ${homeStyles.displayDark} mt-5 text-[clamp(2.1rem,5vw,4.2rem)] text-[color:var(--brand-forest)]`}>
+              Escolha sua <em>acomodação</em>
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#1d1b19]/70 md:text-base">
+            <p className="mt-4 max-w-2xl text-base leading-7 text-[rgba(40,50,35,0.75)]">
               Valores calculados pelo motor para {guestLabel}, de {dateLabel}. Altere as datas para consultar sua estadia.
             </p>
             {notice ? (
@@ -520,33 +521,37 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                       />
                     ) : null}
                     {canOpenGallery ? (
-                      <div className="absolute left-4 top-4 inline-flex items-center gap-2 bg-black/58 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
+                      <div className="absolute left-3 top-3 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold text-white">
                         <Camera className="h-3.5 w-3.5" />
                         Ver fotos ({photos.length})
                       </div>
                     ) : null}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-4 pt-10 text-white">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em]">Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}</p>
-                      <p className="mt-1 text-2xl font-bold">{formatBrl(Number(room.totalPrice))}</p>
-                    </div>
                   </div>
 
                   <div className="flex flex-1 flex-col p-5">
-                    <h3 className="text-xl font-semibold leading-tight text-primary">{room.name}</h3>
+                    <h3 className="text-xl font-semibold leading-tight text-[color:var(--brand-forest)]">{room.name}</h3>
                     {maxGuests > 0 ? (
-                      <p className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm text-[rgba(40,50,35,0.7)]">
                         <Users className="h-4 w-4" /> Até {maxGuests} hóspedes
                       </p>
                     ) : null}
                     {amenities.length > 0 ? (
-                      <ul className="mt-4 space-y-2 text-sm text-foreground/75">
+                      <ul className="mb-5 mt-4 flex flex-wrap gap-2 text-xs text-[rgba(40,50,35,0.8)]">
                         {amenities.map((amenity) => (
-                          <li key={amenity} className="flex items-center gap-2">
-                            <Check className="h-3.5 w-3.5 text-[color:var(--brand-gold)]" /> {amenity}
+                          <li key={amenity} className="inline-flex items-center gap-1.5 border border-[rgba(40,50,35,0.15)] px-2.5 py-1">
+                            <Check className="h-3 w-3 text-[color:var(--brand-gold)]" /> {amenity}
                           </li>
                         ))}
                       </ul>
                     ) : null}
+                    <div className="mt-auto border-t border-[rgba(40,50,35,0.1)] pt-5">
+                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[rgba(40,50,35,0.6)]">
+                        Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}
+                      </p>
+                      <p className={`${homeStyles.display} mt-1 text-[2rem] text-[color:var(--brand-forest)]`}>
+                        {formatBrl(Number(room.totalPrice))}
+                      </p>
+                    </div>
                     <Link
                       href={roomUrl}
                       className="mt-5 inline-flex h-11 items-center justify-center gap-2 bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90"

@@ -87,7 +87,7 @@ export default function HomeTop() {
       </section>
 
       <section className="border-b border-primary/10 bg-white py-8 md:py-10">
-        <div className="container mx-auto max-w-[1440px] px-4">
+        <div className="container">
           <SocialProofBadges variant="light" className="mx-auto max-w-5xl" />
         </div>
       </section>

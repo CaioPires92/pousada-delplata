@@ -200,10 +200,10 @@ export default function HomeNovo() {
         <div className="container">
           <div className="mx-auto max-w-4xl text-center" data-reveal>
             <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Conheça a pousada</p>
-            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
+            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.1rem,5vw,4.2rem)]`}>
               Um lugar tranquilo <em>rodeado de natureza</em>
             </h2>
-            <p className="mx-auto mt-6 max-w-[56ch] text-base leading-8 text-[color:var(--brand-forest)]/80 md:text-lg">
+            <p className="mx-auto mt-6 max-w-[56ch] text-base leading-8 text-[rgba(40,50,35,0.8)] md:text-lg">
               O Hotel Pousada Delplata é um local tranquilo e rodeado de muita natureza, ambiente ideal para descansar,
               sair da rotina e renovar as energias.
             </p>
@@ -229,7 +229,7 @@ export default function HomeNovo() {
         <div className="container pt-20 md:pt-28">
           <div className="max-w-3xl" data-reveal>
             <p className={`${styles.eyebrow} text-[color:var(--brand-gold)]`}>Cada cantinho</p>
-            <h2 className={`${styles.display} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
+            <h2 className={`${styles.display} mt-5 text-[clamp(2.1rem,5vw,4.2rem)]`}>
               Conheça a <em>pousada</em> por dentro
             </h2>
           </div>
@@ -286,7 +286,7 @@ export default function HomeNovo() {
           </div>
           <div className="container relative z-10">
             <p className={`${styles.eyebrow} text-[#efe3a0]`}>Lazer</p>
-            <h2 className={`${styles.display} ${styles.onPhoto} mt-5 max-w-3xl text-[clamp(2.4rem,6.5vw,5.6rem)] text-white`}>
+            <h2 className={`${styles.display} ${styles.onPhoto} mt-5 max-w-3xl text-[clamp(2.3rem,5.6vw,4.8rem)] text-white`}>
               Mergulhe <em>sem pressa</em>
             </h2>
           </div>
@@ -298,7 +298,7 @@ export default function HomeNovo() {
         <div className="container">
           <div className="mb-12 max-w-3xl" data-reveal>
             <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Para a família toda</p>
-            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
+            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.1rem,5vw,4.2rem)]`}>
               Muito para <em>aproveitar</em>
             </h2>
           </div>
@@ -328,7 +328,7 @@ export default function HomeNovo() {
         <div className="container">
           <div className="mb-12 max-w-3xl" data-reveal>
             <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Acomodações</p>
-            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.2rem,5.6vw,4.8rem)]`}>
+            <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.1rem,5vw,4.2rem)]`}>
               Escolha onde <em>ficar</em>
             </h2>
           </div>
@@ -383,11 +383,11 @@ export default function HomeNovo() {
           <div className="mx-auto max-w-3xl">
             <div data-reveal>
               <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Antes de reservar</p>
-              <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2rem,5vw,4rem)]`}>
+              <h2 className={`${styles.display} ${styles.displayDark} mt-5 text-[clamp(2.1rem,5vw,4.2rem)]`}>
                 Perguntas <em>frequentes</em>
               </h2>
             </div>
-            <div className="mt-10 divide-y divide-[color:var(--brand-forest)]/15 border-y border-[color:var(--brand-forest)]/15">
+            <div className="mt-10 divide-y divide-[rgba(40,50,35,0.15)] border-y border-[rgba(40,50,35,0.15)]">
               {FAQ.map((item) => (
                 <details key={item.question} className="group py-5">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-semibold">
@@ -396,7 +396,7 @@ export default function HomeNovo() {
                       +
                     </span>
                   </summary>
-                  <p className="mt-3 max-w-[62ch] leading-7 text-[color:var(--brand-forest)]/80">{item.answer}</p>
+                  <p className="mt-3 max-w-[62ch] leading-7 text-[rgba(40,50,35,0.8)]">{item.answer}</p>
                   {item.question.startsWith("Como funciona o cancelamento") ? (
                     <Link href="/politica-de-cancelamento" className="mt-3 inline-block text-sm font-semibold underline underline-offset-4">
                       Ler a política de cancelamento
@@ -413,10 +413,10 @@ export default function HomeNovo() {
       <section className="relative overflow-hidden py-24 md:py-32">
         <div className="absolute inset-0">
           <Image src="/fotos/piscina-aptos/DJI_0900.jpg" alt="" fill sizes="100vw" quality={80} className="object-cover" />
-          <div className="absolute inset-0 bg-[color:var(--brand-forest)]/82" />
+          <div className="absolute inset-0 bg-[rgba(40,50,35,0.82)]" />
         </div>
         <div className="container relative z-10 text-center text-white" data-reveal>
-          <h2 className={`${styles.display} ${styles.onPhoto} mx-auto max-w-4xl text-[clamp(2.4rem,6.5vw,5.6rem)]`}>
+          <h2 className={`${styles.display} ${styles.onPhoto} mx-auto max-w-4xl text-[clamp(2.3rem,5.6vw,4.8rem)]`}>
             Sua próxima <em>estadia</em> começa aqui
           </h2>
           <p className="mx-auto mt-6 max-w-[48ch] text-lg leading-8 text-white/88">

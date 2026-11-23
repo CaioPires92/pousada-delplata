@@ -1,5 +1,6 @@
 'use client';
 
+import homeStyles from "@/components/home-novo/home-novo.module.css";
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -78,8 +79,8 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
 
                     <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.7fr)] lg:items-center lg:gap-12">
                         <div className="max-w-[20rem] space-y-5 xl:max-w-[21rem]">
-                            <h2 className="font-hero-display max-w-[10ch] text-[2.25rem] font-semibold leading-[0.95] text-primary sm:text-[2.75rem] lg:text-[3.15rem] xl:text-[3.35rem]">
-                                Próximos feriados
+                            <h2 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(2.1rem,4vw,3.4rem)] text-[color:var(--brand-forest)]`}>
+                                Próximos <em>feriados</em>
                             </h2>
                             <div className="h-px w-20 bg-secondary/70" />
                             <p className="max-w-[19rem] font-sans text-[1rem] leading-7 text-foreground/72">
