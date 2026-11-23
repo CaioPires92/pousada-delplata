@@ -27,11 +27,13 @@ type WingShowcaseProps = {
   text: string;
   rooms: ShowcaseRoom[];
   tone: "cream" | "white";
+  id: string;
+  next?: { id: string; label: string };
 };
 
 // Uma ala = uma tela (desktop). Os quartos viram painéis que abrem ao passar o mouse ou focar;
 // no celular cada quarto aparece completo, em lista.
-export default function WingShowcase({ index, total, title, emphasis, text, rooms, tone }: WingShowcaseProps) {
+export default function WingShowcase({ index, total, title, emphasis, text, rooms, tone, id, next }: WingShowcaseProps) {
   const [active, setActive] = useState(0);
   const [touched, setTouched] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -72,6 +74,7 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
   return (
     <section
       ref={sectionRef}
+      id={id}
       aria-label={`${title} ${emphasis}`}
       className={`${homeStyles.fit} py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px] ${tone === "cream" ? "bg-[color:var(--brand-cream)]" : "bg-white"}`}
     >
@@ -182,6 +185,20 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
             );
           })}
         </div>
+
+        {next ? (
+          <a
+            href={`#${next.id}`}
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="group flex shrink-0 items-center justify-center gap-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-[color:var(--brand-forest)] hover:text-[#7a7720]"
+          >
+            Veja também: {next.label}
+            <span aria-hidden="true" className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite] text-base leading-none">↓</span>
+          </a>
+        ) : null}
       </div>
     </section>
   );

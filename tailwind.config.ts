@@ -98,6 +98,10 @@ const config: Config = {
     				]
     			},
     		keyframes: {
+    			'wing-bob': {
+    				'0%, 100%': { transform: 'translateY(0)' },
+    				'50%': { transform: 'translateY(5px)' }
+    			},
     			'wing-nudge': {
     				'0%, 100%': { transform: 'translateX(0)' },
     				'50%': { transform: 'translateX(8px)' }

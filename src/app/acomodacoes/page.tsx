@@ -101,6 +101,8 @@ export default async function RoomsPage() {
                         text={wing.text}
                         rooms={wing.rooms}
                         tone={index % 2 === 0 ? "cream" : "white"}
+                        id={`ala-${index + 1}`}
+                        next={wings[index + 1] ? { id: `ala-${index + 2}`, label: `${wings[index + 1].title} ${wings[index + 1].emphasis}` } : undefined}
                     />
                 ))}
             </div>
