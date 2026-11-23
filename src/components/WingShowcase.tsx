@@ -223,22 +223,22 @@ export function WingShowcaseList({ wings }: { wings: WingData[] }) {
               aria-expanded="false"
               aria-controls={`ala-${index + 1}`}
               onClick={() => open(index)}
-              className="group block h-[120px] w-full bg-[color:var(--brand-forest)] text-left text-white transition-colors hover:bg-[#1f291c]"
+              className="group block h-[120px] w-full bg-[color:var(--brand-gold)] text-left text-[color:var(--brand-forest)] transition-colors hover:bg-[#c9c675]"
             >
               <span className="container flex h-full items-center justify-between gap-6">
                 <span>
-                  <span className={`${homeStyles.eyebrow} block text-[color:var(--brand-gold)]`}>
+                  <span className={`${homeStyles.eyebrow} block text-[color:var(--brand-forest)]`}>
                     Ala {index + 1} de {wings.length} · {wing.rooms.length} {wing.rooms.length === 1 ? "acomodação" : "acomodações"}
                   </span>
-                  <span className={`${homeStyles.display} mt-2 block text-[clamp(1.6rem,3.2vw,2.6rem)]`}>
+                  <span className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 block text-[clamp(1.6rem,3.2vw,2.6rem)]`}>
                     {wing.title} <em>{wing.emphasis}</em>
                   </span>
                 </span>
                 <span className="flex items-center gap-4">
-                  <span className="hidden text-sm text-white/75 md:block">{wing.text}</span>
+                  <span className="hidden text-sm font-medium text-[color:var(--brand-forest)] md:block">{wing.text}</span>
                   <span
                     aria-hidden="true"
-                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[color:var(--brand-gold)] text-2xl text-[color:var(--brand-gold)] transition-colors group-hover:bg-[color:var(--brand-gold)] group-hover:text-[color:var(--brand-forest)]"
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[color:var(--brand-forest)] text-2xl text-[color:var(--brand-gold)] transition-transform group-hover:scale-110"
                   >
                     <span className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite]">↓</span>
                   </span>
