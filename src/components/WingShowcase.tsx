@@ -17,6 +17,8 @@ export type ShowcaseRoom = {
   amenities: string[];
   photoUrl: string | null;
   fromPrice: number;
+  /** Diz a que data o valor se refere (ex.: "Diária de hoje · 23/11"). */
+  priceLabel: string;
 };
 
 type WingShowcaseProps = {
@@ -170,9 +172,9 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
                   </ul>
                   <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
                     <p>
-                      <span className="block text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/75">A partir de</span>
+                      <span className="block text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/75">{room.priceLabel}</span>
                       <span className={`${homeStyles.display} text-[1.9rem]`}>{formatBrl(room.fromPrice)}</span>
-                      <span className="ml-1 text-xs text-white/75">por noite</span>
+                      <span className="ml-1 text-xs text-white/75">por noite · 2 adultos</span>
                     </p>
                     <Link
                       href={`/reservar?roomTypeId=${room.id}`}

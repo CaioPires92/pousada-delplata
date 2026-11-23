@@ -9,7 +9,7 @@ import { notFound } from "next/navigation";
 import homeStyles from "@/components/home-novo/home-novo.module.css";
 import RoomGallery from "@/components/RoomGallery";
 import { formatBrl, getDisplayPhotoUrls } from "@/lib/room-display";
-import { getRoomFromPrices } from "@/lib/room-from-price";
+import { getRoomReferencePrices, referencePriceLabel } from "@/lib/room-from-price";
 import { roomAcceptsPets } from "@/lib/pet-policy";
 import { buildPageMetadata, stripHtml } from "@/lib/seo";
 import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
@@ -83,7 +83,6 @@ export default async function RoomDetailsPage({
 
     const amenities = getRoomAmenitiesList(room.amenities);
     const photoUrls = getDisplayPhotoUrls(room);
-    const fromPrice = (await getRoomFromPrices([{ id: room.id, basePrice: Number(room.basePrice) }])).get(room.id) ?? Number(room.basePrice);
     const wingLabel = isMainWingRoom(room.name) ? "Ala principal" : "Chalés e anexos";
     const capacity = Number(room.capacity);
     const maxGuests = Number(room.maxGuests);
@@ -97,7 +96,8 @@ export default async function RoomDetailsPage({
         ...allRooms.filter((item) => isAnnexWingRoom(item.name) && !isMainWingRoom(item.name)),
     ];
     const otherRooms = ordered.filter((item) => item.id !== room.id);
-    const otherPrices = await getRoomFromPrices(otherRooms.map((item) => ({ id: item.id, basePrice: Number(item.basePrice) })));
+    const referencePrices = await getRoomReferencePrices(ordered.map((item) => ({ id: item.id, basePrice: Number(item.basePrice) })));
+    const reference = referencePrices.get(room.id) ?? { price: Number(room.basePrice), dateKey: null, isToday: false };
 
     return (
         <main className="min-h-screen bg-background">
@@ -181,18 +181,18 @@ export default async function RoomDetailsPage({
 
                 <aside className="lg:sticky lg:top-[120px] lg:self-start">
                     <div className="border border-primary/10 bg-white p-6">
-                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">A partir de</p>
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">{referencePriceLabel(reference)}</p>
                         <p className={`${homeStyles.display} mt-1 text-[2.6rem] text-primary`}>
-                            {formatBrl(fromPrice)} <span className="text-sm font-normal normal-case tracking-normal text-foreground/70">por noite</span>
+                            {formatBrl(reference.price)} <span className="text-sm font-normal normal-case tracking-normal text-foreground/70">por noite</span>
                         </p>
                         <p className="mt-2 text-xs leading-5 text-foreground/70">
-                            Para 2 adultos. O valor muda conforme data, ocupação e promoções; veja o total exato na reserva.
+                            Valor da diária para 2 adultos nessa data. Em outras datas, com mais hóspedes ou com promoções o valor muda: escolha suas datas para ver o total exato.
                         </p>
                         <Link
                             href={`/reservar?roomTypeId=${room.id}`}
                             className="mt-5 flex h-12 items-center justify-center bg-[color:var(--brand-gold)] px-6 text-sm font-bold uppercase tracking-[0.08em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
                         >
-                            Ver disponibilidade e preços
+                            Escolher datas e ver o total
                         </Link>
                         <p className="mt-4 text-xs text-foreground/70">Reserva direta no site oficial, com pagamento por Pix ou cartão.</p>
                     </div>
@@ -209,7 +209,7 @@ export default async function RoomDetailsPage({
                         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {otherRooms.map((item) => {
                                 const photo = getDisplayPhotoUrls(item)[0];
-                                const price = otherPrices.get(item.id) ?? Number(item.basePrice);
+                                const itemReference = referencePrices.get(item.id) ?? { price: Number(item.basePrice), dateKey: null, isToday: false };
                                 return (
                                     <li key={item.id}>
                                         <Link href={`/acomodacoes/${item.id}`} className="group block overflow-hidden border border-primary/10 bg-white">
@@ -233,8 +233,8 @@ export default async function RoomDetailsPage({
                                                     <p className="mt-1 text-lg font-semibold text-primary">{item.name}</p>
                                                 </div>
                                                 <p className="shrink-0 text-right text-xs text-foreground/70">
-                                                    a partir de
-                                                    <span className="block text-base font-bold text-primary">{formatBrl(price)}</span>
+                                                    {referencePriceLabel(itemReference)}
+                                                    <span className="block text-base font-bold text-primary">{formatBrl(itemReference.price)}</span>
                                                 </p>
                                             </div>
                                         </Link>

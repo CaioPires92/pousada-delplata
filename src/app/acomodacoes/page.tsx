@@ -7,7 +7,7 @@ import { serializePrismaArray } from "@/lib/serialize-prisma";
 import { buildPageMetadata } from "@/lib/seo";
 import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
 import { getDisplayPhotoUrls } from "@/lib/room-display";
-import { getRoomFromPrices } from "@/lib/room-from-price";
+import { getRoomReferencePrices, referencePriceLabel } from "@/lib/room-from-price";
 import homeStyles from "@/components/home-novo/home-novo.module.css";
 
 
@@ -45,7 +45,7 @@ async function getRooms() {
 
 export default async function RoomsPage() {
     const rooms = await getRooms();
-    const fromPrices = await getRoomFromPrices(rooms.map((room: any) => ({ id: room.id, basePrice: Number(room.basePrice) })));
+    const referencePrices = await getRoomReferencePrices(rooms.map((room: any) => ({ id: room.id, basePrice: Number(room.basePrice) })));
 
     const toShowcase = (room: any): ShowcaseRoom => ({
         id: room.id,
@@ -54,7 +54,8 @@ export default async function RoomsPage() {
         maxGuests: Number(room.maxGuests),
         amenities: getRoomAmenitiesList(room.amenities),
         photoUrl: getDisplayPhotoUrls(room)[0] ?? null,
-        fromPrice: fromPrices.get(room.id) ?? Number(room.basePrice),
+        fromPrice: referencePrices.get(room.id)?.price ?? Number(room.basePrice),
+        priceLabel: referencePrices.get(room.id) ? referencePriceLabel(referencePrices.get(room.id)!) : "Diária base",
     });
 
     const mainWingRooms = rooms.filter((r: any) => isMainWingRoom(r.name)).map(toShowcase);
