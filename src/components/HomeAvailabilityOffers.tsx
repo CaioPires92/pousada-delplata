@@ -350,17 +350,17 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   };
 
   return (
-    <section className="bg-[color:var(--brand-cream)] py-16 md:py-20" aria-labelledby="home-offers-title">
+    <section className="bg-[color:var(--brand-cream)] py-10 md:py-8" aria-labelledby="home-offers-title">
       <div className="container">
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <p className={`${homeStyles.eyebrow} text-[color:var(--brand-forest)]`}>
               Disponibilidade real
             </p>
-            <h2 id="home-offers-title" className={`${homeStyles.display} ${homeStyles.displayDark} mt-5 text-[clamp(2.1rem,5vw,4.2rem)] text-[color:var(--brand-forest)]`}>
+            <h2 id="home-offers-title" className={`${homeStyles.display} ${homeStyles.displayDark} mt-5 text-[clamp(1.9rem,min(4.6vw,7vh),3.8rem)] text-[color:var(--brand-forest)]`}>
               Escolha sua <em>acomodação</em>
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-[rgba(40,50,35,0.75)]">
+            <p className="mt-2 max-w-2xl text-base leading-7 text-[rgba(40,50,35,0.75)]">
               Valores calculados pelo motor para {guestLabel}, de {dateLabel}. Altere as datas para consultar sua estadia.
             </p>
             {notice ? (
@@ -499,7 +499,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               return (
                 <article key={room.id} className="group flex h-full flex-col overflow-hidden border border-primary/10 bg-white">
                   <div
-                    className={`relative aspect-[4/3] overflow-hidden bg-primary/5 ${canOpenGallery ? "cursor-zoom-in" : ""}`}
+                    className={`relative aspect-[16/10] overflow-hidden bg-primary/5 ${canOpenGallery ? "cursor-zoom-in" : ""}`}
                     role={canOpenGallery ? "button" : undefined}
                     tabIndex={canOpenGallery ? 0 : undefined}
                     aria-label={canOpenGallery ? `Abrir galeria de fotos de ${room.name}` : undefined}
@@ -528,7 +528,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                     ) : null}
                   </div>
 
-                  <div className="flex flex-1 flex-col p-5">
+                  <div className="flex flex-1 flex-col p-4">
                     <h3 className="text-xl font-semibold leading-tight text-[color:var(--brand-forest)]">{room.name}</h3>
                     {maxGuests > 0 ? (
                       <p className="mt-2 inline-flex items-center gap-2 text-sm text-[rgba(40,50,35,0.7)]">

@@ -43,7 +43,7 @@ export default function Reveal() {
           });
         });
 
-        // Zoom: a moldura da foto abre conforme a rolagem.
+        // Zoom: a moldura abre conforme a rolagem, com a seção fixa (continua com 100vh).
         gsap.utils.toArray<HTMLElement>("[data-zoom]").forEach((section) => {
           const frame = section.querySelector<HTMLElement>("[data-zoom-frame]");
           if (!frame) return;
@@ -54,19 +54,20 @@ export default function Reveal() {
               clipPath: "inset(0% 0% 0% 0% round 0px)",
               scale: 1,
               ease: "none",
-              scrollTrigger: { trigger: section, start: "top 85%", end: "top 15%", scrub: true },
+              scrollTrigger: { trigger: section, start: "top top", end: "+=70%", pin: true, scrub: true },
             },
           );
         });
 
-        // Trilha horizontal: no desktop a rolagem vertical empurra as fotos para o lado.
+        // Trilha horizontal: no desktop a seção fica fixa e a rolagem vertical empurra as fotos para o lado.
         const media = gsap.matchMedia();
-        media.add("(min-width: 900px)", () => {
-          gsap.utils.toArray<HTMLElement>("[data-hscroll]").forEach((section) => {
+        media.add("(min-width: 900px) and (min-height: 560px)", () => {
+          gsap.utils.toArray<HTMLElement>("[data-hscroll-section]").forEach((section) => {
+            const wrapper = section.querySelector<HTMLElement>("[data-hscroll]");
             const track = section.querySelector<HTMLElement>("[data-hscroll-track]");
-            if (!track) return;
+            if (!wrapper || !track) return;
             // Sem JavaScript (ou com "reduzir movimento") a trilha continua rolável com o dedo/mouse.
-            gsap.set(section, { overflowX: "hidden" });
+            gsap.set(wrapper, { overflowX: "hidden" });
             const distance = () => Math.max(0, track.scrollWidth - window.innerWidth);
             gsap.to(track, {
               x: () => -distance(),
