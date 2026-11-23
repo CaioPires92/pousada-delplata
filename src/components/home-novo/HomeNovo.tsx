@@ -8,6 +8,7 @@ import HomeTop from "./HomeTop";
 import PhotoGallery from "./PhotoGallery";
 import type { GalleryPhoto } from "./PhotoLightbox";
 import Reveal from "./Reveal";
+import RoomsAccordion from "./RoomsAccordion";
 import SpecialDatesIsland from "./SpecialDatesIsland";
 import TrackedLink from "./TrackedLink";
 import TrailCards from "./TrailCards";
@@ -80,21 +81,6 @@ const faqSchema = {
     acceptedAnswer: { "@type": "Answer", text: item.answer },
   })),
 };
-
-const WINGS = [
-  {
-    title: "Ala principal",
-    text: "Apartamentos na ala principal da pousada.",
-    src: "/fotos/ala-principal/apartamentos/superior/DSC_0069-1200.webp",
-    alt: "Ala principal da Pousada Delplata",
-  },
-  {
-    title: "Chalés e anexos",
-    text: "Chalés e apartamentos anexos, com pets de pequeno porte aceitos mediante taxa.",
-    src: "/fotos/ala-chales/chales/IMG_0125-1200.webp",
-    alt: "Ala de chalés e anexos da Pousada Delplata",
-  },
-] as const;
 
 export default function HomeNovo() {
   const marquee = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
@@ -209,32 +195,8 @@ export default function HomeNovo() {
               Escolha onde <em>ficar</em>
             </h2>
           </div>
-          <div className="grid min-h-0 gap-5 md:flex-1 md:grid-cols-2 md:gap-6">
-            {WINGS.map((wing) => (
-              <Link
-                key={wing.title}
-                href="/acomodacoes"
-                className="group relative block aspect-[4/3] min-h-0 overflow-hidden md:aspect-auto"
-                data-reveal
-              >
-                <Image
-                  src={wing.src}
-                  alt={wing.alt}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  quality={85}
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
-                  <h3 className={`${styles.display} text-3xl md:text-4xl`}>{wing.title}</h3>
-                  <p className="mt-2 max-w-[40ch] text-sm leading-6 text-white/88">{wing.text}</p>
-                  <span className="mt-4 inline-block border-b border-[color:var(--brand-gold)] pb-1 text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--brand-gold)]">
-                    Ver acomodações
-                  </span>
-                </div>
-              </Link>
-            ))}
+          <div className="min-h-0 md:flex-1">
+            <RoomsAccordion />
           </div>
         </div>
       </section>
