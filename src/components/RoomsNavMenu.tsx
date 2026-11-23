@@ -76,17 +76,17 @@ export function RoomsNavDesktop({ linkClassName, wings, load }: DesktopProps) {
         <div
           className={`absolute left-1/2 top-full z-50 -translate-x-1/2 pt-4 transition-all duration-200 ${open ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0"}`}
         >
-          <div className="min-w-[250px] border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] p-5 text-left font-sans shadow-[0_18px_40px_rgba(9,9,9,0.14)]">
+          <div className="min-w-[240px] border border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] px-5 py-4 text-left font-sans shadow-[0_18px_40px_rgba(9,9,9,0.14)]">
             {wings.map((wing, index) => (
-              <div key={wing.label} className={index > 0 ? "mt-4 border-t border-[color:var(--line-dark)] pt-4" : ""}>
-                <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[color:var(--brand-forest)]/60">{wing.label}</p>
-                <ul className="mt-2 space-y-0.5">
+              <div key={wing.label} className={index > 0 ? "mt-3" : ""}>
+                <p className="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--brand-forest)]/45">{wing.label}</p>
+                <ul className="mt-1">
                   {wing.rooms.map((room) => (
                     <li key={room.id}>
                       <Link
                         href={`/acomodacoes/${room.id}`}
                         onClick={() => setOpen(false)}
-                        className="block py-1.5 text-sm font-medium normal-case tracking-normal text-[color:var(--brand-forest)] [text-shadow:none] transition-colors hover:text-[color:var(--brand-gold-dark,#7a7720)]"
+                        className="block py-1.5 text-[0.95rem] font-semibold normal-case tracking-normal text-[color:var(--brand-forest)] [text-shadow:none] transition-colors hover:text-[#7a7720]"
                       >
                         {room.name}
                       </Link>
@@ -98,9 +98,9 @@ export function RoomsNavDesktop({ linkClassName, wings, load }: DesktopProps) {
             <Link
               href="/acomodacoes"
               onClick={() => setOpen(false)}
-              className="mt-4 block border-t border-[color:var(--line-dark)] pt-3 text-xs font-bold uppercase tracking-[0.14em] normal-case text-[color:var(--brand-forest)] [text-shadow:none] underline underline-offset-4"
+              className="mt-3 block border-t border-[color:var(--line-dark)] pt-3 text-xs font-medium normal-case tracking-normal text-[color:var(--brand-forest)]/65 [text-shadow:none] transition-colors hover:text-[color:var(--brand-forest)]"
             >
-              Ver todas as acomodações
+              Ver todas as acomodações →
             </Link>
           </div>
         </div>
