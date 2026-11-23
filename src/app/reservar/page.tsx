@@ -1878,109 +1878,104 @@ function ReservarContent() {
                                         .filter((group) => group.rooms.length > 0);
 
                                     return groups.map(({ wing, rooms }, groupIndex) => (
-                                        <section
-                                            key={wing.key}
-                                            aria-label={`${wing.title} ${wing.emphasis}`}
-                                            className={`relative left-1/2 flex w-screen -translate-x-1/2 flex-col py-10 md:overflow-hidden md:pb-8 ${groupIndex === 0 ? 'md:h-[calc(100svh-96px)] md:pt-4' : 'md:h-[100svh] md:max-h-[100svh] md:pt-[104px]'} ${groupIndex % 2 === 0 ? 'bg-[color:var(--brand-cream)]' : 'bg-[color:var(--brand-white)]'}`}
-                                        >
-                                            <div className="container mx-auto flex h-full min-h-0 w-full max-w-[1440px] flex-col gap-5 px-4">
-                                                <div className="flex shrink-0 flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                                                    <div>
-                                                        <p className={`${homeStyles.eyebrow} text-primary`}>Ala {groupIndex + 1} de {groups.length}</p>
-                                                        <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-3 text-[clamp(1.9rem,min(4.6vw,7vh),3.8rem)] text-primary`}>
-                                                            {wing.title} <em>{wing.emphasis}</em>
-                                                        </h2>
-                                                    </div>
-                                                    <p className="max-w-[44ch] text-sm leading-6 text-foreground/75 md:text-base">{wing.text}</p>
+                                        <section key={wing.key} aria-label={`${wing.title} ${wing.emphasis}`} className="space-y-4">
+                                            <div className="flex flex-col gap-1 pt-4 md:flex-row md:items-end md:justify-between">
+                                                <div>
+                                                    <p className={`${homeStyles.eyebrow} text-primary`}>Ala {groupIndex + 1} de {groups.length}</p>
+                                                    <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 text-[clamp(1.6rem,2.8vw,2.5rem)] text-primary`}>
+                                                        {wing.title} <em>{wing.emphasis}</em>
+                                                    </h2>
                                                 </div>
+                                                <p className="max-w-[44ch] text-sm leading-6 text-foreground/75">{wing.text}</p>
+                                            </div>
 
-                                                <div className={`grid min-h-0 grid-cols-1 gap-5 md:flex-1 ${rooms.length > 1 ? 'md:grid-cols-2' : 'md:mx-auto md:w-1/2 md:grid-cols-1'}`}>
-                                                    {rooms.map((room) => {
-                                                        const roomPhotos = getRoomDisplayPhotos(room);
-                                                        const roomPrimaryImage = roomPhotos[0] ?? null;
-                                                        const canOpenGallery = roomPhotos.length > 0;
-                                                        const roomAmenities = room.amenities
-                                                            .split(',')
-                                                            .map((amenity) => amenity.trim())
-                                                            .filter(Boolean);
-                                                        const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
-                                                        const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
-                                                        const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
-                                                            ? strikePrice / stayNights
-                                                            : null;
-                                                        return (
-                                                            <Card
-                                                                key={room.id}
-                                                                className="group flex min-h-0 flex-col overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-all duration-300 hover:border-primary/25"
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {rooms.map((room) => {
+                                                    const roomPhotos = getRoomDisplayPhotos(room);
+                                                    const roomPrimaryImage = roomPhotos[0] ?? null;
+                                                    const canOpenGallery = roomPhotos.length > 0;
+                                                    const roomAmenities = room.amenities
+                                                        .split(',')
+                                                        .map((amenity) => amenity.trim())
+                                                        .filter(Boolean);
+                                                    const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
+                                                    const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
+                                                    const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
+                                                        ? strikePrice / stayNights
+                                                        : null;
+                                                    const promoLabel = room.promotion?.badgeLabel
+                                                        ? room.promotion.badgeLabel.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim()
+                                                        : '';
+                                                    return (
+                                                        <Card
+                                                            key={room.id}
+                                                            className="group grid overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-colors duration-300 hover:border-primary/30 md:grid-cols-[340px_minmax(0,1fr)_250px]"
+                                                        >
+                                                            <div
+                                                                className={`relative aspect-[16/10] overflow-hidden bg-[color:var(--brand-cream)] md:aspect-auto md:min-h-[190px] ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
+                                                                role={canOpenGallery ? 'button' : undefined}
+                                                                tabIndex={canOpenGallery ? 0 : undefined}
+                                                                onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
+                                                                onKeyDown={canOpenGallery ? (event) => {
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                        openRoomGallery(room);
+                                                                    }
+                                                                } : undefined}
+                                                                aria-label={canOpenGallery ? `Ver fotos (${roomPhotos.length}): ${room.name}` : undefined}
                                                             >
-                                                                <div
-                                                                    className={`relative aspect-[16/10] overflow-hidden bg-[color:var(--brand-cream)] md:aspect-auto md:min-h-0 md:flex-1 ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
-                                                                    role={canOpenGallery ? 'button' : undefined}
-                                                                    tabIndex={canOpenGallery ? 0 : undefined}
-                                                                    onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
-                                                                    onKeyDown={canOpenGallery ? (event) => {
-                                                                        if (event.key === 'Enter' || event.key === ' ') {
-                                                                            event.preventDefault();
-                                                                            openRoomGallery(room);
-                                                                        }
-                                                                    } : undefined}
-                                                                    aria-label={canOpenGallery ? `Ver fotos (${roomPhotos.length}): ${room.name}` : undefined}
-                                                                >
-                                                                    {roomPrimaryImage ? (
-                                                                        <Image
-                                                                            src={roomPrimaryImage}
-                                                                            alt={room.name}
-                                                                            fill
-                                                                            sizes="(max-width: 767px) 100vw, 50vw"
-                                                                            quality={85}
-                                                                            className="object-cover transition-transform duration-700 group-hover:scale-[1.035]"
-                                                                        />
-                                                                    ) : (
-                                                                        <div className="flex h-full w-full items-center justify-center bg-muted">
-                                                                            <span className="text-muted-foreground">Sem foto</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {canOpenGallery ? (
-                                                                        <div className="absolute left-3 top-3 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold text-white">
-                                                                            <Camera className="h-3.5 w-3.5" />
-                                                                            <span>Ver fotos ({roomPhotos.length})</span>
-                                                                        </div>
-                                                                    ) : null}
-                                                                    {room.promotion?.badgeLabel ? (
-                                                                        <p className="absolute bottom-3 left-3 max-w-[85%] bg-secondary px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-secondary-foreground">{room.promotion.badgeLabel.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim()}</p>
-                                                                    ) : null}
-                                                                </div>
-                                                                <div className="flex shrink-0 flex-col gap-3 p-4 md:p-5">
-                                                                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                                                                        <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.3rem,2vw,1.9rem)] text-primary`}>
-                                                                            {room.name}
-                                                                        </h3>
-                                                                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-primary/70">
-                                                                            Até {room.maxGuests || room.capacity} hóspedes · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
-                                                                        </p>
+                                                                {roomPrimaryImage ? (
+                                                                    <Image
+                                                                        src={roomPrimaryImage}
+                                                                        alt={room.name}
+                                                                        fill
+                                                                        sizes="(max-width: 767px) 100vw, 340px"
+                                                                        quality={85}
+                                                                        className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                                                                        <span className="text-muted-foreground">Sem foto</span>
                                                                     </div>
-                                                                    <p className="text-sm text-foreground/75">{roomAmenities.slice(0, 4).join(' · ')}</p>
-                                                                    <div className="grid items-end gap-3 border-t border-primary/10 pt-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                                                                        <div>
-                                                                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">Total da estadia</p>
-                                                                            <div className="flex flex-wrap items-baseline gap-x-3">
-                                                                                <p className={`${homeStyles.display} text-[1.9rem] text-primary`}>{formatCurrencyBRL(room.totalPrice)}</p>
-                                                                                {originalNightlyRate ? <p className="text-sm text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
-                                                                            </div>
-                                                                            <p className="mt-1 text-xs text-foreground/70">
-                                                                                {stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite
-                                                                            </p>
-                                                                            {Number(room.minLos) >= 2 ? <p className="mt-1 text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
-                                                                        </div>
-                                                                        <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-[50px] w-full rounded-none bg-[color:var(--brand-gold)] px-5 text-[0.8rem] font-bold uppercase tracking-[0.06em] text-[color:var(--brand-forest)] shadow-none hover:opacity-90 sm:w-[230px]">
-                                                                            Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
-                                                                        </Button>
+                                                                )}
+                                                                {canOpenGallery ? (
+                                                                    <div className="absolute bottom-2 left-2 inline-flex items-center gap-1.5 bg-[rgba(40,50,35,0.9)] px-2.5 py-1 text-[0.7rem] font-semibold text-white">
+                                                                        <Camera className="h-3 w-3" />
+                                                                        <span>Ver fotos ({roomPhotos.length})</span>
                                                                     </div>
+                                                                ) : null}
+                                                            </div>
+
+                                                            <div className="flex min-w-0 flex-col justify-center gap-2 p-4">
+                                                                <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.3rem,1.9vw,1.75rem)] text-primary`}>
+                                                                    {room.name}
+                                                                </h3>
+                                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary/70">
+                                                                    Até {room.maxGuests || room.capacity} hóspedes · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
+                                                                </p>
+                                                                <p className="text-sm text-foreground/75">{roomAmenities.slice(0, 4).join(' · ')}</p>
+                                                                {promoLabel ? (
+                                                                    <p className="w-fit bg-secondary px-2 py-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-secondary-foreground">{promoLabel}</p>
+                                                                ) : null}
+                                                                {Number(room.minLos) >= 2 ? <p className="text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
+                                                            </div>
+
+                                                            <div className="flex flex-col justify-center gap-2 border-t border-primary/10 p-4 md:border-l md:border-t-0">
+                                                                <div>
+                                                                    <p className="text-[0.66rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">Total da estadia</p>
+                                                                    <div className="flex flex-wrap items-baseline gap-x-2">
+                                                                        <p className={`${homeStyles.display} text-[1.8rem] text-primary`}>{formatCurrencyBRL(room.totalPrice)}</p>
+                                                                        {originalNightlyRate ? <p className="text-xs text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
+                                                                    </div>
+                                                                    <p className="text-xs text-foreground/70">{stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite</p>
                                                                 </div>
-                                                            </Card>
-                                                        );
-                                                    })}
-                                                </div>
+                                                                <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-11 w-full rounded-none bg-[color:var(--brand-gold)] px-4 text-[0.78rem] font-bold uppercase tracking-[0.06em] text-[color:var(--brand-forest)] shadow-none hover:opacity-90">
+                                                                    Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </Card>
+                                                    );
+                                                })}
                                             </div>
                                         </section>
                                     ));
