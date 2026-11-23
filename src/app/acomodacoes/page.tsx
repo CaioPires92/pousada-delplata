@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 
 import prisma from "@/lib/prisma";
-import WingShowcase, { type ShowcaseRoom } from "@/components/WingShowcase";
+import { WingShowcaseList, type ShowcaseRoom } from "@/components/WingShowcase";
 import { serializePrismaArray } from "@/lib/serialize-prisma";
 import { buildPageMetadata } from "@/lib/seo";
 import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
@@ -91,20 +91,7 @@ export default async function RoomsPage() {
             </section>
 
             <div>
-                {wings.map((wing, index) => (
-                    <WingShowcase
-                        key={wing.emphasis}
-                        index={index}
-                        total={wings.length}
-                        title={wing.title}
-                        emphasis={wing.emphasis}
-                        text={wing.text}
-                        rooms={wing.rooms}
-                        tone={index % 2 === 0 ? "cream" : "white"}
-                        id={`ala-${index + 1}`}
-                        next={wings[index + 1] ? { id: `ala-${index + 2}`, label: `${wings[index + 1].title} ${wings[index + 1].emphasis}` } : undefined}
-                    />
-                ))}
+                <WingShowcaseList wings={wings} />
             </div>
 
             {rooms.length === 0 && (

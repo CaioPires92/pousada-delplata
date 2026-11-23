@@ -28,7 +28,7 @@ type WingShowcaseProps = {
   rooms: ShowcaseRoom[];
   tone: "cream" | "white";
   id: string;
-  next?: { id: string; label: string };
+  next?: { id: string; label: string; closed: boolean; onOpen: () => void };
 };
 
 // Uma ala = uma tela (desktop). Os quartos viram painéis que abrem ao passar o mouse ou focar;
@@ -134,9 +134,17 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
                 ) : null}
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.05)_30%,rgba(20,28,18,0.88)_100%)]" />
 
+                {/* Clicar na foto leva à página do quarto (desktop: só com o painel aberto; celular: sempre) */}
+                <Link
+                  href={`/acomodacoes/${room.id}`}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className={`absolute inset-0 z-0 ${isActive ? "cursor-pointer" : "md:pointer-events-none"}`}
+                />
+
                 {/* Painel fechado (desktop): número e nome na vertical */}
                 <div
-                  className={`absolute inset-0 hidden flex-col justify-between p-5 text-white transition-opacity duration-500 md:flex ${isActive ? "opacity-0" : "opacity-100"}`}
+                  className={`pointer-events-none absolute inset-0 hidden flex-col justify-between p-5 text-white transition-opacity duration-500 md:flex ${isActive ? "opacity-0" : "opacity-100"}`}
                   aria-hidden="true"
                 >
                   <span className="text-sm font-bold text-[color:var(--brand-gold)]">{String(roomIndex + 1).padStart(2, "0")}</span>
@@ -146,7 +154,7 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
 
                 {/* Painel aberto (desktop) / sempre visível (celular) */}
                 <div
-                  className={`absolute inset-x-0 bottom-0 p-5 text-white transition-all duration-700 md:p-8 ${isActive ? "md:translate-y-0 md:opacity-100" : "md:pointer-events-none md:translate-y-4 md:opacity-0"}`}
+                  className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 p-5 text-white transition-all duration-700 md:p-8 ${isActive ? "md:translate-y-0 md:opacity-100" : "md:pointer-events-none md:translate-y-4 md:opacity-0"}`}
                 >
                   <span className="text-sm font-bold text-[color:var(--brand-gold)]">{String(roomIndex + 1).padStart(2, "0")}</span>
                   <h3 className={`${homeStyles.display} mt-1 text-[clamp(1.8rem,min(3vw,5vh),3rem)]`}>{room.name}</h3>
@@ -169,13 +177,13 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
                     <Link
                       href={`/reservar?roomTypeId=${room.id}`}
                       onClick={() => trackClickReservar(`room_showcase_${room.id}`)}
-                      className="inline-flex h-11 items-center bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                      className="pointer-events-auto inline-flex h-11 items-center bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
                     >
                       Ver preços
                     </Link>
                     <Link
                       href={`/acomodacoes/${room.id}`}
-                      className="inline-flex h-11 items-center text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--brand-gold)] underline underline-offset-4"
+                      className="pointer-events-auto inline-flex h-11 items-center text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--brand-gold)] underline underline-offset-4"
                     >
                       Ver fotos e detalhes
                     </Link>
@@ -191,15 +199,57 @@ export default function WingShowcase({ index, total, title, emphasis, text, room
             href={`#${next.id}`}
             onClick={(event) => {
               event.preventDefault();
-              document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              next.onOpen();
+              // espera o painel aparecer antes de rolar
+              window.setTimeout(() => document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
             }}
             className="group flex shrink-0 items-center justify-center gap-3 py-1 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-[color:var(--brand-forest)] hover:text-[#7a7720]"
           >
-            Veja também: {next.label}
-            <span aria-hidden="true" className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite] text-base leading-none">↓</span>
+            {next.closed ? "Abrir também:" : "Veja também:"} {next.label}
+            <span aria-hidden="true" className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite] text-base leading-none">{next.closed ? "+" : "↓"}</span>
           </a>
         ) : null}
       </div>
     </section>
+  );
+}
+
+type WingData = { title: string; emphasis: string; text: string; rooms: ShowcaseRoom[] };
+
+// Primeira ala aberta; as demais começam recolhidas e abrem pela chamada no pé da ala anterior.
+export function WingShowcaseList({ wings }: { wings: WingData[] }) {
+  const [opened, setOpened] = useState<number[]>([0]);
+
+  return (
+    <>
+      {wings.map((wing, index) => {
+        const nextWing = wings[index + 1];
+        const open = opened.includes(index);
+        return (
+          <div key={wing.emphasis} hidden={!open}>
+            <WingShowcase
+              index={index}
+              total={wings.length}
+              title={wing.title}
+              emphasis={wing.emphasis}
+              text={wing.text}
+              rooms={wing.rooms}
+              tone={index % 2 === 0 ? "cream" : "white"}
+              id={`ala-${index + 1}`}
+              next={
+                nextWing
+                  ? {
+                      id: `ala-${index + 2}`,
+                      label: `${nextWing.title} ${nextWing.emphasis}`,
+                      closed: !opened.includes(index + 1),
+                      onOpen: () => setOpened((current) => (current.includes(index + 1) ? current : [...current, index + 1])),
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        );
+      })}
+    </>
   );
 }
