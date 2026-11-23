@@ -4,14 +4,15 @@ import { useState, Fragment } from 'react';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Wifi, Tv, Wind, X, ChevronLeft, ChevronRight, Camera, Fan } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { getLocalRoomPhotos } from '@/lib/room-photos';
 import { gaEvent, trackClickReservar } from '@/lib/analytics';
 import { getRoomAmenitiesList } from '@/lib/rooms';
+import { roomAcceptsPets } from '@/lib/pet-policy';
+import homeStyles from '@/components/home-novo/home-novo.module.css';
  
 
 interface RoomPhoto {
@@ -24,6 +25,7 @@ interface Room {
     name: string;
     description: string;
     capacity: number;
+    maxGuests?: number;
     basePrice: number;
     amenities?: string;
     photos: RoomPhoto[];
@@ -96,97 +98,73 @@ export function RoomCard({ room }: RoomCardProps) {
 
     const amenityList = getRoomAmenitiesList(room.amenities);
 
-    const amenityIconMap: Array<{ icon: LucideIcon; match: (amenity: string) => boolean }> = [
-        { icon: Wifi, match: (amenity) => amenity.includes('wifi') || amenity.includes('wi-fi') || amenity.includes('internet') },
-        { icon: Tv, match: (amenity) => amenity.includes('tv') || amenity.includes('televis') },
-        { icon: Wind, match: (amenity) => amenity.includes('ar-condicionado') || amenity.includes('ar condicionado') },
-        { icon: Fan, match: (amenity) => amenity.includes('ventilador') },
-    ];
-
-    const amenityIcons = amenityList
-        .map((amenity) => {
-            const normalized = amenity.toLowerCase();
-            const matched = amenityIconMap.find(({ match }) => match(normalized));
-            return matched ? { amenity, Icon: matched.icon } : null;
-        })
-        .filter((item): item is { amenity: string; Icon: LucideIcon } => Boolean(item));
-
     return (
         <Fragment key={pathname}>
-            <Card className="group flex h-full flex-col overflow-hidden rounded-none border border-primary/10 bg-white shadow-none transition-colors duration-200 hover:border-primary/20">
+            <Card className="group grid overflow-hidden rounded-none border border-primary/10 bg-white shadow-none transition-colors duration-200 hover:border-primary/30 md:grid-cols-[340px_minmax(0,1fr)_250px]">
                 <div
-                    className="relative h-64 overflow-hidden cursor-pointer"
+                    className="relative aspect-[16/10] cursor-zoom-in overflow-hidden bg-[color:var(--brand-cream)] md:aspect-auto md:min-h-[200px]"
+                    role="button"
+                    tabIndex={hasPhoto ? 0 : undefined}
+                    aria-label={hasPhoto ? `Ver fotos (${displayPhotos.length}): ${room.name}` : undefined}
                     onClick={openGallery}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openGallery();
+                        }
+                    }}
                 >
                     {hasPhoto ? (
                         <Image
                             src={primaryDisplayUrl!}
                             alt={room.name}
                             fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 420px"
-                            quality={76}
-                            className="object-cover"
+                            sizes="(max-width: 767px) 100vw, 340px"
+                            quality={85}
+                            className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                         />
                     ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <div className="flex h-full w-full items-center justify-center bg-muted">
                             <span className="text-muted-foreground">Sem foto</span>
                         </div>
                     )}
                     {displayPhotos.length > 0 && (
-                        <div className="absolute bottom-4 right-4 flex items-center gap-2 border border-white/20 bg-black/45 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
-                            <Camera className="w-4 h-4" />
+                        <div className="absolute bottom-2 left-2 inline-flex items-center gap-1.5 bg-[rgba(40,50,35,0.9)] px-2.5 py-1 text-[0.7rem] font-semibold text-white">
+                            <Camera className="h-3 w-3" />
                             <span>Ver fotos ({displayPhotos.length})</span>
                         </div>
                     )}
                 </div>
 
-                <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <CardTitle className="font-sans text-[2rem] font-semibold leading-tight text-primary">
-                            {room.name}
-                        </CardTitle>
-                    </div>
-                    <CardDescription className="text-base leading-7 text-foreground/72" style={{ whiteSpace: 'pre-line' }}>
+                <div className="flex min-w-0 flex-col justify-center gap-2 p-4 md:p-5">
+                    <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.4rem,2vw,1.9rem)] text-primary`}>
+                        {room.name}
+                    </h3>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary/70">
+                        {room.capacity} hóspedes{room.maxGuests && room.maxGuests > room.capacity ? ` · até ${room.maxGuests} em quartos selecionados` : ''} · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
+                    </p>
+                    <p className="line-clamp-2 text-sm leading-6 text-foreground/75" style={{ whiteSpace: 'pre-line' }}>
                         {room.description}
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="flex-grow">
-                    <div className="mb-4 flex items-center gap-4 text-sm text-foreground/72">
-                        <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            <span>Até {room.capacity} pessoas</span>
-                        </div>
-                    </div>
-                    {amenityIcons.length > 0 ? (
-                        <div className="mb-3 flex flex-wrap gap-3 text-[color:var(--brand-gold)]">
-                            {amenityIcons.map(({ amenity, Icon }) => (
-                                <Icon key={`${room.id}-${amenity}`} className="w-4 h-4" aria-label={amenity} />
-                            ))}
-                        </div>
-                    ) : null}
+                    </p>
                     {amenityList.length > 0 ? (
-                        <p className="text-sm leading-6 text-foreground/72">
-                            {amenityList.join(' • ')}
-                        </p>
+                        <p className="text-sm text-foreground/75">{amenityList.slice(0, 5).join(' · ')}</p>
                     ) : null}
-                </CardContent>
+                </div>
 
-                <CardFooter className="mt-auto flex items-center justify-between border-t border-primary/10 bg-[color:var(--brand-cream)] pt-4">
-                    <div>
-                        <span className="text-sm font-medium text-foreground/72">
-                            Valores variam conforme data e ocupação. Consulte disponibilidade.
-                        </span>
-                    </div>
+                <div className="flex flex-col justify-center gap-2 border-t border-primary/10 p-4 md:border-l md:border-t-0">
+                    <p className="text-xs leading-5 text-foreground/70">Valores variam conforme data e ocupação.</p>
                     <Button
                         asChild
-                        className="h-11 rounded-none bg-primary px-5 text-sm font-semibold text-white shadow-none hover:bg-primary/90 hover:shadow-[0_8px_18px_rgba(9,9,9,0.08)]"
+                        className="h-11 w-full rounded-none bg-[color:var(--brand-gold)] px-4 text-[0.78rem] font-bold uppercase tracking-[0.06em] text-[color:var(--brand-forest)] shadow-none hover:opacity-90"
                     >
                         <Link href={`/reservar?roomTypeId=${room.id}`} onClick={handleReservarClick}>
-                            Ver disponibilidade e preços
+                            Ver preços
                         </Link>
                     </Button>
-                </CardFooter>
+                    <Link href={`/acomodacoes/${room.id}`} className="text-center text-xs font-bold uppercase tracking-[0.14em] text-primary underline underline-offset-4">
+                        Ver detalhes
+                    </Link>
+                </div>
             </Card>
 
             {/* Gallery Overlay */}

@@ -6,6 +6,7 @@ import { RoomCard } from "@/components/RoomCard";
 import { serializePrismaArray } from "@/lib/serialize-prisma";
 import { buildPageMetadata } from "@/lib/seo";
 import { isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
+import homeStyles from "@/components/home-novo/home-novo.module.css";
 
 
 // Revalidate data every 60 seconds (ISR)
@@ -47,7 +48,7 @@ export default async function RoomsPage() {
     const annexWingRooms = rooms.filter((r: any) => isAnnexWingRoom(r.name));
 
     const renderRoomGrid = (roomsList: typeof rooms) => (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-3">
             {roomsList.map((room: any) => (
                 <RoomCard
                     key={room.id}
@@ -72,11 +73,9 @@ export default async function RoomsPage() {
                 </div>
 
                 <div className="container relative z-10 py-24 text-center text-white md:py-28">
-                    <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
-                        Hospedagem
-                    </p>
-                    <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] md:text-[4rem]">
-                        Nossas Acomodações
+                    <p className={`${homeStyles.eyebrow} ${homeStyles.onPhoto} text-[#efe3a0]`}>Hospedagem</p>
+                    <h1 className={`${homeStyles.display} ${homeStyles.onPhoto} mt-4 text-[clamp(2.4rem,6vw,4.8rem)] text-white`}>
+                        Nossas <em>acomodações</em>
                     </h1>
                     <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/88 md:text-lg">
                         Conforto e aconchego preparados especialmente para o seu descanso.
@@ -86,30 +85,35 @@ export default async function RoomsPage() {
             </section>
 
             <div className="space-y-0">
-                {/* Ala Principal Section */}
-                <section className="section-space-md bg-[color:var(--brand-cream)]">
+                {/* Ala Principal */}
+                <section className="bg-[color:var(--brand-cream)] py-12 md:py-14">
                     <div className="container">
-                    <div className="mb-10 border-b border-primary/10 pb-4">
-                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Principal</h2>
-                        <p className="mt-2 text-[1.02rem] leading-7 text-foreground/72">
-                            Acomodações proximas a todas as dependências.
-                        </p>
-                    </div>
-                    {renderRoomGrid(mainWingRooms)}
+                        <div className="mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                            <div>
+                                <p className={`${homeStyles.eyebrow} text-primary`}>Ala 1 de 2</p>
+                                <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 text-[clamp(1.8rem,3.2vw,2.8rem)] text-primary`}>
+                                    Ala <em>principal</em>
+                                </h2>
+                            </div>
+                            <p className="text-sm leading-6 text-foreground/75">Acomodações próximas a todas as dependências.</p>
+                        </div>
+                        {renderRoomGrid(mainWingRooms)}
                     </div>
                 </section>
 
-                {/* Ala Anexo Section */}
-                <section className="section-space-md bg-background">
+                {/* Ala Chalés e Anexos */}
+                <section className="bg-background py-12 md:py-14">
                     <div className="container">
-                    <div className="mb-10 border-b border-primary/10 pb-4">
-                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Chalés e Anexos</h2>
-                        <p className="mt-2 flex items-center gap-2 text-[1.02rem] leading-7 text-foreground/72">
-                            <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
-                            Localizada a 70 metros da ala principal
-                        </p>
-                    </div>
-                    {renderRoomGrid(annexWingRooms)}
+                        <div className="mb-6 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                            <div>
+                                <p className={`${homeStyles.eyebrow} text-primary`}>Ala 2 de 2</p>
+                                <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 text-[clamp(1.8rem,3.2vw,2.8rem)] text-primary`}>
+                                    Chalés <em>e anexos</em>
+                                </h2>
+                            </div>
+                            <p className="text-sm leading-6 text-foreground/75">Localizada a 70 metros da ala principal.</p>
+                        </div>
+                        {renderRoomGrid(annexWingRooms)}
                     </div>
                 </section>
             </div>
