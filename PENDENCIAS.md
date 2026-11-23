@@ -51,6 +51,12 @@ Como manter:
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
 - Estoque: reserva enviada deixa de contar no estoque geral do site (o Hospedin já desconta), mas continua contando no estoque de 4 hóspedes, que só existe no site.
 
+### 8. Acréscimo de preço para o Booking (no Hospedin)
+- 2026-11-23: reserva do Booking (Anexo, 23→24/11) saiu por R$ 234,92 = R$ 299 − 3% não reembolsável − 10% tarifa mobile − 10% Genius; com a comissão (~15%) sobram ~R$ 200. O site vendia o mesmo quarto por R$ 255,64, ou seja, o Booking estava mais barato que a reserva direta.
+- Decisão do usuário (opção 2): manter os descontos do Booking e aplicar um acréscimo de +15% no preço enviado ao canal Booking pelo Hospedin. Com tudo empilhado fica: Anexo ≈ R$ 270, Chalé ≈ R$ 279, Térreo ≈ R$ 288, Superior ≈ R$ 297 (site: 255,64 / 264,19 / 272,74 / 281,29).
+- [ ] Configurar o acréscimo de +15% no canal Booking do Hospedin (é configuração, não código).
+- [ ] Conferir no extranet do Booking, numa data qualquer, que a tarifa padrão do Anexo aparece ≈ R$ 344 (299 × 1,15).
+
 ## Concluídas
 
 - 2026-11-22: favicon novo (o "D" prata do próprio logo sobre verde, com moldura dourada): o `src/app/favicon.ico` antigo estava corrompido (cabeçalho inválido), por isso nenhum navegador mostrava ícone. Agora `favicon.ico` (16/32/48), `icon.png` e `apple-icon.png` em `src/app`, pela convenção do Next. Falta conferir na aba do navegador depois do deploy (pode demorar por causa do cache).
