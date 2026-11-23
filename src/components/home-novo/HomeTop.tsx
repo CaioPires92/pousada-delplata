@@ -38,75 +38,50 @@ export default function HomeTop() {
             priority
             className={`${styles.kenburns} object-cover object-center`}
           />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(20,28,18,0.7)_0%,rgba(20,28,18,0.35)_55%,rgba(20,28,18,0.2)_100%),linear-gradient(180deg,rgba(20,28,18,0.5)_0%,rgba(20,28,18,0)_30%,rgba(20,28,18,0.7)_100%)]" />
+          {/* Foto viva: escurece só o topo (menu) e a base (texto e busca). */}
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.45)_0%,rgba(20,28,18,0)_22%,rgba(20,28,18,0)_45%,rgba(20,28,18,0.78)_100%)]" />
         </div>
 
-        <div className="container relative z-10 flex min-h-[100svh] flex-col justify-end gap-10 pb-10 pt-28 sm:pb-14 lg:pb-16">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,430px)] lg:items-end xl:gap-16">
-            <div className={`${styles.heroIn} space-y-6`}>
-              <p className={`${styles.eyebrow} ${styles.onPhoto} text-[#efe3a0]`}>Serra Negra · SP</p>
+        <div className="container relative z-10 flex min-h-[100svh] flex-col justify-end pb-8 pt-28 sm:pb-12">
+          <div className={`${styles.heroIn} max-w-4xl space-y-5`}>
+            <p className={`${styles.eyebrow} ${styles.onPhoto} text-[#efe3a0]`}>Serra Negra · SP</p>
 
-              <h1 className={`${styles.display} ${styles.onPhoto} text-[clamp(2.7rem,7.4vw,6.6rem)] text-white`}>
-                Pousada em Serra Negra <em>para descansar em família</em>
-              </h1>
+            <h1 className={`${styles.display} ${styles.onPhoto} text-[clamp(2.2rem,5.4vw,5rem)] text-white`}>
+              <span className="block sm:whitespace-nowrap">Pousada em Serra Negra</span>
+              <em className="block">para descansar em família</em>
+            </h1>
 
-              <p className="max-w-[44ch] text-base leading-8 text-white/90 sm:text-lg">
-                Piscinas, café da manhã e acomodações na ala principal, chalés e anexos.
+            <p className={`${styles.onPhoto} max-w-[46ch] text-base leading-7 text-white sm:text-lg`}>
+              Piscinas, café da manhã e acomodações na ala principal, chalés e anexos.
+            </p>
+
+            {lowestOffer ? (
+              <p className={`${styles.onPhoto} text-sm text-white/90`}>
+                Total a partir de{" "}
+                <strong className="text-lg text-white">
+                  {lowestOffer.totalPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </strong>{" "}
+                · {formatDateBRFromYmd(lowestOffer.checkIn)} – {formatDateBRFromYmd(lowestOffer.checkOut)} ·{" "}
+                {lowestOffer.nights} {lowestOffer.nights === 1 ? "noite" : "noites"} · 2 adultos
               </p>
+            ) : null}
+          </div>
 
-              {lowestOffer ? (
-                <div className="inline-flex w-fit items-end gap-3 border-l-2 border-[color:var(--brand-gold)] bg-black/25 px-4 py-3 text-white backdrop-blur-sm">
-                  <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white/75">Total a partir de</p>
-                    <p className="mt-1 text-3xl font-bold leading-none">
-                      {lowestOffer.totalPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </p>
-                  </div>
-                  <p className="pb-0.5 text-xs leading-5 text-white/75">
-                    {formatDateBRFromYmd(lowestOffer.checkIn)} – {formatDateBRFromYmd(lowestOffer.checkOut)}
-                    <br />
-                    {lowestOffer.nights} {lowestOffer.nights === 1 ? "noite" : "noites"} · 2 adultos
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/reservar"
-                  onClick={() => trackClickReservarHero("hero")}
-                  className="inline-flex h-12 items-center bg-[color:var(--brand-gold)] px-7 text-sm font-bold uppercase tracking-[0.08em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
-                >
-                  Ver preços e disponibilidade
-                </Link>
-                <Link
-                  href="/acomodacoes"
-                  className="inline-flex h-12 items-center border border-white/50 px-7 text-sm font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-white/10"
-                >
-                  Conheça a pousada
-                </Link>
-              </div>
-            </div>
-
-            <div className="w-full">
-              <div className="border border-white/28 bg-black/34 shadow-[0_24px_70px_rgba(0,0,0,0.34)] backdrop-blur-2xl">
-                <div className="border-b border-white/18 px-5 py-4 sm:px-6">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">Reserva direta</p>
-                  <h2 className="mt-1 text-lg font-semibold leading-tight text-white">Consulte valores para sua estadia</h2>
-                  <p className="mt-1 text-sm leading-5 text-white/80">Veja disponibilidade antes de reservar.</p>
-                </div>
-                <div className="p-5 sm:p-6">
-                  <SearchWidget
-                    uiPreset="hero"
-                    submitLabel="Ver preços e disponibilidade"
-                    submitLabelMobile="Ver preços"
-                    collapsible={false}
-                  />
-                  <p className="pt-4 text-xs leading-5 text-white/75">
-                    Valor calculado conforme datas, ocupação e acomodação disponível.
-                  </p>
-                </div>
-              </div>
-            </div>
+          {/* Busca em barra, colada na base do topo: o visitante já começa a reservar aqui. */}
+          <div className="mt-8" onClickCapture={() => trackClickReservarHero("hero")}>
+            <SearchWidget
+              uiPreset="hero"
+              heroLayout="horizontal"
+              submitLabel="Ver preços e disponibilidade"
+              submitLabelMobile="Ver preços"
+              collapsible={false}
+            />
+            <p className={`${styles.onPhoto} mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/85`}>
+              <span>Valor calculado conforme datas, ocupação e acomodação disponível.</span>
+              <Link href="/acomodacoes" className="font-semibold underline underline-offset-4">
+                Conheça a pousada
+              </Link>
+            </p>
           </div>
         </div>
       </section>
