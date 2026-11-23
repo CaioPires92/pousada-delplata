@@ -122,7 +122,7 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                                         <span className="min-w-0">
                                             <span className="block font-sans text-[0.88rem] font-semibold uppercase tracking-[0.12em] text-primary/90">
                                                 {formatSpecialDatePeriod(specialDate)}
-                                            </span>
+                                            </span>{" "}
                                             <span className="mt-1 block font-sans text-[1.15rem] font-semibold leading-[1.15] text-foreground">
                                                 {specialDate.title}
                                             </span>

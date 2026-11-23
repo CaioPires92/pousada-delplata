@@ -50,6 +50,7 @@ function PhotoLightbox({
   onMove: (step: number) => void;
 }) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const current = photos[index];
 
   useEffect(() => {
@@ -57,6 +58,20 @@ function PhotoLightbox({
       if (event.key === "Escape") onClose();
       else if (event.key === "ArrowRight") onMove(1);
       else if (event.key === "ArrowLeft") onMove(-1);
+      else if (event.key === "Tab") {
+        // Prende o foco dentro da janela: Tab/Shift+Tab circulam entre fechar, anterior e próxima.
+        const buttons = dialogRef.current?.querySelectorAll<HTMLElement>("button");
+        if (!buttons || buttons.length === 0) return;
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -70,6 +85,7 @@ function PhotoLightbox({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={`Foto ampliada: ${current.caption}`}

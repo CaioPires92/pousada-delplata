@@ -502,7 +502,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                     className={`relative aspect-[16/10] overflow-hidden bg-primary/5 ${canOpenGallery ? "cursor-zoom-in" : ""}`}
                     role={canOpenGallery ? "button" : undefined}
                     tabIndex={canOpenGallery ? 0 : undefined}
-                    aria-label={canOpenGallery ? `Abrir galeria de fotos de ${room.name}` : undefined}
+                    aria-label={canOpenGallery ? `Ver fotos (${photos.length}): ${room.name}` : undefined}
                     onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
                     onKeyDown={canOpenGallery ? (event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -545,7 +545,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                       </ul>
                     ) : null}
                     <div className="mt-auto border-t border-[rgba(40,50,35,0.1)] pt-5">
-                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[rgba(40,50,35,0.6)]">
+                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[rgba(40,50,35,0.78)]">
                         Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}
                       </p>
                       <p className={`${homeStyles.display} mt-1 text-[2rem] text-[color:var(--brand-forest)]`}>

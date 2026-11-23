@@ -33,6 +33,8 @@ export default function RoomsAccordion() {
         return (
           <div
             key={room.name}
+            role="group"
+            aria-label={`${room.name}: até ${room.guests} hóspedes`}
             tabIndex={0}
             onMouseEnter={() => setActive(index)}
             onFocus={() => setActive(index)}

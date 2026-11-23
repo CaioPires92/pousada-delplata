@@ -17,7 +17,7 @@ export default function TrailCards({ photos }: { photos: readonly GalleryPhoto[]
           <button
             key={photo.src}
             type="button"
-            aria-label={`Ampliar foto: ${photo.caption}`}
+            aria-label={`${String(index + 1).padStart(2, "0")} ${photo.caption}, ampliar foto`}
             onClick={(event) => open(index, event.currentTarget)}
             className="relative h-full w-[78vw] flex-none cursor-zoom-in overflow-hidden text-left md:w-[30vw]"
           >
@@ -31,7 +31,7 @@ export default function TrailCards({ photos }: { photos: readonly GalleryPhoto[]
             />
             <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
             <span className="absolute inset-x-0 bottom-0 p-5 text-lg font-semibold text-white">
-              <span className="mr-3 text-sm font-bold text-[color:var(--brand-gold)]">{String(index + 1).padStart(2, "0")}</span>
+              <span className="mr-3 text-sm font-bold text-[color:var(--brand-gold)]">{String(index + 1).padStart(2, "0")}</span>{" "}
               {photo.caption}
             </span>
           </button>
