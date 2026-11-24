@@ -11,6 +11,7 @@ import ProofStrip from "./ProofStrip";
 import type { HomeOfferSummary } from "@/components/HomeAvailabilityOffers";
 import { trackClickReservarHero } from "@/lib/analytics";
 import { formatDateBRFromYmd } from "@/lib/date";
+import HeroVideo from "./HeroVideo";
 import styles from "./home-novo.module.css";
 
 const HomeAvailabilityOffers = dynamic(() => import("@/components/HomeAvailabilityOffers"), {
@@ -38,6 +39,11 @@ export default function HomeTop() {
             quality={75}
             priority
             className={`${styles.kenburns} object-cover object-center`}
+          />
+          <HeroVideo
+            desktopSrc="/videos/hero-piscina-desktop.mp4"
+            mobileSrc="/videos/hero-piscina-mobile.mp4"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
           {/* Foto viva: escurece só o topo (menu) e a base (texto e busca). */}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.45)_0%,rgba(20,28,18,0)_22%,rgba(20,28,18,0)_45%,rgba(20,28,18,0.78)_100%)]" />
