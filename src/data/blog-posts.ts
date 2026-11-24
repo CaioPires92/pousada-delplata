@@ -1,4 +1,11 @@
+import { SPECIAL_DATES, formatBookingRange } from "@/constants/specialDates";
 import { BlogCategory, BlogPost } from "@/types/blog";
+
+// Período de Natal já cadastrado no site da pousada (mesmas datas da home): os botões de reserva dos artigos usam essa fonte.
+const NATAL = SPECIAL_DATES.find((item) => item.id === "natal-2026");
+const NATAL_CHECK_IN = NATAL?.dateFrom ?? "2026-12-24";
+const NATAL_CHECK_OUT = NATAL?.dateTo ?? "2026-12-27";
+const NATAL_LABEL = `Ver disponibilidade para o Natal (${formatBookingRange(NATAL_CHECK_IN, NATAL_CHECK_OUT)})`;
 
 export const blogCategories: BlogCategory[] = [
   {
@@ -62,6 +69,12 @@ export const blogPosts: BlogPost[] = [
         "Veja o que já foi divulgado do Natal Luzes da Serra 2026 em Serra Negra: abertura, paradas de Natal em dezembro, locais iluminados e dicas de hospedagem.",
     },
     featured: true,
+    bookingCta: {
+      label: NATAL_LABEL,
+      checkIn: NATAL_CHECK_IN,
+      checkOut: NATAL_CHECK_OUT,
+      visibleUntil: NATAL_CHECK_OUT,
+    },
     seedDemo: false,
     funnelStage: "topo",
     content: [
@@ -106,6 +119,14 @@ export const blogPosts: BlogPost[] = [
         type: "paragraph",
         content:
           "Fins de semana e as noites de parada costumam aumentar a procura. A Pousada Delplata fica em Serra Negra e a reserva direta mostra o valor total na hora. Consulte as datas desejadas com antecedência, principalmente para os fins de semana e as noites de parada.",
+      },
+      {
+        type: "cta",
+        label: NATAL_LABEL,
+        checkIn: NATAL_CHECK_IN,
+        checkOut: NATAL_CHECK_OUT,
+        note: "Essas são as datas do período de Natal no site da pousada. Você pode alterá-las na tela de reserva.",
+        visibleUntil: NATAL_CHECK_OUT,
       },
       {
         type: "source",

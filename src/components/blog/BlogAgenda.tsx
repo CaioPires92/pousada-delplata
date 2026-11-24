@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import homeStyles from "@/components/home-novo/home-novo.module.css";
 import { AGENDA_ITEMS, AGENDA_NOTES, AGENDA_SOURCES, AGENDA_UPDATED_AT, type AgendaItem } from "@/data/agenda-serra-negra";
 import { getBrazilDateKey } from "@/lib/blog";
+import { SPECIAL_DATES, buildReservarUrl, formatBookingRange } from "@/constants/specialDates";
 
 const dayFormatter = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", timeZone: "UTC" });
 const monthFormatter = new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" });
@@ -26,6 +27,7 @@ export function getUpcomingAgenda(today = getBrazilDateKey(), limit = 6, items: 
 // Agenda de Serra Negra: próximos eventos com a fonte de cada um. Eventos passados saem sozinhos.
 export function BlogAgenda() {
   const upcoming = getUpcomingAgenda();
+  const natal = SPECIAL_DATES.find((item) => item.id === "natal-2026" && item.enabled && (item.dateTo ?? item.dateFrom) >= getBrazilDateKey());
   if (upcoming.length === 0 && AGENDA_NOTES.length === 0) return null;
 
   return (
@@ -41,6 +43,14 @@ export function BlogAgenda() {
             fonte antes de ir.
           </p>
           <p className="mt-4 text-sm text-white/60">Atualizada em {fullFormatter.format(new Date(`${AGENDA_UPDATED_AT}T00:00:00.000Z`))}.</p>
+          {natal ? (
+            <a
+              href={buildReservarUrl({ checkIn: natal.dateFrom, checkOut: natal.dateTo, adults: 2, children: 0 })}
+              className="mt-6 inline-flex min-h-11 items-center bg-[color:var(--brand-gold)] px-6 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+            >
+              Ver disponibilidade para o Natal ({formatBookingRange(natal.dateFrom, natal.dateTo ?? natal.dateFrom)})
+            </a>
+          ) : null}
           <ul className="mt-5 space-y-2 text-sm">
             {AGENDA_SOURCES.map((source) => (
               <li key={source.url}>

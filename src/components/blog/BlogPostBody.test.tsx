@@ -5,6 +5,8 @@ import { slugifyHeading } from '@/lib/slugify-heading';
 
 const currentDateState = { value: '2026-09-20' };
 
+vi.mock('@/lib/analytics', () => ({ trackClickReservar: vi.fn() }));
+
 vi.mock('@/hooks/useCurrentDateKey', () => ({
   useCurrentDateKey: () => currentDateState.value,
 }));
@@ -76,5 +78,32 @@ describe('BlogPostBody', () => {
     expect(screen.getByRole('heading', { name: 'Como planejar a hospedagem?' })).toHaveAttribute('id', 'como-planejar-a-hospedagem');
     expect(slugifyHeading('Onde ver as luzes')).toBe('onde-ver-as-luzes');
     expect(slugifyHeading('Térreo & Chalé')).toBe('terreo-chale');
+  });
+
+  it('o botão de reserva do artigo leva ao motor com as datas do evento já preenchidas', () => {
+    render(<BlogPostBody content={[{
+      type: 'cta',
+      label: 'Ver disponibilidade para o Natal',
+      checkIn: '2026-12-24',
+      checkOut: '2026-12-27',
+    }]} />);
+
+    expect(screen.getByRole('link', { name: 'Ver disponibilidade para o Natal' })).toHaveAttribute(
+      'href',
+      '/reservar?checkIn=2026-12-24&checkOut=2026-12-27&adults=2&children=0',
+    );
+  });
+
+  it('o botão de reserva some depois da data final configurada', () => {
+    currentDateState.value = '2026-12-28';
+    render(<BlogPostBody content={[{
+      type: 'cta',
+      label: 'Ver disponibilidade para o Natal',
+      checkIn: '2026-12-24',
+      checkOut: '2026-12-27',
+      visibleUntil: '2026-12-27',
+    }]} />);
+
+    expect(screen.queryByRole('link', { name: 'Ver disponibilidade para o Natal' })).not.toBeInTheDocument();
   });
 });

@@ -45,6 +45,14 @@ export type BlogContentBlock = BlogContentVisibility & (
       content: string;
     }
   | {
+      /** Botão de reserva com datas já preenchidas (use `visibleUntil` para sumir depois do evento). */
+      type: "cta";
+      label: string;
+      checkIn: string;
+      checkOut: string;
+      note?: string;
+    }
+  | {
       type: "source";
       label: string;
       href: string;
@@ -83,6 +91,8 @@ export interface BlogPost {
   coverImage: BlogCoverImage;
   seo: BlogPostSeo;
   featured?: boolean;
+  /** Datas da reserva sugerida na lateral do artigo (some depois de `visibleUntil`). */
+  bookingCta?: { label: string; checkIn: string; checkOut: string; visibleUntil?: string };
   seedDemo: boolean;
   funnelStage: BlogFunnelStage;
   content: BlogContentBlock[];

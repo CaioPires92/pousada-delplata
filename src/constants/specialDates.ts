@@ -160,6 +160,14 @@ function sanitizeChildren(value: number | undefined) {
     return Math.min(10, Math.max(0, Math.floor(value as number)));
 }
 
+/** "24 a 27/12" (mesmo mês) ou "30/12 a 02/01" (meses diferentes), a partir de duas datas AAAA-MM-DD. */
+export function formatBookingRange(from: string, to: string) {
+    const [, fm, fd] = from.split('-');
+    const [, tm, td] = to.split('-');
+    if (!fm || !fd || !tm || !td) return '';
+    return fm === tm ? `${fd} a ${td}/${tm}` : `${fd}/${fm} a ${td}/${tm}`;
+}
+
 export function buildReservarUrl(params: BuildReservarUrlParams = {}) {
     const checkIn = parseYmdToUtc(String(params.checkIn || '').trim());
     const checkOut = parseYmdToUtc(String(params.checkOut || '').trim());

@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { BlogBreadcrumbs } from "@/components/blog/BlogBreadcrumbs";
 import { BlogPostBody } from "@/components/blog/BlogPostBody";
 import { slugifyHeading } from "@/lib/slugify-heading";
+import { buildReservarUrl } from "@/constants/specialDates";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import {
   buildBlogArticleSchema,
@@ -14,6 +15,7 @@ import {
   formatBlogDate,
   getBlogCategoryBySlug,
   getBlogPostBySlug,
+  getBrazilDateKey,
   getRelatedBlogPosts,
 } from "@/lib/blog";
 
@@ -66,6 +68,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const headings = post.content.filter((block) => block.type === "heading" && block.level !== 3);
   const sources = post.content.filter((block) => block.type === "source");
   const cover = post.coverImage;
+  const cta = post.bookingCta && (!post.bookingCta.visibleUntil || getBrazilDateKey() <= post.bookingCta.visibleUntil) ? post.bookingCta : null;
+  const bookingHref = cta ? buildReservarUrl({ checkIn: cta.checkIn, checkOut: cta.checkOut, adults: 2, children: 0 }) : "/reservar";
 
   return (
     <main className="min-h-screen bg-[color:var(--brand-cream)]">
@@ -178,10 +182,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               </p>
               <p className="mt-2 text-sm leading-6 text-white/80">Veja a disponibilidade e o valor total na hora, direto com a pousada.</p>
               <Link
-                href="/reservar"
-                className="mt-5 inline-flex h-11 items-center bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                href={bookingHref}
+                className="mt-5 inline-flex min-h-11 items-center bg-[color:var(--brand-gold)] px-6 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
               >
-                Ver disponibilidade
+                {cta ? cta.label : "Ver disponibilidade"}
               </Link>
             </section>
           </aside>

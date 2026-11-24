@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Suspense } from "react";
 
 import { PET_FEE_PER_NIGHT } from "@/lib/booking-price";
 import { MAX_PETS_PER_BOOKING } from "@/lib/pet-policy";
@@ -157,9 +156,7 @@ export default function HomeNovo() {
 
   return (
     <main className="min-h-screen overflow-x-clip">
-      <Suspense fallback={<div className="min-h-[100svh] bg-[color:var(--brand-forest)]" />}>
-        <HomeTop />
-      </Suspense>
+      <HomeTop />
 
       {/* Faixa de promessas */}
       <div className={styles.marquee} aria-hidden="true">

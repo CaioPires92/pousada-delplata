@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { BlogContentBlock } from "@/types/blog";
 import { useCurrentDateKey } from "@/hooks/useCurrentDateKey";
 import { slugifyHeading } from "@/lib/slugify-heading";
+import { buildReservarUrl } from "@/constants/specialDates";
+import { trackClickReservar } from "@/lib/analytics";
 
 interface BlogPostBodyProps {
   content: BlogContentBlock[];
@@ -93,6 +96,21 @@ export function BlogPostBody({ content, hideSources = false }: BlogPostBodyProps
                 </li>
               ))}
             </ListTag>
+          );
+        }
+
+        if (block.type === "cta") {
+          return (
+            <div key={index} className="bg-[color:var(--brand-forest)] p-6 text-white">
+              <Link
+                href={buildReservarUrl({ checkIn: block.checkIn, checkOut: block.checkOut, adults: 2, children: 0 })}
+                onClick={() => trackClickReservar("blog_artigo")}
+                className="inline-flex min-h-11 items-center bg-[color:var(--brand-gold)] px-6 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+              >
+                {block.label}
+              </Link>
+              {block.note ? <p className="mt-3 text-sm leading-6 text-white/80">{block.note}</p> : null}
+            </div>
           );
         }
 

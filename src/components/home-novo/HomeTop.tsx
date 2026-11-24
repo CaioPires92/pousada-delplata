@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -69,13 +70,16 @@ export default function HomeTop() {
 
           {/* Busca em barra, colada na base do topo: o visitante já começa a reservar aqui. */}
           <div className="mt-8" onClickCapture={() => trackClickReservarHero("hero")}>
-            <SearchWidget
-              uiPreset="hero"
-              heroLayout="horizontal"
-              submitLabel="Ver preços e disponibilidade"
-              submitLabelMobile="Ver preços"
-              collapsible={false}
-            />
+            {/* useSearchParams exige Suspense: só a busca fica de fora do HTML do servidor, o título do hero não. */}
+            <Suspense fallback={<div aria-hidden="true" className="h-[92px] w-full bg-white/10" />}>
+              <SearchWidget
+                uiPreset="hero"
+                heroLayout="horizontal"
+                submitLabel="Ver preços e disponibilidade"
+                submitLabelMobile="Ver preços"
+                collapsible={false}
+              />
+            </Suspense>
             <p className={`${styles.onPhoto} mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/85`}>
               <span>Valor calculado conforme datas, ocupação e acomodação disponível.</span>
               <Link href="/acomodacoes" className="font-semibold underline underline-offset-4">
