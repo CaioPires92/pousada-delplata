@@ -297,6 +297,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
     ...(offerSearch.children > 0 ? { childrenAges: offerSearch.childrenAges.slice(0, offerSearch.children).map((age) => String(age)).join(",") } : {}),
   }).toString()}`;
   const dateLabel = `${format(new Date(`${offerSearch.checkIn}T12:00:00`), "dd MMM", { locale: ptBR })} – ${format(new Date(`${offerSearch.checkOut}T12:00:00`), "dd MMM yyyy", { locale: ptBR })}`;
+  const isOfferToday = offerSearch.checkIn === format(new Date(), "yyyy-MM-dd");
+  const offerRangeLabel = `${isOfferToday ? "hoje, " : ""}${formatShortRange(offerSearch.checkIn, offerSearch.checkOut)}`;
   const guestLabel = `${offerSearch.adults} adulto${offerSearch.adults === 1 ? "" : "s"}${offerSearch.children > 0 ? ` e ${offerSearch.children} criança${offerSearch.children === 1 ? "" : "s"}` : ""}`;
   const draftValidation = validateBookingSearch(draftSearch);
   const canApplyDraft = draftValidation.ok;
@@ -579,9 +581,10 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                     <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
                       <div>
                         <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/80">
-                          Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}
+                          Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"} · {offerRangeLabel}
                         </p>
                         <p className={`${homeStyles.display} mt-1 text-[2.1rem]`}>{formatBrl(Number(room.totalPrice))}</p>
+                        <p className="mt-1 text-xs text-white/75">{guestLabel} · só para essas datas</p>
                       </div>
                       <Link
                         href={roomUrl}
