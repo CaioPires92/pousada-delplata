@@ -178,6 +178,8 @@ export default function LeisurePage() {
                         text={wing.text}
                         areas={areas}
                         tone={index % 2 === 0 ? 'cream' : 'white'}
+                        id={`ala-${index + 1}`}
+                        next={WINGS[index + 1] ? { id: `ala-${index + 2}`, label: WINGS[index + 1].label } : undefined}
                     />
                 );
             })}

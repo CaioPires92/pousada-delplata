@@ -43,7 +43,7 @@ export const blogPosts: BlogPost[] = [
     slug: "natal-luzes-da-serra-2026-serra-negra",
     title: "Natal Luzes da Serra 2026: luzes, paradas e programação em Serra Negra",
     excerpt:
-      "Mais de 2 milhões de luzes, paradas de Natal em seis noites de dezembro e shows nas praças: veja o que já está divulgado.",
+      "Mais de 2 milhões de luzes, paradas de Natal em dezembro e shows nas praças: veja o que já está divulgado e onde confirmar.",
     summary:
       "O que se sabe sobre o Natal em Serra Negra em 2026: abertura, paradas, locais iluminados e como planejar a hospedagem.",
     publishedAt: "2026-11-24",
@@ -79,7 +79,7 @@ export const blogPosts: BlogPost[] = [
         items: [
           "Abertura: 13 de novembro, às 18h30, na Praça John Fitzgerald Kennedy, em frente ao Palácio das Águas, com a chegada do Papai Noel e o acendimento das luzes.",
           "Decoração: instalada até o fim de dezembro.",
-          "Paradas de Natal: seis noites, em 12, 17, 19, 23, 25 e 27 de dezembro, a partir das 20h, pelo centro, na Rua Coronel Pedro Penteado.",
+          "Paradas de Natal (Encanto das Luzes): seis noites em dezembro, a partir das 20h, pelo centro, na Rua Coronel Pedro Penteado. As datas variam entre as fontes consultadas, por isso não as listamos aqui.",
           "Shows e apresentações: acontecem nas praças e na Fontana di Trevi, em várias datas de novembro e dezembro.",
         ],
       },
@@ -87,7 +87,7 @@ export const blogPosts: BlogPost[] = [
         type: "callout",
         title: "Confirme antes de ir",
         content:
-          "As datas das paradas vêm de uma reportagem de outubro, e a organização informou que divulgaria a programação completa depois. Antes de montar a viagem, confira a agenda atualizada nos links abaixo.",
+          "As fontes consultadas divergem nas datas das paradas, e a reportagem de outubro dizia que a programação completa ainda seria divulgada. Antes de montar a viagem, confirme as datas na página oficial da Prefeitura e na agenda do Visite Serra Negra, nos links abaixo.",
       },
       {
         type: "heading",
@@ -105,7 +105,7 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         content:
-          "Fins de semana e as noites de parada costumam aumentar a procura. A Pousada Delplata fica em Serra Negra e a reserva direta mostra o valor total na hora. Consulte as datas desejadas com antecedência, principalmente de 23 a 27 de dezembro.",
+          "Fins de semana e as noites de parada costumam aumentar a procura. A Pousada Delplata fica em Serra Negra e a reserva direta mostra o valor total na hora. Consulte as datas desejadas com antecedência, principalmente para os fins de semana e as noites de parada.",
       },
       {
         type: "source",
@@ -116,6 +116,11 @@ export const blogPosts: BlogPost[] = [
         type: "source",
         label: "Visite Serra Negra: agenda de eventos",
         href: "https://visiteserranegra.com.br/agenda-de-eventos/",
+      },
+      {
+        type: "source",
+        label: "Prefeitura de Serra Negra: Encanto das Luzes (Parada de Natal)",
+        href: "https://www.serranegra.sp.gov.br/eventos/encanto-das-luzes-parada-de-natal",
       },
     ],
   },

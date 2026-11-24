@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENDA_ITEMS, type AgendaItem } from "@/data/agenda-serra-negra";
+import { AGENDA_ITEMS, AGENDA_NOTES, type AgendaItem } from "@/data/agenda-serra-negra";
 import { getUpcomingAgenda } from "./BlogAgenda";
 
 const item = (id: string, date: string): AgendaItem => ({
@@ -34,9 +34,8 @@ describe("agenda de Serra Negra", () => {
     }
   });
 
-  it("itens vindos só da imprensa (paradas de Natal) ficam marcados para confirmar", () => {
-    const paradas = AGENDA_ITEMS.filter((entry) => entry.id.startsWith("parada-natal-"));
-    expect(paradas).toHaveLength(6);
-    expect(paradas.every((entry) => entry.confirm === true)).toBe(true);
+  it("não lista datas de parada de Natal enquanto as fontes divergem", () => {
+    expect(AGENDA_ITEMS.some((entry) => entry.id.startsWith("parada-natal-"))).toBe(false);
+    expect(AGENDA_NOTES.some((note) => note.id === "parada-natal" && note.sourceUrl.startsWith("https://"))).toBe(true);
   });
 });

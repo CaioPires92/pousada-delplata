@@ -20,27 +20,26 @@ export type AgendaItem = {
   sourceUrl: string;
 };
 
+// Avisos que não são um evento com data fechada. A Parada de Natal ficou aqui porque as fontes divergem nas datas:
+// uma reportagem de 27/10/2026 cita 12, 17, 19, 23, 25 e 27/12; a página da Prefeitura, pelo que a busca mostra, lista
+// outras datas e não deixa claro o ano. Só vira item da agenda quando a Prefeitura ou o Visite Serra Negra confirmarem.
+export type AgendaNote = { id: string; text: string; sourceName: string; sourceUrl: string };
+
+export const AGENDA_NOTES: AgendaNote[] = [
+  {
+    id: "parada-natal",
+    text: "Parada de Natal (Encanto das Luzes): seis noites em dezembro, às 20h, pelo centro. As datas divulgadas variam entre as fontes, então confirme na página oficial antes de ir.",
+    sourceName: "Prefeitura de Serra Negra: Encanto das Luzes",
+    sourceUrl: "https://www.serranegra.sp.gov.br/eventos/encanto-das-luzes-parada-de-natal",
+  },
+];
+
 export const AGENDA_UPDATED_AT = "2026-11-24";
 
 export const AGENDA_SOURCES = [
   { name: "Visite Serra Negra: agenda de eventos", url: "https://visiteserranegra.com.br/agenda-de-eventos/" },
   { name: "Prefeitura de Serra Negra", url: "https://www.serranegra.sp.gov.br/" },
 ] as const;
-
-const DIARIO = {
-  sourceName: "Diário do Turismo",
-  sourceUrl: "https://diariodoturismo.com.br/natal-em-serra-negra-comeca-em-novembro-com-2-milhoes-de-luzes-e-desfiles/",
-};
-
-const parada = (date: string): AgendaItem => ({
-  id: `parada-natal-${date}`,
-  title: "Parada de Natal",
-  date,
-  time: "20h",
-  place: "Centro, pela Rua Coronel Pedro Penteado",
-  confirm: true,
-  ...DIARIO,
-});
 
 export const AGENDA_ITEMS: AgendaItem[] = [
   {
@@ -106,10 +105,4 @@ export const AGENDA_ITEMS: AgendaItem[] = [
     sourceName: "Visite Serra Negra",
     sourceUrl: "https://visiteserranegra.com.br/eventos/natal-luzes-da-serra-2026-17/",
   },
-  parada("2026-12-12"),
-  parada("2026-12-17"),
-  parada("2026-12-19"),
-  parada("2026-12-23"),
-  parada("2026-12-25"),
-  parada("2026-12-27"),
 ];

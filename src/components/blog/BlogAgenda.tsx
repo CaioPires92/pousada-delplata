@@ -1,7 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 
 import homeStyles from "@/components/home-novo/home-novo.module.css";
-import { AGENDA_ITEMS, AGENDA_SOURCES, AGENDA_UPDATED_AT, type AgendaItem } from "@/data/agenda-serra-negra";
+import { AGENDA_ITEMS, AGENDA_NOTES, AGENDA_SOURCES, AGENDA_UPDATED_AT, type AgendaItem } from "@/data/agenda-serra-negra";
 import { getBrazilDateKey } from "@/lib/blog";
 
 const dayFormatter = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", timeZone: "UTC" });
@@ -26,7 +26,7 @@ export function getUpcomingAgenda(today = getBrazilDateKey(), limit = 6, items: 
 // Agenda de Serra Negra: próximos eventos com a fonte de cada um. Eventos passados saem sozinhos.
 export function BlogAgenda() {
   const upcoming = getUpcomingAgenda();
-  if (upcoming.length === 0) return null;
+  if (upcoming.length === 0 && AGENDA_NOTES.length === 0) return null;
 
   return (
     <section aria-labelledby="agenda-title" className="bg-[color:var(--brand-forest)] py-12 text-white md:py-16">
@@ -83,6 +83,19 @@ export function BlogAgenda() {
             );
           })}
         </ol>
+
+        {AGENDA_NOTES.length > 0 ? (
+          <div className="lg:col-span-2">
+            {AGENDA_NOTES.map((note) => (
+              <p key={note.id} className="border border-white/20 px-4 py-3 text-sm leading-6 text-white/85">
+                {note.text}{" "}
+                <a href={note.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-gold)] underline underline-offset-4 hover:text-white">
+                  {note.sourceName}
+                </a>
+              </p>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   );

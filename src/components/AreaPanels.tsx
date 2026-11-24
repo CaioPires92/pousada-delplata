@@ -15,11 +15,14 @@ type AreaPanelsProps = {
   text: string;
   areas: readonly AreaCard[];
   tone: "cream" | "white";
+  id?: string;
+  /** Gancho para a próxima ala: seta no pé da tela que rola até ela. */
+  next?: { id: string; label: string };
 };
 
 // Uma ala = uma tela (desktop): as áreas viram painéis que abrem ao passar o mouse; clicar abre a galeria da área
 // com índice em texto. No celular, cada área aparece completa, em lista.
-export default function AreaPanels({ index, total, title, text, areas, tone }: AreaPanelsProps) {
+export default function AreaPanels({ index, total, title, text, areas, tone, id, next }: AreaPanelsProps) {
   const [active, setActive] = useState(0);
   const [touched, setTouched] = useState(false);
   const [open, setOpen] = useState<{ area: number; photo: number; trigger: HTMLElement | null } | null>(null);
@@ -43,6 +46,7 @@ export default function AreaPanels({ index, total, title, text, areas, tone }: A
 
   return (
     <section
+      id={id}
       className={`${homeStyles.fit} py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px] ${tone === "cream" ? "bg-[color:var(--brand-cream)]" : "bg-white"}`}
     >
       <div className="container flex min-h-0 flex-col gap-5 md:h-full">
@@ -127,6 +131,25 @@ export default function AreaPanels({ index, total, title, text, areas, tone }: A
             );
           })}
         </div>
+
+        {next ? (
+          <a
+            href={`#${next.id}`}
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById(next.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="group flex shrink-0 items-center justify-center gap-3 text-[0.7rem] font-bold uppercase tracking-[0.18em] text-[color:var(--brand-forest)] hover:text-[#7a7720]"
+          >
+            Veja também: {next.label}
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--brand-forest)] text-base leading-none text-[color:var(--brand-gold)] transition-transform group-hover:scale-110"
+            >
+              <span className="inline-block animate-[wing-bob_1.6s_ease-in-out_infinite]">↓</span>
+            </span>
+          </a>
+        ) : null}
       </div>
       {open ? <PhotoLightbox photos={areas[open.area].photos} index={open.photo} onClose={close} onMove={move} onSelect={select} /> : null}
     </section>
