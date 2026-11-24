@@ -222,7 +222,19 @@ export default function HomeNovo() {
       </section>
 
       {/* Zoom na piscina: a moldura abre conforme a rolagem; a seção continua com 100vh */}
-      <section data-zoom className="relative h-[100svh] overflow-hidden bg-[color:var(--brand-black)]">
+      <section data-zoom className="relative h-[100svh] overflow-hidden bg-[color:var(--brand-forest)]">
+        {/* Fundo: a própria foto, desfocada, para a moldura não abrir sobre um fundo preto */}
+        <div aria-hidden="true" className="absolute inset-0">
+          <Image
+            src="/fotos/piscina-aptos/DJI_0866.jpg"
+            alt=""
+            fill
+            sizes="25vw"
+            quality={72}
+            className="scale-125 object-cover blur-2xl"
+          />
+          <div className="absolute inset-0 bg-[rgba(20,28,18,0.62)]" />
+        </div>
         <div data-zoom-frame className="absolute inset-0">
           <Image
             src="/fotos/piscina-aptos/DJI_0866.jpg"

@@ -1,5 +1,6 @@
-import Image from "next/image";
-import { RestaurantGallery } from '@/components/RestaurantGallery';
+import AreaGrid from "@/components/AreaGrid";
+import homeStyles from "@/components/home-novo/home-novo.module.css";
+import PageHero from "@/components/home-novo/PageHero";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
@@ -10,87 +11,65 @@ export const metadata = buildPageMetadata({
     image: "/fotos/restaurante/DSC_0002.jpg",
 });
 
-const restaurantImages = [
-    '/fotos/restaurante/DSC_0002.jpg',
-    '/fotos/restaurante/DSC_0006.jpg',
-    '/fotos/restaurante/DSC_0007.jpg',
-    '/fotos/restaurante/DSC_0009.jpg',
-    '/fotos/restaurante/DSC_0010.jpg',
-    '/fotos/restaurante/DSC_0011.jpg',
-    '/fotos/restaurante/DSC_0013.jpg',
-    '/fotos/restaurante/DSC_0018.jpg',
-    '/fotos/restaurante/DSC_0025.jpg',
-    '/fotos/restaurante/DSC_0026.jpg',
-    '/fotos/restaurante/DSC_0033.jpg',
-    '/fotos/restaurante/DSC_0035.jpg',
-    '/fotos/restaurante/DSC_0045.jpg',
-    '/fotos/restaurante/DSC_0051.jpg',
-    '/fotos/restaurante/DSC_0052.jpg',
-    '/fotos/restaurante/DSC_0053.jpg',
-    '/fotos/restaurante/DSC_0056.jpg',
-    '/fotos/restaurante/DSC_0060.jpg',
-    '/fotos/restaurante/DSC_0063.jpg',
-    '/fotos/restaurante/DSC_0068.jpg',
-    '/fotos/restaurante/DSC_0072.jpg',
-    '/fotos/restaurante/DSC_0074.jpg',
-    '/fotos/restaurante/DSC_0075.jpg',
-    '/fotos/restaurante/DSC_0076.jpg',
-    '/fotos/restaurante/DSC_0082.jpg',
-    '/fotos/restaurante/DSC_0084.jpg',
-    '/fotos/restaurante/DSC_0094.jpg',
-    '/fotos/restaurante/IMG_0001.jpg',
-    '/fotos/restaurante/IMG_0003.jpg',
-    '/fotos/restaurante/IMG_0009.jpg',
-    '/fotos/restaurante/IMG_0012.jpg',
-    '/fotos/restaurante/IMG_0018.jpg',
-    '/fotos/restaurante/IMG_0020.jpg',
-    '/fotos/restaurante/IMG_0024.jpg',
-    '/fotos/restaurante/IMG_0025.webp'
+const R = '/fotos/restaurante/';
+const group = (title: string, files: string[]) =>
+    files.map((file, index) => ({ src: R + file, alt: `${title} (foto ${index + 1})`, caption: title }));
+
+const AREAS = [
+    {
+        id: 'buffet',
+        title: 'Buffet',
+        description: 'Frios, frutas, quentes e tudo posto com capricho.',
+        photos: group('Buffet do café da manhã', ['DSC_0002.jpg', 'DSC_0006.jpg', 'DSC_0007.jpg', 'DSC_0009.jpg', 'DSC_0010.jpg', 'IMG_0001.jpg', 'IMG_0009.jpg', 'IMG_0020.jpg', 'IMG_0024.jpg', 'IMG_0025.webp']),
+    },
+    {
+        id: 'paes-bolos',
+        title: 'Pães e bolos',
+        description: 'Cestas de pães, bolos caseiros e doces.',
+        photos: group('Pães e bolos', ['DSC_0011.jpg', 'DSC_0013.jpg', 'DSC_0018.jpg', 'DSC_0025.jpg', 'DSC_0026.jpg', 'DSC_0051.jpg', 'DSC_0052.jpg', 'IMG_0003.jpg', 'IMG_0012.jpg', 'IMG_0018.jpg']),
+    },
+    {
+        id: 'mesa-posta',
+        title: 'Mesa posta',
+        description: 'Café, suco, frutas e pães na mesa, com vista.',
+        photos: group('Mesa de café da manhã', ['DSC_0033.jpg', 'DSC_0035.jpg', 'DSC_0045.jpg', 'DSC_0053.jpg', 'DSC_0056.jpg', 'DSC_0060.jpg', 'DSC_0063.jpg', 'DSC_0068.jpg', 'DSC_0072.jpg', 'DSC_0074.jpg', 'DSC_0075.jpg', 'DSC_0076.jpg']),
+    },
+    {
+        id: 'salao',
+        title: 'Salão e vista',
+        description: 'Ambiente aconchegante na Ala Principal.',
+        photos: group('Salão do café da manhã', ['DSC_0082.jpg', 'DSC_0084.jpg', 'DSC_0094.jpg']),
+    },
 ];
 
 export default function RestaurantPage() {
     return (
         <main className="min-h-screen bg-background">
-            <section data-page-hero className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
-                <div className="absolute inset-0">
-                    <Image
-                        src="/fotos/restaurante/DSC_0002.jpg"
-                        alt="Restaurante Pousada Delplata"
-                        fill
-                        className="object-cover object-center"
-                        priority
-                    />
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.78)_0%,rgba(40,50,35,0.52)_42%,rgba(9,9,9,0.24)_100%)]" />
-                </div>
+            <PageHero
+                eyebrow="Restaurante"
+                title={<>Café da <em>manhã</em></>}
+                text="Comece seu dia com nosso delicioso café da manhã servido em um ambiente aconchegante e acolhedor."
+                image="/fotos/restaurante/DSC_0002.jpg"
+                imageAlt="Buffet do café da manhã da Pousada Delplata"
+            />
 
-                <div className="container relative z-10 py-24 text-center text-white md:py-28">
-                    <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
-                        Restaurante
-                    </p>
-                    <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] md:text-[4rem]">
-                        Restaurante e Café da Manhã
-                    </h1>
-                    <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/88 md:text-lg">
-                        Comece seu dia com nosso delicioso café da manhã servido em um ambiente aconchegante e acolhedor.
-                    </p>
-                </div>
-            </section>
-
-            <section className="section-space-md bg-[color:var(--brand-cream)]">
-            <div className="container">
-                <div className="mb-12 space-y-4 text-center md:mb-16">
-                    <p className="font-sans text-[1.9rem] font-semibold leading-tight text-primary md:text-[2.4rem]">
-                        &ldquo;Preparados tudo com muito carinho para você e sua família.&rdquo;
-                    </p>
-                    <div className="inline-block border border-primary/10 bg-[color:var(--brand-white)] px-6 py-3">
-                        <p className="font-sans font-medium text-primary">
-                            Horário: das 8:30h às 10:30h na Ala Principal
-                        </p>
+            <section className="bg-[color:var(--brand-cream)] py-12 text-[color:var(--brand-forest)] md:py-16">
+                <div className="container">
+                    <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-10">
+                        <div>
+                            <p className={`${homeStyles.eyebrow} text-[color:var(--brand-forest)]`}>Todos os dias</p>
+                            <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-3 text-[clamp(1.9rem,4.6vw,3.8rem)]`}>
+                                Feito com <em>carinho</em>
+                            </h2>
+                        </div>
+                        <div className="max-w-[46ch] text-base leading-7 text-[color:var(--brand-forest)]/80">
+                            <p>&ldquo;Preparados tudo com muito carinho para você e sua família.&rdquo;</p>
+                            <p className="mt-1 font-semibold text-[color:var(--brand-forest)]">Horário: das 8:30h às 10:30h na Ala Principal</p>
+                        </div>
                     </div>
-                </div>
 
-                <RestaurantGallery images={restaurantImages} />
-            </div>
+                    <AreaGrid areas={AREAS} columns={2} />
+                </div>
             </section>
         </main>
     );

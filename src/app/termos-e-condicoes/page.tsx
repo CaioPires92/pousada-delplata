@@ -1,3 +1,4 @@
+import PageHero from "@/components/home-novo/PageHero";
 import Link from 'next/link';
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -10,10 +11,10 @@ export const metadata = buildPageMetadata({
 
 export default function TermosECondicoesPage() {
     return (
-        <main className="min-h-screen bg-muted/30 pt-28 pb-16">
-            <div className="container mx-auto max-w-4xl px-4">
+        <main className="min-h-screen bg-muted/30 pb-16">
+            <PageHero eyebrow="Reservas" title={<>Termos e <em>Condições</em></>} />
+            <div className="container mx-auto mt-10 max-w-4xl px-4">
                 <div className="rounded-xl border border-border/60 bg-white p-6 md:p-8 shadow-sm">
-                    <h1 className="font-hero-display text-2xl font-semibold text-primary md:text-3xl">Termos e Condições</h1>
                     <p className="mt-2 text-sm text-muted-foreground">Última atualização: 12/02/2026</p>
 
                     <div className="mt-6 space-y-5 text-sm leading-6 text-foreground">

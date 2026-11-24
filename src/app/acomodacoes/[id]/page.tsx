@@ -104,7 +104,7 @@ export default async function RoomDetailsPage({
             <section data-page-hero className="relative flex min-h-[52svh] items-end overflow-hidden bg-[color:var(--brand-black)]">
                 {photoUrls[0] ? (
                     <div className="absolute inset-0">
-                        <Image src={photoUrls[0]} alt={room.name} fill priority sizes="100vw" quality={80} className="object-cover object-center" />
+                        <Image src={photoUrls[0]} alt={room.name} fill priority sizes="100vw" quality={82} className="object-cover object-center" />
                         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.5)_0%,rgba(20,28,18,0.1)_35%,rgba(20,28,18,0.85)_100%)]" />
                     </div>
                 ) : null}

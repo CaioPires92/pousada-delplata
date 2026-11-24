@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import PageHero from "@/components/home-novo/PageHero";
 import { BlogCategoryFilter } from "@/components/blog/BlogCategoryFilter";
 import { BlogCta } from "@/components/blog/BlogCta";
 import { BlogFeaturedPost } from "@/components/blog/BlogFeaturedPost";
@@ -47,7 +48,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   ]);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[color:var(--brand-cream)] pb-20 pt-32">
+    <main className="relative min-h-screen overflow-hidden bg-[color:var(--brand-cream)] pb-20">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.05]"
         aria-hidden="true"
@@ -72,24 +73,13 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         }}
       />
 
-      <section className="container relative">
-        <div className="max-w-4xl space-y-6 pb-10">
-          <div className="flex items-center gap-4">
-            <span className="h-px w-14 bg-secondary" aria-hidden="true" />
-            <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
-              Blog Delplata
-            </p>
-          </div>
-          <div className="space-y-4 border-l-2 border-secondary pl-5">
-            <h1 className="max-w-4xl font-heading text-[2.9rem] font-semibold leading-[0.98] text-primary md:text-[4rem]">
-              Conteúdo para planejar melhor sua viagem a Serra Negra
-            </h1>
-            <p className="max-w-3xl text-lg leading-8 text-foreground/72">
-              Roteiros, hospedagem, datas e eventos em uma leitura mais direta e sem excesso de informação.
-            </p>
-          </div>
-        </div>
+      <PageHero
+        eyebrow="Blog Delplata"
+        title={<>Planeje sua <em>viagem</em></>}
+        text="Roteiros, hospedagem, datas e eventos em Serra Negra, em uma leitura direta e sem excesso de informação."
+      />
 
+      <section className="container relative mt-10">
         <div className="space-y-8">
           <BlogCategoryFilter categories={categories} activeCategory={selectedCategory?.slug} />
 
