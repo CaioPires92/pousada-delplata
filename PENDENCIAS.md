@@ -51,10 +51,10 @@ Como manter:
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
 - Estoque: reserva enviada deixa de contar no estoque geral do site (o Hospedin já desconta), mas continua contando no estoque de 4 hóspedes, que só existe no site.
 
-### 8. Check-in online por WhatsApp (admin) — falta conferir com dados reais
+### 8. Check-in online por WhatsApp (admin) — conferir em produção
 - Branch `feat/checkin-online-whatsapp` (2026-11-23). Página `/admin/checkin-online` (item "Check-in online" no menu): lista as UHs com check-in no período (padrão hoje + 7 dias) lidas do Hospedin pela API v3 (somente leitura) e, para cada uma, abre o WhatsApp (`wa.me`) com a mensagem e o `check_in_online_url` prontos. Independente do motor e da pendência 7: lê todas as reservas da conta, inclusive as lançadas à mão. Código em `src/lib/hospedin-checkin.ts`, `src/lib/checkin-whatsapp.ts` e `src/app/api/admin/checkin-online/route.ts`.
-- Não houve teste de leitura contra o Hospedin real: o ambiente de desenvolvimento não tem `HOSPEDIN_CLIENT_ID`/`HOSPEDIN_CLIENT_SECRET`. Só testes com respostas simuladas (851 testes, tipos e lint ok).
-- [ ] Depois do deploy, abrir a página logado no admin e conferir: (a) o telefone do hóspede vem em `contact.phone`; (b) `check_in_online_url` vem preenchido (se não vier, o plano pode não ter o módulo Jornada do Hóspede; a página avisa); (c) o filtro `filter[check_in][gte/lte]` e `filter[status]` da listagem retornam as reservas esperadas.
+- 2026-11-24: testado pelo usuário no preview da branch (variáveis `HOSPEDIN_CLIENT_ID`, `HOSPEDIN_CLIENT_SECRET` e `HOSPEDIN_BASE_URL` liberadas também para Preview na Vercel) e funcionou. Decisão do usuário: a ferramenta fica no site (não vai virar app separado). PR #25 mesclado na `main`.
+- [ ] Conferir em produção (`https://www.pousadadelplata.com.br/admin/checkin-online`, logado no admin) depois do deploy: telefones, links do check-in e reservas batem com o Hospedin.
 - "Enviado" fica só no navegador de quem clicou (localStorage); duas pessoas usando podem mandar duas vezes. Se isso incomodar, guardar no banco (exige coluna/tabela nova no Turso).
 
 ## Concluídas
