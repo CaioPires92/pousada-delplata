@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BlogPostBody } from './BlogPostBody';
+import { slugifyHeading } from '@/lib/slugify-heading';
 
 const currentDateState = { value: '2026-09-20' };
 
@@ -45,5 +46,35 @@ describe('BlogPostBody', () => {
       'href',
       'https://www.f2serranegra.com.br/aniversario-serra-negra'
     );
+  });
+
+  it('mostra o crédito da foto com link para a origem', () => {
+    render(<BlogPostBody content={[{
+      type: 'image',
+      src: '/fotos/jardim-aptos/DJI_0903.jpg',
+      alt: 'Foto de teste',
+      caption: 'Legenda',
+      credit: { text: 'Prefeitura de Serra Negra', href: 'https://www.serranegra.sp.gov.br/' },
+    }]} />);
+
+    expect(screen.getByRole('link', { name: 'Prefeitura de Serra Negra' })).toHaveAttribute('href', 'https://www.serranegra.sp.gov.br/');
+    expect(screen.getByText(/Foto:/)).toBeInTheDocument();
+  });
+
+  it('não repete as fontes no corpo quando a página as mostra em caixa própria', () => {
+    render(<BlogPostBody hideSources content={[{
+      type: 'source',
+      label: 'Visite Serra Negra',
+      href: 'https://visiteserranegra.com.br/agenda-de-eventos/',
+    }]} />);
+
+    expect(screen.queryByRole('link', { name: 'Visite Serra Negra' })).not.toBeInTheDocument();
+  });
+
+  it('dá âncora estável aos títulos, sem acento nem símbolos', () => {
+    render(<BlogPostBody content={[{ type: 'heading', content: 'Como planejar a hospedagem?' }]} />);
+    expect(screen.getByRole('heading', { name: 'Como planejar a hospedagem?' })).toHaveAttribute('id', 'como-planejar-a-hospedagem');
+    expect(slugifyHeading('Onde ver as luzes')).toBe('onde-ver-as-luzes');
+    expect(slugifyHeading('Térreo & Chalé')).toBe('terreo-chale');
   });
 });

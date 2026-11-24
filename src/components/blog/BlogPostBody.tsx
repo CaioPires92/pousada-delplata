@@ -3,12 +3,17 @@
 import Image from "next/image";
 import { BlogContentBlock } from "@/types/blog";
 import { useCurrentDateKey } from "@/hooks/useCurrentDateKey";
+import { slugifyHeading } from "@/lib/slugify-heading";
 
 interface BlogPostBodyProps {
   content: BlogContentBlock[];
+  /** A página mostra as fontes em uma caixa própria: então não repete no corpo. */
+  hideSources?: boolean;
 }
 
-export function BlogPostBody({ content }: BlogPostBodyProps) {
+const headingFont = { fontFamily: "var(--font-bricolage), var(--font-inter), sans-serif" } as const;
+
+export function BlogPostBody({ content, hideSources = false }: BlogPostBodyProps) {
   const currentDateKey = useCurrentDateKey();
   const visibleContent = currentDateKey
     ? content.filter((block) => !block.visibleUntil || currentDateKey <= block.visibleUntil)
@@ -16,41 +21,29 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
   const firstParagraphIndex = visibleContent.findIndex((block) => block.type === "paragraph");
 
   return (
-    <div className="space-y-6 text-[1.02rem] leading-8 text-foreground/80">
+    <div className="space-y-6 text-[1.05rem] leading-8 text-foreground/85">
       {visibleContent.map((block, index) => {
         if (block.type === "paragraph") {
-          const isLeadParagraph = index === firstParagraphIndex;
-
           return (
-            <p
-              key={index}
-              className={
-                isLeadParagraph
-                  ? "text-[1.08rem] first-letter:float-left first-letter:mr-2 first-letter:font-heading first-letter:font-semibold first-letter:text-5xl first-letter:leading-[0.85] first-letter:text-primary"
-                  : undefined
-              }
-            >
+            <p key={index} className={index === firstParagraphIndex ? "text-[1.2rem] leading-9 text-[color:var(--brand-forest)]" : undefined}>
               {block.content}
             </p>
           );
         }
 
         if (block.type === "heading") {
-          const className =
-            block.level === 3
-              ? "border-t border-primary/10 pt-6 font-heading text-[2rem] font-semibold leading-tight text-primary"
-              : "border-t border-primary/10 pt-8 font-heading text-[2.4rem] font-semibold leading-tight text-primary";
+          const id = slugifyHeading(block.content);
 
           if (block.level === 3) {
             return (
-              <h3 key={index} className={className}>
+              <h3 key={index} id={id} style={headingFont} className="scroll-mt-28 pt-4 text-[1.4rem] font-bold leading-tight tracking-tight text-[color:var(--brand-forest)]">
                 {block.content}
               </h3>
             );
           }
 
           return (
-            <h2 key={index} className={className}>
+            <h2 key={index} id={id} style={headingFont} className="scroll-mt-28 pt-8 text-[clamp(1.7rem,3vw,2.3rem)] font-bold leading-[1.08] tracking-tight text-[color:var(--brand-forest)]">
               {block.content}
             </h2>
           );
@@ -58,21 +51,25 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
 
         if (block.type === "image") {
           return (
-            <figure key={index} className="space-y-3">
-              <div className="relative overflow-hidden border border-primary/10 bg-primary/5">
-                <div className="relative aspect-[16/10]">
-                  <Image
-                    src={block.src}
-                    alt={block.alt}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 720px"
-                    className="object-cover"
-                  />
-                </div>
+            <figure key={index} className="space-y-2">
+              <div className="relative aspect-[16/10] overflow-hidden bg-[color:var(--brand-forest)]">
+                <Image src={block.src} alt={block.alt} fill sizes="(max-width: 1024px) 100vw, 720px" quality={82} className="object-cover" />
               </div>
-              {block.caption ? (
-                <figcaption className="text-sm leading-6 text-foreground/62">
+              {block.caption || block.credit ? (
+                <figcaption className="text-sm leading-6 text-foreground/65">
                   {block.caption}
+                  {block.credit ? (
+                    <span className="block text-xs">
+                      Foto:{" "}
+                      {block.credit.href ? (
+                        <a href={block.credit.href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-primary">
+                          {block.credit.text}
+                        </a>
+                      ) : (
+                        block.credit.text
+                      )}
+                    </span>
+                  ) : null}
                 </figcaption>
               ) : null}
             </figure>
@@ -85,12 +82,13 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
           return (
             <ListTag
               key={index}
-              className={`space-y-3 border border-primary/10 bg-[color:var(--brand-cream)] px-6 py-5 ${
-                block.ordered ? "list-decimal" : "list-disc"
-              } list-inside`}
+              className={`space-y-3 ${block.ordered ? "list-decimal pl-6 marker:font-bold marker:text-[color:var(--brand-forest)]" : "list-none"}`}
             >
               {block.items.map((item) => (
-                <li key={item} className="pl-1 text-foreground/80 marker:text-primary">
+                <li
+                  key={item}
+                  className={block.ordered ? "pl-1" : "relative pl-6 before:absolute before:left-0 before:top-[0.8em] before:h-2 before:w-2 before:bg-[color:var(--brand-gold)]"}
+                >
                   {item}
                 </li>
               ))}
@@ -99,9 +97,11 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
         }
 
         if (block.type === "source") {
+          if (hideSources) return null;
+
           return (
             <p key={index} className="text-sm leading-6 text-foreground/65">
-              Fonte:{' '}
+              Fonte:{" "}
               <a
                 href={block.href}
                 target="_blank"
@@ -115,16 +115,11 @@ export function BlogPostBody({ content }: BlogPostBodyProps) {
         }
 
         return (
-          <aside
-            key={index}
-            className="border border-primary/10 bg-[color:var(--brand-cream)] px-5 py-4"
-          >
+          <aside key={index} className="border-l-4 border-[color:var(--brand-gold)] bg-white px-5 py-4">
             {block.title ? (
-              <p className="mb-2 text-sm font-semibold uppercase tracking-[0.12em] text-primary">
-                {block.title}
-              </p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)]">{block.title}</p>
             ) : null}
-            <p className="text-foreground/80">{block.content}</p>
+            <p className="text-[1rem] leading-7 text-foreground/85">{block.content}</p>
           </aside>
         );
       })}

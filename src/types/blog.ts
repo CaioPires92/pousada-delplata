@@ -11,6 +11,12 @@ type BlogContentVisibility = {
   visibleUntil?: string;
 };
 
+/** Crédito de uma foto de terceiros: quem fez/publicou e, se houver, o link da origem. */
+export interface BlogImageCredit {
+  text: string;
+  href?: string;
+}
+
 export type BlogContentBlock = BlogContentVisibility & (
   | {
       type: "paragraph";
@@ -21,6 +27,7 @@ export type BlogContentBlock = BlogContentVisibility & (
       src: string;
       alt: string;
       caption?: string;
+      credit?: BlogImageCredit;
     }
   | {
       type: "heading";
@@ -54,6 +61,7 @@ export interface BlogCategory {
 export interface BlogCoverImage {
   src: string;
   alt: string;
+  credit?: BlogImageCredit;
 }
 
 export interface BlogPostSeo {
