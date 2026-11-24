@@ -1,5 +1,4 @@
-import AreaGrid from "@/components/AreaGrid";
-import homeStyles from "@/components/home-novo/home-novo.module.css";
+import AreaPanels from "@/components/AreaPanels";
 import PageHero from "@/components/home-novo/PageHero";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -136,14 +135,12 @@ const WINGS = [
         label: 'Ala principal',
         title: <>Ala <em>principal</em></>,
         text: 'Piscina adulto e infantil, bar, jogos e muito verde.',
-        tone: 'bg-[color:var(--brand-cream)]',
     },
     {
         key: 'anexo' as const,
         label: 'Chalés e anexos',
         title: <>Chalés <em>e anexos</em></>,
         text: 'Privacidade com piscina e área comum de churrasqueira.',
-        tone: 'bg-white',
     },
 ];
 
@@ -173,20 +170,15 @@ export default function LeisurePage() {
                     }));
 
                 return (
-                    <section key={wing.key} className={`${wing.tone} py-12 text-[color:var(--brand-forest)] md:py-16`}>
-                        <div className="container">
-                            <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-10">
-                                <div>
-                                    <p className={`${homeStyles.eyebrow} text-[color:var(--brand-forest)]`}>
-                                        Ala {index + 1} de {WINGS.length}
-                                    </p>
-                                    <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-3 text-[clamp(1.9rem,4.6vw,3.8rem)]`}>{wing.title}</h2>
-                                </div>
-                                <p className="max-w-[44ch] text-base leading-7 text-[color:var(--brand-forest)]/80">{wing.text}</p>
-                            </div>
-                            <AreaGrid areas={areas} />
-                        </div>
-                    </section>
+                    <AreaPanels
+                        key={wing.key}
+                        index={index}
+                        total={WINGS.length}
+                        title={wing.title}
+                        text={wing.text}
+                        areas={areas}
+                        tone={index % 2 === 0 ? 'cream' : 'white'}
+                    />
                 );
             })}
         </main>
