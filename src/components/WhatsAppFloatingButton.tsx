@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { MessageCircle } from 'lucide-react';
+import { SiWhatsapp } from 'react-icons/si';
 import { Button } from '@/components/ui/button';
 import { trackClickWhatsAppFloating } from '@/lib/analytics';
 import {
@@ -52,7 +52,7 @@ export default function WhatsAppFloatingButton() {
     const hasBookingAssistant = !pathname.startsWith('/admin') && !isReservationPage;
 
     return (
-        <div className={`fixed z-50 ${hasBookingAssistant ? 'bottom-28 right-4 md:bottom-6 md:right-[22.5rem]' : 'bottom-4 right-4 md:bottom-6 md:right-6'}`}>
+        <div className={`fixed z-50 ${hasBookingAssistant ? 'bottom-28 right-4 md:bottom-6 md:right-6' : 'bottom-4 right-4 md:bottom-6 md:right-6'}`}>
             <TooltipProvider delayDuration={100}>
                 <Tooltip>
                     <div className="flex items-center gap-2">
@@ -63,7 +63,7 @@ export default function WhatsAppFloatingButton() {
                             <Button
                                 asChild
                                 size="icon"
-                                className="relative h-10 w-10 md:h-12 md:w-12 rounded-full bg-emerald-500 p-2 text-white shadow-[0_10px_24px_rgba(16,185,129,0.28)] ring-1 ring-white/35 focus-visible:ring-2 focus-visible:ring-emerald-200/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors duration-200 hover:bg-emerald-600"
+                                className="relative h-12 w-12 md:h-14 md:w-14 rounded-full bg-[#25D366] p-0 text-white shadow-[0_10px_24px_rgba(0,0,0,0.28)] focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-transform duration-200 hover:scale-105 hover:bg-[#20bd5a]"
                             >
                                 <Link
                                     href={WHATSAPP_URL}
@@ -72,7 +72,7 @@ export default function WhatsAppFloatingButton() {
                                     aria-label="Dúvidas? Fale conosco no WhatsApp"
                                     onClick={() => trackClickWhatsAppFloating('floating')}
                                 >
-                                    <MessageCircle className="h-[18px] w-[18px] md:h-5 md:w-5" />
+                                    <SiWhatsapp aria-hidden="true" className="h-6 w-6 md:h-7 md:w-7" />
                                 </Link>
                             </Button>
                         </TooltipTrigger>

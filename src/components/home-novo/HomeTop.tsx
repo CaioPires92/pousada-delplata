@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import SearchWidget from "@/components/SearchWidget";
-import SocialProofBadges from "@/components/SocialProofBadges";
+import ProofStrip from "./ProofStrip";
 import type { HomeOfferSummary } from "@/components/HomeAvailabilityOffers";
 import { trackClickReservarHero } from "@/lib/analytics";
 import { formatDateBRFromYmd } from "@/lib/date";
@@ -86,11 +86,7 @@ export default function HomeTop() {
         </div>
       </section>
 
-      <section className="border-b border-primary/10 bg-white py-8 md:py-10">
-        <div className="container">
-          <SocialProofBadges variant="light" className="mx-auto max-w-5xl" />
-        </div>
-      </section>
+      <ProofStrip />
 
       <HomeAvailabilityOffers onLowestOfferChange={handleLowestOfferChange} />
     </>

@@ -8,7 +8,6 @@ import HomeTop from "./HomeTop";
 import PhotoGallery from "./PhotoGallery";
 import type { GalleryPhoto } from "./PhotoLightbox";
 import Reveal from "./Reveal";
-import RoomsAccordion from "./RoomsAccordion";
 import SpecialDatesIsland from "./SpecialDatesIsland";
 import TrackedLink from "./TrackedLink";
 import TrailCards from "./TrailCards";
@@ -183,21 +182,6 @@ export default function HomeNovo() {
           <h2 className={`${styles.display} ${styles.onPhoto} mt-4 max-w-3xl text-[clamp(2.2rem,min(5.6vw,9vh),4.8rem)] text-white`}>
             Mergulhe <em>sem pressa</em>
           </h2>
-        </div>
-      </section>
-
-      {/* Onde ficar */}
-      <section className={`${styles.fit} bg-white py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px]`}>
-        <div className="container flex min-h-0 flex-col gap-6 md:h-full">
-          <div className="shrink-0" data-reveal>
-            <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Acomodações</p>
-            <h2 className={`${styles.display} ${styles.displayDark} mt-3 ${H2}`}>
-              Escolha onde <em>ficar</em>
-            </h2>
-          </div>
-          <div className="min-h-0 md:flex-1">
-            <RoomsAccordion />
-          </div>
         </div>
       </section>
 
