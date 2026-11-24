@@ -11,7 +11,7 @@ const BRAZIL_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-function getBrazilDateKey() {
+export function getBrazilDateKey() {
   return BRAZIL_DATE_FORMATTER.format(new Date());
 }
 

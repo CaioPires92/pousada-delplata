@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { formatBlogDate, getBlogCategoryBySlug } from "@/lib/blog";
 import { BlogPost } from "@/types/blog";
 
@@ -14,58 +13,38 @@ export function BlogPostCard({ post }: BlogPostCardProps) {
   const category = getBlogCategoryBySlug(post.category);
 
   return (
-    <article className="group overflow-hidden border border-primary/10 bg-white transition-colors duration-200 hover:border-primary/20">
-      <Link href={`/blog/${post.slug}`} className="block">
-        <div className="relative aspect-[16/10] overflow-hidden bg-primary/5">
-          <Image
-            src={post.coverImage.src}
-            alt={post.coverImage.alt}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-            className="object-cover"
-          />
-        </div>
+    <article className="group flex h-full flex-col overflow-hidden bg-white">
+      <Link href={`/blog/${post.slug}`} className="relative block aspect-[16/10] overflow-hidden bg-[color:var(--brand-forest)]" tabIndex={-1} aria-hidden="true">
+        <Image
+          src={post.coverImage.src}
+          alt=""
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+          quality={82}
+          className="object-cover transition-transform duration-1000 group-hover:scale-105"
+        />
       </Link>
 
-      <div className="space-y-4 p-5 md:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {category ? (
-            <Badge variant="outline" className="rounded-none border-primary/15 px-3 py-1">
-              {category.shortLabel}
-            </Badge>
-          ) : null}
-        </div>
-
-        <div className="space-y-3">
-          <p className="text-sm text-foreground/72">
-            {formatBlogDate(post.publishedAt)} • {post.readingTime}
-          </p>
-          <h3 className="font-heading text-[2rem] font-semibold leading-snug text-primary">
-            <Link href={`/blog/${post.slug}`} className="hover:text-primary/85">
-              {post.title}
-            </Link>
-          </h3>
-          <p className="line-clamp-3 text-sm leading-7 text-foreground/72">
-            {post.excerpt}
-          </p>
-        </div>
-
-        <div className="flex items-end justify-between gap-4 border-t border-primary/10 pt-4">
-          <div className="flex flex-wrap gap-2">
-            {post.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="bg-primary/5 px-3 py-1 text-xs font-medium text-primary/85">
-                {tag}
-              </span>
-            ))}
-          </div>
-          <Link
-            href={`/blog/${post.slug}`}
-            className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
-          >
-            Ler
-            <ArrowRight className="h-4 w-4" />
+      <div className="flex flex-1 flex-col p-5 md:p-6">
+        <p className="text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)]/65">
+          {category ? `${category.shortLabel} · ` : ""}
+          {formatBlogDate(post.publishedAt)}
+        </p>
+        <h3
+          className="mt-3 text-[1.4rem] font-bold leading-[1.1] tracking-tight text-[color:var(--brand-forest)]"
+          style={{ fontFamily: "var(--font-bricolage), var(--font-inter), sans-serif" }}
+        >
+          <Link href={`/blog/${post.slug}`} className="hover:underline hover:underline-offset-4">
+            {post.title}
           </Link>
-        </div>
+        </h3>
+        <p className="mt-3 line-clamp-3 text-sm leading-7 text-foreground/75">{post.excerpt}</p>
+        <Link
+          href={`/blog/${post.slug}`}
+          className="mt-auto inline-flex items-center gap-2 pt-5 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)] transition-transform hover:translate-x-1"
+        >
+          Ler artigo · {post.readingTime} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
     </article>
   );

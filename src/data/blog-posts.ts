@@ -40,6 +40,86 @@ export const blogCategories: BlogCategory[] = [
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "natal-luzes-da-serra-2026-serra-negra",
+    title: "Natal Luzes da Serra 2026: luzes, paradas e programação em Serra Negra",
+    excerpt:
+      "Mais de 2 milhões de luzes, paradas de Natal em seis noites de dezembro e shows nas praças: veja o que já está divulgado.",
+    summary:
+      "O que se sabe sobre o Natal em Serra Negra em 2026: abertura, paradas, locais iluminados e como planejar a hospedagem.",
+    publishedAt: "2026-11-24",
+    updatedAt: "2026-11-24",
+    expiresAt: "2027-01-07",
+    readingTime: "4 min",
+    category: "guias-sazonais",
+    tags: ["Natal", "luzes de Natal", "parada de Natal", "Serra Negra", "dezembro", "2026"],
+    coverImage: {
+      src: "/fotos/jardim-aptos/DJI_0903.jpg",
+      alt: "Jardim da Pousada Delplata em Serra Negra",
+    },
+    seo: {
+      title: "Natal Luzes da Serra 2026 em Serra Negra | Datas e paradas",
+      description:
+        "Veja o que já foi divulgado do Natal Luzes da Serra 2026 em Serra Negra: abertura, paradas de Natal em dezembro, locais iluminados e dicas de hospedagem.",
+    },
+    featured: true,
+    seedDemo: false,
+    funnelStage: "topo",
+    content: [
+      {
+        type: "paragraph",
+        content:
+          "O Natal Luzes da Serra é a decoração e a programação de fim de ano de Serra Negra. Em 2026, a imprensa divulgou a abertura em 13 de novembro, com mais de 2 milhões de luzes espalhadas pela cidade, e uma série de paradas e apresentações ao longo de dezembro.",
+      },
+      {
+        type: "heading",
+        content: "O que já está divulgado",
+      },
+      {
+        type: "list",
+        items: [
+          "Abertura: 13 de novembro, às 18h30, na Praça John Fitzgerald Kennedy, em frente ao Palácio das Águas, com a chegada do Papai Noel e o acendimento das luzes.",
+          "Decoração: instalada até o fim de dezembro.",
+          "Paradas de Natal: seis noites, em 12, 17, 19, 23, 25 e 27 de dezembro, a partir das 20h, pelo centro, na Rua Coronel Pedro Penteado.",
+          "Shows e apresentações: acontecem nas praças e na Fontana di Trevi, em várias datas de novembro e dezembro.",
+        ],
+      },
+      {
+        type: "callout",
+        title: "Confirme antes de ir",
+        content:
+          "As datas das paradas vêm de uma reportagem de outubro, e a organização informou que divulgaria a programação completa depois. Antes de montar a viagem, confira a agenda atualizada nos links abaixo.",
+      },
+      {
+        type: "heading",
+        content: "Onde ver as luzes",
+      },
+      {
+        type: "paragraph",
+        content:
+          "A decoração se espalha por pontos do centro, como a Praça Prefeito João Zelante, a Praça Barão do Rio Branco, a Fontana di Trevi e a região do Palácio das Águas. O percurso da parada passa pelo centro, então vale chegar cedo e se organizar para voltar a pé.",
+      },
+      {
+        type: "heading",
+        content: "Como planejar a hospedagem",
+      },
+      {
+        type: "paragraph",
+        content:
+          "Fins de semana e as noites de parada costumam aumentar a procura. A Pousada Delplata fica em Serra Negra e a reserva direta mostra o valor total na hora. Consulte as datas desejadas com antecedência, principalmente de 23 a 27 de dezembro.",
+      },
+      {
+        type: "source",
+        label: "Diário do Turismo: Natal em Serra Negra começa em novembro com 2 milhões de luzes e desfiles",
+        href: "https://diariodoturismo.com.br/natal-em-serra-negra-comeca-em-novembro-com-2-milhoes-de-luzes-e-desfiles/",
+      },
+      {
+        type: "source",
+        label: "Visite Serra Negra: agenda de eventos",
+        href: "https://visiteserranegra.com.br/agenda-de-eventos/",
+      },
+    ],
+  },
+  {
     slug: "festa-ditalia-serra-negra-2026",
     title: "Festa D'Italia 2026 em Serra Negra: datas e programação",
     excerpt:
@@ -61,7 +141,6 @@ export const blogPosts: BlogPost[] = [
       description:
         "Veja as datas e os destaques da Festa D'Italia 2026 em Serra Negra, com programação gratuita de 18 a 20 de setembro.",
     },
-    featured: true,
     seedDemo: true,
     funnelStage: "topo",
     content: [
