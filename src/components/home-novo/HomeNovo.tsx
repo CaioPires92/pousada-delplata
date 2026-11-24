@@ -5,12 +5,10 @@ import { Suspense } from "react";
 import { PET_FEE_PER_NIGHT } from "@/lib/booking-price";
 import { MAX_PETS_PER_BOOKING } from "@/lib/pet-policy";
 import HomeTop from "./HomeTop";
-import PhotoGallery from "./PhotoGallery";
-import type { GalleryPhoto } from "./PhotoLightbox";
+import AreasTrail, { type GalleryArea } from "./AreasTrail";
 import Reveal from "./Reveal";
 import SpecialDatesIsland from "./SpecialDatesIsland";
 import TrackedLink from "./TrackedLink";
-import TrailCards from "./TrailCards";
 import styles from "./home-novo.module.css";
 
 const WHATSAPP_PHONE = "5519999654866";
@@ -29,26 +27,99 @@ const MARQUEE_ITEMS = [
   "Serra Negra · SP",
 ];
 
-// Galeria principal: visão geral da pousada (legenda = de onde é a foto).
-const GALLERY: readonly GalleryPhoto[] = [
-  { src: "/fotos/piscina-aptos/DJI_0864.jpg", alt: "Piscina dos apartamentos vista de cima", caption: "Piscina dos apartamentos", className: "md:col-span-2 md:row-span-2" },
-  { src: "/fotos/piscina-chale/DJI_0916.jpg", alt: "Piscina da área dos chalés vista de cima", caption: "Piscina dos chalés" },
-  { src: "/fotos/jardim-aptos/DJI_0889.jpg", alt: "Jardins e área externa do hotel", caption: "Jardins dos apartamentos" },
-  { src: "/fotos/churrasqueira-chale/DJI_0920.jpg", alt: "Churrasqueira próxima aos chalés", caption: "Churrasqueira dos chalés" },
-  { src: "/fotos/jardim-aptos/DJI_0903.jpg", alt: "Rede e balanço nos jardins da pousada", caption: "Rede e balanço nos jardins" },
-  { src: "/fotos/restaurante/IMG_0003.jpg", alt: "Cestas de pães no café da manhã da pousada", caption: "Café da manhã", className: "md:col-span-2" },
-  { src: "/fotos/bar-principal/DJI_0893.jpg", alt: "Vista do bar principal da pousada", caption: "Bar principal" },
-  { src: "/fotos/piscina-aptos/DJI_0900.jpg", alt: "Piscina e estrutura da pousada", caption: "Área da piscina" },
-];
-
-// Trilha horizontal: cantinhos vistos de perto.
-const TRAIL: readonly GalleryPhoto[] = [
-  { src: "/fotos/piscina-chale/DSC_0370.jpg", alt: "Detalhe da piscina dos chalés", caption: "Piscina dos chalés" },
-  { src: "/fotos/churrasqueira-aptos/DSC_0269.jpg", alt: "Área de churrasqueira dos apartamentos", caption: "Churrasqueira dos apartamentos" },
-  { src: "/fotos/jardim-aptos/DSC_0258.jpg", alt: "Jardins e área externa", caption: "Jardins" },
-  { src: "/fotos/Sala de jogos/DSC_0333.jpg", alt: "Mesa e ambiente da sala de jogos", caption: "Sala de jogos" },
-  { src: "/fotos/bar-principal/DSC_0256.jpg", alt: "Ambiente do barzinho", caption: "Barzinho" },
-  { src: "/fotos/restaurante/IMG_0025.webp", alt: "Mesa de café da manhã da pousada", caption: "Café da manhã" },
+// Áreas da pousada: cada cartão abre uma galeria só com as fotos daquela área.
+// A legenda de cada foto diz se é do hotel (apartamentos) ou dos chalés.
+const AREAS: readonly GalleryArea[] = [
+  {
+    id: "piscinas",
+    title: "Piscinas",
+    note: "Duas piscinas: a do hotel e a dos chalés",
+    cover: "/fotos/piscina-aptos/DJI_0864.jpg",
+    photos: [
+      { src: "/fotos/piscina-aptos/DJI_0864.jpg", alt: "Piscina do hotel vista de cima", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-aptos/DJI_0866.jpg", alt: "Piscina do hotel com guarda-sóis", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-aptos/DJI_0900.jpg", alt: "Piscina do hotel e espreguiçadeiras", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-aptos/DSC_0229.jpg", alt: "Piscina do hotel com cascata", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-aptos/DSC_0252.jpg", alt: "Piscina do hotel e área de descanso", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-aptos/DJI_0845.jpg", alt: "Piscina do hotel e piscina infantil", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-chale/DJI_0916.jpg", alt: "Piscina dos chalés vista de cima", caption: "Piscina dos chalés" },
+      { src: "/fotos/piscina-chale/DJI_0917.jpg", alt: "Piscina dos chalés com mesas e espreguiçadeiras", caption: "Piscina dos chalés" },
+      { src: "/fotos/piscina-chale/DJI_0918.jpg", alt: "Piscina dos chalés e área de lazer", caption: "Piscina dos chalés" },
+      { src: "/fotos/piscina-chale/DSC_0370.jpg", alt: "Piscina dos chalés e os chalés ao fundo", caption: "Piscina dos chalés" },
+      { src: "/fotos/piscina-chale/DSC_0374.jpg", alt: "Piscina dos chalés com guarda-sol", caption: "Piscina dos chalés" },
+      { src: "/fotos/piscina-chale/DSC_0378.jpg", alt: "Piscina dos chalés e espreguiçadeiras", caption: "Piscina dos chalés" },
+    ],
+  },
+  {
+    id: "churrasqueiras",
+    title: "Churrasqueiras",
+    note: "Uma no hotel e outra nos chalés",
+    cover: "/fotos/churrasqueira-chale/DJI_0920.jpg",
+    photos: [
+      { src: "/fotos/churrasqueira-aptos/DJI_0902.jpg", alt: "Churrasqueira coberta do hotel vista de cima", caption: "Churrasqueira do hotel (apartamentos)" },
+      { src: "/fotos/churrasqueira-aptos/DSC_0269.jpg", alt: "Mesa e churrasqueira do hotel", caption: "Churrasqueira do hotel (apartamentos)" },
+      { src: "/fotos/churrasqueira-aptos/DSC_0273.jpg", alt: "Área da churrasqueira do hotel com vista do jardim", caption: "Churrasqueira do hotel (apartamentos)" },
+      { src: "/fotos/churrasqueira-chale/DJI_0920.jpg", alt: "Churrasqueira dos chalés com rede", caption: "Churrasqueira dos chalés" },
+      { src: "/fotos/churrasqueira-chale/DSC_0394.jpg", alt: "Churrasqueira dos chalés com mesa e bancos", caption: "Churrasqueira dos chalés" },
+      { src: "/fotos/churrasqueira-chale/DSC_0396.jpg", alt: "Mesa da churrasqueira dos chalés", caption: "Churrasqueira dos chalés" },
+    ],
+  },
+  {
+    id: "jardins",
+    title: "Jardins e redes",
+    note: "Gramado, redes e balanço no hotel",
+    cover: "/fotos/jardim-aptos/DJI_0903.jpg",
+    photos: [
+      { src: "/fotos/jardim-aptos/DJI_0903.jpg", alt: "Rede e balanço no gramado", caption: "Rede e balanço nos jardins do hotel" },
+      { src: "/fotos/jardim-aptos/DJI_0889.jpg", alt: "Jardim ao lado dos apartamentos", caption: "Jardim do hotel (apartamentos)" },
+      { src: "/fotos/jardim-aptos/DJI_0896.jpg", alt: "Jardim com gangorra e balanço", caption: "Jardim do hotel (apartamentos)" },
+      { src: "/fotos/jardim-aptos/DSC_0258.jpg", alt: "Gramado e redes do hotel", caption: "Jardim do hotel (apartamentos)" },
+      { src: "/fotos/jardim-aptos/DSC_0262.jpg", alt: "Rede de balanço no gramado", caption: "Rede nos jardins do hotel" },
+      { src: "/fotos/jardim-aptos/IMG_0137.jpg", alt: "Banco de pedra entre as plantas", caption: "Jardim do hotel (apartamentos)" },
+    ],
+  },
+  {
+    id: "bar",
+    title: "Barzinho e petiscos",
+    note: "Do balcão à beira da piscina",
+    cover: "/fotos/bar-principal/DJI_0893.jpg",
+    photos: [
+      { src: "/fotos/bar-principal/DJI_0893.jpg", alt: "Balcão do barzinho com banquetas", caption: "Barzinho" },
+      { src: "/fotos/bar-principal/DSC_0349.jpg", alt: "Mesas do barzinho", caption: "Barzinho" },
+      { src: "/fotos/bar-principal/DSC_0351.jpg", alt: "Mesa de madeira do barzinho", caption: "Barzinho" },
+      { src: "/fotos/bar-principal/DSC_0256.jpg", alt: "Terraço com mesas e guarda-sóis", caption: "Terraço do barzinho com vista da piscina" },
+      { src: "/fotos/bar-principal/porcoes/DSC_0312.jpg", alt: "Caipirinha na borda da piscina", caption: "Caipirinha à beira da piscina" },
+      { src: "/fotos/bar-principal/porcoes/DSC_0316.jpg", alt: "Prato de salame na borda da piscina", caption: "Petiscos à beira da piscina" },
+      { src: "/fotos/bar-principal/porcoes/IMG_7003.jpg", alt: "Porções à beira da piscina dos chalés", caption: "Petiscos e refrigerante à beira da piscina" },
+    ],
+  },
+  {
+    id: "jogos",
+    title: "Sala de jogos",
+    note: "Sinuca, pebolim e mesas de carteado",
+    cover: "/fotos/Sala de jogos/DSC_0333.jpg",
+    photos: [
+      { src: "/fotos/Sala de jogos/DSC_0333.jpg", alt: "Mesa de sinuca", caption: "Sala de jogos: mesa de sinuca" },
+      { src: "/fotos/Sala de jogos/DSC_0334.jpg", alt: "Sala de jogos com mesa de sinuca", caption: "Sala de jogos: mesa de sinuca" },
+      { src: "/fotos/Sala de jogos/DSC_0232.jpg", alt: "Mesa de pebolim", caption: "Sala de jogos: pebolim" },
+      { src: "/fotos/Sala de jogos/DSC_0339.jpg", alt: "Mesas de carteado", caption: "Sala de jogos: mesas de carteado" },
+      { src: "/fotos/Sala de jogos/DSC_0346.jpg", alt: "Sala de jogos com sofás e mesas", caption: "Sala de jogos: cantinho de descanso" },
+    ],
+  },
+  {
+    id: "cafe",
+    title: "Café da manhã",
+    note: "Servido todos os dias",
+    cover: "/fotos/restaurante/DSC_0056.jpg",
+    photos: [
+      { src: "/fotos/restaurante/DSC_0056.jpg", alt: "Mesa de café da manhã com vista", caption: "Café da manhã" },
+      { src: "/fotos/restaurante/DSC_0002.jpg", alt: "Buffet do café da manhã", caption: "Buffet do café da manhã" },
+      { src: "/fotos/restaurante/DSC_0053.jpg", alt: "Mesa posta com frutas, pães e suco", caption: "Café da manhã" },
+      { src: "/fotos/restaurante/DSC_0018.jpg", alt: "Bolo de coco", caption: "Café da manhã: bolos caseiros" },
+      { src: "/fotos/restaurante/IMG_0003.jpg", alt: "Cestas de pães", caption: "Café da manhã: pães" },
+      { src: "/fotos/restaurante/DSC_0082.jpg", alt: "Salão do café da manhã", caption: "Salão do café da manhã" },
+    ],
+  },
 ];
 
 const FAQ = [
@@ -128,39 +199,25 @@ export default function HomeNovo() {
         </div>
       </section>
 
-      {/* Conheça a pousada: título + galeria única (clique para ampliar) */}
-      <section id="sobre" className={`${styles.fit} bg-[color:var(--brand-cream)] py-10 text-[color:var(--brand-forest)] md:pb-8 md:pt-[104px]`}>
-        <div className="container flex min-h-0 flex-col gap-5 md:h-full">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-10" data-reveal>
-            <div>
-              <p className={`${styles.eyebrow} text-[color:var(--brand-forest)]`}>Conheça a pousada</p>
-              <h2 className={`${styles.display} ${styles.displayDark} mt-3 ${H2}`}>
-                Um lugar tranquilo <em>rodeado de natureza</em>
-              </h2>
-            </div>
-            <p className="max-w-[48ch] text-base leading-7 text-[color:var(--brand-forest)]/80">
-              Ambiente ideal para descansar, sair da rotina e renovar as energias. Clique em uma foto para ampliar.
-            </p>
-          </div>
-          <div className="min-h-0 md:flex-1">
-            <PhotoGallery photos={GALLERY} />
-          </div>
-        </div>
-      </section>
-
       {/* Trilha horizontal de fotos: a rolagem vertical empurra as fotos para o lado (desktop) */}
       <section
+        id="sobre"
         data-hscroll-section
         className={`${styles.fit} ${styles.grain} relative bg-[color:var(--brand-forest)] py-8 text-white md:pb-6 md:pt-[104px]`}
       >
-        <div className="container shrink-0" data-reveal>
-          <p className={`${styles.eyebrow} text-[color:var(--brand-gold)]`}>Cada cantinho</p>
-          <h2 className={`${styles.display} mt-3 ${H2}`}>
-            Conheça a <em>pousada</em> por dentro
-          </h2>
+        <div className="container flex shrink-0 flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-10" data-reveal>
+          <div>
+            <p className={`${styles.eyebrow} text-[color:var(--brand-gold)]`}>Conheça a pousada</p>
+            <h2 className={`${styles.display} mt-3 ${H2}`}>
+              Cada <em>cantinho</em>
+            </h2>
+          </div>
+          <p className="max-w-[44ch] text-base leading-7 text-white/80">
+            Escolha uma área para ver todas as fotos. Em cada foto, a legenda diz se é do hotel ou dos chalés.
+          </p>
         </div>
         <div data-hscroll className="mt-5 h-[62svh] min-h-0 overflow-x-auto md:mt-4 md:h-auto md:flex-1">
-          <TrailCards photos={TRAIL} />
+          <AreasTrail areas={AREAS} />
         </div>
       </section>
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 export type GalleryPhoto = {
@@ -38,7 +39,7 @@ export function usePhotoLightbox(photos: readonly GalleryPhoto[]) {
   return { open, lightbox };
 }
 
-function PhotoLightbox({
+export function PhotoLightbox({
   photos,
   index,
   onClose,
@@ -83,7 +84,8 @@ function PhotoLightbox({
     };
   }, [onClose, onMove]);
 
-  return (
+  // Vai para o <body>: dentro da trilha animada (com transform) a janela ficaria presa e abaixo do cabeçalho.
+  return createPortal(
     <div
       ref={dialogRef}
       role="dialog"
@@ -131,6 +133,7 @@ function PhotoLightbox({
       <p className="px-4 py-5 text-center text-base font-semibold text-white sm:text-lg" onClick={(event) => event.stopPropagation()}>
         {current.caption}
       </p>
-    </div>
+    </div>,
+    document.body,
   );
 }
