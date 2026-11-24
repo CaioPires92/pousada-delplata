@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 
-import { isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
+import { isAnnexWingRoom, isMainWingRoom, sortRoomsForDisplay } from "@/lib/rooms";
 
 type NavRoom = { id: string; name: string };
 
@@ -32,8 +32,8 @@ export function useNavRooms() {
   }, []);
 
   const wings = [
-    { label: "Ala principal", rooms: rooms.filter((room) => isMainWingRoom(room.name)) },
-    { label: "Chalés e anexos", rooms: rooms.filter((room) => isAnnexWingRoom(room.name)) },
+    { label: "Ala principal", rooms: sortRoomsForDisplay(rooms.filter((room) => isMainWingRoom(room.name))) },
+    { label: "Chalés e anexos", rooms: sortRoomsForDisplay(rooms.filter((room) => isAnnexWingRoom(room.name))) },
   ].filter((wing) => wing.rooms.length > 0);
 
   return { wings, load };

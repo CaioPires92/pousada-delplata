@@ -36,6 +36,7 @@ import {
     LoaderCircle,
 } from 'lucide-react';
 import { getLocalRoomPhotos, ROOM_PHOTO_MAPPING } from '@/lib/room-photos';
+import { sortRoomsForDisplay } from '@/lib/rooms';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
@@ -779,13 +780,15 @@ function ReservarContent() {
                 throw new Error('Erro ao carregar quartos disponíveis');
             }
             const data = await response.json();
-            const orderedRooms = Array.isArray(data) && preferredRoomTypeId
-                ? [...data].sort((left: Room, right: Room) => {
+            // Ordem fixa (Térreo, Superior, Chalé, Anexo); o quarto escolhido no site vem primeiro.
+            const displayRooms = Array.isArray(data) ? sortRoomsForDisplay<Room>(data) : data;
+            const orderedRooms = Array.isArray(displayRooms) && preferredRoomTypeId
+                ? [...displayRooms].sort((left: Room, right: Room) => {
                     if (left.id === preferredRoomTypeId) return -1;
                     if (right.id === preferredRoomTypeId) return 1;
                     return 0;
                 })
-                : data;
+                : displayRooms;
             const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
             const responsePromoMessage = response.headers.get('x-promo-message') || '';
 

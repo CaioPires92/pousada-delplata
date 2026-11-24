@@ -39,6 +39,11 @@ export default function AreasTrail({ areas }: { areas: readonly GalleryArea[] })
     [areas],
   );
 
+  const select = useCallback(
+    (photo: number) => setOpen((current) => (current ? { ...current, photo } : current)),
+    [],
+  );
+
   return (
     <>
       <div data-hscroll-track className="flex h-full w-max items-stretch gap-4 px-5 md:gap-6 md:px-[6vw]">
@@ -91,7 +96,7 @@ export default function AreasTrail({ areas }: { areas: readonly GalleryArea[] })
           </TrackedLink>
         </article>
       </div>
-      {open ? <PhotoLightbox photos={areas[open.area].photos} index={open.photo} onClose={close} onMove={move} /> : null}
+      {open ? <PhotoLightbox photos={areas[open.area].photos} index={open.photo} onClose={close} onMove={move} onSelect={select} /> : null}
     </>
   );
 }

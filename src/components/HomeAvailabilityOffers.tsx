@@ -12,6 +12,7 @@ import { DateField } from "@/components/booking-search/DateField";
 import { GuestsPanel } from "@/components/booking-search/GuestsPanel";
 import { Button } from "@/components/ui/button";
 import { getLocalRoomPhotos } from "@/lib/room-photos";
+import { sortRoomsForDisplay } from "@/lib/rooms";
 import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch, type ChildAge } from "@/lib/booking-search";
 
 type HomeOffer = {
@@ -497,7 +498,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
           </div>
         ) : (
           <div className="flex min-h-0 flex-col gap-3 md:flex-1 md:flex-row md:gap-2">
-            {offers.slice(0, 4).map((room, roomIndex) => {
+            {sortRoomsForDisplay(offers.slice(0, 4)).map((room, roomIndex) => {
               const photos = getOfferPhotos(room);
               const image = photos[0] ?? null;
               const canOpenGallery = photos.length > 0;

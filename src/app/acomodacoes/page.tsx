@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { WingShowcaseList, type ShowcaseRoom } from "@/components/WingShowcase";
 import { serializePrismaArray } from "@/lib/serialize-prisma";
 import { buildPageMetadata } from "@/lib/seo";
-import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
+import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom, sortRoomsForDisplay } from "@/lib/rooms";
 import { getDisplayPhotoUrls } from "@/lib/room-display";
 import { getRoomReferencePrices, referencePriceLabel } from "@/lib/room-from-price";
 import homeStyles from "@/components/home-novo/home-novo.module.css";
@@ -44,7 +44,7 @@ async function getRooms() {
 }
 
 export default async function RoomsPage() {
-    const rooms = await getRooms();
+    const rooms = sortRoomsForDisplay(await getRooms() as any[]);
     const referencePrices = await getRoomReferencePrices(rooms.map((room: any) => ({ id: room.id, basePrice: Number(room.basePrice) })));
 
     const toShowcase = (room: any): ShowcaseRoom => ({

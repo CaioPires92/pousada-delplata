@@ -12,14 +12,14 @@ import { formatBrl, getDisplayPhotoUrls } from "@/lib/room-display";
 import { getRoomReferencePrices, referencePriceLabel } from "@/lib/room-from-price";
 import { roomAcceptsPets } from "@/lib/pet-policy";
 import { buildPageMetadata, stripHtml } from "@/lib/seo";
-import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
+import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom, sortRoomsForDisplay } from "@/lib/rooms";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
 
 const getAllRooms = cache(async () => {
     const rooms = await prisma.roomType.findMany({ include: { photos: true }, orderBy: { basePrice: 'asc' } });
-    return serializePrismaArray(rooms) as any[];
+    return sortRoomsForDisplay(serializePrismaArray(rooms) as any[]);
 });
 
 const getRoom = cache(async (id: string) => {

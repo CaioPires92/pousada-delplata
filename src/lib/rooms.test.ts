@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWingSummaries, getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom } from "./rooms";
+import { buildWingSummaries, getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom, roomDisplayRank, sortRoomsForDisplay } from "./rooms";
 
 describe("rooms helpers", () => {
   it("normaliza amenities a partir do cadastro", () => {
@@ -40,5 +40,30 @@ describe("rooms helpers", () => {
         highlights: ["Chalés e apartamentos anexos", "Até 4 hóspedes"],
       },
     ]);
+  });
+});
+
+describe("ordem de exibição das acomodações", () => {
+  it("ordena Térreo, Superior, Chalé, Anexo, não importa a ordem de entrada (preço, banco etc.)", () => {
+    const entrada = [
+      { name: "Apartamento Anexo" },
+      { name: "Chalé" },
+      { name: "Apartamento Superior" },
+      { name: "Apartamento Térreo" },
+    ];
+    expect(sortRoomsForDisplay(entrada).map((room) => room.name)).toEqual([
+      "Apartamento Térreo",
+      "Apartamento Superior",
+      "Chalé",
+      "Apartamento Anexo",
+    ]);
+    expect(entrada[0].name).toBe("Apartamento Anexo"); // não altera a lista original
+  });
+
+  it("reconhece nomes sem acento e deixa nomes desconhecidos no fim, na ordem original", () => {
+    expect(roomDisplayRank("Apartamento Terreo")).toBe(0);
+    expect(roomDisplayRank("CHALE")).toBe(2);
+    const resultado = sortRoomsForDisplay([{ name: "Suíte X" }, { name: "Chalé" }, { name: "Suíte Y" }, { name: "Apartamento Térreo" }]);
+    expect(resultado.map((room) => room.name)).toEqual(["Apartamento Térreo", "Chalé", "Suíte X", "Suíte Y"]);
   });
 });

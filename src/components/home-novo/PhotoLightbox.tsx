@@ -33,7 +33,7 @@ export function usePhotoLightbox(photos: readonly GalleryPhoto[]) {
   );
 
   const lightbox = openIndex !== null ? (
-    <PhotoLightbox photos={photos} index={openIndex} onClose={close} onMove={move} />
+    <PhotoLightbox photos={photos} index={openIndex} onClose={close} onMove={move} onSelect={setOpenIndex} />
   ) : null;
 
   return { open, lightbox };
@@ -44,15 +44,33 @@ export function PhotoLightbox({
   index,
   onClose,
   onMove,
+  onSelect,
 }: {
   photos: readonly GalleryPhoto[];
   index: number;
   onClose: () => void;
   onMove: (step: number) => void;
+  /** Quando informado (e há mais de uma foto), mostra o índice em texto na lateral. */
+  onSelect?: (index: number) => void;
 }) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const current = photos[index];
+  const activeItemRef = useRef<HTMLButtonElement | null>(null);
+
+  // Mantém o item ativo à vista no índice quando se troca de foto pelas setas.
+  useEffect(() => {
+    activeItemRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [index]);
+
+  // Índice agrupado por legenda (ex.: "Piscina do hotel" x "Piscina dos chalés").
+  const groups: Array<{ caption: string; items: Array<{ index: number; photo: GalleryPhoto }> }> = [];
+  photos.forEach((photo, photoIndex) => {
+    const last = groups[groups.length - 1];
+    if (last && last.caption === photo.caption) last.items.push({ index: photoIndex, photo });
+    else groups.push({ caption: photo.caption, items: [{ index: photoIndex, photo }] });
+  });
+  const showIndex = Boolean(onSelect) && photos.length > 1;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -109,7 +127,8 @@ export function PhotoLightbox({
         </button>
       </div>
 
-      <div className="relative mx-auto w-full max-w-7xl flex-1 px-4 sm:px-16" onClick={(event) => event.stopPropagation()}>
+      <div className="flex min-h-0 flex-1">
+      <div className="relative mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 sm:px-16" onClick={(event) => event.stopPropagation()}>
         {/* Foto ampliada em alta qualidade (a miniatura usa uma versão menor). */}
         <Image key={current.src} src={current.src} alt={current.alt} fill sizes="100vw" quality={88} className="object-contain" priority />
         <button
@@ -128,6 +147,49 @@ export function PhotoLightbox({
         >
           <ChevronRight className="h-6 w-6" aria-hidden="true" />
         </button>
+      </div>
+
+      {showIndex ? (
+        <nav
+          aria-label="Índice de fotos"
+          onClick={(event) => event.stopPropagation()}
+          className="hidden w-80 shrink-0 overflow-y-auto border-l border-white/10 px-4 py-4 text-white lg:block"
+        >
+          {groups.map((group) => {
+            const multi = group.items.length > 1;
+            return (
+              <div key={`${group.caption}-${group.items[0].index}`} className="mb-4">
+                {multi ? (
+                  <p className="mb-1 px-3 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[#efe3a0]">{group.caption}</p>
+                ) : null}
+                <ul>
+                  {group.items.map(({ index: itemIndex, photo }) => {
+                    const isActive = itemIndex === index;
+                    return (
+                      <li key={photo.src}>
+                        <button
+                          type="button"
+                          ref={isActive ? activeItemRef : undefined}
+                          aria-current={isActive ? "true" : undefined}
+                          onMouseEnter={() => onSelect?.(itemIndex)}
+                          onFocus={() => onSelect?.(itemIndex)}
+                          onClick={() => onSelect?.(itemIndex)}
+                          className={`flex w-full items-baseline gap-3 border-l-2 px-3 py-2 text-left text-sm transition-colors ${
+                            isActive ? "border-[#efe3a0] bg-white/10 font-semibold text-white" : "border-transparent text-white/70 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          <span className="text-xs tabular-nums text-[#efe3a0]">{String(itemIndex + 1).padStart(2, "0")}</span>
+                          <span>{multi ? photo.alt : photo.caption}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </nav>
+      ) : null}
       </div>
 
       <p className="px-4 py-5 text-center text-base font-semibold text-white sm:text-lg" onClick={(event) => event.stopPropagation()}>

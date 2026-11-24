@@ -20,6 +20,26 @@ export function getRoomAmenitiesList(amenities?: string | null) {
     .filter(Boolean);
 }
 
+/**
+ * Ordem fixa das acomodações em todo o site: Térreo, Superior, Chalé, Anexo.
+ * Nomes que não forem reconhecidos vão para o fim, mantendo a ordem original entre eles.
+ */
+export function roomDisplayRank(name: string) {
+  const normalized = String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (normalized.includes("terreo")) return 0;
+  if (normalized.includes("superior")) return 1;
+  if (normalized.includes("chale")) return 2;
+  if (normalized.includes("anexo")) return 3;
+  return 9;
+}
+
+export function sortRoomsForDisplay<T extends { name: string }>(rooms: readonly T[]): T[] {
+  return [...rooms].sort((left, right) => roomDisplayRank(left.name) - roomDisplayRank(right.name));
+}
+
 export function isMainWingRoom(name: string) {
   const normalized = name.toLowerCase();
   return normalized.includes("superior") || normalized.includes("terreo") || normalized.includes("térreo");
