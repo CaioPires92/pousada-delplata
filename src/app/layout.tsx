@@ -23,7 +23,7 @@ const structuredData = [buildWebSiteSchema(), buildLodgingBusinessSchema()];
 
 export const metadata: Metadata = {
   ...buildPageMetadata({
-    title: "Pousada em Serra Negra com piscina e café da manhã | Pousada Delplata",
+    title: "Pousada em Serra Negra com piscina | Pousada Delplata",
     description:
       "Reserve sua hospedagem em Serra Negra no site oficial da Pousada Delplata. Quartos para famílias, lazer, café da manhã e disponibilidade online.",
     path: "/",
