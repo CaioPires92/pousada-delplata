@@ -17,6 +17,15 @@ describe('specialDates helpers', () => {
         }));
     });
 
+    it('inclui Réveillon e Carnaval, habilitados e com período válido', () => {
+        for (const id of ['reveillon-2026', 'carnaval-2027']) {
+            const item = SPECIAL_DATES.find((date) => date.id === id);
+            expect(item?.enabled).toBe(true);
+            expect(item?.dateTo && item.dateTo > item.dateFrom).toBe(true);
+            expect(buildReservarUrl({ checkIn: item?.dateFrom, checkOut: item?.dateTo })).toContain('/reservar?checkIn=');
+        }
+    });
+
     it('buildReservarUrl gera query correta com datas válidas', () => {
         const url = buildReservarUrl({
             checkIn: '2026-06-04',

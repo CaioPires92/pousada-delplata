@@ -116,6 +116,24 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         image: '/fotos/restaurante/DSC_0056.jpg',
         enabled: true,
     },
+    {
+        id: 'reveillon-2026',
+        title: 'Réveillon',
+        description: 'Passe a virada do ano em Serra Negra. Consulte as acomodações disponíveis para o Réveillon.',
+        dateFrom: '2026-12-30',
+        dateTo: '2027-01-02',
+        image: '/fotos/piscina-aptos/DJI_0845.jpg',
+        enabled: true,
+    },
+    {
+        id: 'carnaval-2027',
+        title: 'Carnaval',
+        description: 'Consulte as acomodações disponíveis para o feriado de Carnaval.',
+        dateFrom: '2027-02-06',
+        dateTo: '2027-02-10',
+        image: '/fotos/jardim-aptos/DJI_0889.jpg',
+        enabled: true,
+    },
 ];
 
 function toUtcStartOfDay(date: Date) {

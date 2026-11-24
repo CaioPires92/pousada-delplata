@@ -165,6 +165,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [openPicker, setOpenPicker] = useState<"checkIn" | "checkOut" | null>(null);
+  const [activePanel, setActivePanel] = useState(0);
+  const [panelTouched, setPanelTouched] = useState(false);
   const lastLoadedSearchKeyRef = useRef("");
   const initialFallbackAppliedRef = useRef(false);
 
@@ -350,9 +352,9 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   };
 
   return (
-    <section className="bg-[color:var(--brand-cream)] py-10 md:py-8" aria-labelledby="home-offers-title">
-      <div className="container">
-        <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <section className={`${homeStyles.fit} bg-[color:var(--brand-cream)] py-10 md:pb-8 md:pt-[104px]`} aria-labelledby="home-offers-title">
+      <div className="container flex min-h-0 flex-col md:h-full">
+        <div className="mb-5 flex shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <p className={`${homeStyles.eyebrow} text-[color:var(--brand-forest)]`}>
               Disponibilidade real
@@ -369,13 +371,22 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={openSearchModal}
-            className="inline-flex h-12 items-center justify-center gap-2 border border-primary/15 bg-white px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-          >
-            Consultar outras datas <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex flex-col items-start gap-3 md:items-end">
+            <button
+              type="button"
+              onClick={openSearchModal}
+              className="inline-flex h-12 items-center justify-center gap-2 border border-primary/15 bg-white px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+            >
+              Consultar outras datas <ArrowRight className="h-4 w-4" />
+            </button>
+            <p
+              aria-hidden="true"
+              className={`hidden text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)] transition-opacity duration-500 md:inline-flex md:items-center md:gap-2 ${panelTouched || !offers || offers.length < 2 ? "opacity-0" : "opacity-100"}`}
+            >
+              Passe o mouse pelos quartos
+              <span className="inline-block animate-[wing-nudge_1.6s_ease-in-out_infinite]">→</span>
+            </p>
+          </div>
         </div>
 
         {isSearchModalOpen ? (
@@ -483,8 +494,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
             </Link>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {offers.slice(0, 4).map((room) => {
+          <div className="flex min-h-0 flex-col gap-3 md:flex-1 md:flex-row md:gap-2">
+            {offers.slice(0, 4).map((room, roomIndex) => {
               const photos = getOfferPhotos(room);
               const image = photos[0] ?? null;
               const canOpenGallery = photos.length > 0;
@@ -495,69 +506,90 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                 .slice(0, 3);
               const maxGuests = Number(room.maxGuests || room.capacity || 0);
               const roomUrl = `${resultUrl}&roomTypeId=${encodeURIComponent(room.id)}`;
+              const isActive = activePanel === roomIndex;
+              const choosePanel = () => {
+                setPanelTouched(true);
+                setActivePanel(roomIndex);
+              };
 
               return (
-                <article key={room.id} className="group flex h-full flex-col overflow-hidden border border-primary/10 bg-white">
+                <article
+                  key={room.id}
+                  onMouseEnter={choosePanel}
+                  onFocus={choosePanel}
+                  style={{ "--grow": isActive ? 5 : 1 } as React.CSSProperties}
+                  className="group relative min-h-[360px] overflow-hidden bg-[color:var(--brand-forest)] text-white transition-[flex] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:min-h-0 md:[flex:var(--grow)_1_0%]"
+                >
+                  {image ? (
+                    <Image
+                      src={image}
+                      alt=""
+                      fill
+                      sizes="(max-width: 767px) 100vw, 70vw"
+                      quality={82}
+                      className="object-cover transition-transform duration-1000 group-hover:scale-105"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.05)_30%,rgba(20,28,18,0.9)_100%)] max-md:bg-[linear-gradient(180deg,rgba(20,28,18,0.35)_0%,rgba(20,28,18,0.92)_70%)]" />
+
+                  {canOpenGallery ? (
+                    <button
+                      type="button"
+                      aria-label={`Ver fotos (${photos.length}): ${room.name}`}
+                      onClick={() => openRoomGallery(room)}
+                      className="absolute inset-0 z-0 cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--brand-gold)]"
+                    />
+                  ) : null}
+
+                  {/* Painel fechado (desktop): número e nome na vertical */}
                   <div
-                    className={`relative aspect-[16/10] overflow-hidden bg-primary/5 ${canOpenGallery ? "cursor-zoom-in" : ""}`}
-                    role={canOpenGallery ? "button" : undefined}
-                    tabIndex={canOpenGallery ? 0 : undefined}
-                    aria-label={canOpenGallery ? `Ver fotos (${photos.length}): ${room.name}` : undefined}
-                    onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
-                    onKeyDown={canOpenGallery ? (event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openRoomGallery(room);
-                      }
-                    } : undefined}
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-0 hidden flex-col justify-between p-5 transition-opacity duration-500 md:flex ${isActive ? "opacity-0" : "opacity-100"}`}
                   >
-                    {image ? (
-                      <Image
-                        src={image}
-                        alt={room.name}
-                        fill
-                        sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 25vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.025]"
-                      />
-                    ) : null}
-                    {canOpenGallery ? (
-                      <div className="absolute left-3 top-3 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold text-white">
-                        <Camera className="h-3.5 w-3.5" />
-                        Ver fotos ({photos.length})
-                      </div>
-                    ) : null}
+                    <span />
+                    <span className={`${homeStyles.display} rotate-180 text-xl [writing-mode:vertical-rl]`}>{room.name}</span>
                   </div>
 
-                  <div className="flex flex-1 flex-col p-4">
-                    <h3 className="text-xl font-semibold leading-tight text-[color:var(--brand-forest)]">{room.name}</h3>
+                  {canOpenGallery ? (
+                    <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold">
+                      <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                      Ver fotos ({photos.length})
+                    </span>
+                  ) : null}
+
+                  {/* Painel aberto (desktop) / sempre visível (celular) */}
+                  <div
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 p-5 transition-all duration-700 md:p-7 ${isActive ? "md:translate-y-0 md:opacity-100" : "md:translate-y-4 md:opacity-0"}`}
+                  >
+                    <h3 className={`${homeStyles.display} text-[clamp(1.7rem,min(2.8vw,5vh),2.8rem)]`}>{room.name}</h3>
                     {maxGuests > 0 ? (
-                      <p className="mt-2 inline-flex items-center gap-2 text-sm text-[rgba(40,50,35,0.7)]">
-                        <Users className="h-4 w-4" /> Até {maxGuests} hóspedes
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm text-white/85">
+                        <Users className="h-4 w-4" aria-hidden="true" /> Até {maxGuests} hóspedes
                       </p>
                     ) : null}
                     {amenities.length > 0 ? (
-                      <ul className="mb-5 mt-4 flex flex-wrap gap-2 text-xs text-[rgba(40,50,35,0.8)]">
+                      <ul className="mt-3 flex flex-wrap gap-2 text-xs">
                         {amenities.map((amenity) => (
-                          <li key={amenity} className="inline-flex items-center gap-1.5 border border-[rgba(40,50,35,0.15)] px-2.5 py-1">
-                            <Check className="h-3 w-3 text-[color:var(--brand-gold)]" /> {amenity}
+                          <li key={amenity} className="inline-flex items-center gap-1.5 border border-white/30 px-2.5 py-1">
+                            <Check className="h-3 w-3 text-[color:var(--brand-gold)]" aria-hidden="true" /> {amenity}
                           </li>
                         ))}
                       </ul>
                     ) : null}
-                    <div className="mt-auto border-t border-[rgba(40,50,35,0.1)] pt-5">
-                      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[rgba(40,50,35,0.78)]">
-                        Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}
-                      </p>
-                      <p className={`${homeStyles.display} mt-1 text-[2rem] text-[color:var(--brand-forest)]`}>
-                        {formatBrl(Number(room.totalPrice))}
-                      </p>
+                    <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
+                      <div>
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/80">
+                          Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}
+                        </p>
+                        <p className={`${homeStyles.display} mt-1 text-[2.1rem]`}>{formatBrl(Number(room.totalPrice))}</p>
+                      </div>
+                      <Link
+                        href={roomUrl}
+                        className="pointer-events-auto inline-flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                      >
+                        Escolher esta acomodação <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
                     </div>
-                    <Link
-                      href={roomUrl}
-                      className="mt-5 inline-flex h-11 items-center justify-center gap-2 bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-                    >
-                      Escolher esta acomodação <ArrowRight className="h-4 w-4" />
-                    </Link>
                   </div>
                 </article>
               );
