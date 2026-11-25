@@ -3,7 +3,7 @@
 import homeStyles from "@/components/home-novo/home-novo.module.css";
 import { addDays, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Users, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Camera, Check, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +11,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/booking-search/DateField";
 import { GuestsPanel } from "@/components/booking-search/GuestsPanel";
 import { Button } from "@/components/ui/button";
+import { type GalleryPhoto, PhotoLightbox } from "@/components/home-novo/PhotoLightbox";
+import { buildRoomGalleryPhotos } from "@/lib/room-gallery";
 import { getLocalRoomPhotos } from "@/lib/room-photos";
 import { sortRoomsForDisplay } from "@/lib/rooms";
 import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch, type ChildAge } from "@/lib/booking-search";
@@ -52,7 +54,7 @@ type HomeAvailabilityOffersProps = {
 
 type RoomGalleryState = {
   roomName: string;
-  photos: string[];
+  photos: GalleryPhoto[];
   currentIndex: number;
 };
 
@@ -170,29 +172,6 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const [panelTouched, setPanelTouched] = useState(false);
   const lastLoadedSearchKeyRef = useRef("");
   const initialFallbackAppliedRef = useRef(false);
-
-  useEffect(() => {
-    if (!roomGallery) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setRoomGallery(null);
-      if (event.key === "ArrowRight") {
-        setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex + 1) % current.photos.length } : current);
-      }
-      if (event.key === "ArrowLeft") {
-        setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex - 1 + current.photos.length) % current.photos.length } : current);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [roomGallery]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -343,15 +322,11 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const openRoomGallery = (room: HomeOffer) => {
     const photos = getOfferPhotos(room);
     if (photos.length === 0) return;
-    setRoomGallery({ roomName: room.name, photos, currentIndex: 0 });
+    setRoomGallery({ roomName: room.name, photos: buildRoomGalleryPhotos(room.name, photos), currentIndex: 0 });
   };
 
-  const showPreviousGalleryPhoto = () => {
-    setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex - 1 + current.photos.length) % current.photos.length } : current);
-  };
-
-  const showNextGalleryPhoto = () => {
-    setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex + 1) % current.photos.length } : current);
+  const moveGalleryPhoto = (step: number) => {
+    setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex + step + current.photos.length) % current.photos.length } : current);
   };
 
   return (
@@ -601,54 +576,13 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
           </div>
         )}
         {roomGallery ? (
-          <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Galeria de fotos de ${roomGallery.roomName}`}
-            onClick={() => setRoomGallery(null)}
-          >
-            <button
-              type="button"
-              onClick={() => setRoomGallery(null)}
-              className="absolute right-4 top-4 p-2 text-white/80 transition-colors hover:text-white"
-              aria-label="Fechar galeria"
-            >
-              <X className="h-7 w-7" />
-            </button>
-            <div className="relative h-[82vh] w-full max-w-6xl" onClick={(event) => event.stopPropagation()}>
-              <Image
-                src={roomGallery.photos[roomGallery.currentIndex]}
-                alt={`${roomGallery.roomName} foto ${roomGallery.currentIndex + 1}`}
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 85vw"
-              />
-              {roomGallery.photos.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={showPreviousGalleryPhoto}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-lg bg-black/50 p-3 text-white hover:bg-black/70"
-                    aria-label="Foto anterior"
-                  >
-                    <ChevronLeft className="h-7 w-7" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={showNextGalleryPhoto}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 rounded-l-lg bg-black/50 p-3 text-white hover:bg-black/70"
-                    aria-label="Próxima foto"
-                  >
-                    <ChevronRight className="h-7 w-7" />
-                  </button>
-                </>
-              ) : null}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-sm font-medium text-white">
-                {roomGallery.currentIndex + 1} / {roomGallery.photos.length}
-              </div>
-            </div>
-          </div>
+          <PhotoLightbox
+            photos={roomGallery.photos}
+            index={roomGallery.currentIndex}
+            onClose={() => setRoomGallery(null)}
+            onMove={moveGalleryPhoto}
+            onSelect={(index) => setRoomGallery((current) => current ? { ...current, currentIndex: index } : current)}
+          />
         ) : null}
       </div>
     </section>

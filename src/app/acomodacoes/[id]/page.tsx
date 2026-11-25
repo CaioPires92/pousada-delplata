@@ -13,6 +13,7 @@ import { formatBrl, getDisplayPhotoUrls } from "@/lib/room-display";
 import { getRoomReferencePrices, referencePriceLabel } from "@/lib/room-from-price";
 import { roomAcceptsPets } from "@/lib/pet-policy";
 import { buildPageMetadata, stripHtml } from "@/lib/seo";
+import { getRoomGalleryNote } from "@/lib/room-gallery";
 import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom, sortRoomsForDisplay } from "@/lib/rooms";
 
 // Force dynamic rendering
@@ -152,6 +153,9 @@ export default async function RoomDetailsPage({
             <section className="container grid gap-10 py-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:py-14">
                 <div className="min-w-0 space-y-10">
                     <RoomGallery roomName={room.name} photoUrls={photoUrls} />
+                    {getRoomGalleryNote(room.name) ? (
+                        <p className="border-l-4 border-[color:var(--brand-gold)] bg-white px-4 py-3 text-sm leading-6 text-foreground/80">{getRoomGalleryNote(room.name)}</p>
+                    ) : null}
 
                     <div>
                         <p className={`${homeStyles.eyebrow} text-primary`}>Sobre</p>

@@ -3,14 +3,11 @@
 import Image from "next/image";
 
 import { type GalleryPhoto, usePhotoLightbox } from "@/components/home-novo/PhotoLightbox";
+import { buildRoomGalleryPhotos } from "@/lib/room-gallery";
 
 // Galeria do quarto: uma foto grande e quatro menores; qualquer uma abre a janela ampliada (setas, Esc, legenda).
 export default function RoomGallery({ roomName, photoUrls }: { roomName: string; photoUrls: string[] }) {
-  const photos: GalleryPhoto[] = photoUrls.map((src, index) => ({
-    src,
-    alt: `${roomName} - foto ${index + 1}`,
-    caption: `${roomName} · foto ${index + 1} de ${photoUrls.length}`,
-  }));
+  const photos: GalleryPhoto[] = buildRoomGalleryPhotos(roomName, photoUrls);
   const { open, lightbox } = usePhotoLightbox(photos);
 
   if (photos.length === 0) {

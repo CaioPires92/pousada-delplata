@@ -44,9 +44,10 @@ export function getLocalRoomPhotos(roomName: string): string[] | null {
         ],
         'Apartamento Superior': [
             `${basePath}/DSC_0039-1200.webp`,
-            `${basePath}/DSC_0046-1200.webp`,
             `${basePath}/DSC_0045-1200.webp`,
             `${basePath}/DSC_0050-1200.webp`,
+            `${basePath}/DSC_0046-1200.webp`,
+            `${basePath}/DSC_0058-1200.webp`,
             `${basePath}/DSC_0072-1200.webp`,
             `${basePath}/DSC_0041-1200.webp`,
             `${basePath}/DSC_0076-1200.webp`,
@@ -58,6 +59,8 @@ export function getLocalRoomPhotos(roomName: string): string[] | null {
             `${basePath}/sem-janelas/IMG_0131-1200.webp`,
             `${basePath}/sem-janelas/IMG_0133-1200.webp`,
             `${basePath}/sem-janelas/IMG_0135-1200.webp`,
+            `${basePath}/com-janela/DSC_0001-1200.webp`,
+            `${basePath}/com-janela/DSC_0005-1200.webp`,
         ],
     };
 
