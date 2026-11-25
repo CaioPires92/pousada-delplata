@@ -38,8 +38,8 @@ export default function HomeTop() {
       >
         <div className="absolute inset-0 overflow-hidden">
           <Image
-            src="/fotos/piscina-aptos/DJI_0845.jpg"
-            alt="Piscina da Pousada Delplata em Serra Negra"
+            src="/fotos/piscina-aptos/DJI_0866.jpg"
+            alt="Vista aérea da piscina da Pousada Delplata em Serra Negra"
             fill
             sizes="100vw"
             quality={75}

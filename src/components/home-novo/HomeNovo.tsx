@@ -224,7 +224,7 @@ export default function HomeNovo() {
         {/* Fundo: a própria foto, desfocada, para a moldura não abrir sobre um fundo preto */}
         <div aria-hidden="true" className="absolute inset-0">
           <Image
-            src="/fotos/piscina-aptos/DJI_0866.jpg"
+            src="/fotos/piscina-aptos/DJI_0845.jpg"
             alt=""
             fill
             sizes="25vw"
@@ -235,8 +235,8 @@ export default function HomeNovo() {
         </div>
         <div data-zoom-frame className="absolute inset-0">
           <Image
-            src="/fotos/piscina-aptos/DJI_0866.jpg"
-            alt="Piscina da pousada vista de cima, com guarda-sóis"
+            src="/fotos/piscina-aptos/DJI_0845.jpg"
+            alt="Piscina da pousada com a casa e os guarda-sóis ao fundo"
             fill
             sizes="100vw"
             quality={85}
