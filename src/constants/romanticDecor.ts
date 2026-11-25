@@ -15,11 +15,11 @@ export const ROMANTIC_DECOR_ITEMS = [
 // As fotos são do apartamento Superior, mas a decoração pode ser feita em qualquer acomodação.
 const P = "/fotos/ala-principal/apartamentos/superior/";
 export const ROMANTIC_DECOR_PHOTOS: readonly GalleryPhoto[] = [
-  { src: `${P}DSC_0058-1920.webp`, alt: "Cama com pétalas de rosas e toalhas em forma de cisne", caption: "Decoração romântica (foto no apartamento Superior)" },
-  { src: `${P}DSC_0043-1920.webp`, alt: "Cama de casal decorada com pétalas de rosas", caption: "Decoração romântica (foto no apartamento Superior)" },
-  { src: `${P}DSC_0051-1920.webp`, alt: "Quarto com cama decorada com pétalas e toalhas em forma de cisne", caption: "Decoração romântica (foto no apartamento Superior)" },
-  { src: `${P}DSC_0065-1920.webp`, alt: "Cama com pétalas de rosas vista de cima", caption: "Decoração romântica (foto no apartamento Superior)" },
-  { src: `${P}DSC_0069-1920.webp`, alt: "Detalhe das pétalas sobre a cama", caption: "Decoração romântica: detalhe" },
+  { src: `${P}IMG_2180-1920.webp`, alt: "Cama com pétalas de rosas, toalhas em forma de cisne e espumante no balde de gelo", caption: "Decoração romântica (foto no apartamento Superior)" },
+  { src: `${P}IMG_2185-1920.webp`, alt: "Quarto com a cama decorada com pétalas, cisnes de toalha e espumante", caption: "Decoração romântica (foto no apartamento Superior)" },
+  { src: `${P}IMG_2188-1920.webp`, alt: "Cama decorada com pétalas em formato de coração, espumante e laço de toalha", caption: "Decoração romântica (foto no apartamento Superior)" },
+  { src: `${P}IMG_2181-1920.webp`, alt: "Espumante no balde de gelo sobre a cama decorada com pétalas", caption: "Decoração romântica: espumante" },
+  { src: `${P}IMG_2187-1920.webp`, alt: "Toalhas em forma de cisne formando um coração, com pétalas", caption: "Decoração romântica: toalhas em forma de cisne" },
 ];
 
 const PHONE = "5519999654866";

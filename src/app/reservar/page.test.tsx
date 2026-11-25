@@ -200,7 +200,7 @@ describe('ReservarPage', () => {
     expect(resultsContainer).toHaveClass('max-w-[1440px]');
 
     const terreoImg = screen.getByAltText('Apartamento Térreo') as HTMLImageElement;
-    expect(terreoImg.getAttribute('src')).toBe('/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0001-1200.webp');
+    expect(terreoImg.getAttribute('src')).toBe('/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0130-1200.webp');
 
     const anexoImg = screen.getByAltText('Apartamento Anexo') as HTMLImageElement;
     expect(anexoImg.getAttribute('src')).toBe('https://cdn.example.com/real-photo.jpg');

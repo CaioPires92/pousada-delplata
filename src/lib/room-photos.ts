@@ -20,13 +20,13 @@ export function getLocalRoomPhotos(roomName: string): string[] | null {
         return null;
     }
 
-    // Até 8 fotos por tipo de quarto (menos é mais). As fotos com decoração romântica ficam na seção própria (constants/romanticDecor.ts).
+    // Até 8 fotos por tipo de quarto (menos é mais). O Térreo usa as fotos de quarto sem janela (a maioria dos térreos não tem). As camas do Anexo sem cabeceira (fotos antigas) ficaram de fora. As fotos com decoração romântica ficam na seção própria (constants/romanticDecor.ts).
     const roomPhotoMap: Record<string, string[]> = {
         'Apartamento Anexo': [
-            `${basePath}/IMG_0050-1200.webp`,
             `${basePath}/IMG_0087-1200.webp`,
             `${basePath}/IMG_0080-1200.webp`,
-            `${basePath}/IMG_0031-1200.webp`,
+            `${basePath}/IMG_0088-1200.webp`,
+            `${basePath}/IMG_0100-1200.webp`,
             `${basePath}/IMG_0085-1200.webp`,
             `${basePath}/IMG_0046-1200.webp`,
             `${basePath}/IMG_0069-1200.webp`,
@@ -43,23 +43,23 @@ export function getLocalRoomPhotos(roomName: string): string[] | null {
             `${basePath}/IMG_0122-1200.webp`,
         ],
         'Apartamento Superior': [
-            `${basePath}/DSC_0039-1200.webp`,
+            `${basePath}/0F5A6992-1200.webp`,
+            `${basePath}/0F5A6994-1200.webp`,
+            `${basePath}/0F5A6987-1200.webp`,
+            `${basePath}/0F5A6991-1200.webp`,
+            `${basePath}/0F5A7021-1200.webp`,
             `${basePath}/DSC_0046-1200.webp`,
-            `${basePath}/DSC_0045-1200.webp`,
-            `${basePath}/DSC_0050-1200.webp`,
             `${basePath}/DSC_0072-1200.webp`,
-            `${basePath}/DSC_0041-1200.webp`,
             `${basePath}/DSC_0076-1200.webp`,
         ],
         'Apartamento Térreo': [
-            `${basePath}/com-janela/DSC_0001-1200.webp`,
-            `${basePath}/com-janela/DSC_0003-1200.webp`,
-            `${basePath}/com-janela/DSC_0005-1200.webp`,
-            `${basePath}/com-janela/DSC_0010-1200.webp`,
-            `${basePath}/com-janela/DSC_0006-1200.webp`,
-            `${basePath}/com-janela/DSC_0024-1200.webp`,
-            `${basePath}/com-janela/DSC_0017-1200.webp`,
-            `${basePath}/com-janela/DSC_0027-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0130-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0127-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0128-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0131-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0133-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0124-1200.webp`,
+            `${basePath}/sem-janelas/IMG_0135-1200.webp`,
         ],
     };
 
