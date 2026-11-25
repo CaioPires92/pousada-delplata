@@ -6,6 +6,7 @@ import { MAX_PETS_PER_BOOKING } from "@/lib/pet-policy";
 import HomeTop from "./HomeTop";
 import AreasTrail, { type GalleryArea } from "./AreasTrail";
 import Reveal from "./Reveal";
+import RomanticSection from "./RomanticSection";
 import SpecialDatesIsland from "./SpecialDatesIsland";
 import TrackedLink from "./TrackedLink";
 import styles from "./home-novo.module.css";
@@ -250,6 +251,8 @@ export default function HomeNovo() {
           </h2>
         </div>
       </section>
+
+      <RomanticSection />
 
       <SpecialDatesIsland />
 

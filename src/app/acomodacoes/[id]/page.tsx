@@ -1,3 +1,4 @@
+import { buildRomanticDecorWhatsAppUrl, ROMANTIC_DECOR_ITEMS, ROMANTIC_DECOR_PHOTOS, ROMANTIC_DECOR_PRICE_LABEL } from "@/constants/romanticDecor";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -177,6 +178,29 @@ export default async function RoomDetailsPage({
                             </ul>
                         </div>
                     ) : null}
+
+                    <div className="grid overflow-hidden border border-primary/15 bg-white sm:grid-cols-[220px_minmax(0,1fr)]">
+                        <div className="relative min-h-[160px]">
+                            <Image src={ROMANTIC_DECOR_PHOTOS[0].src} alt={ROMANTIC_DECOR_PHOTOS[0].alt} fill sizes="220px" quality={76} className="object-cover" />
+                        </div>
+                        <div className="p-5">
+                            <p className={`${homeStyles.eyebrow} text-primary`}>Para os casais</p>
+                            <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 text-[1.6rem] text-primary`}>
+                                Decoração <em>romântica</em>
+                            </h2>
+                            <p className="mt-2 text-sm leading-6 text-foreground/80">
+                                {ROMANTIC_DECOR_ITEMS.join(", ").toLowerCase()}. {ROMANTIC_DECOR_PRICE_LABEL}, em qualquer acomodação. Foto de exemplo no apartamento Superior.
+                            </p>
+                            <a
+                                href={buildRomanticDecorWhatsAppUrl(room.name)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 inline-block text-sm font-bold uppercase tracking-[0.08em] text-primary underline underline-offset-4"
+                            >
+                                Pedir pelo WhatsApp
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <aside className="lg:sticky lg:top-[120px] lg:self-start">

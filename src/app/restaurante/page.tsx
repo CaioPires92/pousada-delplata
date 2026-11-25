@@ -20,19 +20,19 @@ const AREAS = [
         id: 'buffet',
         title: 'Buffet',
         description: 'Frios, frutas, quentes e tudo posto com capricho.',
-        photos: group('Buffet do café da manhã', ['DSC_0002.jpg', 'DSC_0006.jpg', 'DSC_0007.jpg', 'DSC_0009.jpg', 'DSC_0010.jpg', 'IMG_0001.jpg', 'IMG_0009.jpg', 'IMG_0020.jpg', 'IMG_0024.jpg', 'IMG_0025.webp']),
+        photos: group('Buffet do café da manhã', ['DSC_0002.jpg', 'DSC_0006.jpg', 'DSC_0009.jpg', 'DSC_0010.jpg', 'IMG_0020.jpg']),
     },
     {
         id: 'paes-bolos',
         title: 'Pães e bolos',
         description: 'Cestas de pães, bolos caseiros e doces.',
-        photos: group('Pães e bolos', ['DSC_0011.jpg', 'DSC_0013.jpg', 'DSC_0018.jpg', 'DSC_0025.jpg', 'DSC_0026.jpg', 'DSC_0051.jpg', 'DSC_0052.jpg', 'IMG_0003.jpg', 'IMG_0012.jpg', 'IMG_0018.jpg']),
+        photos: group('Pães e bolos', ['DSC_0013.jpg', 'DSC_0018.jpg', 'DSC_0051.jpg', 'IMG_0012.jpg']),
     },
     {
         id: 'mesa-posta',
         title: 'Mesa posta',
         description: 'Café, suco, frutas e pães na mesa, com vista.',
-        photos: group('Mesa de café da manhã', ['DSC_0033.jpg', 'DSC_0035.jpg', 'DSC_0045.jpg', 'DSC_0053.jpg', 'DSC_0056.jpg', 'DSC_0060.jpg', 'DSC_0063.jpg', 'DSC_0068.jpg', 'DSC_0072.jpg', 'DSC_0074.jpg', 'DSC_0075.jpg', 'DSC_0076.jpg']),
+        photos: group('Mesa de café da manhã', ['DSC_0033.jpg', 'DSC_0045.jpg', 'DSC_0053.jpg', 'DSC_0056.jpg', 'DSC_0060.jpg', 'DSC_0068.jpg']),
     },
     {
         id: 'salao',
