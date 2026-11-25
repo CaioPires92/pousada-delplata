@@ -38,7 +38,7 @@ const AREAS: readonly GalleryArea[] = [
     photos: [
       { src: "/fotos/piscina-aptos/DJI_0864.jpg", alt: "Piscina do hotel vista de cima", caption: "Piscina do hotel (apartamentos)" },
       { src: "/fotos/piscina-aptos/DJI_0866.jpg", alt: "Piscina do hotel com guarda-sóis", caption: "Piscina do hotel (apartamentos)" },
-      { src: "/fotos/piscina-aptos/DJI_0900.jpg", alt: "Piscina do hotel e espreguiçadeiras", caption: "Piscina do hotel (apartamentos)" },
+      { src: "/fotos/piscina-aptos/DJI_0864.jpg", alt: "Piscina do hotel e espreguiçadeiras", caption: "Piscina do hotel (apartamentos)" },
       { src: "/fotos/piscina-aptos/DSC_0229.jpg", alt: "Piscina do hotel com cascata", caption: "Piscina do hotel (apartamentos)" },
       { src: "/fotos/piscina-aptos/DSC_0252.jpg", alt: "Piscina do hotel e área de descanso", caption: "Piscina do hotel (apartamentos)" },
       { src: "/fotos/piscina-aptos/DJI_0845.jpg", alt: "Piscina do hotel e piscina infantil", caption: "Piscina do hotel (apartamentos)" },
@@ -292,7 +292,7 @@ export default function HomeNovo() {
       {/* Reserva final */}
       <section className={`${styles.fit} relative overflow-hidden py-16 md:py-0`}>
         <div className="absolute inset-0">
-          <Image src="/fotos/piscina-aptos/DJI_0900.jpg" alt="" fill sizes="100vw" quality={82} className="object-cover" />
+          <Image src="/fotos/piscina-aptos/DJI_0864.jpg" alt="" fill sizes="100vw" quality={82} className="object-cover" />
           <div className="absolute inset-0 bg-[rgba(40,50,35,0.82)]" />
         </div>
         <div className="container relative z-10 text-center text-white" data-reveal>
