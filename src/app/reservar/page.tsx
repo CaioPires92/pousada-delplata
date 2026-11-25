@@ -2643,7 +2643,8 @@ function ReservarContent() {
 
                                         <div className="border border-primary/10 bg-[color:var(--brand-white)] p-3 text-xs text-muted-foreground">
                                             <span className="font-medium text-foreground">Cancelamento:</span>{' '}
-                                            Consulte prazos e condições antes de concluir a reserva.{' '}
+                                            acima de 14 dias do check-in, estorno de 100% ou crédito; com mais de 7 dias, estorno de 50% ou crédito (crédito válido por 3 meses);
+                                            com menos de 7 dias, no-show ou saída antecipada, sem estorno nem crédito.{' '}
                                             <Link
                                                 href="/politica-de-cancelamento"
                                                 target="_blank"
