@@ -131,7 +131,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         description: 'Consulte as acomodações disponíveis para o feriado de Carnaval.',
         dateFrom: '2027-02-06',
         dateTo: '2027-02-10',
-        image: '/fotos/decoracao-sazonal/carnaval-IMG_0487.jpg',
+        image: '/fotos/decoracao-sazonal/carnaval-IMG_0477.jpg',
         enabled: true,
     },
 ];
