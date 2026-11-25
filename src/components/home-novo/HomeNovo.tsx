@@ -68,7 +68,7 @@ const AREAS: readonly GalleryArea[] = [
     id: "jardins",
     title: "Jardins e redes",
     note: "Gramado, redes e balanço no hotel",
-    cover: "/fotos/jardim-aptos/DJI_0903.jpg",
+    cover: "/fotos/jardim-aptos/DJI_0896.jpg",
     photos: [
       { src: "/fotos/jardim-aptos/DJI_0903.jpg", alt: "Rede e balanço no gramado", caption: "Rede e balanço nos jardins do hotel" },
       { src: "/fotos/jardim-aptos/DJI_0889.jpg", alt: "Jardim ao lado dos apartamentos", caption: "Jardim do hotel (apartamentos)" },

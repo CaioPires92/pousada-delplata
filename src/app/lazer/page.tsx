@@ -151,8 +151,8 @@ export default function LeisurePage() {
                 eyebrow="Lazer"
                 title={<>Lazer e <em>diversão</em></>}
                 text="Estrutura completa para o seu descanso em todas as alas."
-                image="/fotos/piscina-aptos/DJI_0845.jpg"
-                imageAlt="Piscina da Pousada Delplata vista de cima"
+                image="/fotos/jardim-aptos/DJI_0896.jpg"
+                imageAlt="Jardim da Pousada Delplata com balanço e gangorra, visto de cima"
             />
 
             {WINGS.map((wing, index) => {
