@@ -4,9 +4,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Send, Loader2 } from "lucide-react";
 
+const fieldClass =
+    "w-full rounded-none border border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-4 py-3 text-[1rem] text-[color:var(--brand-forest)] outline-none transition-colors placeholder:text-[color:var(--brand-forest)]/45 focus:border-[color:var(--brand-gold)] focus:ring-2 focus:ring-[color:var(--brand-gold)]/30";
+const labelClass = "text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]";
+
 export function ContactForm() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [error, setError] = useState("");
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -19,6 +24,7 @@ export function ContactForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setError("");
         try {
             const res = await fetch('/api/contact', {
                 method: 'POST',
@@ -31,16 +37,16 @@ export function ContactForm() {
                 setFormData({ name: "", email: "", phone: "", subject: "", message: "", website: "" });
                 setTimeout(() => setSuccess(false), 5000);
             } else {
-                alert('Falha ao enviar. Tente novamente.');
+                setError('Não foi possível enviar a mensagem. Tente novamente ou fale pelo WhatsApp.');
             }
         } catch {
             setLoading(false);
-            alert('Erro de rede. Tente novamente.');
+            setError('Sem conexão no momento. Tente novamente ou fale pelo WhatsApp.');
         }
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 border border-primary/10 bg-white p-6 md:p-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
             <div className="hidden" aria-hidden="true">
                 <label htmlFor="website">Não preencha este campo</label>
                 <input id="website" type="text" tabIndex={-1} autoComplete="off" value={formData.website}
@@ -48,24 +54,24 @@ export function ContactForm() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <label htmlFor="name" className="font-sans text-sm font-medium text-primary">Nome Completo</label>
+                    <label htmlFor="name" className={labelClass}>Nome completo</label>
                     <input
                         type="text"
                         id="name"
                         required
-                        className="w-full border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                        className={fieldClass}
                         placeholder="Seu nome"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
                 </div>
                 <div className="space-y-2">
-                    <label htmlFor="phone" className="font-sans text-sm font-medium text-primary">Telefone / WhatsApp</label>
+                    <label htmlFor="phone" className={labelClass}>Telefone ou WhatsApp</label>
                     <input
                         type="tel"
                         id="phone"
                         required
-                        className="w-full border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                        className={fieldClass}
                         placeholder="(00) 00000-0000"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -74,12 +80,12 @@ export function ContactForm() {
             </div>
 
             <div className="space-y-2">
-                <label htmlFor="email" className="font-sans text-sm font-medium text-primary">E-mail</label>
+                <label htmlFor="email" className={labelClass}>E-mail</label>
                 <input
                     type="email"
                     id="email"
                     required
-                    className="w-full border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                    className={fieldClass}
                     placeholder="seu@email.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -87,46 +93,59 @@ export function ContactForm() {
             </div>
 
             <div className="space-y-2">
-                <label htmlFor="subject" className="font-sans text-sm font-medium text-primary">Assunto</label>
+                <label htmlFor="subject" className={labelClass}>Assunto</label>
                 <select
                     id="subject"
-                    className="w-full border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                    className={fieldClass}
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 >
                     <option value="">Selecione um assunto</option>
                     <option value="reservas">Reservas</option>
                     <option value="eventos">Eventos</option>
-                    <option value="duvidas">Dúvidas Gerais</option>
+                    <option value="duvidas">Dúvidas gerais</option>
                     <option value="outros">Outros</option>
                 </select>
             </div>
 
             <div className="space-y-2">
-                <label htmlFor="message" className="font-sans text-sm font-medium text-primary">Mensagem</label>
+                <label htmlFor="message" className={labelClass}>Mensagem</label>
                 <textarea
                     id="message"
                     required
                     rows={5}
-                    className="w-full resize-none border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 outline-none transition-all focus:border-primary/30 focus:ring-2 focus:ring-primary/10"
+                    className={`${fieldClass} resize-none`}
                     placeholder="Como podemos ajudar?"
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 />
             </div>
 
-            <Button type="submit" className="h-12 w-full rounded-none text-lg" disabled={loading}>
+            {error ? (
+                <p role="alert" className="border-l-4 border-[#8A2F2A] bg-[#8A2F2A]/6 px-4 py-3 text-sm text-[#8A2F2A]">{error}</p>
+            ) : null}
+            {success ? (
+                <p role="status" className="border-l-4 border-[color:var(--brand-gold)] bg-[color:var(--brand-cream)] px-4 py-3 text-sm text-[color:var(--brand-forest)]">
+                    Mensagem enviada! Nossa equipe responde o mais breve possível.
+                </p>
+            ) : null}
+
+            <Button
+                type="submit"
+                className="h-12 w-full rounded-none bg-[color:var(--brand-forest)] text-sm font-bold uppercase tracking-[0.12em] text-white hover:bg-[color:var(--brand-forest)] hover:opacity-90"
+                disabled={loading}
+            >
                 {loading ? (
                     <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Enviando...
                     </>
                 ) : success ? (
-                    "Mensagem Enviada com Sucesso!"
+                    "Mensagem enviada"
                 ) : (
                     <>
-                        Enviar Mensagem
-                        <Send className="ml-2 h-5 w-5" />
+                        Enviar mensagem
+                        <Send className="ml-2 h-4 w-4" />
                     </>
                 )}
             </Button>

@@ -111,11 +111,9 @@ export default function ContactPage() {
                         </div>
                     </div>
 
-                    <div>
-                        <div className="border border-primary/10 bg-[color:var(--brand-white)] p-6 md:p-8">
-                            <h3 className="mb-6 font-sans text-[2rem] font-semibold leading-tight text-primary">Envie uma Mensagem</h3>
-                            <ContactForm />
-                        </div>
+                    <div className="border border-[color:var(--line-dark)] bg-white p-6 md:p-8">
+                        <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mb-6 text-[clamp(1.9rem,3.6vw,3rem)] text-primary`}>Envie uma <em>mensagem</em></h2>
+                        <ContactForm />
                     </div>
                 </div>
             </div>

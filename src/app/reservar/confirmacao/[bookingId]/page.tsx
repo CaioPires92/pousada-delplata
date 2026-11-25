@@ -21,6 +21,7 @@ import {
     UserRound,
     XCircle,
 } from 'lucide-react';
+import homeStyles from '@/components/home-novo/home-novo.module.css';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDateBR } from '@/lib/date';
@@ -138,16 +139,16 @@ function formatPaymentMethod(payment?: BookingData['payment']) {
     const installments = Number(payment?.installments || 0);
 
     if (method === 'PIX') return 'Pix';
-    if (method === 'DEBIT_CARD') return brand ? `Cartao de debito ${brand}` : 'Cartao de debito';
+    if (method === 'DEBIT_CARD') return brand ? `Cartão de débito ${brand}` : 'Cartão de débito';
     if (method === 'CREDIT_CARD') {
-        if (brand && installments > 1) return `Cartao de credito ${brand} em ${installments}x`;
-        if (brand) return `Cartao de credito ${brand}`;
-        if (installments > 1) return `Cartao de credito em ${installments}x`;
-        return 'Cartao de credito';
+        if (brand && installments > 1) return `Cartão de crédito ${brand} em ${installments}x`;
+        if (brand) return `Cartão de crédito ${brand}`;
+        if (installments > 1) return `Cartão de crédito em ${installments}x`;
+        return 'Cartão de crédito';
     }
 
     if (method) return method.replaceAll('_', ' ');
-    return 'Aguardando confirmacao';
+    return 'Aguardando confirmação';
 }
 
 function formatPaymentStatus(status?: string | null) {
@@ -159,7 +160,7 @@ function formatPaymentStatus(status?: string | null) {
     if (normalized === 'CANCELLED') return 'Cancelado';
     if (normalized === 'REFUNDED') return 'Estornado';
     if (normalized === 'CHARGED_BACK') return 'Chargeback';
-    return normalized || 'Em analise';
+    return normalized || 'Em análise';
 }
 
 function isPartialPayment(payment?: BookingData['payment']) {
@@ -180,8 +181,8 @@ function getStatusPresentation(status: PaymentStatus) {
     if (status === 'CONFIRMED') {
         return {
             title: 'Pagamento aprovado!',
-            subtitle: 'Sua reserva esta confirmada e pronta para a sua chegada.',
-            banner: 'Em instantes voce recebera a confirmacao com os detalhes da hospedagem.',
+            subtitle: 'Sua reserva está confirmada e pronta para a sua chegada.',
+            banner: 'Em instantes você receberá a confirmação com os detalhes da hospedagem.',
             accent: 'text-primary',
             border: 'border-primary/10',
             surface: 'bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,244,234,0.88))]',
@@ -207,21 +208,21 @@ function getStatusPresentation(status: PaymentStatus) {
 
     if (status === 'CANCELLED') {
         return {
-            title: 'Pagamento nao aprovado',
-            subtitle: 'Nao conseguimos confirmar a transacao desta reserva.',
-            banner: 'Se precisar, nossa equipe pode ajudar voce a tentar novamente pelo atendimento direto.',
+            title: 'Pagamento não aprovado',
+            subtitle: 'Não conseguimos confirmar a transação desta reserva.',
+            banner: 'Se precisar, nossa equipe pode ajudar você a tentar novamente pelo atendimento direto.',
             accent: 'text-[#8A2F2A]',
             border: 'border-[#8A2F2A]/15',
             surface: 'bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,236,232,0.92))]',
             iconWrap: 'border-[#8A2F2A]/20 bg-[#8A2F2A]/8 text-[#8A2F2A]',
             badgeClass: 'border-[#8A2F2A]/15 bg-[#8A2F2A] text-white',
-            statusLabel: 'Nao confirmada',
+            statusLabel: 'Não confirmada',
         };
     }
 
     return {
         title: 'Pagamento em processamento',
-        subtitle: 'Estamos aguardando a confirmacao final da transacao.',
+        subtitle: 'Estamos aguardando a confirmação final da transação.',
         banner: 'Esta pagina atualiza automaticamente para refletir o status mais recente do pagamento.',
         accent: 'text-primary',
         border: 'border-secondary/25',
@@ -346,9 +347,9 @@ export default function ConfirmacaoPage() {
                     <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-none border border-primary/15 bg-[color:var(--brand-cream)]">
                         <Clock3 className="h-7 w-7 animate-pulse text-primary" />
                     </div>
-                    <h1 className="text-2xl font-semibold text-primary">Sincronizando sua reserva</h1>
+                    <h1 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.6rem,3vw,2.2rem)]`}>Sincronizando sua <em>reserva</em></h1>
                     <p className="mt-3 max-w-md text-sm leading-7 text-primary/72">
-                        Estamos atualizando o status mais recente do pagamento para mostrar a confirmacao correta.
+                        Estamos atualizando o status mais recente do pagamento para mostrar a confirmação correta.
                     </p>
                 </div>
             </main>
@@ -388,10 +389,10 @@ export default function ConfirmacaoPage() {
                                     <StatusIcon status={effectiveStatus} />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary/58">
-                                        Confirmacao da reserva
+                                    <p className={`${homeStyles.eyebrow} text-primary`}>
+                                        Confirmação da reserva
                                     </p>
-                                    <h1 className={`mt-2 text-3xl font-semibold leading-tight md:text-[2.7rem] ${statusView.accent}`}>
+                                    <h1 className={`${homeStyles.display} mt-3 text-[clamp(1.9rem,4.2vw,3.2rem)] ${statusView.accent}`}>
                                         {statusView.title}
                                     </h1>
                                     <p className="mt-3 max-w-2xl text-base leading-7 text-primary/76">
@@ -418,7 +419,7 @@ export default function ConfirmacaoPage() {
                                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary/58">
                                                 Sua reserva
                                             </p>
-                                            <h2 className="text-2xl font-semibold text-primary">Detalhes da hospedagem</h2>
+                                            <h2 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.4rem,2.4vw,1.9rem)]`}>Detalhes da <em>hospedagem</em></h2>
                                         </div>
                                     </div>
                                 </div>
@@ -431,7 +432,7 @@ export default function ConfirmacaoPage() {
                                                 <span className="text-sm font-medium">Quarto</span>
                                             </div>
                                             <span className="text-right text-sm font-semibold text-primary">
-                                                {booking?.roomType?.name || 'Acomodacao selecionada'}
+                                                {booking?.roomType?.name || 'Acomodação selecionada'}
                                             </span>
                                         </div>
 
@@ -450,10 +451,10 @@ export default function ConfirmacaoPage() {
                                         <div className="flex items-center justify-between gap-4 border-b border-primary/10 pb-4">
                                             <div className="flex items-center gap-3 text-primary/78">
                                                 <UserRound className="h-4.5 w-4.5 shrink-0" />
-                                                <span className="text-sm font-medium">Hospede</span>
+                                                <span className="text-sm font-medium">Hóspede</span>
                                             </div>
                                             <span className="text-right text-sm font-semibold uppercase text-primary">
-                                                {booking?.guest?.name || 'Nao informado'}
+                                                {booking?.guest?.name || 'Não informado'}
                                             </span>
                                         </div>
 
@@ -480,10 +481,10 @@ export default function ConfirmacaoPage() {
                                         <div className="flex items-center justify-between gap-4 border-b border-primary/10 pb-4">
                                             <div className="flex items-center gap-3 text-primary/78">
                                                 <Receipt className="h-4.5 w-4.5 shrink-0" />
-                                                <span className="text-sm font-medium">Diarias</span>
+                                                <span className="text-sm font-medium">Diárias</span>
                                             </div>
                                             <span className="text-right text-sm font-semibold text-primary">
-                                                {stayNights} {stayNights === 1 ? 'diaria' : 'diarias'}
+                                                {stayNights} {stayNights === 1 ? 'diária' : 'diárias'}
                                             </span>
                                         </div>
 
@@ -531,7 +532,7 @@ export default function ConfirmacaoPage() {
                                         </div>
 
                                         <div className="flex items-center justify-between gap-4">
-                                            <span className="text-sm text-primary/78">Metodo de pagamento</span>
+                                            <span className="text-sm text-primary/78">Método de pagamento</span>
                                             <span className="text-right text-sm font-medium text-primary">
                                                 {paymentMethodLabel}
                                             </span>
@@ -559,21 +560,21 @@ export default function ConfirmacaoPage() {
                                         <StatusIcon status={effectiveStatus} />
                                     </div>
                                     <div>
-                                        <h3 className={`text-xl font-semibold ${statusView.accent}`}>
+                                        <h3 className={`${homeStyles.display} text-[1.4rem] ${statusView.accent}`}>
                                             {effectiveStatus === 'CONFIRMED'
                                                 ? 'Pagamento aprovado'
                                                 : effectiveStatus === 'CANCELLED'
-                                                    ? 'Pagamento nao confirmado'
+                                                    ? 'Pagamento não confirmado'
                                                     : effectiveStatus === 'REVIEW'
                                                         ? 'Pagamento recebido, reserva em análise'
-                                                        : 'Atualizacao em andamento'}
+                                                        : 'Atualização em andamento'}
                                         </h3>
                                         <p className="mt-2 text-sm leading-7 text-primary/78">
                                             {rejectionMessage || statusView.banner}
                                         </p>
                                         {polling && effectiveStatus === 'PENDING' ? (
                                             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary/60">
-                                                Atualizacao automatica a cada 10 segundos
+                                                Atualização automática a cada 10 segundos
                                             </p>
                                         ) : null}
                                     </div>
@@ -584,10 +585,10 @@ export default function ConfirmacaoPage() {
                                 <Button
                                     type="button"
                                     onClick={() => router.push('/')}
-                                    className="h-14 rounded-none px-10 text-sm font-semibold uppercase tracking-[0.14em] shadow-none"
+                                    className="h-14 rounded-none bg-[color:var(--brand-gold)] px-10 text-sm font-bold uppercase tracking-[0.12em] text-[color:var(--brand-forest)] shadow-none hover:bg-[color:var(--brand-gold)] hover:opacity-90"
                                 >
                                     <Home className="h-4 w-4" />
-                                    Voltar ao inicio
+                                    Voltar ao início
                                 </Button>
                             </div>
                         </div>
@@ -598,18 +599,18 @@ export default function ConfirmacaoPage() {
                                     {roomImage ? (
                                         <Image
                                             src={roomImage}
-                                            alt={booking?.roomType?.name || 'Acomodacao reservada'}
+                                            alt={booking?.roomType?.name || 'Acomodação reservada'}
                                             fill
                                             className="object-cover"
                                             sizes="(max-width: 1024px) 100vw, 33vw"
                                         />
                                     ) : null}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-[rgba(9,9,9,0.55)] via-transparent to-transparent" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[rgba(9,14,8,0.85)] via-[rgba(9,14,8,0.25)] to-transparent" />
                                     <div className="absolute inset-x-0 bottom-0 p-5">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/78">
-                                            Sua acomodacao
+                                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                                            Sua acomodação
                                         </p>
-                                        <p className="mt-2 text-2xl font-semibold text-white">
+                                        <p className={`${homeStyles.display} mt-2 text-[1.7rem] text-white`}>
                                             {booking?.roomType?.name || 'Reserva Delplata'}
                                         </p>
                                     </div>
@@ -618,12 +619,12 @@ export default function ConfirmacaoPage() {
 
                             <section className="border border-primary/10 bg-white">
                                 <div className="border-b border-primary/10 bg-[color:var(--brand-cream)] px-5 py-4">
-                                    <h3 className="text-xl font-semibold text-primary">Proximos passos</h3>
+                                    <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.4rem]`}>Próximos <em>passos</em></h3>
                                 </div>
                                 <div className="space-y-4 px-5 py-5 text-sm leading-7 text-primary/78">
                                     <div className="flex items-start gap-3">
                                         <Mail className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
-                                        <p>Voce recebera um e-mail com os detalhes da sua reserva.</p>
+                                        <p>Você receberá um e-mail com os detalhes da sua reserva.</p>
                                     </div>
                                     <div className="flex items-start gap-3">
                                         <ShieldCheck className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
@@ -631,23 +632,27 @@ export default function ConfirmacaoPage() {
                                     </div>
                                     <div className="flex items-start gap-3">
                                         <Clock3 className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
-                                        <p>Check-in a partir das 14h e check-out ate as 12h.</p>
+                                        <p>Check-in a partir das 14h e check-out até as 12h.</p>
                                     </div>
                                     <div className="flex items-start gap-3">
                                         <Coffee className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
-                                        <p>Cafe da manha incluso durante a sua diaria.</p>
+                                        <p>Café da manhã incluso durante a sua diária.</p>
                                     </div>
                                 </div>
                             </section>
 
                             <section className="border border-primary/10 bg-white">
                                 <div className="border-b border-primary/10 bg-[color:var(--brand-cream)] px-5 py-4">
-                                    <h3 className="text-xl font-semibold text-primary">Precisa de ajuda?</h3>
+                                    <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.4rem]`}>Precisa de <em>ajuda?</em></h3>
                                 </div>
                                 <div className="space-y-4 px-5 py-5 text-sm leading-7 text-primary/78">
-                                    <p>Nossa equipe esta a disposicao para qualquer ajuste ou duvida sobre a reserva.</p>
+                                    <p>Nossa equipe está à disposição para qualquer ajuste ou dúvida sobre a reserva.</p>
                                     <div className="flex items-start gap-3">
                                         <Phone className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
+                                        <p>
+                                            WhatsApp: <a href="https://wa.me/5519999654866" target="_blank" rel="noopener noreferrer" className="whitespace-nowrap font-semibold underline underline-offset-4">(19) 99965-4866</a>
+                                            {' · '}Telefone: <a href="tel:+551938422559" className="whitespace-nowrap font-semibold underline underline-offset-4">(19) 3842-2559</a>
+                                        </p>
                                     </div>
                                     <div className="flex items-start gap-3">
                                         <Mail className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
@@ -655,7 +660,7 @@ export default function ConfirmacaoPage() {
                                     </div>
                                     <div className="flex items-start gap-3">
                                         <MapPinned className="mt-1 h-4.5 w-4.5 shrink-0 text-primary" />
-                                        <p>Atendimento direto da pousada, sem intermediarios.</p>
+                                        <p>Atendimento direto da pousada, sem intermediários.</p>
                                     </div>
                                 </div>
                             </section>
@@ -681,15 +686,15 @@ export default function ConfirmacaoPage() {
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">
                                 <Coffee className="h-5 w-5 shrink-0 text-primary" />
                                 <div>
-                                    <p className="text-sm font-semibold text-primary">Cafe da manha incluso</p>
-                                    <p className="text-xs text-primary/68">Em todas as diarias</p>
+                                    <p className="text-sm font-semibold text-primary">Café da manhã incluso</p>
+                                    <p className="text-xs text-primary/68">Em todas as diárias</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4">
                                 <CreditCard className="h-5 w-5 shrink-0 text-primary" />
                                 <div>
                                     <p className="text-sm font-semibold text-primary">Atendimento direto</p>
-                                    <p className="text-xs text-primary/68">Suporte rapido quando precisar</p>
+                                    <p className="text-xs text-primary/68">Suporte rápido quando precisar</p>
                                 </div>
                             </div>
                         </div>
