@@ -41,8 +41,8 @@ export default function HomeTop() {
             className={`${styles.kenburns} object-cover object-center`}
           />
           <HeroVideo
-            desktopSrc="/videos/hero-piscina-desktop.mp4"
-            mobileSrc="/videos/hero-piscina-mobile.mp4"
+            desktopSrc="/videos/hero-jardim-desktop.mp4"
+            mobileSrc="/videos/hero-jardim-mobile.mp4"
             className="absolute inset-0 h-full w-full object-cover object-center"
           />
           {/* Foto viva: escurece só o topo (menu) e a base (texto e busca). */}
