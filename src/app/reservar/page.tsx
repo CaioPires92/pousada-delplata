@@ -1765,7 +1765,7 @@ function ReservarContent() {
     }
 
     return (
-        <main className="min-h-screen overflow-x-clip bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
+        <main style={RESERVAR_THEME} className="min-h-screen overflow-x-clip bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
             <div className="container mx-auto box-border w-full max-w-[1440px] px-4">
                 <AvailabilityBar
                     checkIn={checkIn!}
@@ -1798,15 +1798,15 @@ function ReservarContent() {
                     </div>
                 ) : null}
 
-                <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground md:mb-5">
-                    <span className="font-semibold text-foreground">Passo {currentStep} de {totalSteps}</span>
-                    <div className="h-1 flex-1 bg-[color:var(--brand-cream)]">
+                <div className="mb-4 flex items-center gap-3 md:mb-5">
+                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">Passo {currentStep} de {totalSteps}</span>
+                    <div className="h-1.5 flex-1 bg-[rgba(40,50,35,0.12)]">
                         <div
-                            className="h-full bg-primary transition-all"
+                            className="h-full bg-[color:var(--brand-gold)] transition-all"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
-                    <span>{currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}</span>
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}</span>
                 </div>
 
                 {!selectedRoom ? (
@@ -1990,7 +1990,7 @@ function ReservarContent() {
                     <div className="max-w-4xl mx-auto">
                         <Card className="rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
                             <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] pb-6">
-                                <CardTitle className="text-xl">Pagamento</CardTitle>
+                                <CardTitle className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.5rem] font-bold md:text-[1.8rem]`}>Pagamento</CardTitle>
                                 <CardDescription>Escolha o método e finalize sua reserva com segurança.</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-6">
@@ -2205,8 +2205,8 @@ function ReservarContent() {
                                         </p>
                                         {useHostedMercadoPagoCheckout ? (
                                             <div className="border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-6">
-                                                <p className="text-lg font-semibold text-brand-brown-dark">
-                                                    Finalize com segurança pelo Mercado Pago
+                                                <p className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.3rem] font-bold`}>
+                                                    Finalize com <em>segurança</em> pelo Mercado Pago
                                                 </p>
                                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                                                     Para concluir sua reserva, você será direcionado ao ambiente seguro do Mercado Pago. Se já tiver uma conta, entre para utilizar seus cartões e formas de pagamento disponíveis. Você também poderá escolher Pix.
@@ -2375,7 +2375,7 @@ function ReservarContent() {
                                 {selectedRoom.promotion?.badgeLabel || couponBadgeLabel ? (
                                     <div className="mt-2 flex flex-wrap items-center gap-1">
                                         {selectedRoom.promotion?.badgeLabel ? (
-                                            <span className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</span>
+                                            <span className="inline-block rounded-none bg-[color:var(--brand-gold)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--brand-forest)]">{selectedRoom.promotion.badgeLabel}</span>
                                         ) : null}
                                         {couponBadgeLabel ? (
                                             <span className="inline-block rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</span>
@@ -2441,7 +2441,7 @@ function ReservarContent() {
                                             <User className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <CardTitle className="text-lg md:text-xl">Dados do Hóspede Principal</CardTitle>
+                                            <CardTitle className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.4rem] font-bold md:text-[1.7rem]`}>Dados do hóspede <em>principal</em></CardTitle>
                                             <CardDescription className="text-sm leading-5">Preencha seus dados para receber contato, voucher e confirmação da reserva.</CardDescription>
                                         </div>
                                     </div>
@@ -2456,7 +2456,7 @@ function ReservarContent() {
                                         </div>
                                         <div className="space-y-4">
                                             <div className="space-y-2">
-                                                <label htmlFor="name" className="text-sm font-medium flex items-center gap-2">
+                                                <label htmlFor="name" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                                     <User className="w-4 h-4 text-muted-foreground" /> Nome Completo *
                                                 </label>
                                                 <input
@@ -2474,7 +2474,7 @@ function ReservarContent() {
                                             </div>
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
+                                                    <label htmlFor="email" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                                         <Mail className="w-4 h-4 text-muted-foreground" /> Email *
                                                     </label>
                                                     <input
@@ -2492,7 +2492,7 @@ function ReservarContent() {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
+                                                    <label htmlFor="phone" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                                         <Phone className="w-4 h-4 text-muted-foreground" /> Telefone/WhatsApp *
                                                     </label>
                                                     <input
@@ -2603,14 +2603,14 @@ function ReservarContent() {
                                                     checked={termsAccepted}
                                                     onChange={(e) => setTermsAccepted(e.target.checked)}
                                                     disabled={processing}
-                                                    className="mt-1 h-4 w-4 rounded-none border-gray-300 text-primary focus:ring-primary"
+                                                    className="mt-1 h-4 w-4 rounded-none accent-[color:var(--brand-forest)]"
                                                 />
                                                 <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
                                                     Declaro que li e aceito os{' '}
-                                                    <Link href="/termos-e-condicoes" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">termos e condições</Link>,{' '}
-                                                    <Link href="/politica-de-cancelamento" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">política de cancelamento</Link>{' '}
+                                                    <Link href="/termos-e-condicoes" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-forest)] underline underline-offset-4 hover:text-[#7a7720]">termos e condições</Link>,{' '}
+                                                    <Link href="/politica-de-cancelamento" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-forest)] underline underline-offset-4 hover:text-[#7a7720]">política de cancelamento</Link>{' '}
                                                     e{' '}
-                                                    <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">política de privacidade</Link>{' '}
+                                                    <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-forest)] underline underline-offset-4 hover:text-[#7a7720]">política de privacidade</Link>{' '}
                                                     da Pousada Delplata.
                                                 </label>
                                             </div>
@@ -2639,7 +2639,7 @@ function ReservarContent() {
                                             </div>
                                         ) : null}
 
-                                        <Button type="submit" className="h-12 w-full rounded-none text-lg shadow-none" size="lg" disabled={processing}>
+                                        <Button type="submit" className="h-12 w-full rounded-none text-sm font-bold uppercase tracking-[0.12em] shadow-none" size="lg" disabled={processing}>
                                             {processing ? (
                                                 <span className="flex items-center gap-2">
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -2707,7 +2707,7 @@ function ReservarContent() {
                                         {selectedRoom.promotion?.badgeLabel || couponBadgeLabel ? (
                                             <div className="mt-2 flex flex-wrap gap-1">
                                                 {selectedRoom.promotion?.badgeLabel ? (
-                                                    <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</p>
+                                                    <p className="inline-block rounded-none bg-[color:var(--brand-gold)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand-forest)]">{selectedRoom.promotion.badgeLabel}</p>
                                                 ) : null}
                                                 {couponBadgeLabel ? (
                                                     <p data-testid="coupon-badge" className="inline-block rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</p>
@@ -2787,7 +2787,6 @@ function ReservarContent() {
 
                                     <div className="space-y-2 border-t border-primary/10 pt-4 text-xs text-foreground/72">
                                         <p>Pagamento com Pix ou cartão.</p>
-                                        <p>Dados de pagamento processados pelo Mercado Pago.</p>
                                     </div>
 
                                     <Button variant="outline" className="w-full rounded-none border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>
@@ -2874,6 +2873,9 @@ function ReservarContent() {
 function formatGuestPercent(value: number) {
     return `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
+
+// Tons do site só nesta página: o cinza-azulado padrão dos componentes vira um verde acinzentado e o foco usa o dourado.
+const RESERVAR_THEME = { '--muted-foreground': '105 10% 38%', '--ring': '59 40% 52%', '--input': '105 10% 76%' } as React.CSSProperties;
 
 export default function ReservarPage() {
     return (
