@@ -38,13 +38,13 @@ export default function HomeTop() {
       >
         <div className="absolute inset-0 overflow-hidden">
           <Image
-            src="/fotos/piscina-aptos/DJI_0866.jpg"
-            alt="Vista aérea da piscina da Pousada Delplata em Serra Negra"
+            src="/fotos/piscina-aptos/DJI_0864.jpg"
+            alt="Vista aérea da piscina, das palmeiras e do jardim da Pousada Delplata em Serra Negra"
             fill
             sizes="100vw"
             quality={75}
             priority
-            className={`${styles.kenburns} object-cover object-center`}
+            className={`${styles.kenburns} object-cover object-[62%_50%] md:object-center`}
           />
           {/* Foto viva: escurece só o topo (menu) e a base (texto e busca). */}
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.45)_0%,rgba(20,28,18,0)_20%,rgba(20,28,18,0.1)_38%,rgba(20,28,18,0.86)_100%)]" />
