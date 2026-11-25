@@ -86,7 +86,7 @@ export function RoomsNavDesktop({ linkClassName, wings, load }: DesktopProps) {
                       <Link
                         href={`/acomodacoes/${room.id}`}
                         onClick={() => setOpen(false)}
-                        className="block py-1 text-[0.95rem] font-normal normal-case tracking-normal text-[color:var(--brand-forest)] [text-shadow:none] transition-colors hover:text-[#7a7720]"
+                        className="block border-l-2 border-transparent py-1 pl-3 text-[0.95rem] font-normal normal-case tracking-normal text-[color:var(--brand-forest)] [text-shadow:none] transition-all duration-200 hover:border-[color:var(--brand-gold)] hover:pl-4 hover:text-[color:var(--brand-forest)] focus-visible:border-[color:var(--brand-gold)] focus-visible:pl-4 focus-visible:outline-none"
                       >
                         {room.name}
                       </Link>
@@ -98,9 +98,10 @@ export function RoomsNavDesktop({ linkClassName, wings, load }: DesktopProps) {
             <Link
               href="/acomodacoes"
               onClick={() => setOpen(false)}
-              className="mt-5 block border-t border-[color:var(--line-dark)] pt-4 text-[0.8rem] font-medium normal-case tracking-normal text-[color:var(--brand-forest)]/70 [text-shadow:none] transition-colors hover:text-[color:var(--brand-forest)]"
+              className="group mt-5 flex items-center gap-2 border-t border-[color:var(--line-dark)] pt-4 text-[0.8rem] font-bold normal-case tracking-normal text-[color:var(--brand-forest)] [text-shadow:none] transition-colors hover:text-[#7a7720]"
             >
-              Ver todas as acomodações →
+              Ver todas as acomodações
+              <span aria-hidden="true" className="inline-block transition-transform duration-200 group-hover:translate-x-1">→</span>
             </Link>
           </div>
         </div>
