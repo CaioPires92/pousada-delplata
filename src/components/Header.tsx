@@ -55,7 +55,9 @@ export default function Header() {
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 ${!isTransparent
                 ? "border-b border-[color:var(--line-dark)] bg-[color:var(--brand-cream)] shadow-[0_8px_24px_rgba(9,9,9,0.06)]"
-                : "bg-transparent"
+                : isHomeHero
+                    ? "bg-[linear-gradient(180deg,rgba(20,28,18,0.6)_0%,rgba(20,28,18,0.25)_65%,rgba(20,28,18,0)_100%)]"
+                    : "bg-transparent"
                 }`}
         >
             <div className="container">
@@ -76,13 +78,12 @@ export default function Header() {
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <nav aria-label="Navegação principal" className={`hidden md:flex items-center ${isHomeHero ? "gap-5 lg:gap-9" : "gap-8"}`}>
+                    <nav aria-label="Navegação principal" className={`hidden md:flex items-center ${isHomeHero ? "gap-6 lg:gap-9" : "gap-6 lg:gap-9"}`}>
                         {navLinks.map((link) => {
-                            const linkClass = `transition-colors duration-300 hover:text-secondary ${isHomeHero
-                                    ? "font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--brand-white)] [text-shadow:0_2px_12px_rgba(0,0,0,0.62)]"
-                                    : !isTransparent
-                                        ? "font-sans font-medium text-primary/90"
-                                        : "font-sans font-medium text-white"
+                            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                            const linkClass = `relative py-2 font-sans text-[0.72rem] font-bold uppercase tracking-[0.16em] transition-colors duration-300 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-[2px] after:origin-left after:bg-[color:var(--brand-gold)] after:transition-transform after:duration-300 hover:after:scale-x-100 ${isActive ? "after:scale-x-100" : "after:scale-x-0"} ${isHomeHero
+                                    ? "text-[color:var(--brand-white)] [text-shadow:0_2px_12px_rgba(0,0,0,0.62)]"
+                                    : "text-[color:var(--brand-forest)]"
                                     }`;
                             if (link.href === "/acomodacoes") {
                                 return <RoomsNavDesktop key={link.href} linkClassName={linkClass} wings={navWings} load={loadNavRooms} />;
@@ -101,8 +102,8 @@ export default function Header() {
                             asChild
                             variant={!isTransparent ? "default" : "secondary"}
                             className={isHomeHero
-                                ? "h-14 rounded-none border border-[color:var(--brand-gold)]/60 bg-[color:var(--forest-soft)] px-6 font-sans text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--brand-white)] shadow-none transition-all duration-200 hover:-translate-y-px hover:border-[color:var(--brand-white)]/70 hover:bg-[color:var(--brand-forest)] hover:text-[color:var(--brand-white)]"
-                                : "rounded-none bg-primary text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_8px_18px_rgba(9,9,9,0.08)]"}
+                                ? "h-12 rounded-none bg-[color:var(--brand-gold)] px-6 font-sans text-[0.72rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)] shadow-none transition-all duration-200 hover:-translate-y-px hover:bg-[color:var(--brand-gold)] hover:opacity-90"
+                                : "h-12 rounded-none bg-primary px-6 font-sans text-[0.72rem] font-bold uppercase tracking-[0.16em] text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_8px_18px_rgba(9,9,9,0.08)]"}
                         >
                             <Link href="/reservar" onClick={() => trackClickReservar('header_desktop')}>
                                 Reservar agora

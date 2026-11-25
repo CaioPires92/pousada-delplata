@@ -122,7 +122,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         description: 'Passe a virada do ano em Serra Negra. Consulte as acomodações disponíveis para o Réveillon.',
         dateFrom: '2026-12-30',
         dateTo: '2027-01-02',
-        image: '/fotos/ala-principal/apartamentos/superior/IMG_2180-1920.webp',
+        image: '/fotos/bar-principal/porcoes/DSC_0312.jpg',
         enabled: true,
     },
     {
@@ -131,7 +131,7 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         description: 'Consulte as acomodações disponíveis para o feriado de Carnaval.',
         dateFrom: '2027-02-06',
         dateTo: '2027-02-10',
-        image: '/fotos/decoracao-sazonal/carnaval-IMG_0477.jpg',
+        image: '/fotos/decoracao-sazonal/carnaval-IMG_0476.jpg',
         enabled: true,
     },
 ];

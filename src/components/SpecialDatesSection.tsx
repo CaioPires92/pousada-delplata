@@ -94,9 +94,9 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
                                 >
                                     <span className="min-w-0">
                                         <span className={`${homeStyles.display} block text-[clamp(1.4rem,min(2.6vw,4.4vh),2.2rem)] ${isActive ? 'text-[color:var(--brand-gold)]' : 'text-white/80'}`}>
-                                            {formatSpecialDatePeriod(specialDate)}
+                                            {specialDate.title}
                                         </span>
-                                        <span className="mt-1 block text-base font-medium text-white/90">{specialDate.title}</span>
+                                        <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em] text-white/75">{formatSpecialDatePeriod(specialDate)}</span>
                                     </span>
                                     <ArrowRight
                                         aria-hidden="true"
