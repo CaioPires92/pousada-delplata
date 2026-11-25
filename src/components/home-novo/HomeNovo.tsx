@@ -103,7 +103,7 @@ const AREAS: readonly GalleryArea[] = [
       { src: "/fotos/Sala de jogos/DSC_0334.jpg", alt: "Sala de jogos com mesa de sinuca", caption: "Sala de jogos: mesa de sinuca" },
       { src: "/fotos/Sala de jogos/DSC_0232.jpg", alt: "Mesa de pebolim", caption: "Sala de jogos: pebolim" },
       { src: "/fotos/Sala de jogos/DSC_0339.jpg", alt: "Mesas de carteado", caption: "Sala de jogos: mesas de carteado" },
-      { src: "/fotos/Sala de jogos/DSC_0346.jpg", alt: "Sala de jogos com sofás e mesas", caption: "Sala de jogos: cantinho de descanso" },
+      { src: "/fotos/Sala de jogos/DSC_0346.jpg", alt: "Sala de TV com sofás e mesas", caption: "Sala de TV" },
     ],
   },
   {

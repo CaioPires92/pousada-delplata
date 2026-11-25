@@ -44,7 +44,6 @@ export function getLocalRoomPhotos(roomName: string): string[] | null {
         ],
         'Apartamento Superior': [
             `${basePath}/DSC_0039-1200.webp`,
-            `${basePath}/0F5A6992-1200.webp`,
             `${basePath}/DSC_0046-1200.webp`,
             `${basePath}/DSC_0045-1200.webp`,
             `${basePath}/DSC_0050-1200.webp`,
