@@ -126,9 +126,9 @@ describe("HomeAvailabilityOffers", () => {
       expect(screen.getByRole("heading", { name: "Chalé com fotos" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Abrir galeria de fotos de Chalé com fotos/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Ver fotos \(\d+\): Chalé com fotos/i }));
 
-    expect(screen.getByRole("dialog", { name: /Galeria de fotos de Chalé com fotos/i })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: /Foto ampliada: Chalé com fotos/i })).toBeInTheDocument();
     expect(screen.getByText("1 / 2")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Próxima foto/i }));

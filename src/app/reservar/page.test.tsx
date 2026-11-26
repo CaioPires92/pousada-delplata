@@ -200,7 +200,7 @@ describe('ReservarPage', () => {
     expect(resultsContainer).toHaveClass('max-w-[1440px]');
 
     const terreoImg = screen.getByAltText('Apartamento Térreo') as HTMLImageElement;
-    expect(terreoImg.getAttribute('src')).toBe('/fotos/ala-principal/apartamentos/terreo/com-janela/DSC_0001-1200.webp');
+    expect(terreoImg.getAttribute('src')).toBe('/fotos/ala-principal/apartamentos/terreo/sem-janelas/IMG_0130-1200.webp');
 
     const anexoImg = screen.getByAltText('Apartamento Anexo') as HTMLImageElement;
     expect(anexoImg.getAttribute('src')).toBe('https://cdn.example.com/real-photo.jpg');
@@ -230,6 +230,9 @@ describe('ReservarPage', () => {
 
     expect(screen.getAllByText('Acomodação escolhida').length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /Escolher acomodação/i })).not.toBeInTheDocument();
+    // A busca começa recolhida (só a linha com datas e hóspedes); "Alterar busca" abre o formulário.
+    expect(screen.queryByRole('button', { name: /Ver disponibilidade/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Alterar busca/i }));
     expect(screen.getByRole('button', { name: /Fechar busca/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ver disponibilidade/i })).toBeInTheDocument();
   });
@@ -404,7 +407,7 @@ describe('ReservarPage', () => {
     });
 
     expect(screen.queryByPlaceholderText(/Digite o código do cupom/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('checkbox', { name: /Tenho um cupom de desconto/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Tenho um cupom de desconto/i }));
     expect(screen.getByPlaceholderText(/Digite o código do cupom/i)).toBeInTheDocument();
   });
 

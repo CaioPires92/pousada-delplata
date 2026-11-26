@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PET_FEE_PER_NIGHT } from '@/lib/booking-price';
-import { MAX_PETS_PER_BOOKING } from '@/lib/pet-policy';
+import { MAX_PETS_PER_BOOKING, roomAcceptsPets } from '@/lib/pet-policy';
+import homeStyles from '@/components/home-novo/home-novo.module.css';
 import { useCallback, useEffect, useEffectEvent, useState, Suspense, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -14,10 +15,8 @@ import AvailabilityBar from './components/AvailabilityBar';
 import PayerFields from './components/PayerFields';
 import ReservationPageFallback from './components/ReservationPageFallback';
 import ReservationFaq from './components/ReservationFaq';
-import { SiGoogle } from 'react-icons/si';
 
 import {
-    Check,
     AlertCircle,
     ArrowLeft,
     ArrowRight,
@@ -29,26 +28,19 @@ import {
     ChevronUp,
     Coffee,
     CreditCard,
-    History,
     Mail,
     Phone,
     ShieldCheck,
-    Snowflake,
-    Tv,
     User,
-    Wifi,
-    Wind,
     X,
-    Flame,
     LoaderCircle,
-    PlugZap,
 } from 'lucide-react';
-import { getLocalRoomPhotos } from '@/lib/room-photos';
+import { getLocalRoomPhotos, ROOM_PHOTO_MAPPING } from '@/lib/room-photos';
+import { sortRoomsForDisplay } from '@/lib/rooms';
 import { formatDateBR, formatDateBRFromYmd } from '@/lib/date';
 import { buildPaymentBrickInitializationPayer, normalizePaymentBrickPayer } from './payment-brick';
 import { trackAddPaymentInfo, trackBeginCheckout, trackClickWhatsApp, trackReservationFunnel, trackSelectItem, trackViewItemList } from '@/lib/analytics';
 import { buildBookingWhatsAppUrl } from '@/lib/booking-whatsapp';
-import { SOCIAL_PROOF_RATINGS } from '@/constants/socialProof';
 import { EXTRA_CHILD_NOTICE, ROOM_CAPACITY_MESSAGE, exceedsRoomCapacity, needsExtraChildNotice } from '@/lib/booking-capacity';
 import {
     getPaymentRejectionMessage,
@@ -196,27 +188,6 @@ function RoomListSkeleton() {
     );
 }
 
-const PAGE_TRUST_ITEMS = [
-    {
-        value: 'Direto',
-        label: 'Atendimento da pousada',
-        description: 'Fale conosco pelo WhatsApp',
-        icon: Phone,
-    },
-    {
-        value: `${SOCIAL_PROOF_RATINGS.google.score.toFixed(1).replace('.', ',')}/5`,
-        label: 'Google',
-        description: `${SOCIAL_PROOF_RATINGS.google.reviews} avaliações`,
-        icon: SiGoogle,
-    },
-    {
-        value: '15+ anos',
-        label: 'Recebendo hóspedes',
-        description: 'Tradição e hospitalidade',
-        icon: History,
-    },
-];
-
 const MP_TEST_CARDS = [
     { label: 'Mastercard credito', number: '5031 4332 1540 6351', securityCode: '123', expiry: '11/30' },
     { label: 'Visa credito', number: '4235 6477 2802 5682', securityCode: '123', expiry: '11/30' },
@@ -252,18 +223,6 @@ function waitForPaymentApprovalFeedback() {
     return new Promise<void>((resolve) => {
         window.setTimeout(resolve, PAYMENT_APPROVAL_FEEDBACK_MS);
     });
-}
-
-function getAmenityIcon(amenity: string) {
-    const normalized = String(amenity || '').toLowerCase();
-
-    if (normalized.includes('wifi')) return Wifi;
-    if (normalized.includes('ar-condicionado') || normalized.includes('ar condicionado')) return Snowflake;
-    if (normalized.includes('smart tv') || normalized.includes('tv')) return Tv;
-    if (normalized.includes('ventilador')) return Wind;
-    if (normalized.includes('churrasqueira')) return Flame;
-    if (normalized.includes('tomadas')) return PlugZap;
-    return Check;
 }
 
 function normalizePaymentUiErrorMessage(message: unknown) {
@@ -359,7 +318,7 @@ function ReservarContent() {
     const [pixCopied, setPixCopied] = useState(false);
     const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
     const [mobileSummaryExpanded, setMobileSummaryExpanded] = useState(false);
-    const [searchEditorOpen, setSearchEditorOpen] = useState(true);
+    const [searchEditorOpen, setSearchEditorOpen] = useState(false);
     const pollRef = useRef<NodeJS.Timeout | null>(null);
     const bookingSubmitLockRef = useRef(false);
     const paymentSubmitLockRef = useRef(false);
@@ -821,13 +780,15 @@ function ReservarContent() {
                 throw new Error('Erro ao carregar quartos disponíveis');
             }
             const data = await response.json();
-            const orderedRooms = Array.isArray(data) && preferredRoomTypeId
-                ? [...data].sort((left: Room, right: Room) => {
+            // Ordem fixa (Térreo, Superior, Chalé, Anexo); o quarto escolhido no site vem primeiro.
+            const displayRooms = Array.isArray(data) ? sortRoomsForDisplay<Room>(data) : data;
+            const orderedRooms = Array.isArray(displayRooms) && preferredRoomTypeId
+                ? [...displayRooms].sort((left: Room, right: Room) => {
                     if (left.id === preferredRoomTypeId) return -1;
                     if (right.id === preferredRoomTypeId) return 1;
                     return 0;
                 })
-                : data;
+                : displayRooms;
             const responsePromoApplied = response.headers.get('x-promo-applied') === 'true';
             const responsePromoMessage = response.headers.get('x-promo-message') || '';
 
@@ -1804,18 +1765,20 @@ function ReservarContent() {
     }
 
     return (
-        <main className="min-h-screen bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
+        <main style={RESERVAR_THEME} className="min-h-screen overflow-x-clip bg-muted/30 pb-10 pt-24 md:pb-12 md:pt-28">
             <div className="container mx-auto box-border w-full max-w-[1440px] px-4">
                 <AvailabilityBar
                     checkIn={checkIn!}
                     checkOut={checkOut!}
                     adults={numAdults}
                     childrenCount={numChildren}
+                    summaryExtra={!selectedRoom && availableRooms && availableRooms.length > 0 ? `${availableRooms.length} acomodaç${availableRooms.length === 1 ? 'ão' : 'ões'} disponíve${availableRooms.length === 1 ? 'l' : 'is'}` : undefined}
                     alterControl={
                         <Button
                             type="button"
                             size="sm"
-                            className="h-9 rounded-none font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                            variant="outline"
+                            className="h-9 rounded-none border-primary/30 font-semibold text-primary"
                             onClick={() => setSearchEditorOpen((prev) => !prev)}
                         >
                             {searchEditorOpen ? 'Fechar busca' : 'Alterar busca'}
@@ -1835,19 +1798,15 @@ function ReservarContent() {
                     </div>
                 ) : null}
 
-                <div className="mb-4 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-3 md:mb-6">
-                    <div className="flex items-center justify-between gap-4">
-                        <p className="text-sm font-medium text-foreground">Passo {currentStep} de {totalSteps}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}
-                        </p>
-                    </div>
-                    <div className="mt-2 h-2 w-full bg-[color:var(--brand-cream)]">
+                <div className="mb-4 flex items-center gap-3 md:mb-5">
+                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">Passo {currentStep} de {totalSteps}</span>
+                    <div className="h-1.5 flex-1 bg-[rgba(40,50,35,0.12)]">
                         <div
-                            className="h-full bg-primary transition-all"
+                            className="h-full bg-[color:var(--brand-gold)] transition-all"
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
+                    <span className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{currentStep === 1 ? 'Escolha da acomodação' : currentStep === 2 ? 'Dados e revisão' : 'Pagamento'}</span>
                 </div>
 
                 {!selectedRoom ? (
@@ -1896,138 +1855,134 @@ function ReservarContent() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <h2 className="font-sans text-[2rem] font-semibold tracking-[-0.02em] text-foreground md:text-[2.35rem]">
-                                        Escolha sua Acomodação
-                                    </h2>
-                                    <p className="text-lg text-foreground/82">
-                                        {availableRooms.length} acomodaç{availableRooms.length === 1 ? 'ão' : 'ões'} disponíveis para estas datas
-                                    </p>
-                                    <div className="flex flex-wrap gap-x-5 gap-y-2 pt-2 text-sm text-primary/80">
-                                        <span className="inline-flex items-center gap-2"><Coffee className="h-4 w-4" /> Café da manhã diário</span>
-                                        <span className="inline-flex items-center gap-2"><BadgeCheck className="h-4 w-4" /> Valor total exibido</span>
-                                        <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Pix ou cartão</span>
-                                    </div>
+                                <h2 className="sr-only">Escolha sua Acomodação</h2>
+                                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-foreground/70">
+                                    <span className="inline-flex items-center gap-1.5"><Coffee className="h-3.5 w-3.5" /> Café da manhã diário</span>
+                                    <span className="inline-flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5" /> Valor total exibido</span>
+                                    <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Pix ou cartão</span>
                                 </div>
-                                <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                                    {availableRooms.map((room) => {
-                                        const roomPhotos = getRoomDisplayPhotos(room);
-                                        const roomPrimaryImage = roomPhotos[0] ?? null;
-                                        const canOpenGallery = roomPhotos.length > 0;
-                                        const roomAmenities = room.amenities
-                                            .split(',')
-                                            .map((amenity) => amenity.trim())
-                                            .filter(Boolean);
-                                        const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
-                                        const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
-                                        const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
-                                            ? strikePrice / stayNights
-                                            : null;
-                                        const roomDescription = room.description?.trim()
-                                            || 'Descrição detalhada não informada. Consulte a pousada antes de reservar.';
-                                        return (
-                                        <Card
-                                            key={room.id}
-                                            className="group flex h-full flex-col overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-all duration-300 hover:border-primary/25"
-                                        >
-                                            <div
-                                                className={`relative aspect-[16/9] overflow-hidden bg-[color:var(--brand-cream)] ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
-                                                role={canOpenGallery ? 'button' : undefined}
-                                                tabIndex={canOpenGallery ? 0 : undefined}
-                                                onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
-                                                onKeyDown={canOpenGallery ? (event) => {
-                                                    if (event.key === 'Enter' || event.key === ' ') {
-                                                        event.preventDefault();
-                                                        openRoomGallery(room);
-                                                    }
-                                                } : undefined}
-                                                aria-label={canOpenGallery ? `Abrir galeria de fotos de ${room.name}` : undefined}
-                                            >
-                                                {roomPrimaryImage ? (
-                                                    <Image
-                                                        src={roomPrimaryImage}
-                                                        alt={room.name}
-                                                        fill
-                                                        sizes="(max-width: 1279px) 100vw, 50vw"
-                                                        className="object-cover transition-transform duration-700 group-hover:scale-[1.035]"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full bg-muted flex items-center justify-center">
-                                                        <span className="text-muted-foreground">Sem foto</span>
-                                                    </div>
-                                                )}
-                                                {canOpenGallery ? (
-                                                    <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 bg-black/58 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
-                                                        <Camera className="h-3.5 w-3.5" />
-                                                        <span>Ver fotos ({roomPhotos.length})</span>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                            <div className="flex flex-1 flex-col p-5 md:p-6">
-                                                <h3 className="font-sans text-[1.55rem] font-semibold leading-tight tracking-[-0.02em] text-primary md:text-[1.75rem]">
-                                                    {room.name}
-                                                </h3>
-                                                <p className="mt-2 line-clamp-2 text-sm leading-6 text-foreground/72">{roomDescription}</p>
+                                {(() => {
+                                    // Cada ala vira uma "tela" (100vw × 100vh no desktop), com os quartos dela.
+                                    type WingKey = 'principal' | 'chales' | 'outros';
+                                    const wingOf = (roomName: string): WingKey => {
+                                        const base = ROOM_PHOTO_MAPPING[roomName] || '';
+                                        if (base.includes('/ala-principal')) return 'principal';
+                                        if (base.includes('/ala-chales')) return 'chales';
+                                        return 'outros';
+                                    };
+                                    const WINGS: Array<{ key: WingKey; title: string; emphasis: string; text: string }> = [
+                                        { key: 'principal', title: 'Ala', emphasis: 'principal', text: 'Apartamentos térreos e superiores, na ala principal da pousada.' },
+                                        { key: 'chales', title: 'Chalés', emphasis: 'e anexos', text: 'Na ala anexa, a 70 metros da ala principal.' },
+                                        { key: 'outros', title: 'Outras', emphasis: 'acomodações', text: 'Mais opções disponíveis para estas datas.' },
+                                    ];
+                                    const groups = WINGS
+                                        .map((wing) => ({ wing, rooms: availableRooms.filter((room) => wingOf(room.name) === wing.key) }))
+                                        .filter((group) => group.rooms.length > 0);
 
-                                                <div className="mt-4 flex flex-wrap gap-2">
-                                                    {roomAmenities.slice(0, 4).map((amenity, i) => {
-                                                        const AmenityIcon = getAmenityIcon(amenity);
-                                                        return (
-                                                            <span key={i} className="inline-flex items-center gap-1.5 border border-primary/10 bg-[color:var(--brand-cream)] px-2.5 py-1.5 text-xs font-medium text-primary">
-                                                                <AmenityIcon className="h-3.5 w-3.5 text-primary/78" /> {amenity}
-                                                            </span>
-                                                        );
-                                                    })}
+                                    return groups.map(({ wing, rooms }, groupIndex) => (
+                                        <section key={wing.key} aria-label={`${wing.title} ${wing.emphasis}`} className="space-y-4">
+                                            <div className="flex flex-col gap-1 pt-4 md:flex-row md:items-end md:justify-between">
+                                                <div>
+                                                    <p className={`${homeStyles.eyebrow} text-primary`}>Ala {groupIndex + 1} de {groups.length}</p>
+                                                    <h2 className={`${homeStyles.display} ${homeStyles.displayDark} mt-2 text-[clamp(1.6rem,2.8vw,2.5rem)] text-primary`}>
+                                                        {wing.title} <em>{wing.emphasis}</em>
+                                                    </h2>
                                                 </div>
-
-                                                <div className="mt-auto grid items-end gap-4 border-t border-primary/10 pt-5 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.9fr)]">
-                                                    <div>
-                                                        {room.promotion?.badgeLabel ? (
-                                                            <p className="mb-2 inline-block bg-secondary px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-secondary-foreground">{room.promotion.badgeLabel}</p>
-                                                        ) : null}
-                                                        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground/58">Total da estadia</p>
-                                                        {originalNightlyRate ? <p className="mt-1 text-sm text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
-                                                        <p className="mt-1 text-[2rem] font-semibold leading-none tracking-[-0.03em] text-primary">{formatCurrencyBRL(room.totalPrice)}</p>
-                                                        <p className="mt-2 text-xs text-foreground/68">{stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite</p>
-                                                        {Number(room.promotion?.discountAmount || 0) > 0 ? <p className="mt-1 text-xs font-medium text-emerald-700">Economia de {formatCurrencyBRL(Number(room.promotion?.discountAmount))}</p> : null}
-                                                        {Number(room.minLos) >= 2 ? <p className="mt-1 text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
-                                                    </div>
-                                                    <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-[50px] w-full rounded-none bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-none hover:bg-primary/95">
-                                                        Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </div>
+                                                <p className="max-w-[44ch] text-sm leading-6 text-foreground/75">{wing.text}</p>
                                             </div>
-                                    </Card>
-                                    )})}
-                                </div>
 
-                                <div className="border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 shadow-none md:px-5">
-                                    <div className="grid gap-4 md:grid-cols-3 md:gap-0">
-                                        {PAGE_TRUST_ITEMS.map((item, index) => (
-                                            <div
-                                                key={`${item.label}-${item.value}`}
-                                                className={`flex items-center gap-3 py-1 ${index === 0 ? '' : 'md:border-l md:border-primary/10 md:pl-5'} ${index < PAGE_TRUST_ITEMS.length - 1 ? 'md:pr-5' : ''}`}
-                                            >
-                                                <div className="flex shrink-0 items-center justify-center text-primary/78">
-                                                    <item.icon className="h-7 w-7" aria-hidden />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-lg font-semibold leading-none text-primary">
-                                                        {item.value}
-                                                    </p>
-                                                    <p className="mt-1 text-sm font-semibold leading-5 text-foreground">
-                                                        {item.label}
-                                                    </p>
-                                                    {item.description ? (
-                                                        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                                                            {item.description}
-                                                        </p>
-                                                    ) : null}
-                                                </div>
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {rooms.map((room) => {
+                                                    const roomPhotos = getRoomDisplayPhotos(room);
+                                                    const roomPrimaryImage = roomPhotos[0] ?? null;
+                                                    const canOpenGallery = roomPhotos.length > 0;
+                                                    const roomAmenities = room.amenities
+                                                        .split(',')
+                                                        .map((amenity) => amenity.trim())
+                                                        .filter(Boolean);
+                                                    const nightlyRate = stayNights > 0 ? room.totalPrice / stayNights : room.totalPrice;
+                                                    const strikePrice = Number(room.priceFull ?? room.priceOriginal ?? room.totalPrice);
+                                                    const originalNightlyRate = strikePrice > Number(room.totalPrice) && stayNights > 0
+                                                        ? strikePrice / stayNights
+                                                        : null;
+                                                    const promoLabel = room.promotion?.badgeLabel
+                                                        ? room.promotion.badgeLabel.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim()
+                                                        : '';
+                                                    return (
+                                                        <Card
+                                                            key={room.id}
+                                                            className="group grid overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none transition-colors duration-300 hover:border-primary/30 md:grid-cols-[340px_minmax(0,1fr)_250px]"
+                                                        >
+                                                            <div
+                                                                className={`relative aspect-[16/10] overflow-hidden bg-[color:var(--brand-cream)] md:aspect-auto md:min-h-[190px] ${canOpenGallery ? 'cursor-zoom-in' : ''}`}
+                                                                role={canOpenGallery ? 'button' : undefined}
+                                                                tabIndex={canOpenGallery ? 0 : undefined}
+                                                                onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
+                                                                onKeyDown={canOpenGallery ? (event) => {
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                        openRoomGallery(room);
+                                                                    }
+                                                                } : undefined}
+                                                                aria-label={canOpenGallery ? `Ver fotos (${roomPhotos.length}): ${room.name}` : undefined}
+                                                            >
+                                                                {roomPrimaryImage ? (
+                                                                    <Image
+                                                                        src={roomPrimaryImage}
+                                                                        alt={room.name}
+                                                                        fill
+                                                                        sizes="(max-width: 767px) 100vw, 340px"
+                                                                        quality={85}
+                                                                        className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                                                                    />
+                                                                ) : (
+                                                                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                                                                        <span className="text-muted-foreground">Sem foto</span>
+                                                                    </div>
+                                                                )}
+                                                                {canOpenGallery ? (
+                                                                    <div className="absolute bottom-2 left-2 inline-flex items-center gap-1.5 bg-[rgba(40,50,35,0.9)] px-2.5 py-1 text-[0.7rem] font-semibold text-white">
+                                                                        <Camera className="h-3 w-3" />
+                                                                        <span>Ver fotos ({roomPhotos.length})</span>
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+
+                                                            <div className="flex min-w-0 flex-col justify-center gap-2 p-4">
+                                                                <h3 className={`${homeStyles.display} ${homeStyles.displayDark} text-[clamp(1.3rem,1.9vw,1.75rem)] text-primary`}>
+                                                                    {room.name}
+                                                                </h3>
+                                                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary/70">
+                                                                    Até {room.maxGuests || room.capacity} hóspedes · {roomAcceptsPets(room.name) ? 'aceita pets' : 'sem pets'}
+                                                                </p>
+                                                                <p className="text-sm text-foreground/75">{roomAmenities.slice(0, 4).join(' · ')}</p>
+                                                                {promoLabel ? (
+                                                                    <p className="w-fit bg-secondary px-2 py-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-secondary-foreground">{promoLabel}</p>
+                                                                ) : null}
+                                                                {Number(room.minLos) >= 2 ? <p className="text-xs font-semibold text-amber-800">Estadia mínima para estas datas: {Number(room.minLos)} noites</p> : null}
+                                                            </div>
+
+                                                            <div className="flex flex-col justify-center gap-2 border-t border-primary/10 p-4 md:border-l md:border-t-0">
+                                                                <div>
+                                                                    <p className="text-[0.66rem] font-semibold uppercase tracking-[0.14em] text-foreground/70">Total da estadia</p>
+                                                                    <div className="flex flex-wrap items-baseline gap-x-2">
+                                                                        <p className={`${homeStyles.display} text-[1.8rem] text-primary`}>{formatCurrencyBRL(room.totalPrice)}</p>
+                                                                        {originalNightlyRate ? <p className="text-xs text-muted-foreground line-through">{formatCurrencyBRL(originalNightlyRate * stayNights)}</p> : null}
+                                                                    </div>
+                                                                    <p className="text-xs text-foreground/70">{stayNights} {stayNights === 1 ? 'noite' : 'noites'} · {formatCurrencyBRL(nightlyRate)} por noite</p>
+                                                                </div>
+                                                                <Button size="lg" onClick={() => handleSelectRoom(room)} className="h-11 w-full rounded-none bg-[color:var(--brand-gold)] px-4 text-[0.78rem] font-bold uppercase tracking-[0.06em] text-[color:var(--brand-forest)] shadow-none hover:opacity-90">
+                                                                    Escolher acomodação <ArrowRight className="ml-2 h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </Card>
+                                                    );
+                                                })}
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                        </section>
+                                    ));
+                                })()}
+
                             </div>
                         )}
                     </div>
@@ -2035,7 +1990,7 @@ function ReservarContent() {
                     <div className="max-w-4xl mx-auto">
                         <Card className="rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
                             <CardHeader className="border-b border-primary/10 bg-[color:var(--brand-cream)] pb-6">
-                                <CardTitle className="text-xl">Pagamento</CardTitle>
+                                <CardTitle className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.5rem] font-bold md:text-[1.8rem]`}>Pagamento</CardTitle>
                                 <CardDescription>Escolha o método e finalize sua reserva com segurança.</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-6">
@@ -2250,8 +2205,8 @@ function ReservarContent() {
                                         </p>
                                         {useHostedMercadoPagoCheckout ? (
                                             <div className="border border-brand-brown-dark/10 bg-[color:var(--brand-white)] p-6">
-                                                <p className="text-lg font-semibold text-brand-brown-dark">
-                                                    Finalize com segurança pelo Mercado Pago
+                                                <p className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.3rem] font-bold`}>
+                                                    Finalize com <em>segurança</em> pelo Mercado Pago
                                                 </p>
                                                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                                                     Para concluir sua reserva, você será direcionado ao ambiente seguro do Mercado Pago. Se já tiver uma conta, entre para utilizar seus cartões e formas de pagamento disponíveis. Você também poderá escolher Pix.
@@ -2420,7 +2375,7 @@ function ReservarContent() {
                                 {selectedRoom.promotion?.badgeLabel || couponBadgeLabel ? (
                                     <div className="mt-2 flex flex-wrap items-center gap-1">
                                         {selectedRoom.promotion?.badgeLabel ? (
-                                            <span className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</span>
+                                            <span className="inline-block rounded-none bg-[color:var(--brand-gold)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--brand-forest)]">{selectedRoom.promotion.badgeLabel}</span>
                                         ) : null}
                                         {couponBadgeLabel ? (
                                             <span className="inline-block rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</span>
@@ -2486,7 +2441,7 @@ function ReservarContent() {
                                             <User className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <CardTitle className="text-lg md:text-xl">Dados do Hóspede Principal</CardTitle>
+                                            <CardTitle className={`${homeStyles.display} ${homeStyles.displayDark} text-[1.4rem] font-bold md:text-[1.7rem]`}>Dados do hóspede <em>principal</em></CardTitle>
                                             <CardDescription className="text-sm leading-5">Preencha seus dados para receber contato, voucher e confirmação da reserva.</CardDescription>
                                         </div>
                                     </div>
@@ -2501,7 +2456,7 @@ function ReservarContent() {
                                         </div>
                                         <div className="space-y-4">
                                             <div className="space-y-2">
-                                                <label htmlFor="name" className="text-sm font-medium flex items-center gap-2">
+                                                <label htmlFor="name" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                                     <User className="w-4 h-4 text-muted-foreground" /> Nome Completo *
                                                 </label>
                                                 <input
@@ -2519,7 +2474,7 @@ function ReservarContent() {
                                             </div>
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
+                                                    <label htmlFor="email" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                                         <Mail className="w-4 h-4 text-muted-foreground" /> Email *
                                                     </label>
                                                     <input
@@ -2537,7 +2492,7 @@ function ReservarContent() {
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
+                                                    <label htmlFor="phone" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                                         <Phone className="w-4 h-4 text-muted-foreground" /> Telefone/WhatsApp *
                                                     </label>
                                                     <input
@@ -2566,26 +2521,25 @@ function ReservarContent() {
                                             />
                                         </div>
 
-                                        <div className="border border-primary/10 bg-[color:var(--brand-cream)] p-4">
-                                            <label htmlFor="has-coupon" className="flex cursor-pointer items-center gap-3 text-sm font-medium">
-                                                <input
-                                                    id="has-coupon"
-                                                    type="checkbox"
-                                                    checked={couponEnabled}
-                                                    onChange={(event) => {
-                                                        const enabled = event.target.checked;
-                                                        setCouponEnabled(enabled);
-                                                        setCouponMessage('');
-                                                        if (!enabled) {
-                                                            clearCouponState(true);
-                                                            setCouponCode('');
-                                                        }
-                                                    }}
-                                                    disabled={processing}
-                                                    className="h-4 w-4 accent-primary"
-                                                />
+                                        <div>
+                                            <button
+                                                type="button"
+                                                id="has-coupon"
+                                                aria-expanded={couponEnabled}
+                                                disabled={processing}
+                                                onClick={() => {
+                                                    const enabled = !couponEnabled;
+                                                    setCouponEnabled(enabled);
+                                                    setCouponMessage('');
+                                                    if (!enabled) {
+                                                        clearCouponState(true);
+                                                        setCouponCode('');
+                                                    }
+                                                }}
+                                                className="text-sm font-medium text-primary underline underline-offset-4 hover:no-underline"
+                                            >
                                                 Tenho um cupom de desconto
-                                            </label>
+                                            </button>
 
                                             {couponEnabled ? (
                                                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
@@ -2664,17 +2618,20 @@ function ReservarContent() {
                                                     checked={termsAccepted}
                                                     onChange={(e) => setTermsAccepted(e.target.checked)}
                                                     disabled={processing}
-                                                    className="mt-1 h-4 w-4 rounded-none border-gray-300 text-primary focus:ring-primary"
+                                                    className="mt-1 h-4 w-4 rounded-none accent-[color:var(--brand-forest)]"
                                                 />
                                                 <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
                                                     Declaro que li e aceito os{' '}
-                                                    <Link href="/termos-e-condicoes" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">termos e condições</Link>,{' '}
-                                                    <Link href="/politica-de-cancelamento" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">política de cancelamento</Link>{' '}
+                                                    <Link href="/termos-e-condicoes" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-forest)] underline underline-offset-4 hover:text-[#7a7720]">termos e condições</Link>,{' '}
+                                                    <Link href="/politica-de-cancelamento" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-forest)] underline underline-offset-4 hover:text-[#7a7720]">política de cancelamento</Link>{' '}
                                                     e{' '}
-                                                    <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">política de privacidade</Link>{' '}
+                                                    <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold text-[color:var(--brand-forest)] underline underline-offset-4 hover:text-[#7a7720]">política de privacidade</Link>{' '}
                                                     da Pousada Delplata.
                                                 </label>
                                             </div>
+                                            <p className="mt-2 pl-7 text-xs text-muted-foreground">
+                                                Confira os prazos de cancelamento antes de concluir a reserva.
+                                            </p>
                                         </div>
 
                                         {formMessage ? (
@@ -2697,7 +2654,7 @@ function ReservarContent() {
                                             </div>
                                         ) : null}
 
-                                        <Button type="submit" className="h-12 w-full rounded-none text-lg shadow-none" size="lg" disabled={processing}>
+                                        <Button type="submit" className="h-12 w-full rounded-none text-sm font-bold uppercase tracking-[0.12em] shadow-none" size="lg" disabled={processing}>
                                             {processing ? (
                                                 <span className="flex items-center gap-2">
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -2714,31 +2671,6 @@ function ReservarContent() {
                                             <span className="w-2 h-2 bg-green-500 rounded-full"></span> Pagamento processado pelo Mercado Pago
                                         </p>
 
-                                        <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-4 sm:grid-cols-3">
-                                            <div className="flex items-center gap-2 text-sm text-primary">
-                                                <Check className="h-4 w-4" />
-                                                <span>Café da manhã diário</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm text-primary">
-                                                <Check className="h-4 w-4" />
-                                                <span>Sem taxas extras</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm text-primary">
-                                                <Check className="h-4 w-4" />
-                                                <span>Atendimento direto da pousada</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-white)] px-4 py-4 md:grid-cols-2">
-                                            <div>
-                                                <p className="text-sm font-semibold text-primary">4,8/5 no Google</p>
-                                                <p className="mt-1 text-xs text-foreground/72">Mais de 500 hóspedes avaliando</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-primary">Reserva direta e segura</p>
-                                                <p className="mt-1 text-xs text-foreground/72">Pagamento processado com proteção via Mercado Pago.</p>
-                                            </div>
-                                        </div>
                                     </form>
                                 </CardContent>
                             </Card>
@@ -2748,7 +2680,6 @@ function ReservarContent() {
                             <Card className="sticky top-28 overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-white)] shadow-none">
                                 <div className="bg-primary p-4 text-center text-white">
                                     <h3 className="font-bold text-lg">Sua reserva está quase confirmada</h3>
-                                    <p className="mt-1 text-xs text-white/80">Revise seus dados para finalizar a reserva</p>
                                 </div>
                                 <div className="aspect-video relative">
                                     {getRoomPrimaryImageSrc(selectedRoom) && (
@@ -2765,24 +2696,6 @@ function ReservarContent() {
                                     </div>
                                 </div>
                                 <CardContent className="space-y-4 pt-6">
-                                    <div className="grid gap-3 border border-primary/10 bg-[color:var(--brand-cream)] px-4 py-3 sm:grid-cols-2">
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Café da manhã diário</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Valor total exibido</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Pagamento via Pix ou cartão</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm text-primary">
-                                            <Check className="h-4 w-4" />
-                                            <span>Atendimento direto da pousada</span>
-                                        </div>
-                                    </div>
                                     <div className="space-y-3 text-sm">
                                         <div className="flex justify-between items-center py-2 border-b border-border/50">
                                             <span className="text-muted-foreground">Check-in</span>
@@ -2802,12 +2715,6 @@ function ReservarContent() {
                                                 <span className="font-medium">{pets}</span>
                                             </div>
                                         ) : null}
-                                        <div className="flex justify-between items-center py-2 border-b border-border/50">
-                                            <span className="text-muted-foreground">Diárias</span>
-                                            <span className="font-medium">
-                                                {Math.ceil((new Date(checkOut!).getTime() - new Date(checkIn!).getTime()) / (1000 * 60 * 60 * 24))} noites
-                                            </span>
-                                        </div>
                                     </div>
 
                                     <div className="mt-4 border border-primary/10 bg-[color:var(--brand-cream)] p-4">
@@ -2815,7 +2722,7 @@ function ReservarContent() {
                                         {selectedRoom.promotion?.badgeLabel || couponBadgeLabel ? (
                                             <div className="mt-2 flex flex-wrap gap-1">
                                                 {selectedRoom.promotion?.badgeLabel ? (
-                                                    <p className="inline-block rounded bg-[#cb3842] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{selectedRoom.promotion.badgeLabel}</p>
+                                                    <p className="inline-block rounded-none bg-[color:var(--brand-gold)] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[color:var(--brand-forest)]">{selectedRoom.promotion.badgeLabel}</p>
                                                 ) : null}
                                                 {couponBadgeLabel ? (
                                                     <p data-testid="coupon-badge" className="inline-block rounded bg-emerald-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">{couponBadgeLabel}</p>
@@ -2832,10 +2739,6 @@ function ReservarContent() {
                                                     Você economiza {formatCurrencyBRL(staySavings)} ({formatGuestPercent(staySavingsPercent)})
                                                 </p>
                                             ) : null}
-                                        </div>
-                                        <div className="mt-2 flex items-center justify-between text-sm text-primary/82">
-                                            <span>{stayNights} {stayNights === 1 ? 'noite' : 'noites'}</span>
-                                            <span>{adults} Adultos, {children} Crianças{pets > 0 ? `, ${pets} Pet${pets === 1 ? '' : 's'}` : ''}</span>
                                         </div>
                                         <p className="mt-2 text-xs font-medium text-emerald-700">
                                             {pets > 0 ? 'Taxa de pets incluída no total' : 'Sem taxas extras'}
@@ -2899,7 +2802,6 @@ function ReservarContent() {
 
                                     <div className="space-y-2 border-t border-primary/10 pt-4 text-xs text-foreground/72">
                                         <p>Pagamento com Pix ou cartão.</p>
-                                        <p>Dados de pagamento processados pelo Mercado Pago.</p>
                                     </div>
 
                                     <Button variant="outline" className="w-full rounded-none border-dashed" onClick={() => { clearCouponState(true); setSelectedRoom(null); }}>
@@ -2911,7 +2813,19 @@ function ReservarContent() {
                     </div>
                 )}
             </div>
-            <ReservationFaq />
+            <div className="container mx-auto w-full max-w-[1440px] px-4 pb-10">
+                <details className="group border border-primary/10 bg-[color:var(--brand-white)]">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold text-primary">
+                        Dúvidas antes de reservar? Veja as perguntas frequentes
+                        <span aria-hidden="true" className="text-xl leading-none transition-transform group-open:rotate-45">+</span>
+                    </summary>
+                    <ReservationFaq />
+                </details>
+                <p className="mt-3 text-sm text-foreground/75">
+                    Ou fale com a pousada pelo{' '}
+                    <a href={getWhatsAppUrl()} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-4">WhatsApp</a>.
+                </p>
+            </div>
             {roomGallery ? (
                 <div
                     className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm p-4 flex items-center justify-center"
@@ -2974,6 +2888,9 @@ function ReservarContent() {
 function formatGuestPercent(value: number) {
     return `${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
+
+// Tons do site só nesta página: o cinza-azulado padrão dos componentes vira um verde acinzentado e o foco usa o dourado.
+const RESERVAR_THEME = { '--muted-foreground': '105 10% 38%', '--ring': '59 40% 52%', '--input': '105 10% 76%' } as React.CSSProperties;
 
 export default function ReservarPage() {
     return (

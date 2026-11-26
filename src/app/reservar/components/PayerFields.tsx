@@ -50,7 +50,7 @@ export default function PayerFields({
                     <div className="space-y-4">
                         <p className="text-xs text-muted-foreground">Informe os dados de quem vai pagar. O cadastro do hóspede não é alterado.</p>
                         <div className="space-y-2">
-                            <label htmlFor="payer-name" className="text-sm font-medium flex items-center gap-2">
+                            <label htmlFor="payer-name" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                 <User className="w-4 h-4 text-muted-foreground" /> Nome e sobrenome do pagador *
                             </label>
                             <input
@@ -69,7 +69,7 @@ export default function PayerFields({
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <label htmlFor="payer-email" className="text-sm font-medium flex items-center gap-2">
+                                <label htmlFor="payer-email" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                     <Mail className="w-4 h-4 text-muted-foreground" /> E-mail do pagador (opcional)
                                 </label>
                                 <input
@@ -84,7 +84,7 @@ export default function PayerFields({
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label htmlFor="payer-phone" className="text-sm font-medium flex items-center gap-2">
+                                <label htmlFor="payer-phone" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                                     <Phone className="w-4 h-4 text-muted-foreground" /> Telefone do pagador (opcional)
                                 </label>
                                 <input
@@ -105,7 +105,7 @@ export default function PayerFields({
                 )}
             </div>
             <div className="space-y-2">
-                <label htmlFor="cpf" className="text-sm font-medium flex items-center gap-2">
+                <label htmlFor="cpf" className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)]">
                     <User className="w-4 h-4 text-muted-foreground" /> CPF do pagador *
                 </label>
                 <input

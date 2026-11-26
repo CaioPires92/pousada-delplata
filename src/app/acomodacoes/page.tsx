@@ -2,10 +2,13 @@ import Image from "next/image";
 import type { Metadata } from "next";
 
 import prisma from "@/lib/prisma";
-import { RoomCard } from "@/components/RoomCard";
+import { WingShowcaseList, type ShowcaseRoom } from "@/components/WingShowcase";
 import { serializePrismaArray } from "@/lib/serialize-prisma";
 import { buildPageMetadata } from "@/lib/seo";
-import { isAnnexWingRoom, isMainWingRoom } from "@/lib/rooms";
+import { getRoomAmenitiesList, isAnnexWingRoom, isMainWingRoom, sortRoomsForDisplay } from "@/lib/rooms";
+import { getDisplayPhotoUrls } from "@/lib/room-display";
+import { getRoomReferencePrices, referencePriceLabel } from "@/lib/room-from-price";
+import homeStyles from "@/components/home-novo/home-novo.module.css";
 
 
 // Revalidate data every 60 seconds (ISR)
@@ -41,21 +44,26 @@ async function getRooms() {
 }
 
 export default async function RoomsPage() {
-    const rooms = await getRooms();
+    const rooms = sortRoomsForDisplay(await getRooms() as any[]);
+    const referencePrices = await getRoomReferencePrices(rooms.map((room: any) => ({ id: room.id, basePrice: Number(room.basePrice) })));
 
-    const mainWingRooms = rooms.filter((r: any) => isMainWingRoom(r.name));
-    const annexWingRooms = rooms.filter((r: any) => isAnnexWingRoom(r.name));
+    const toShowcase = (room: any): ShowcaseRoom => ({
+        id: room.id,
+        name: room.name,
+        capacity: Number(room.capacity),
+        maxGuests: Number(room.maxGuests),
+        amenities: getRoomAmenitiesList(room.amenities),
+        photoUrl: getDisplayPhotoUrls(room)[0] ?? null,
+        fromPrice: referencePrices.get(room.id)?.price ?? Number(room.basePrice),
+        priceLabel: referencePrices.get(room.id) ? referencePriceLabel(referencePrices.get(room.id)!) : "Diária base",
+    });
 
-    const renderRoomGrid = (roomsList: typeof rooms) => (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {roomsList.map((room: any) => (
-                <RoomCard
-                    key={room.id}
-                    room={room}
-                />
-            ))}
-        </div>
-    );
+    const mainWingRooms = rooms.filter((r: any) => isMainWingRoom(r.name)).map(toShowcase);
+    const annexWingRooms = rooms.filter((r: any) => isAnnexWingRoom(r.name)).map(toShowcase);
+    const wings = [
+        { title: "Ala", emphasis: "principal", text: "Acomodações próximas a todas as dependências.", rooms: mainWingRooms },
+        { title: "Chalés", emphasis: "e anexos", text: "Localizada a 70 metros da ala principal.", rooms: annexWingRooms },
+    ].filter((wing) => wing.rooms.length > 0);
 
     return (
         <main className="min-h-screen bg-background">
@@ -72,11 +80,9 @@ export default async function RoomsPage() {
                 </div>
 
                 <div className="container relative z-10 py-24 text-center text-white md:py-28">
-                    <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
-                        Hospedagem
-                    </p>
-                    <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] md:text-[4rem]">
-                        Nossas Acomodações
+                    <p className={`${homeStyles.eyebrow} ${homeStyles.onPhoto} text-[#efe3a0]`}>Hospedagem</p>
+                    <h1 className={`${homeStyles.display} ${homeStyles.onPhoto} mt-4 text-[clamp(2.4rem,6vw,4.8rem)] text-white`}>
+                        Nossas <em>acomodações</em>
                     </h1>
                     <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white/88 md:text-lg">
                         Conforto e aconchego preparados especialmente para o seu descanso.
@@ -85,33 +91,8 @@ export default async function RoomsPage() {
                 </div>
             </section>
 
-            <div className="space-y-0">
-                {/* Ala Principal Section */}
-                <section className="section-space-md bg-[color:var(--brand-cream)]">
-                    <div className="container">
-                    <div className="mb-10 border-b border-primary/10 pb-4">
-                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Principal</h2>
-                        <p className="mt-2 text-[1.02rem] leading-7 text-foreground/72">
-                            Acomodações proximas a todas as dependências.
-                        </p>
-                    </div>
-                    {renderRoomGrid(mainWingRooms)}
-                    </div>
-                </section>
-
-                {/* Ala Anexo Section */}
-                <section className="section-space-md bg-background">
-                    <div className="container">
-                    <div className="mb-10 border-b border-primary/10 pb-4">
-                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Chalés e Anexos</h2>
-                        <p className="mt-2 flex items-center gap-2 text-[1.02rem] leading-7 text-foreground/72">
-                            <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
-                            Localizada a 70 metros da ala principal
-                        </p>
-                    </div>
-                    {renderRoomGrid(annexWingRooms)}
-                    </div>
-                </section>
+            <div>
+                <WingShowcaseList wings={wings} />
             </div>
 
             {rooms.length === 0 && (

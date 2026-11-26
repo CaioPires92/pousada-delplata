@@ -16,14 +16,14 @@ import {
   getSiteUrl,
 } from "@/lib/seo";
 
-import { bodoniModa, inter } from "./fonts";
+import { bodoniModa, bricolage, instrumentSerif, inter } from "./fonts";
 import "./globals.css";
 
 const structuredData = [buildWebSiteSchema(), buildLodgingBusinessSchema()];
 
 export const metadata: Metadata = {
   ...buildPageMetadata({
-    title: "Pousada em Serra Negra com piscina e café da manhã | Pousada Delplata",
+    title: "Pousada em Serra Negra com piscina | Pousada Delplata",
     description:
       "Reserve sua hospedagem em Serra Negra no site oficial da Pousada Delplata. Quartos para famílias, lazer, café da manhã e disponibilidade online.",
     path: "/",
@@ -51,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${bodoniModa.variable}`} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${inter.variable} ${bodoniModa.variable} ${bricolage.variable} ${instrumentSerif.variable}`} suppressHydrationWarning>
       <head>
         <Script id="microsoft-clarity" strategy="lazyOnload">
           {`

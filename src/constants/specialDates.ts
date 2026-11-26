@@ -116,6 +116,24 @@ export const SPECIAL_DATES: SpecialDateConfig[] = [
         image: '/fotos/restaurante/DSC_0056.jpg',
         enabled: true,
     },
+    {
+        id: 'reveillon-2026',
+        title: 'Réveillon',
+        description: 'Passe a virada do ano em Serra Negra. Consulte as acomodações disponíveis para o Réveillon.',
+        dateFrom: '2026-12-30',
+        dateTo: '2027-01-02',
+        image: '/fotos/bar-principal/porcoes/DSC_0312.jpg',
+        enabled: true,
+    },
+    {
+        id: 'carnaval-2027',
+        title: 'Carnaval',
+        description: 'Consulte as acomodações disponíveis para o feriado de Carnaval.',
+        dateFrom: '2027-02-06',
+        dateTo: '2027-02-10',
+        image: '/fotos/decoracao-sazonal/carnaval-IMG_0480.jpg',
+        enabled: true,
+    },
 ];
 
 function toUtcStartOfDay(date: Date) {
@@ -140,6 +158,14 @@ function sanitizeAdults(value: number | undefined) {
 function sanitizeChildren(value: number | undefined) {
     if (!Number.isFinite(value)) return 0;
     return Math.min(10, Math.max(0, Math.floor(value as number)));
+}
+
+/** "24 a 27/12" (mesmo mês) ou "30/12 a 02/01" (meses diferentes), a partir de duas datas AAAA-MM-DD. */
+export function formatBookingRange(from: string, to: string) {
+    const [, fm, fd] = from.split('-');
+    const [, tm, td] = to.split('-');
+    if (!fm || !fd || !tm || !td) return '';
+    return fm === tm ? `${fd} a ${td}/${tm}` : `${fd}/${fm} a ${td}/${tm}`;
 }
 
 export function buildReservarUrl(params: BuildReservarUrlParams = {}) {

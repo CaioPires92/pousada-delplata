@@ -1,0 +1,171 @@
+/* Modelo do novo layout da home (inspirado na Pousada Paraíso). */
+
+.display {
+  font-family: var(--font-bricolage), var(--font-inter), "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  line-height: 0.92;
+}
+.display em {
+  font-family: var(--font-instrument), "Times New Roman", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: -0.01em;
+  color: var(--brand-gold);
+}
+/* Texto sobre foto: dourado mais claro e sombra para manter a leitura. */
+.onPhoto {
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+}
+.onPhoto em {
+  color: #efe3a0;
+}
+.displayDark em {
+  color: var(--brand-forest);
+  opacity: 0.78;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.eyebrow::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--brand-gold);
+  flex: none;
+}
+
+/* Foto do hero com movimento lento (Ken Burns). */
+.kenburns {
+  animation: kenburns 22s ease-out both;
+  transform-origin: 60% 40%;
+}
+@keyframes kenburns {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
+}
+
+.heroIn > * {
+  opacity: 0;
+  transform: translateY(26px);
+  animation: heroIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.heroIn > *:nth-child(2) { animation-delay: 0.12s; }
+.heroIn > *:nth-child(3) { animation-delay: 0.24s; }
+.heroIn > *:nth-child(4) { animation-delay: 0.36s; }
+.heroIn > *:nth-child(5) { animation-delay: 0.48s; }
+@keyframes heroIn {
+  to { opacity: 1; transform: none; }
+}
+
+/* Faixa de promessas. */
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--brand-gold);
+  color: var(--brand-forest);
+  border-block: 1px solid rgba(40, 50, 35, 0.2);
+}
+.marqueeTrack {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.2rem;
+  padding: 1rem 0;
+  animation: marquee 38s linear infinite;
+  will-change: transform;
+}
+.marqueeTrack span {
+  font-family: var(--font-bricolage), var(--font-inter), Arial, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.05rem, 2.2vw, 1.6rem);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+.marqueeDot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--brand-forest);
+  flex: none;
+}
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* Faixas infinitas de fotos. */
+.strip {
+  overflow: hidden;
+}
+.stripTrack {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  animation: strip 60s linear infinite;
+}
+.stripReverse .stripTrack {
+  animation-direction: reverse;
+  animation-duration: 75s;
+}
+.stripTrack > div {
+  position: relative;
+  flex: none;
+  width: clamp(220px, 28vw, 380px);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+}
+@keyframes strip {
+  to { transform: translateX(calc(-50% - 0.5rem)); }
+}
+
+.panoImg {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kenburns,
+  .heroIn > *,
+  .marqueeTrack,
+  .stripTrack {
+    animation: none !important;
+  }
+  .heroIn > * {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Textura de grão (referência: site do Pedro Carmim), leve e só em seções escuras. */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Cada seção cabe na altura da tela (desktop). No celular o conteúdo empilha e pode rolar. */
+.fit {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+@media (min-width: 768px) and (min-height: 560px) {
+  .fit {
+    height: 100svh;
+    max-height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+}

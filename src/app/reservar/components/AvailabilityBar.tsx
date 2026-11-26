@@ -9,6 +9,8 @@ type AvailabilityBarProps = {
     adults: number;
     childrenCount: number;
     alterControl: ReactNode;
+    /** Complemento curto na mesma linha (ex.: "4 acomodações disponíveis"). */
+    summaryExtra?: string;
 };
 
 const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'short', timeZone: 'UTC' });
@@ -47,28 +49,32 @@ export default function AvailabilityBar({
     adults,
     childrenCount,
     alterControl,
+    summaryExtra,
 }: AvailabilityBarProps) {
     const adultsLabel = `${adults} adulto${adults === 1 ? '' : 's'}`;
     const childrenLabel = `${childrenCount} criança${childrenCount === 1 ? '' : 's'}`;
     const formattedDates = formatCompactDateRange(checkIn, checkOut);
 
     return (
-        <div className="mb-4 border border-border/40 bg-card px-4 py-3 shadow-none">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Busca Atual</div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-3 sm:gap-5">
-                    <div className="inline-flex items-center gap-2 border border-border/40 bg-card px-2.5 py-1.5 text-sm font-medium text-foreground">
-                        <CalendarDays className="h-4 w-4 text-primary" />
-                        <span>{formattedDates}</span>
-                    </div>
-                    <div className="hidden h-4 w-px bg-border sm:block" />
-                    <div className="inline-flex items-center gap-2 border border-border/40 bg-card px-2.5 py-1.5 text-sm font-medium text-foreground">
-                        <Users className="h-4 w-4 text-primary" />
-                        <span>{`${adultsLabel} · ${childrenLabel}`}</span>
-                    </div>
-                </div>
-                <div className="shrink-0">{alterControl}</div>
-            </div>
+        <div className="mb-3 flex flex-col gap-2 border-b border-primary/10 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                    <CalendarDays className="h-4 w-4 text-primary" />
+                    {formattedDates}
+                </span>
+                <span aria-hidden="true" className="text-muted-foreground">·</span>
+                <span className="inline-flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-primary" />
+                    {`${adultsLabel} · ${childrenLabel}`}
+                </span>
+                {summaryExtra ? (
+                    <>
+                        <span aria-hidden="true" className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground">{summaryExtra}</span>
+                    </>
+                ) : null}
+            </p>
+            <div className="shrink-0">{alterControl}</div>
         </div>
     );
 }

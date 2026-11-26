@@ -1,8 +1,9 @@
 "use client";
 
+import homeStyles from "@/components/home-novo/home-novo.module.css";
 import { addDays, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Users, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Camera, Check, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +11,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/booking-search/DateField";
 import { GuestsPanel } from "@/components/booking-search/GuestsPanel";
 import { Button } from "@/components/ui/button";
+import { type GalleryPhoto, PhotoLightbox } from "@/components/home-novo/PhotoLightbox";
+import { buildRoomGalleryPhotos } from "@/lib/room-gallery";
 import { getLocalRoomPhotos } from "@/lib/room-photos";
+import { sortRoomsForDisplay } from "@/lib/rooms";
 import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch, type ChildAge } from "@/lib/booking-search";
 
 type HomeOffer = {
@@ -50,7 +54,7 @@ type HomeAvailabilityOffersProps = {
 
 type RoomGalleryState = {
   roomName: string;
-  photos: string[];
+  photos: GalleryPhoto[];
   currentIndex: number;
 };
 
@@ -164,31 +168,10 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [openPicker, setOpenPicker] = useState<"checkIn" | "checkOut" | null>(null);
+  const [activePanel, setActivePanel] = useState(0);
+  const [panelTouched, setPanelTouched] = useState(false);
   const lastLoadedSearchKeyRef = useRef("");
   const initialFallbackAppliedRef = useRef(false);
-
-  useEffect(() => {
-    if (!roomGallery) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setRoomGallery(null);
-      if (event.key === "ArrowRight") {
-        setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex + 1) % current.photos.length } : current);
-      }
-      if (event.key === "ArrowLeft") {
-        setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex - 1 + current.photos.length) % current.photos.length } : current);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [roomGallery]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -294,6 +277,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
     ...(offerSearch.children > 0 ? { childrenAges: offerSearch.childrenAges.slice(0, offerSearch.children).map((age) => String(age)).join(",") } : {}),
   }).toString()}`;
   const dateLabel = `${format(new Date(`${offerSearch.checkIn}T12:00:00`), "dd MMM", { locale: ptBR })} – ${format(new Date(`${offerSearch.checkOut}T12:00:00`), "dd MMM yyyy", { locale: ptBR })}`;
+  const isOfferToday = offerSearch.checkIn === format(new Date(), "yyyy-MM-dd");
+  const offerRangeLabel = `${isOfferToday ? "hoje, " : ""}${formatShortRange(offerSearch.checkIn, offerSearch.checkOut)}`;
   const guestLabel = `${offerSearch.adults} adulto${offerSearch.adults === 1 ? "" : "s"}${offerSearch.children > 0 ? ` e ${offerSearch.children} criança${offerSearch.children === 1 ? "" : "s"}` : ""}`;
   const draftValidation = validateBookingSearch(draftSearch);
   const canApplyDraft = draftValidation.ok;
@@ -337,29 +322,25 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
   const openRoomGallery = (room: HomeOffer) => {
     const photos = getOfferPhotos(room);
     if (photos.length === 0) return;
-    setRoomGallery({ roomName: room.name, photos, currentIndex: 0 });
+    setRoomGallery({ roomName: room.name, photos: buildRoomGalleryPhotos(room.name, photos), currentIndex: 0 });
   };
 
-  const showPreviousGalleryPhoto = () => {
-    setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex - 1 + current.photos.length) % current.photos.length } : current);
-  };
-
-  const showNextGalleryPhoto = () => {
-    setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex + 1) % current.photos.length } : current);
+  const moveGalleryPhoto = (step: number) => {
+    setRoomGallery((current) => current ? { ...current, currentIndex: (current.currentIndex + step + current.photos.length) % current.photos.length } : current);
   };
 
   return (
-    <section className="bg-[color:var(--brand-cream)] py-16 md:py-20" aria-labelledby="home-offers-title">
-      <div className="container mx-auto max-w-[1440px] px-4">
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+    <section className={`${homeStyles.fit} bg-[color:var(--brand-cream)] py-10 md:pb-8 md:pt-[104px]`} aria-labelledby="home-offers-title">
+      <div className="container flex min-h-0 flex-col md:h-full">
+        <div className="mb-5 flex shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
-            <p className="font-accent text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+            <p className={`${homeStyles.eyebrow} text-[color:var(--brand-forest)]`}>
               Disponibilidade real
             </p>
-            <h2 id="home-offers-title" className="mt-3 font-hero-display text-[2.25rem] leading-[1.05] text-[#1d1b19] md:text-[3.1rem]">
-              Escolha sua acomodação
+            <h2 id="home-offers-title" className={`${homeStyles.display} ${homeStyles.displayDark} mt-5 text-[clamp(1.9rem,min(4.6vw,7vh),3.8rem)] text-[color:var(--brand-forest)]`}>
+              Escolha sua <em>acomodação</em>
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#1d1b19]/70 md:text-base">
+            <p className="mt-2 max-w-2xl text-base leading-7 text-[rgba(40,50,35,0.75)]">
               Valores calculados pelo motor para {guestLabel}, de {dateLabel}. Altere as datas para consultar sua estadia.
             </p>
             {notice ? (
@@ -368,13 +349,22 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={openSearchModal}
-            className="inline-flex h-12 items-center justify-center gap-2 border border-primary/15 bg-white px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
-          >
-            Consultar outras datas <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex flex-col items-start gap-3 md:items-end">
+            <button
+              type="button"
+              onClick={openSearchModal}
+              className="inline-flex h-12 items-center justify-center gap-2 border border-primary/15 bg-white px-5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+            >
+              Consultar outras datas <ArrowRight className="h-4 w-4" />
+            </button>
+            <p
+              aria-hidden="true"
+              className={`hidden text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)] transition-opacity duration-500 md:inline-flex md:items-center md:gap-2 ${panelTouched || !offers || offers.length < 2 ? "opacity-0" : "opacity-100"}`}
+            >
+              Passe o mouse pelos quartos
+              <span className="inline-block animate-[wing-nudge_1.6s_ease-in-out_infinite]">→</span>
+            </p>
+          </div>
         </div>
 
         {isSearchModalOpen ? (
@@ -482,8 +472,8 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
             </Link>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {offers.slice(0, 4).map((room) => {
+          <div className="flex min-h-0 flex-col gap-3 md:flex-1 md:flex-row md:gap-2">
+            {sortRoomsForDisplay(offers.slice(0, 4)).map((room, roomIndex) => {
               const photos = getOfferPhotos(room);
               const image = photos[0] ?? null;
               const canOpenGallery = photos.length > 0;
@@ -494,65 +484,91 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                 .slice(0, 3);
               const maxGuests = Number(room.maxGuests || room.capacity || 0);
               const roomUrl = `${resultUrl}&roomTypeId=${encodeURIComponent(room.id)}`;
+              const isActive = activePanel === roomIndex;
+              const choosePanel = () => {
+                setPanelTouched(true);
+                setActivePanel(roomIndex);
+              };
 
               return (
-                <article key={room.id} className="group flex h-full flex-col overflow-hidden border border-primary/10 bg-white">
+                <article
+                  key={room.id}
+                  onMouseEnter={choosePanel}
+                  onFocus={choosePanel}
+                  style={{ "--grow": isActive ? 5 : 1 } as React.CSSProperties}
+                  className="group relative min-h-[360px] overflow-hidden bg-[color:var(--brand-forest)] text-white transition-[flex] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:min-h-0 md:[flex:var(--grow)_1_0%]"
+                >
+                  {image ? (
+                    <Image
+                      src={image}
+                      alt=""
+                      fill
+                      sizes="(max-width: 767px) 100vw, 70vw"
+                      quality={82}
+                      className="object-cover transition-transform duration-1000 group-hover:scale-105"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.05)_30%,rgba(20,28,18,0.9)_100%)] max-md:bg-[linear-gradient(180deg,rgba(20,28,18,0.35)_0%,rgba(20,28,18,0.92)_70%)]" />
+
+                  {canOpenGallery ? (
+                    <button
+                      type="button"
+                      aria-label={`Ver fotos (${photos.length}): ${room.name}`}
+                      onClick={() => openRoomGallery(room)}
+                      className="absolute inset-0 z-0 cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--brand-gold)]"
+                    />
+                  ) : null}
+
+                  {/* Painel fechado (desktop): número e nome na vertical */}
                   <div
-                    className={`relative aspect-[4/3] overflow-hidden bg-primary/5 ${canOpenGallery ? "cursor-zoom-in" : ""}`}
-                    role={canOpenGallery ? "button" : undefined}
-                    tabIndex={canOpenGallery ? 0 : undefined}
-                    aria-label={canOpenGallery ? `Abrir galeria de fotos de ${room.name}` : undefined}
-                    onClick={canOpenGallery ? () => openRoomGallery(room) : undefined}
-                    onKeyDown={canOpenGallery ? (event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openRoomGallery(room);
-                      }
-                    } : undefined}
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-0 hidden flex-col justify-between p-5 transition-opacity duration-500 md:flex ${isActive ? "opacity-0" : "opacity-100"}`}
                   >
-                    {image ? (
-                      <Image
-                        src={image}
-                        alt={room.name}
-                        fill
-                        sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 25vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.025]"
-                      />
-                    ) : null}
-                    {canOpenGallery ? (
-                      <div className="absolute left-4 top-4 inline-flex items-center gap-2 bg-black/58 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm">
-                        <Camera className="h-3.5 w-3.5" />
-                        Ver fotos ({photos.length})
-                      </div>
-                    ) : null}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-4 pt-10 text-white">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em]">Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"}</p>
-                      <p className="mt-1 text-2xl font-bold">{formatBrl(Number(room.totalPrice))}</p>
-                    </div>
+                    <span />
+                    <span className={`${homeStyles.display} rotate-180 text-xl [writing-mode:vertical-rl]`}>{room.name}</span>
                   </div>
 
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="text-xl font-semibold leading-tight text-primary">{room.name}</h3>
+                  {canOpenGallery ? (
+                    <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold">
+                      <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                      Ver fotos ({photos.length})
+                    </span>
+                  ) : null}
+
+                  {/* Painel aberto (desktop) / sempre visível (celular) */}
+                  <div
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 p-5 transition-all duration-700 md:p-7 ${isActive ? "md:translate-y-0 md:opacity-100" : "md:translate-y-4 md:opacity-0"}`}
+                  >
+                    <h3 className={`${homeStyles.display} text-[clamp(1.7rem,min(2.8vw,5vh),2.8rem)]`}>{room.name}</h3>
                     {maxGuests > 0 ? (
-                      <p className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" /> Até {maxGuests} hóspedes
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm text-white/85">
+                        <Users className="h-4 w-4" aria-hidden="true" /> Até {maxGuests} hóspedes
                       </p>
                     ) : null}
                     {amenities.length > 0 ? (
-                      <ul className="mt-4 space-y-2 text-sm text-foreground/75">
+                      <ul className="mt-3 flex flex-wrap gap-2 text-xs">
                         {amenities.map((amenity) => (
-                          <li key={amenity} className="flex items-center gap-2">
-                            <Check className="h-3.5 w-3.5 text-[color:var(--brand-gold)]" /> {amenity}
+                          <li key={amenity} className="inline-flex items-center gap-1.5 border border-white/30 px-2.5 py-1">
+                            <Check className="h-3 w-3 text-[color:var(--brand-gold)]" aria-hidden="true" /> {amenity}
                           </li>
                         ))}
                       </ul>
                     ) : null}
-                    <Link
-                      href={roomUrl}
-                      className="mt-5 inline-flex h-11 items-center justify-center gap-2 bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-                    >
-                      Escolher esta acomodação <ArrowRight className="h-4 w-4" />
-                    </Link>
+                    <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
+                      <div>
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/80">
+                          Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"} · {offerRangeLabel}
+                        </p>
+                        <p className={`${homeStyles.display} mt-1 text-[2.1rem]`}>{formatBrl(Number(room.totalPrice))}</p>
+                        <p className="mt-1 text-xs text-white/75">{guestLabel} · só para essas datas</p>
+                      </div>
+                      <Link
+                        href={roomUrl}
+                        className="pointer-events-auto inline-flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                      >
+                        Escolher esta acomodação <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </div>
                   </div>
                 </article>
               );
@@ -560,54 +576,13 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
           </div>
         )}
         {roomGallery ? (
-          <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Galeria de fotos de ${roomGallery.roomName}`}
-            onClick={() => setRoomGallery(null)}
-          >
-            <button
-              type="button"
-              onClick={() => setRoomGallery(null)}
-              className="absolute right-4 top-4 p-2 text-white/80 transition-colors hover:text-white"
-              aria-label="Fechar galeria"
-            >
-              <X className="h-7 w-7" />
-            </button>
-            <div className="relative h-[82vh] w-full max-w-6xl" onClick={(event) => event.stopPropagation()}>
-              <Image
-                src={roomGallery.photos[roomGallery.currentIndex]}
-                alt={`${roomGallery.roomName} foto ${roomGallery.currentIndex + 1}`}
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 85vw"
-              />
-              {roomGallery.photos.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={showPreviousGalleryPhoto}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-lg bg-black/50 p-3 text-white hover:bg-black/70"
-                    aria-label="Foto anterior"
-                  >
-                    <ChevronLeft className="h-7 w-7" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={showNextGalleryPhoto}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 rounded-l-lg bg-black/50 p-3 text-white hover:bg-black/70"
-                    aria-label="Próxima foto"
-                  >
-                    <ChevronRight className="h-7 w-7" />
-                  </button>
-                </>
-              ) : null}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-sm font-medium text-white">
-                {roomGallery.currentIndex + 1} / {roomGallery.photos.length}
-              </div>
-            </div>
-          </div>
+          <PhotoLightbox
+            photos={roomGallery.photos}
+            index={roomGallery.currentIndex}
+            onClose={() => setRoomGallery(null)}
+            onMove={moveGalleryPhoto}
+            onSelect={(index) => setRoomGallery((current) => current ? { ...current, currentIndex: index } : current)}
+          />
         ) : null}
       </div>
     </section>

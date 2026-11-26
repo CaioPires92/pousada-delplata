@@ -2,7 +2,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { formatBlogDate, getBlogCategoryBySlug } from "@/lib/blog";
 import { BlogPost } from "@/types/blog";
 
@@ -14,54 +13,37 @@ export function BlogFeaturedPost({ post }: BlogFeaturedPostProps) {
   const category = getBlogCategoryBySlug(post.category);
 
   return (
-    <article className="overflow-hidden border border-primary/10 bg-[color:var(--brand-white)]">
-      <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-        <Link href={`/blog/${post.slug}`} className="relative min-h-[320px] bg-primary/5">
-          <Image
-            src={post.coverImage.src}
-            alt={post.coverImage.alt}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 55vw"
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-primary/10 to-transparent" />
-        </Link>
-
-        <div className="flex flex-col justify-between p-6 md:p-8">
-          <div className="space-y-4">
-            <div className="space-y-4 border-l-2 border-secondary pl-4">
-              <div className="flex flex-wrap items-center gap-3">
-                {category ? (
-                  <Badge variant="outline" className="rounded-none px-3 py-1">
-                    {category.shortLabel}
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="space-y-3">
-                <p className="text-sm text-foreground/72">
-                  {formatBlogDate(post.publishedAt)} • {post.readingTime}
-                </p>
-                <h2 className="font-heading text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">
-                  <Link href={`/blog/${post.slug}`} className="hover:text-primary/85">
-                    {post.title}
-                  </Link>
-                </h2>
-                <p className="text-base leading-8 text-foreground/72">{post.excerpt}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 space-y-4">
-            <Link
-              href={`/blog/${post.slug}`}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition-transform hover:translate-x-1"
-            >
-              Ler artigo
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
+    <article className="group relative min-h-[420px] overflow-hidden bg-[color:var(--brand-forest)] md:min-h-[520px]">
+      <Link href={`/blog/${post.slug}`} aria-label={post.title} className="absolute inset-0 z-10" />
+      <Image
+        src={post.coverImage.src}
+        alt={post.coverImage.alt}
+        fill
+        priority
+        sizes="100vw"
+        quality={82}
+        className="object-cover transition-transform duration-1000 group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.1)_20%,rgba(20,28,18,0.92)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-10">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#efe3a0]">
+          Destaque{category ? ` · ${category.shortLabel}` : ""}
+        </p>
+        <h2
+          className="mt-3 max-w-3xl text-[clamp(1.8rem,3.8vw,3.2rem)] font-bold leading-[1.05] tracking-tight"
+          style={{ fontFamily: "var(--font-bricolage), var(--font-inter), sans-serif" }}
+        >
+          {post.title}
+        </h2>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-white/85">{post.excerpt}</p>
+        <p className="mt-5 flex items-center gap-4 text-sm text-white/75">
+          <span>
+            {formatBlogDate(post.publishedAt)} · {post.readingTime}
+          </span>
+          <span className="inline-flex items-center gap-2 font-bold uppercase tracking-[0.14em] text-[color:var(--brand-gold)]">
+            Ler artigo <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+          </span>
+        </p>
       </div>
     </article>
   );

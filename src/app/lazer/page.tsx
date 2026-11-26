@@ -1,5 +1,5 @@
-import Image from "next/image";
-import { LeisureCard } from "@/components/LeisureCard";
+import AreaPanels from "@/components/AreaPanels";
+import PageHero from "@/components/home-novo/PageHero";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
@@ -129,79 +129,60 @@ const leisureItems: LeisureItem[] = [
     }
 ];
 
+const WINGS = [
+    {
+        key: 'principal' as const,
+        label: 'Ala principal',
+        title: <>Ala <em>principal</em></>,
+        text: 'Piscina adulto e infantil, bar, jogos e muito verde.',
+    },
+    {
+        key: 'anexo' as const,
+        label: 'Chalés e anexos',
+        title: <>Chalés <em>e anexos</em></>,
+        text: 'Privacidade com piscina e área comum de churrasqueira.',
+    },
+];
+
 export default function LeisurePage() {
-    const principalItems = leisureItems.filter(item => item.wing === 'principal');
-    const annexItems = leisureItems.filter(item => item.wing === 'anexo');
-
-    const renderLeisureGrid = (items: LeisureItem[]) => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {items.map((item) => (
-                <LeisureCard
-                    key={item.id}
-                    title={item.title}
-                    description={item.description}
-                    images={item.images}
-                />
-            ))}
-        </div>
-    );
-
     return (
         <main className="min-h-screen bg-background">
-            <section data-page-hero className="relative flex min-h-[42vh] items-center justify-center overflow-hidden bg-[color:var(--brand-black)]">
-                <div className="absolute inset-0">
-                    <Image
-                        src="/fotos/piscina-aptos/DJI_0845.jpg"
-                        alt="Lazer Pousada Delplata"
-                        fill
-                        className="object-cover object-center"
-                        priority
+            <PageHero
+                eyebrow="Lazer"
+                title={<>Lazer e <em>diversão</em></>}
+                text="Estrutura completa para o seu descanso em todas as alas."
+                image="/fotos/jardim-aptos/DJI_0896.jpg"
+                imageAlt="Jardim da Pousada Delplata com balanço e gangorra, visto de cima"
+            />
+
+            {WINGS.map((wing, index) => {
+                const areas = leisureItems
+                    .filter((item) => item.wing === wing.key)
+                    .map((item) => ({
+                        id: item.id,
+                        title: item.title,
+                        description: item.description,
+                        photos: item.images.map((src, photoIndex) => ({
+                            src,
+                            alt: `${item.title} (foto ${photoIndex + 1})`,
+                            caption: `${item.title} · ${wing.label}`,
+                        })),
+                    }));
+
+                return (
+                    <AreaPanels
+                        key={wing.key}
+                        index={index}
+                        total={WINGS.length}
+                        title={wing.title}
+                        text={wing.text}
+                        areas={areas}
+                        tone={index % 2 === 0 ? 'cream' : 'white'}
+                        id={`ala-${index + 1}`}
+                        next={WINGS[index + 1] ? { id: `ala-${index + 2}`, label: WINGS[index + 1].label } : undefined}
                     />
-                    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(40,50,35,0.72)_0%,rgba(40,50,35,0.52)_42%,rgba(9,9,9,0.26)_100%)]" />
-                </div>
-                <div className="container relative z-10 py-24 text-center text-white md:py-28">
-                    <div className="mx-auto max-w-3xl px-6 py-8 md:px-10">
-                        <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)] [text-shadow:0_2px_12px_rgba(0,0,0,0.45)]">
-                            Lazer
-                        </p>
-                        <h1 className="font-hero-display mt-4 text-[2.9rem] font-semibold leading-[0.96] text-white [text-shadow:0_2px_22px_rgba(0,0,0,0.58)] md:text-[4rem]">
-                            Lazer e Diversão
-                        </h1>
-                        <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-white [text-shadow:0_2px_18px_rgba(0,0,0,0.52)] md:text-lg">
-                            Estrutura completa para o seu descanso em todas as alas.
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <div className="space-y-0">
-                {/* Ala Principal Section */}
-                <section className="section-space-md bg-[color:var(--brand-cream)]">
-                    <div className="container">
-                    <div className="mb-10 border-b border-primary/10 pb-4">
-                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Principal</h2>
-                        <p className="mt-2 text-[1.02rem] leading-7 text-foreground/72">
-                            Piscina adulto e infantil, bar, jogos e muito verde.
-                        </p>
-                    </div>
-                    {renderLeisureGrid(principalItems)}
-                    </div>
-                </section>
-
-                {/* Ala Anexo Section */}
-                <section className="section-space-md bg-background">
-                    <div className="container">
-                    <div className="mb-10 border-b border-primary/10 pb-4">
-                        <h2 className="font-hero-display text-[2.2rem] font-semibold leading-tight text-primary md:text-[3rem]">Ala Chalés e Anexos</h2>
-                        <p className="mt-2 flex items-center gap-2 text-[1.02rem] leading-7 text-foreground/72">
-                            <span className="inline-block w-2 h-2 rounded-full bg-secondary"></span>
-                            Privacidade com piscina e área comum de churrasqueira.
-                        </p>
-                    </div>
-                    {renderLeisureGrid(annexItems)}
-                    </div>
-                </section>
-            </div>
+                );
+            })}
         </main>
     );
 }

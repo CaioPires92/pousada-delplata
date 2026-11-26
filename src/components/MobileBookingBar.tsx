@@ -86,28 +86,6 @@ export default function MobileBookingBar() {
                     Ver preços e disponibilidade
                 </Link>
             </div>
-            <aside className="fixed bottom-5 right-5 z-40 hidden w-[280px] border border-primary/15 bg-white p-4 text-primary shadow-[0_12px_32px_rgba(9,9,9,0.14)] md:block">
-                <button
-                    type="button"
-                    onClick={handleDismiss}
-                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center text-primary/45 transition-colors hover:text-primary"
-                    aria-label="Fechar lembrete de reserva"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <p className="pr-8 text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-gold)]">
-                    Reserva direta
-                </p>
-                <h2 className="mt-1 pr-8 text-base font-semibold leading-tight">Consulte datas e valores</h2>
-                <Link
-                    href="/reservar"
-                    onClick={() => trackClickReservar('booking_assistant_desktop')}
-                    className="mt-3 flex h-10 items-center justify-center gap-2 bg-primary px-4 text-center text-sm font-semibold text-white transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                    Ver disponibilidade
-                </Link>
-            </aside>
         </>
     );
 }

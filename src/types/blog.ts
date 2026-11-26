@@ -11,6 +11,12 @@ type BlogContentVisibility = {
   visibleUntil?: string;
 };
 
+/** Crédito de uma foto de terceiros: quem fez/publicou e, se houver, o link da origem. */
+export interface BlogImageCredit {
+  text: string;
+  href?: string;
+}
+
 export type BlogContentBlock = BlogContentVisibility & (
   | {
       type: "paragraph";
@@ -21,6 +27,7 @@ export type BlogContentBlock = BlogContentVisibility & (
       src: string;
       alt: string;
       caption?: string;
+      credit?: BlogImageCredit;
     }
   | {
       type: "heading";
@@ -36,6 +43,14 @@ export type BlogContentBlock = BlogContentVisibility & (
       type: "callout";
       title?: string;
       content: string;
+    }
+  | {
+      /** Botão de reserva com datas já preenchidas (use `visibleUntil` para sumir depois do evento). */
+      type: "cta";
+      label: string;
+      checkIn: string;
+      checkOut: string;
+      note?: string;
     }
   | {
       type: "source";
@@ -54,6 +69,7 @@ export interface BlogCategory {
 export interface BlogCoverImage {
   src: string;
   alt: string;
+  credit?: BlogImageCredit;
 }
 
 export interface BlogPostSeo {
@@ -75,6 +91,8 @@ export interface BlogPost {
   coverImage: BlogCoverImage;
   seo: BlogPostSeo;
   featured?: boolean;
+  /** Datas da reserva sugerida na lateral do artigo (some depois de `visibleUntil`). */
+  bookingCta?: { label: string; checkIn: string; checkOut: string; visibleUntil?: string };
   seedDemo: boolean;
   funnelStage: BlogFunnelStage;
   content: BlogContentBlock[];

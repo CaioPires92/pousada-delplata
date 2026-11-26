@@ -1,9 +1,10 @@
 'use client';
 
+import homeStyles from "@/components/home-novo/home-novo.module.css";
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ArrowRight, CalendarDays, MoonStar } from 'lucide-react';
+import { ArrowRight, CalendarDays } from 'lucide-react';
 import { buildReservarUrl, type SpecialDateConfig } from '@/constants/specialDates';
 import { useCurrentDateKey } from '@/hooks/useCurrentDateKey';
 
@@ -45,6 +46,7 @@ function getSpecialDateHref(specialDate: SpecialDateConfig) {
         });
 }
 
+// Próximos feriados: texto e lista de datas à esquerda, foto grande à direita (a foto troca com a data).
 export default function SpecialDatesSection({ dates, onDateClick }: SpecialDatesSectionProps) {
     const currentDateKey = useCurrentDateKey();
     const enabledDates = useMemo(
@@ -61,116 +63,87 @@ export default function SpecialDatesSection({ dates, onDateClick }: SpecialDates
     if (!activeDate) return null;
 
     const minNightsLabel = activeDate.minNights
-        ? `Estadia mínima ${activeDate.minNights} noite${activeDate.minNights > 1 ? 's' : ''}`
+        ? `Estadia mínima de ${activeDate.minNights} noite${activeDate.minNights > 1 ? 's' : ''}`
         : null;
     const activeHref = getSpecialDateHref(activeDate);
+    const hasAnyImage = enabledDates.some((item) => item.image);
 
     return (
-        <section className="section-space-sm border-b border-primary/10 bg-background">
-            <div className="container">
-                <div className="mx-auto max-w-[1180px]">
-                    <div className="mb-8 flex justify-center md:mb-10">
-                        <div className="inline-flex items-center gap-3 rounded-none border border-primary/10 bg-[color:var(--brand-white)] px-5 py-2 font-sans text-[0.75rem] font-medium uppercase tracking-[0.14em] text-primary/90">
-                            <CalendarDays className="h-4 w-4 text-secondary" strokeWidth={1.8} />
-                            Datas especiais
-                        </div>
+        <section className={`${homeStyles.fit} relative bg-[color:var(--brand-forest)] text-white md:pb-10 md:pt-[104px]`}>
+            <div className="container grid min-h-0 gap-8 py-10 md:h-full md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-stretch md:gap-14 md:py-0">
+                <div className="flex min-h-0 flex-col justify-center gap-7">
+                    <div>
+                        <p className={`${homeStyles.eyebrow} text-[color:var(--brand-gold)]`}>Datas especiais</p>
+                        <h2 className={`${homeStyles.display} mt-4 text-[clamp(2.2rem,min(5vw,8vh),4.4rem)]`}>
+                            Próximos <em>feriados</em>
+                        </h2>
                     </div>
 
-                    <div className="grid gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.7fr)] lg:items-center lg:gap-12">
-                        <div className="max-w-[20rem] space-y-5 xl:max-w-[21rem]">
-                            <h2 className="font-hero-display max-w-[10ch] text-[2.25rem] font-semibold leading-[0.95] text-primary sm:text-[2.75rem] lg:text-[3.15rem] xl:text-[3.35rem]">
-                                Próximos feriados
-                            </h2>
-                            <div className="h-px w-20 bg-secondary/70" />
-                            <p className="max-w-[19rem] font-sans text-[1rem] leading-7 text-foreground/72">
-                                Consulte datas de feriados e veja as acomodações disponíveis no motor de reservas.
-                            </p>
-                        </div>
+                    <div role="group" aria-label="Datas especiais" className="border-t border-white/15">
+                        {enabledDates.map((specialDate) => {
+                            const isActive = specialDate.id === activeDate.id;
 
-                        <div className="relative overflow-hidden rounded-none border border-primary/10 bg-[color:var(--brand-cream)] lg:max-w-[56rem]">
-                            {activeDate.image ? (
-                                <div className="relative aspect-[1.3/1] min-h-[320px] w-full lg:aspect-[1.38/1]">
-                                    <Image
-                                        src={activeDate.image}
-                                        alt={activeDate.title}
-                                        fill
-                                        sizes="(max-width: 1024px) 100vw, 62vw"
-                                        className="object-cover"
-                                        quality={82}
+                            return (
+                                <button
+                                    key={specialDate.id}
+                                    type="button"
+                                    aria-pressed={isActive}
+                                    onClick={() => setActiveDateId(specialDate.id)}
+                                    aria-label={`${formatSpecialDatePeriod(specialDate)} ${specialDate.title}`}
+                                    className={`group flex w-full items-center justify-between gap-4 border-b border-white/15 py-4 pl-4 pr-2 text-left transition-colors duration-300 ${isActive ? 'bg-white/[0.07] shadow-[inset_4px_0_0_var(--brand-gold)]' : 'hover:bg-white/[0.04]'}`}
+                                >
+                                    <span className="min-w-0">
+                                        <span className={`${homeStyles.display} block text-[clamp(1.4rem,min(2.6vw,4.4vh),2.2rem)] ${isActive ? 'text-[color:var(--brand-gold)]' : 'text-white/80'}`}>
+                                            {specialDate.title}
+                                        </span>
+                                        <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em] text-white/75">{formatSpecialDatePeriod(specialDate)}</span>
+                                    </span>
+                                    <ArrowRight
+                                        aria-hidden="true"
+                                        className={`h-5 w-5 shrink-0 transition-all duration-300 ${isActive ? 'translate-x-0 text-[color:var(--brand-gold)] opacity-100' : '-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-60'}`}
                                     />
-                                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,9,9,0.04)_0%,rgba(9,9,9,0.16)_100%)]" />
-                                </div>
-                            ) : (
-                                <div className="flex min-h-[320px] items-center justify-center bg-[radial-gradient(circle_at_top,rgba(187,184,99,0.24),transparent_45%),linear-gradient(180deg,rgba(187,184,99,0.16)_0%,rgba(187,184,99,0.08)_100%)]">
-                                    <CalendarDays className="h-14 w-14 text-secondary" strokeWidth={1.5} />
-                                </div>
-                            )}
-                        </div>
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    <div className="mt-10 overflow-hidden rounded-none border border-primary/10 bg-white">
-                        <div className="grid md:grid-cols-3">
-                            {enabledDates.map((specialDate, index) => {
-                                const isActive = specialDate.id === activeDate.id;
-
-                                return (
-                                    <button
-                                        key={specialDate.id}
-                                        type="button"
-                                        onClick={() => setActiveDateId(specialDate.id)}
-                                        aria-label={`${formatSpecialDatePeriod(specialDate)} ${specialDate.title}`}
-                                        className={`flex w-full items-center gap-5 px-6 py-7 text-left transition-colors duration-200 md:px-7 ${isActive ? 'bg-secondary/10' : 'bg-transparent hover:bg-secondary/5'
-                                            } ${index < enabledDates.length - 1 ? 'border-b border-primary/10 md:border-b-0 md:border-r md:border-primary/10' : ''}`}
-                                    >
-                                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-none bg-secondary/12 text-secondary">
-                                            <CalendarDays className="h-7 w-7" strokeWidth={1.6} />
-                                        </span>
-                                        <span className="min-w-0">
-                                            <span className="block font-sans text-[0.88rem] font-semibold uppercase tracking-[0.12em] text-primary/90">
-                                                {formatSpecialDatePeriod(specialDate)}
-                                            </span>
-                                            <span className="mt-1 block font-sans text-[1.15rem] font-semibold leading-[1.15] text-foreground">
-                                                {specialDate.title}
-                                            </span>
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    <div>
+                        <p className="max-w-[46ch] text-base leading-7 text-white/80">
+                            {activeDate.bannerLabel || activeDate.description}
+                            {minNightsLabel ? <span className="mt-1 block text-sm text-white/65">{minNightsLabel}</span> : null}
+                        </p>
+                        <Link
+                            href={activeHref}
+                            onClick={() => onDateClick?.(activeDate)}
+                            className="mt-5 inline-flex h-12 items-center gap-3 bg-[color:var(--brand-gold)] px-7 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                        >
+                            Ver disponibilidade
+                            <ArrowRight className="h-4 w-4" strokeWidth={2} />
+                        </Link>
                     </div>
+                </div>
 
-                    <div className="mt-6 rounded-none border border-primary/10 bg-[color:var(--brand-white)] px-6 py-6 text-primary md:px-10 md:py-8">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="flex items-start gap-4">
-                                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-none border border-secondary/30 bg-white text-secondary">
-                                    <CalendarDays className="h-7 w-7" strokeWidth={1.7} />
-                                </span>
-                                <div className="space-y-1.5">
-                                    <p className="font-sans text-[1.7rem] font-semibold leading-tight text-primary">
-                                        Consulte disponibilidade para essas datas
-                                    </p>
-                                    <p className="font-sans text-[1rem] leading-7 text-primary/84">
-                                        {activeDate.bannerLabel || activeDate.description}
-                                    </p>
-                                    {minNightsLabel ? (
-                                        <div className="inline-flex items-center gap-2 pt-1 font-sans text-sm text-primary/82">
-                                            <MoonStar className="h-4 w-4 text-secondary" strokeWidth={1.8} />
-                                            <span>{minNightsLabel}</span>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            </div>
-
-                            <Link
-                                href={activeHref}
-                                onClick={() => onDateClick?.(activeDate)}
-                                className="inline-flex h-16 items-center justify-center gap-4 rounded-none border border-primary bg-primary px-8 font-sans text-[0.95rem] font-semibold uppercase tracking-[0.12em] text-white transition-colors duration-300 hover:bg-primary/90 lg:min-w-[320px]"
-                            >
-                                Ver disponibilidade
-                                <ArrowRight className="h-5 w-5 text-secondary" strokeWidth={1.8} />
-                            </Link>
+                <div className="relative aspect-[1.4/1] overflow-hidden bg-[color:var(--brand-black)] md:aspect-auto md:min-h-0">
+                    {hasAnyImage ? (
+                        enabledDates.map((specialDate) =>
+                            specialDate.image ? (
+                                <Image
+                                    key={specialDate.id}
+                                    src={specialDate.image}
+                                    alt={specialDate.title}
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, 52vw"
+                                    quality={82}
+                                    className={`object-cover transition-opacity duration-700 ${specialDate.id === activeDate.id ? 'opacity-100' : 'opacity-0'}`}
+                                />
+                            ) : null
+                        )
+                    ) : (
+                        <div className="flex h-full min-h-[200px] items-center justify-center bg-[radial-gradient(circle_at_top,rgba(187,184,99,0.24),transparent_45%)]">
+                            <CalendarDays className="h-14 w-14 text-[color:var(--brand-gold)]" strokeWidth={1.5} />
                         </div>
-                    </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0)_55%,rgba(20,28,18,0.55)_100%)]" />
                 </div>
             </div>
         </section>

@@ -397,7 +397,7 @@ export default function SearchWidget({
     const heroFieldInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroGuestsInnerClass = 'flex h-full w-full flex-col justify-center gap-2';
     const heroDividerClass = isHeroHorizontal
-        ? 'border border-white/70 px-4 py-4 sm:px-5 sm:py-5 lg:min-h-[88px] lg:border-y-0 lg:border-l-0 lg:border-r lg:border-r-[color:var(--line-dark)]/35'
+        ? 'border border-white/70 px-4 py-4 sm:px-5 sm:py-5 lg:min-h-[76px] lg:border-y-0 lg:border-l-0 lg:border-r lg:border-r-[color:var(--line-dark)]/35'
         : '';
     const heroLabelClass = cn(
         'flex items-center gap-2 text-[0.58rem] font-semibold uppercase tracking-[0.14em]',
@@ -563,7 +563,7 @@ export default function SearchWidget({
                 "grid grid-cols-1 gap-4 items-end md:grid-cols-2",
                 isHeroPreset
                     ? isHeroHorizontal
-                        ? "gap-3 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_280px] lg:items-stretch lg:gap-0"
+                        ? "grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_280px] lg:items-stretch lg:gap-0"
                         : "gap-3 md:grid-cols-2 lg:grid-cols-1"
                     : "xl:grid-cols-[repeat(16,minmax(0,1fr))]"
             )}>
@@ -642,7 +642,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Hóspedes / Adultos / Crianças */}
-                <div className={cn("flex flex-col md:col-span-2", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1 ${isHeroHorizontal ? "md:col-span-2 lg:col-span-1" : ""}` : "xl:col-span-4")}>
+                <div className={cn("flex flex-col md:col-span-2", isHeroPreset ? `${heroFieldClass} ${heroDividerClass} lg:col-span-1 xl:col-span-1 ${isHeroHorizontal ? "col-span-2 md:col-span-2 lg:col-span-1" : ""}` : "xl:col-span-4")}>
                     <div className={cn(isHeroPreset && heroGuestsInnerClass, !isHeroPreset && heroFieldInnerClass)}>
                     <label htmlFor="adults" className={labelClass}>
                         <Users className="w-4 h-4" />
@@ -744,7 +744,7 @@ export default function SearchWidget({
                 </div>
 
                 {/* Botão de busca */}
-                <div className={cn("md:col-span-2", isHeroPreset ? `${heroButtonColumnClass} lg:col-span-1 lg:min-w-0 xl:col-span-1` : "xl:col-span-4")}>
+                <div className={cn("col-span-2 md:col-span-2", isHeroPreset ? `${heroButtonColumnClass} lg:col-span-1 lg:min-w-0 xl:col-span-1` : "xl:col-span-4")}>
                     <Button
                         type="submit"
                         size={isHeroPreset ? "default" : "lg"}
@@ -758,7 +758,7 @@ export default function SearchWidget({
                                         : 'h-[52px] border border-white/16 bg-[color:var(--brand-forest)] text-white hover:bg-[color:var(--forest-soft)] hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)]'
                                 )
                             : 'flex h-[56px] w-full min-w-[170px] items-center justify-center gap-2 border border-primary bg-primary px-5 text-sm font-semibold text-white shadow-none transition-all duration-300 hover:-translate-y-px hover:bg-primary/90 hover:shadow-[0_10px_24px_rgba(40,50,35,0.12)] focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary md:text-base'}
-                        aria-label={submitLabel}
+                        aria-label={isHeroPreset ? undefined : submitLabel}
                         onClick={() => {
                             onPrimaryCtaClick?.();
                         }}
@@ -772,12 +772,9 @@ export default function SearchWidget({
                         {isHeroPreset ? (
                             <span className="flex flex-col items-center justify-center text-center leading-none">
                                 <span className="whitespace-nowrap">{loading ? loadingLabel : 'Ver disponibilidade'}</span>
-                                <span className={cn(
-                                    "mt-1 text-[0.58rem] tracking-[0.14em]",
-                                    isHeroHorizontal ? "text-[color:var(--brand-forest)]/68" : "text-white/72"
-                                )}>
-                                    {isHeroHorizontal ? 'Melhor tarifa' : 'Consulte valores'}
-                                </span>
+                                {!isHeroHorizontal ? (
+                                    <span className="mt-1 text-[0.58rem] tracking-[0.14em] text-white/72">Consulte valores</span>
+                                ) : null}
                             </span>
                         ) : hasResponsiveLabel ? (
                             <>
@@ -791,13 +788,13 @@ export default function SearchWidget({
                 </div>
                 {showCouponField ? (
                     <div className={cn(
-                        "md:col-span-2 xl:col-span-full",
+                        "col-span-2 md:col-span-2 xl:col-span-full",
                         isHeroPreset
-                            ? "border-t border-[color:var(--line-dark)] bg-[color:var(--brand-white)] px-5 py-3"
+                            ? cn("border-t border-[color:var(--line-dark)] bg-[color:var(--brand-white)]", isHeroHorizontal ? "px-5 py-2" : "px-5 py-3")
                             : "pt-1"
                     )}>
                         <div className="flex flex-col gap-3">
-                            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-[color:var(--brand-forest)]">
+                            <label className={cn("inline-flex cursor-pointer items-center gap-2 font-semibold text-[color:var(--brand-forest)]", isHeroHorizontal ? "text-xs" : "text-sm")}>
                                 <input
                                     type="checkbox"
                                     aria-label="Adicionar cupom à busca"
