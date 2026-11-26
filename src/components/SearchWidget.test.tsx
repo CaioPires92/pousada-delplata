@@ -42,6 +42,7 @@ describe('SearchWidget', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     replaceStateSpy.mockRestore();
     pushStateSpy.mockRestore();
   });
@@ -71,6 +72,10 @@ describe('SearchWidget', () => {
   });
 
   it('atualiza o check-out e permite abrir seu calendário depois de alterar o check-in no mobile', async () => {
+    // Data fixa no meio do mês: o calendário mostra só o mês atual (de 1 a ~35 células), então "hoje + 10 dias"
+    // pode cair fora da grade e o teste passava ou falhava conforme o dia em que rodava (derrubava o build da Vercel).
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 5, 10, 12, 0, 0));
     render(<SearchWidget uiPreset="hero" />);
     const newCheckIn = addDays(new Date(), 10);
     const checkInTrigger = screen.getByTestId('checkin-trigger');
