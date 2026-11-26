@@ -15,7 +15,8 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    CreditCard
+    CreditCard,
+    MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,6 +55,7 @@ export default function AdminNavbar({ isCollapsed = false, onToggle }: AdminNavb
                 { href: '/admin/mapa', label: 'Mapa de Tarifas', icon: CalendarRange },
                 { href: '/admin/reservas', label: 'Reservas', icon: ClipboardList },
                 { href: '/admin/reserva-manual', label: 'Reserva Manual', icon: PlusCircle },
+                { href: '/admin/checkin-online', label: 'Check-in online', icon: MessageCircle },
                 { href: '/admin/quartos', label: 'Quartos', icon: Home },
             ],
         },

@@ -4,9 +4,18 @@ import { buildPageMetadata } from "@/lib/seo";
 export const metadata = buildPageMetadata({
     title: "Política de cancelamento | Pousada Delplata",
     description:
-        "Consulte as regras de cancelamento, alteração de datas e no-show aplicáveis às reservas da Pousada Delplata.",
+        "Consulte as regras de cancelamento, estorno, crédito, saída antecipada e no-show das reservas da Pousada Delplata.",
     path: "/politica-de-cancelamento",
 });
+
+const CANCELLATION_RULES = [
+    'Em caso de saída antecipada das diárias contratadas, não haverá devolução do valor pago antecipadamente e não será gerado nenhum crédito.',
+    'Aviso de cancelamento acima de 14 dias de antecedência da entrada no hotel (check-in): há estorno de 100% do valor pago, ou geramos um crédito que pode ser utilizado em outra data dentro do prazo de 3 meses.',
+    'Aviso de cancelamento com mais de 7 dias de antecedência da entrada no hotel (check-in): há estorno de 50% do valor pago, ou geramos um crédito que pode ser utilizado em outra data dentro do prazo de 3 meses.',
+    'Aviso de cancelamento com menos de 7 dias da entrada no hotel (check-in): não há estorno nem crédito.',
+    'Aviso de cancelamento com menos de 24 horas ou no-show (não comparecimento no dia da chegada): não há estorno e não há direito a crédito.',
+    'Como nosso tarifário muda sazonalmente e em feriados, o crédito é em valor e não em número de diárias.',
+] as const;
 
 export default function PoliticaDeCancelamentoPage() {
     return (
@@ -14,29 +23,25 @@ export default function PoliticaDeCancelamentoPage() {
             <PageHero eyebrow="Reservas" title={<>Política de <em>Cancelamento</em></>} />
             <div className="container mx-auto mt-10 max-w-4xl px-4">
                 <div className="rounded-xl border border-border/60 bg-white p-6 md:p-8 shadow-sm">
-                    <p className="mt-2 text-sm text-muted-foreground">Última atualização: 15/07/2026</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Última atualização: 25/11/2026</p>
 
                     <div className="mt-6 space-y-5 text-sm leading-6 text-foreground">
                         <section>
-                            <h2 className="font-hero-display font-semibold">Condições aplicáveis à reserva</h2>
                             <p>
-                                Os prazos, eventuais cobranças e condições de alteração, cancelamento ou reembolso precisam
-                                ser confirmados com a Pousada Delplata antes da conclusão da reserva.
+                                A política de cancelamento instruída pela EMBRATUR conforme Deliberação Normativa nº 165/95
+                                procede-se da seguinte forma:
                             </p>
+                            <ul className="mt-3 list-disc space-y-2 pl-5">
+                                {CANCELLATION_RULES.map((rule) => (
+                                    <li key={rule}>{rule}</li>
+                                ))}
+                            </ul>
                         </section>
 
                         <section>
-                            <h2 className="font-hero-display font-semibold">Por que não há uma regra única publicada?</h2>
+                            <h2 className="font-hero-display font-semibold">Como solicitar o cancelamento</h2>
                             <p>
-                                Esta página não anuncia prazos, percentuais, multas ou condições de no-show sem uma política
-                                comercial formalmente validada pela administração da pousada.
-                            </p>
-                        </section>
-
-                        <section>
-                            <h2 className="font-hero-display font-semibold">Como solicitar confirmação</h2>
-                            <p>
-                                Antes de pagar, solicite as condições aplicáveis às suas datas pelo e-mail{' '}
+                                Para cancelar ou tirar dúvidas, fale com a pousada pelo e-mail{' '}
                                 <a className="text-primary underline" href="mailto:contato@pousadadelplata.com.br">
                                     contato@pousadadelplata.com.br
                                 </a>{' '}

@@ -25,32 +25,34 @@ Como manter:
 - Só mesclar quando o usuário disser "aplique". Antes disso: conta Asaas aprovada, webhook configurado e `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN` e `ASAAS_ENVIRONMENT=production` na Vercel.
 - Depois do merge, esperar uns 120 dias para remover o código do Mercado Pago.
 
-### 4. Limite de pets por reserva — resolvido, mover para Concluídas na próxima edição
-- 2026-11-22: limite de 2 pets por reserva (decisão do usuário; antes 10, herdado do Villa). Valor central em `MAX_PETS_PER_BOOKING` (`src/lib/pet-policy.ts`), aplicado na busca, no seletor, na API de reservas (`invalid_pet_count`), na cotação e no preço. Taxa continua R$ 20 por pet por diária. Falta conferir em produção após o deploy.
-- O Villa segue com 10 pets e R$ 40 por pet por diária; não foi alterado.
-
-### 5. (Opcional) Upstash para o limite de login do admin
+### 4. (Opcional) Upstash para o limite de login do admin
 - Hoje o login bloqueia após 5 senhas erradas em 15 min, mas a contagem fica na memória de cada servidor da Vercel (zera ao reiniciar e não é compartilhada). Com Upstash, o limite vale de verdade.
 - Não é urgente se a senha do admin for forte e única. Para ativar: conta gratuita no Upstash e `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` na Vercel (Production). O código já usa se existirem (`src/app/api/admin/login/route.ts`).
 
-### 6. Estoque de 4 hóspedes antes de mesclar o PR de 4 pagantes
+### 5. Estoque de 4 hóspedes antes de mesclar o PR de 4 pagantes
 - Branch `fix/idade-e-4-hospedes` (2026-11-20): a busca passa a aceitar até 4 pagantes (adultos e crianças de 6 a 11) e a reserva usa o estoque de 4 hóspedes do quarto, que é um pedaço do estoque do STD (reserva de 4 baixa os dois; STD lotado fecha a de 4).
 - 2026-11-20: estoque de 4 zerado em produção em todos os quartos (antes 2 no Térreo, no Chalé e no Superior), conferido na API pública. O usuário abre dia a dia no mapa.
 - 1 criança de 0 a 5 anos pode ficar além da capacidade do quarto usado (STD = 3 até 3 pagantes; quarto de 4 com 4 pagantes). O aviso "Criança de até 5 anos é cortesia, sem cama extra." só aparece nesse caso (ajuste pedido pelo usuário em 2026-11-20).
 - Limite: o Hospedin manda só a quantidade livre por tipo, sem o número do quarto. O motor não sabe se o quarto livre é um dos que cabem 4; o estoque de 4 serve de teto e precisa ser ajustado na mão quando os quartos de 4 forem ocupados por fora do site.
 
-### 7. Reserva do site → Hospedin (código pronto, desligado)
+### 6. Reserva do site → Hospedin (código pronto, desligado)
 - Branch `feat/hospedin-reserva` (2026-11-20), usando a API v3 do Hospedin (Client ID + Secret; doc em `https://pms.hospedin.com/api-docs/v3/swagger.yaml`). Reserva confirmada no site → o site escolhe um quarto livre do tipo (a v3 exige o quarto), cria o hóspede como "SITE - Nome", cria a reserva no canal "Site" (222289) com o total das diárias e lança o valor pago (conta "Caixa Diário", categoria "Reserva"). Observação leva todos os detalhes (contato, idades, pets, promoção, cupom, total, pagamento, saldo e prazo). Nunca troca o tipo de quarto reservado. Cancelada/expirada/estornada no site → `POST /bookings/{id}/cancel`. Envio na hora da confirmação e, para o que escapar, a cada 30 min no cron do Hospedin (`src/lib/hospedin-push.ts`).
 - Desligado até `HOSPEDIN_PUSH_ENABLED=true` + `HOSPEDIN_PUSH_SINCE` + `HOSPEDIN_SITE_SALE_CHANNEL_ID` + `HOSPEDIN_CLIENT_ID`/`HOSPEDIN_CLIENT_SECRET` na Vercel. A data de corte existe porque a equipe já lança as reservas do site à mão: depois de ligar, ela para de lançar as novas.
 - [x] 2026-11-20: login na v3 e leitura conferidos (conta 906, 10 canais, 5 tipos e 33 quartos, disponibilidade por quarto).
 - [x] 2026-11-20: reserva de teste SI:020780 criada pela v3 (Chalé 28, 15→16/06/2027, canal Site, R$ 1,00), conferida no painel pelo usuário e cancelada pela API; o quarto voltou a ficar livre. O hóspede de teste não pode ser apagado (tem histórico) e foi desativado. O lançamento de pagamento ainda não foi testado de verdade.
-- [x] 2026-11-20: quartos que recebem 4: Térreo 6 e 8, Superior 9 e 16 (casal + beliche) e Chalés 23 e 24 (casal + solteiro, recebem 4 segundo o usuário) → `HOSPEDIN_FOUR_GUEST_PLACE_IDS=20181,20183,20184,20191,20201,20202`. Teto do estoque de 4 no site: Térreo 2, Superior 2, Chalé 2, Anexo 0 (pendência 6).
+- [x] 2026-11-20: quartos que recebem 4: Térreo 6 e 8, Superior 9 e 16 (casal + beliche) e Chalés 23 e 24 (casal + solteiro, recebem 4 segundo o usuário) → `HOSPEDIN_FOUR_GUEST_PLACE_IDS=20181,20183,20184,20191,20201,20202`. Teto do estoque de 4 no site: Térreo 2, Superior 2, Chalé 2, Anexo 0 (pendência 5).
 - [x] 2026-11-20: PR #21 aberto; na Vercel (Production) já estão `HOSPEDIN_CLIENT_ID`, `HOSPEDIN_CLIENT_SECRET`, `HOSPEDIN_SITE_SALE_CHANNEL_ID=222289`, `HOSPEDIN_FOUR_GUEST_PLACE_IDS` e `HOSPEDIN_PUSH_ENABLED=false`.
 - [x] 2026-11-20: PR #21 mesclado (`e2f74e6`) e deploy de produção Ready; o site e a cotação respondem, envio ao Hospedin no ar mas desligado.
 - [ ] Combinar com a equipe a data e hora de corte, pôr `HOSPEDIN_PUSH_SINCE` e `HOSPEDIN_PUSH_ENABLED=true` na Vercel e fazer um redeploy.
 - Depois: migrar a sincronização de estoque da v2 (e-mail e senha) para a v3 e avaliar gravar preços/restrições pela v3 (`PUT /prices`, `/restrictions`, `/closures`).
 - [ ] Ligar na Vercel e acompanhar os logs `HOSPEDIN_PUSH_*` na primeira semana. Trava `pending:` parada = conferir no Hospedin se a reserva foi criada (o sistema não reenvia sozinho para não duplicar).
 - Estoque: reserva enviada deixa de contar no estoque geral do site (o Hospedin já desconta), mas continua contando no estoque de 4 hóspedes, que só existe no site.
+
+### 7. Check-in online por WhatsApp (admin) — conferir em produção
+- Branch `feat/checkin-online-whatsapp` (2026-11-23). Página `/admin/checkin-online` (item "Check-in online" no menu): lista as UHs com check-in no período (padrão hoje + 7 dias) lidas do Hospedin pela API v3 (somente leitura) e, para cada uma, abre o WhatsApp (`wa.me`) com a mensagem e o `check_in_online_url` prontos. Independente do motor e da pendência 6: lê todas as reservas da conta, inclusive as lançadas à mão. Código em `src/lib/hospedin-checkin.ts`, `src/lib/checkin-whatsapp.ts` e `src/app/api/admin/checkin-online/route.ts`.
+- 2026-11-24: testado pelo usuário no preview da branch (variáveis `HOSPEDIN_CLIENT_ID`, `HOSPEDIN_CLIENT_SECRET` e `HOSPEDIN_BASE_URL` liberadas também para Preview na Vercel) e funcionou. Decisão do usuário: a ferramenta fica no site (não vai virar app separado). PR #25 mesclado na `main`.
+- [ ] Conferir em produção (`https://www.pousadadelplata.com.br/admin/checkin-online`, logado no admin) depois do deploy: telefones, links do check-in e reservas batem com o Hospedin.
+- "Enviado" fica só no navegador de quem clicou (localStorage); duas pessoas usando podem mandar duas vezes. Se isso incomodar, guardar no banco (exige coluna/tabela nova no Turso).
 
 ### 8. Novo layout da home (modelo para aprovação)
 - Branch `feat/novo-layout-paraiso` (2026-11-22), **não mesclada**: modelo da home inspirado na Pousada Paraíso e em 11 sites de pousadas de serra pesquisados. Home quase toda renderizada no servidor (HTML de 6 KB para ~120 KB), fontes Bricolage Grotesque + Instrument Serif, faixa de promessas, faixas de fotos, bento, FAQ com schema e animações GSAP.
@@ -74,10 +76,12 @@ Como manter:
 - [x] Submenu "Acomodações" no menu (por ala, com link para cada quarto; carrega /api/rooms ao abrir) — verificado por captura de tela em desktop e celular; falta o usuário aprovar no preview.
 - [ ] Usuário olhar o modelo (preview da Vercel da branch) e dizer o que mantém, muda ou descarta.
 - [ ] Ainda fora do modelo: selo de reserva direta com benefício real, preço "a partir de" por acomodação, botão fixo de reservar, WhatsApp com datas, página de feriados/pacotes com preço, depoimentos reais, vídeo/tour 360, h1 do hero no HTML (hoje está dentro do Suspense do `SearchWidget`).
-- Hospedagem, pagamento e `/reservar` não foram tocados.
+- Hospedagem e pagamento não foram tocados. Em `/reservar` mudou só a apresentação (cartões de acomodação, etapas 2 e 3 e confirmação no padrão do site); lógica de reserva, preço e pagamento intactas.
 
 ## Concluídas
 
+- 2026-11-25: política de cancelamento publicada em `/politica-de-cancelamento` com o texto enviado pelo usuário (EMBRATUR, Deliberação Normativa nº 165/95): saída antecipada sem devolução; mais de 14 dias = 100% de estorno ou crédito em 3 meses; mais de 7 dias = 50% ou crédito em 3 meses; menos de 7 dias, menos de 24 h ou no-show = sem estorno nem crédito; crédito em valor, não em diárias. Teste da página atualizado. Resumo das regras também no quadro "Cancelamento" do checkout (`src/app/reservar/page.tsx`). Os prazos ficam como estão no hotel (exatamente 14 ou 7 dias não têm regra própria; decisão do usuário). Falta conferir no site depois do deploy.
+- 2026-11-22: limite de 2 pets por reserva (antes 10, herdado do Villa), valor central em `MAX_PETS_PER_BOOKING` (`src/lib/pet-policy.ts`), aplicado na busca, no seletor, na API (`invalid_pet_count`), na cotação e no preço; taxa R$ 20 por pet por diária. O Villa segue com 10 pets e R$ 40. Falta conferir em produção após o deploy.
 - 2026-11-22: favicon novo (o "D" prata do próprio logo sobre verde, com moldura dourada): o `src/app/favicon.ico` antigo estava corrompido (cabeçalho inválido), por isso nenhum navegador mostrava ícone. Agora `favicon.ico` (16/32/48), `icon.png` e `apple-icon.png` em `src/app`, pela convenção do Next. Falta conferir na aba do navegador depois do deploy (pode demorar por causa do cache).
 - 2026-11-22: fontes Inter e Bodoni Moda carregadas de verdade com `next/font` (`src/app/fonts.ts`), em vez de cair na fonte do sistema. Build, tipos e testes ok; falta conferir no site depois do deploy.
 - 2026-11-20: `CRON_SECRET` gerado de novo (o dono gravou o mesmo valor na Vercel e em `HOSPEDIN_CRON_SECRET` no GitHub) + redeploy. Disparo manual ok: 61 dias × 4 quartos; Superior mudou 2 dias; Térreo 20–21/11 tinha ajuste manual 1 (Hospedin 1 livre); a pedido do dono voltou ao automático (site 0).
