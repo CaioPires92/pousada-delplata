@@ -99,7 +99,8 @@ export default function ContactPage() {
                         </div>
 
                         <div className="h-[300px] w-full overflow-hidden border border-primary/10">
-                            <iframe 
+                            <iframe
+                                title="Mapa com a localização da Pousada Delplata, em Serra Negra"
                                 src="https://maps.google.com/maps?q=R.+Vicente+Frederico+Leporas,+151,+Bairro+das+Posses,+Serra+Negra+-+SP,+13930-000&t=&z=15&ie=UTF8&iwloc=&output=embed"
                                 width="100%" 
                                 height="100%" 

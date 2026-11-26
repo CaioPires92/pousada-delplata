@@ -40,7 +40,7 @@ export function BlogCta({
         )}
       >
         <div className={cn("space-y-3", compact ? "w-full" : "max-w-2xl")}>
-          <p className="font-accent text-[0.72rem] font-medium uppercase tracking-[0.18em] text-[color:var(--brand-gold)]">
+          <p className="font-accent text-[0.72rem] font-bold uppercase tracking-[0.18em] text-[color:var(--brand-forest)]">
             Reserva direta
           </p>
           <h2
