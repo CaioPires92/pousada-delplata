@@ -2,6 +2,8 @@
 
 ## Mapa rápido
 
+- `PENDENCIAS.md` (raiz do repositório): a **única** lista de pendências do site e do motor. Não crie outra; os antigos `docs/PENDENCIAS.md` e `todo.md` foram incorporados a ela e ficam em `docs/root-legacy/`.
+
 - `docs/architecture/PROJECT_BOUNDARIES.md`: limites do site e motor de reservas.
 - `docs/architecture/REPO_OWNERSHIP_MAP.md`: responsabilidades por pasta.
 - `docs/architecture/MAPA_SOURCE_OF_TRUTH.md`: fonte oficial de tarifas, inventário e disponibilidade.
@@ -16,4 +18,4 @@
 
 ## Histórico
 
-- `docs/root-legacy/`: material antigo preservado para referência do site.
+- `docs/root-legacy/`: material antigo preservado para referência do site. Inclui `PENDENCIAS-motor-2026-11-21.md` e `todo-fluxo-pagamentos.md`, os textos originais das listas antigas.
