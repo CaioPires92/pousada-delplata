@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { type GalleryPhoto, PhotoLightbox } from "@/components/home-novo/PhotoLightbox";
 import { buildRoomGalleryPhotos } from "@/lib/room-gallery";
 import { getLocalRoomPhotos } from "@/lib/room-photos";
+import { roomAcceptsPets } from "@/lib/pet-policy";
 import { sortRoomsForDisplay } from "@/lib/rooms";
 import { fromDayKey, minStayMessage, toDayKey, validateBookingSearch, type ChildAge } from "@/lib/booking-search";
 
@@ -27,6 +28,14 @@ type HomeOffer = {
   totalPrice: number | string;
   photos?: Array<{ url?: string | null }>;
 };
+
+/** Quarto sem vaga na data da busca: aparece no painel com a próxima data em que há vaga. */
+type SoldOutInfo =
+  | { status: "searching" }
+  | { status: "found"; search: { checkIn: string; checkOut: string; nights: number }; totalPrice: number }
+  | { status: "none" };
+
+type PanelRoom = HomeOffer & { soldOut?: SoldOutInfo };
 
 type OfferWindow = {
   checkIn: string;
@@ -50,6 +59,8 @@ export type HomeOfferSummary = {
 
 type HomeAvailabilityOffersProps = {
   onLowestOfferChange?: (summary: HomeOfferSummary | null) => void;
+  /** Mostra também os quartos sem vaga na data, com aviso e a próxima data disponível. */
+  showSoldOutRooms?: boolean;
 };
 
 type RoomGalleryState = {
@@ -155,15 +166,55 @@ async function requestOffers(search: OfferSearch, signal: AbortSignal) {
   return { response, data };
 }
 
+// Quantos dias à frente procurar a próxima vaga de um quarto sem disponibilidade, e quantas datas consultar por vez.
+const NEXT_AVAILABLE_WINDOW_DAYS = 30;
+const NEXT_AVAILABLE_BATCH = 5;
+
+/** Procura, data a data, a primeira vez em que cada quarto da lista volta a aparecer na disponibilidade. */
+async function findNextAvailability(base: OfferSearch, roomIds: string[], signal: AbortSignal) {
+  const found = new Map<string, { search: OfferSearch; totalPrice: number }>();
+
+  for (let start = 1; start <= NEXT_AVAILABLE_WINDOW_DAYS && found.size < roomIds.length; start += NEXT_AVAILABLE_BATCH) {
+    const offsets = Array.from(
+      { length: Math.min(NEXT_AVAILABLE_BATCH, NEXT_AVAILABLE_WINDOW_DAYS - start + 1) },
+      (_, index) => start + index,
+    );
+    const results = await Promise.all(
+      offsets.map(async (offset) => {
+        const search = moveSearchByDays(base, offset);
+        try {
+          const result = await requestOffers(search, signal);
+          return { search, data: result.response.ok && Array.isArray(result.data) ? (result.data as HomeOffer[]) : [] };
+        } catch (error) {
+          if ((error as Error)?.name === "AbortError") throw error;
+          return { search, data: [] as HomeOffer[] };
+        }
+      }),
+    );
+
+    // Os resultados vêm na ordem das datas: a primeira que traz o quarto é a próxima com vaga.
+    for (const { search, data } of results) {
+      for (const room of data) {
+        if (roomIds.includes(room.id) && !found.has(room.id) && Number(room.totalPrice) > 0) {
+          found.set(room.id, { search, totalPrice: Number(room.totalPrice) });
+        }
+      }
+    }
+  }
+
+  return found;
+}
+
 // No modal a idade começa vazia: a criança só entra na cotação depois que o hóspede escolhe a idade.
 type DraftSearch = Omit<OfferSearch, "childrenAges"> & { childrenAges: ChildAge[] };
 
-export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvailabilityOffersProps) {
+export default function HomeAvailabilityOffers({ onLowestOfferChange, showSoldOutRooms = false }: HomeAvailabilityOffersProps) {
   const initialSearch = useMemo(() => makeSearch(1), []);
   const [offerSearch, setOfferSearch] = useState(initialSearch);
   const [draftSearch, setDraftSearch] = useState<DraftSearch>(initialSearch);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [offers, setOffers] = useState<HomeOffer[] | null>(null);
+  const [soldOutRooms, setSoldOutRooms] = useState<PanelRoom[]>([]);
   const [unavailable, setUnavailable] = useState(false);
   const [roomGallery, setRoomGallery] = useState<RoomGalleryState | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -183,6 +234,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
 
       try {
         setOffers(null);
+        setSoldOutRooms([]);
         setUnavailable(false);
 
         let nextSearch = offerSearch;
@@ -257,6 +309,10 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
               }
             : null,
         );
+
+        if (showSoldOutRooms && validOffers.length > 0) {
+          void loadSoldOutRooms(nextSearch, validOffers, controller.signal);
+        }
       } catch (error) {
         if ((error as Error)?.name === "AbortError") return;
         setOffers([]);
@@ -265,9 +321,58 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
       }
     }
 
+    // Quartos que existem mas não voltaram na disponibilidade desta data (e que cabem no grupo de hóspedes).
+    async function loadSoldOutRooms(search: OfferSearch, available: HomeOffer[], signal: AbortSignal) {
+      try {
+        const response = await fetch("/api/rooms", { cache: "no-store", signal });
+        const rooms = response?.ok ? await response.json().catch(() => null) : null;
+        if (!Array.isArray(rooms)) return;
+
+        const availableIds = new Set(available.map((room) => room.id));
+        const guests = search.adults + search.children;
+        const missing: HomeOffer[] = rooms
+          .filter((room: HomeOffer) => room?.id && room?.name && !availableIds.has(room.id))
+          .filter((room: HomeOffer) => {
+            const capacity = Number(room.maxGuests || room.capacity || 0);
+            return capacity === 0 || capacity >= guests;
+          })
+          .filter((room: HomeOffer) => search.pets === 0 || roomAcceptsPets(room.name))
+          .map((room: HomeOffer) => ({ ...room, totalPrice: 0 }));
+        if (missing.length === 0) return;
+
+        setSoldOutRooms(missing.map((room) => ({ ...room, soldOut: { status: "searching" as const } })));
+
+        const next = await findNextAvailability(search, missing.map((room) => room.id), signal);
+        if (signal.aborted) return;
+        setSoldOutRooms(
+          missing.map((room) => {
+            const hit = next.get(room.id);
+            return {
+              ...room,
+              soldOut: hit
+                ? { status: "found" as const, search: hit.search, totalPrice: hit.totalPrice }
+                : { status: "none" as const },
+            };
+          }),
+        );
+      } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
+        // Sem a lista de quartos o painel segue só com o que tem vaga.
+      }
+    }
+
     void loadOffers();
     return () => controller.abort();
-  }, [initialSearch, offerSearch, onLowestOfferChange]);
+  }, [initialSearch, offerSearch, onLowestOfferChange, showSoldOutRooms]);
+
+  // Ordem fixa dos quartos (Térreo, Superior, Chalé, Anexo), com os sem vaga entre os demais.
+  const panelRooms = useMemo<PanelRoom[]>(
+    () => (offers ? sortRoomsForDisplay<PanelRoom>([...offers.slice(0, 4), ...soldOutRooms]) : []),
+    [offers, soldOutRooms],
+  );
+  // Sem o hóspede ter escolhido, abre o primeiro quarto que tem vaga (não o que está sem vaga).
+  const firstAvailableIndex = panelRooms.findIndex((room) => !room.soldOut);
+  const openPanelIndex = panelTouched ? activePanel : Math.max(0, firstAvailableIndex);
 
   const resultUrl = `/reservar?${new URLSearchParams({
     checkIn: offerSearch.checkIn,
@@ -359,7 +464,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
             </button>
             <p
               aria-hidden="true"
-              className={`hidden text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)] transition-opacity duration-500 md:inline-flex md:items-center md:gap-2 ${panelTouched || !offers || offers.length < 2 ? "opacity-0" : "opacity-100"}`}
+              className={`hidden text-[0.7rem] font-bold uppercase tracking-[0.16em] text-[color:var(--brand-forest)] transition-opacity duration-500 md:inline-flex md:items-center md:gap-2 ${panelTouched || panelRooms.length < 2 ? "opacity-0" : "opacity-100"}`}
             >
               Passe o mouse pelos quartos
               <span className="inline-block animate-[wing-nudge_1.6s_ease-in-out_infinite]">→</span>
@@ -473,7 +578,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
           </div>
         ) : (
           <div className="flex min-h-0 flex-col gap-3 md:flex-1 md:flex-row md:gap-2">
-            {sortRoomsForDisplay(offers.slice(0, 4)).map((room, roomIndex) => {
+            {panelRooms.map((room, roomIndex) => {
               const photos = getOfferPhotos(room);
               const image = photos[0] ?? null;
               const canOpenGallery = photos.length > 0;
@@ -484,7 +589,18 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                 .slice(0, 3);
               const maxGuests = Number(room.maxGuests || room.capacity || 0);
               const roomUrl = `${resultUrl}&roomTypeId=${encodeURIComponent(room.id)}`;
-              const isActive = activePanel === roomIndex;
+              const isActive = openPanelIndex === roomIndex;
+              const soldOut = room.soldOut;
+              const nextUrl = soldOut?.status === "found"
+                ? `/reservar?${new URLSearchParams({
+                    checkIn: soldOut.search.checkIn,
+                    checkOut: soldOut.search.checkOut,
+                    adults: String(offerSearch.adults),
+                    children: String(offerSearch.children),
+                    ...(offerSearch.children > 0 ? { childrenAges: offerSearch.childrenAges.slice(0, offerSearch.children).map((age) => String(age)).join(",") } : {}),
+                    roomTypeId: room.id,
+                  }).toString()}`
+                : null;
               const choosePanel = () => {
                 setPanelTouched(true);
                 setActivePanel(roomIndex);
@@ -496,7 +612,7 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                   onMouseEnter={choosePanel}
                   onFocus={choosePanel}
                   style={{ "--grow": isActive ? 5 : 1 } as React.CSSProperties}
-                  className="group relative min-h-[360px] overflow-hidden bg-[color:var(--brand-forest)] text-white transition-[flex] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:min-h-0 md:[flex:var(--grow)_1_0%]"
+                  className={`group relative overflow-hidden bg-[color:var(--brand-forest)] text-white transition-[flex] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:min-h-0 md:[flex:var(--grow)_1_0%] ${soldOut ? "min-h-[440px]" : "min-h-[360px]"}`}
                 >
                   {image ? (
                     <Image
@@ -505,10 +621,10 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                       fill
                       sizes="(max-width: 767px) 100vw, 70vw"
                       quality={82}
-                      className="object-cover transition-transform duration-1000 group-hover:scale-105"
+                      className={`object-cover transition-transform duration-1000 group-hover:scale-105 ${soldOut ? "saturate-50" : ""}`}
                     />
                   ) : null}
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,28,18,0.05)_30%,rgba(20,28,18,0.9)_100%)] max-md:bg-[linear-gradient(180deg,rgba(20,28,18,0.35)_0%,rgba(20,28,18,0.92)_70%)]" />
+                  <div className={`absolute inset-0 ${soldOut ? "bg-[linear-gradient(180deg,rgba(20,28,18,0.35)_20%,rgba(20,28,18,0.92)_100%)]" : "bg-[linear-gradient(180deg,rgba(20,28,18,0.05)_30%,rgba(20,28,18,0.9)_100%)] max-md:bg-[linear-gradient(180deg,rgba(20,28,18,0.35)_0%,rgba(20,28,18,0.92)_70%)]"}`} />
 
                   {canOpenGallery ? (
                     <button
@@ -528,7 +644,12 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                     <span className={`${homeStyles.display} rotate-180 text-xl [writing-mode:vertical-rl]`}>{room.name}</span>
                   </div>
 
-                  {canOpenGallery ? (
+                  {soldOut ? (
+                    <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-2 bg-white px-3 py-1.5 text-xs font-bold text-[color:var(--brand-forest)]">
+                      <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                      {isOfferToday ? "Indisponível hoje" : "Indisponível nestas datas"}
+                    </span>
+                  ) : canOpenGallery ? (
                     <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold">
                       <Camera className="h-3.5 w-3.5" aria-hidden="true" />
                       Ver fotos ({photos.length})
@@ -554,21 +675,59 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange }: HomeAvai
                         ))}
                       </ul>
                     ) : null}
-                    <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
-                      <div>
-                        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/80">
-                          Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"} · {offerRangeLabel}
-                        </p>
-                        <p className={`${homeStyles.display} mt-1 text-[2.1rem]`}>{formatBrl(Number(room.totalPrice))}</p>
-                        <p className="mt-1 text-xs text-white/75">{guestLabel} · só para essas datas</p>
+                    {soldOut ? (
+                      <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
+                        <div>
+                          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-gold)]">
+                            {soldOut.status === "found" ? "Próxima data disponível" : "Sem vaga por enquanto"}
+                          </p>
+                          {soldOut.status === "found" ? (
+                            <>
+                              <p className={`${homeStyles.display} mt-1 text-[1.8rem]`}>{formatShortRange(soldOut.search.checkIn, soldOut.search.checkOut)}</p>
+                              <p className="mt-1 text-xs text-white/75">
+                                Total para {soldOut.search.nights} {soldOut.search.nights === 1 ? "noite" : "noites"}: {formatBrl(soldOut.totalPrice)} · {guestLabel}
+                              </p>
+                            </>
+                          ) : soldOut.status === "searching" ? (
+                            <p className="mt-1 text-sm text-white/85">Procurando a próxima data com vaga…</p>
+                          ) : (
+                            <p className="mt-1 text-sm text-white/85">Sem vaga nos próximos {NEXT_AVAILABLE_WINDOW_DAYS} dias. Consulte outras datas.</p>
+                          )}
+                        </div>
+                        {nextUrl ? (
+                          <Link
+                            href={nextUrl}
+                            className="pointer-events-auto inline-flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                          >
+                            Ver essa data <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        ) : soldOut.status === "none" ? (
+                          <button
+                            type="button"
+                            onClick={openSearchModal}
+                            className="pointer-events-auto inline-flex h-12 items-center justify-center gap-2 border border-white/60 px-6 text-xs font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-white/10"
+                          >
+                            Consultar outras datas
+                          </button>
+                        ) : null}
                       </div>
-                      <Link
-                        href={roomUrl}
-                        className="pointer-events-auto inline-flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
-                      >
-                        Escolher esta acomodação <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-                    </div>
+                    ) : (
+                    <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-3">
+                        <div>
+                          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-white/80">
+                            Total para {offerSearch.nights} {offerSearch.nights === 1 ? "noite" : "noites"} · {offerRangeLabel}
+                          </p>
+                          <p className={`${homeStyles.display} mt-1 text-[2.1rem]`}>{formatBrl(Number(room.totalPrice))}</p>
+                          <p className="mt-1 text-xs text-white/75">{guestLabel} · só para essas datas</p>
+                        </div>
+                        <Link
+                          href={roomUrl}
+                          className="pointer-events-auto inline-flex h-12 items-center justify-center gap-2 bg-[color:var(--brand-gold)] px-6 text-xs font-bold uppercase tracking-[0.1em] text-[color:var(--brand-forest)] transition-opacity hover:opacity-90"
+                        >
+                          Escolher esta acomodação <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </article>
               );

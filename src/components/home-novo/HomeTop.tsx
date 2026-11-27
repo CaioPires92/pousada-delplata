@@ -97,7 +97,7 @@ export default function HomeTop() {
 
       <ProofStrip />
 
-      <HomeAvailabilityOffers onLowestOfferChange={handleLowestOfferChange} />
+      <HomeAvailabilityOffers onLowestOfferChange={handleLowestOfferChange} showSoldOutRooms />
     </>
   );
 }
