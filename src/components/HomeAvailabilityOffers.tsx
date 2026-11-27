@@ -644,17 +644,20 @@ export default function HomeAvailabilityOffers({ onLowestOfferChange, showSoldOu
                     <span className={`${homeStyles.display} rotate-180 text-xl [writing-mode:vertical-rl]`}>{room.name}</span>
                   </div>
 
-                  {soldOut ? (
-                    <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-2 bg-white px-3 py-1.5 text-xs font-bold text-[color:var(--brand-forest)]">
-                      <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-                      {isOfferToday ? "Indisponível hoje" : "Indisponível nestas datas"}
-                    </span>
-                  ) : canOpenGallery ? (
-                    <span className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold">
-                      <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-                      Ver fotos ({photos.length})
-                    </span>
-                  ) : null}
+                  <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col items-start gap-2">
+                    {canOpenGallery ? (
+                      <span className="inline-flex items-center gap-2 bg-[rgba(40,50,35,0.9)] px-3 py-1.5 text-xs font-semibold">
+                        <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                        Ver fotos ({photos.length})
+                      </span>
+                    ) : null}
+                    {soldOut ? (
+                      <span className="inline-flex items-center gap-2 bg-white px-3 py-1.5 text-xs font-bold text-[color:var(--brand-forest)]">
+                        <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                        {isOfferToday ? "Indisponível hoje" : "Indisponível nestas datas"}
+                      </span>
+                    ) : null}
+                  </div>
 
                   {/* Painel aberto (desktop) / sempre visível (celular) */}
                   <div
